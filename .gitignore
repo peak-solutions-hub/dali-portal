@@ -18,6 +18,9 @@ coverage
 # Turbo
 .turbo
 
+# For local planning files
+.plans/
+
 # Vercel
 .vercel
 
