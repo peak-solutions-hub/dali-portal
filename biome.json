@@ -1,6 +1,6 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
-	"vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
+	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
 	"files": { "ignoreUnknown": false },
 	"formatter": { "enabled": true, "indentStyle": "tab" },
 	"linter": {
@@ -126,7 +126,10 @@
 			}
 		},
 		{
-			"includes": ["src/**/*.service.ts", "src/**/*.controller.ts"],
+			"includes": [
+				"apps/backend/src/**/*.service.ts",
+				"apps/backend/src/**/*.controller.ts"
+			],
 			"linter": {
 				"rules": {
 					"style": {
