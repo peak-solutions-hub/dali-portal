@@ -128,12 +128,14 @@
 		{
 			"includes": [
 				"apps/backend/src/**/*.service.ts",
-				"apps/backend/src/**/*.controller.ts"
+				"apps/backend/src/**/*.controller.ts",
+				"**/*.cjs"
 			],
 			"linter": {
 				"rules": {
 					"style": {
-						"useImportType": "off"
+						"useImportType": "off",
+						"noCommonJs": "off"
 					}
 				}
 			}
