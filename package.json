@@ -7,10 +7,14 @@
 		"lint": "turbo run lint",
 		"check-types": "turbo run check-types",
 		"format-and-lint": "biome check .",
-		"format-and-lint:fix": "biome check . --write"
+		"format-and-lint:fix": "biome check . --write",
+		"prepare": "husky"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.0",
+		"@commitlint/cli": "^20.2.0",
+		"@commitlint/config-conventional": "^20.2.0",
+		"husky": "^9.1.7",
 		"turbo": "^2.6.3",
 		"typescript": "5.9.2"
 	},
