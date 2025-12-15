@@ -3,15 +3,27 @@
 	"version": "0.0.0",
 	"private": true,
 	"exports": {
-		"./*": "./src/*.tsx"
+		"./*": "./src/*.tsx",
+		"./globals.css": "./src/styles/globals.css",
+		"./postcss.config": "./postcss.config.mjs",
+		"./lib/*": "./src/lib/*.ts",
+		"./components/*": "./src/components/*.tsx",
+		"./hooks/*": "./src/hooks/*.ts"
 	},
 	"scripts": {
 		"lint": "biome check",
 		"format": "biome format --write",
 		"generate:component": "turbo gen react-component",
-		"check-types": "tsc --noEmit"
+		"check-types": "tsc --noEmit",
+		"build:styles": "tailwindcss -i ./src/styles.css -o ./dist/index.css",
+		"build:components": "tsc",
+		"dev:styles": "tailwindcss -i ./src/styles.css -o ./dist/index.css --watch",
+		"dev:components": "tsc --watch"
 	},
 	"devDependencies": {
+		"@tailwindcss/postcss": "^4.1.18",
+		"autoprefixer": "^10.4.20",
+		"tailwindcss": "^4.1.18",
 		"@repo/typescript-config": "workspace:*",
 		"@types/node": "^22.15.3",
 		"@types/react": "19.2.2",

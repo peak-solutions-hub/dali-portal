@@ -1,3 +1,4 @@
+import { Button } from "@repo/ui/components/button";
 import Image from "next/image";
 
 export default function Home() {
@@ -59,6 +60,9 @@ export default function Home() {
 						Documentation
 					</a>
 				</div>
+				<Button className="text-amber-200" size="sm">
+					Repo UI Button
+				</Button>
 			</main>
 		</div>
 	);
