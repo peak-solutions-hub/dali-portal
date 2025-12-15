@@ -4,9 +4,11 @@
 
 ---
 
-### 📜 Description
+### 📜 What does this pull request do?
 
-A clear, concise summary of the changes being introduced. What problem does this PR solve, and what is the outcome?
+Provide a clear, concise summary of the changes using bullet points.
+- First item in the list
+- Second item in the list
 
 ---
 
@@ -41,7 +43,7 @@ Please ensure all necessary steps have been completed before requesting a review
 * [ ] I have performed a self-review of my code.
 * [ ] I have checked for mobile responsiveness (if applicable).
 * [ ] I have tested my changes thoroughly against the acceptance criteria.
-* [ ] My code follows the established style guide (e.g., passes linting/Biome).
+* [ ] My code follows the established style guide (e.g., passes linting/Prettier).
 * [ ] I have updated any relevant documentation (e.g., README or inline comments).
 
 
