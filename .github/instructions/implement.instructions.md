@@ -4,6 +4,19 @@ description: Team workflow, tone, and planning conventions for Copilot Chat.
 applyTo: "**"
 ---
 
+## Tech Stack Guidelines
+* **Frontend (Next.js):**
+    * **Public Pages:** Default to Server Components. Fetch data directly in the component.
+    * **Internal Dashboard:** Use `use client`. Manage complex local state with **Zustand**.
+    * **Forms:** Use `react-hook-form` + `zod` for validation.
+* **Backend (NestJS/Supabase):**
+    * **Auth:** Rely on Supabase Auth; never store passwords.
+    * **Data Access:** Enforce **Row-Level Security (RLS)** policies in Supabase.
+
+## Coding Style & Patterns
+* **Naming:** PascalCase for Components, camelCase for functions/vars.
+* **Folder Structure:** Follow `@/src/app`, `@/src/components`, `@/src/lib`.
+
 ## Collaboration + tone
 
 - Be direct, concise, and practical.
