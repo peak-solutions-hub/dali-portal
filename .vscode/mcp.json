@@ -3,6 +3,18 @@
 		"atlassian/atlassian-mcp-server": {
 			"type": "http",
 			"url": "https://mcp.atlassian.com/v1/sse"
+		},
+		"context7": {
+			"type": "http",
+			"url": "https://mcp.context7.com/mcp"
+		},
+		"supabase": {
+			"type": "http",
+			"url": "https://mcp.supabase.com/mcp?project_ref=nuhhfqopetrlqzheqthe"
+		},
+		"figma": {
+			"type": "http",
+			"url": "https://mcp.figma.com/mcp"
 		}
 	},
 	"inputs": []
