@@ -2,6 +2,19 @@
 
 These instructions apply to all GitHub Copilot Chat requests in this workspace.
 
+## 1. Project Context & Tech Stack
+* **Frameworks:** Next.js 14+ (App Router), NestJS (Backend API).
+* **Database & Auth:** Supabase (PostgreSQL, Auth, Storage).
+* **Styling:** Tailwind CSS, Shadcn/UI components.
+* **State Management:** Zustand (Internal System only).
+
+## 2. Architectural "Hard Rules"
+* **Public Portal (Citizen-facing):** MUST use **Server-Side Rendering (SSR)** for SEO and performance. Do not use `use client` unless strictly necessary.
+* **Internal Management System (Staff-facing):** MUST use **Client-Side Rendering (CSR)** with the `use client` directive for interactivity.
+* **Security:** Verify roles (e.g., `OVM_STAFF`, `ADMIN_HEAD`) via server-side checks, not just client-side conditional rendering.
+* **Data Privacy:** Avoid exposing personally identifiable information (PII) in client code or logs. Use generic error messages to prevent account enumeration.
+
+
 ## Always
 
 - Follow the project SRS language and intent: public transparency + internal operational efficiency for the Iloilo City Vice Mayor’s Office.
