@@ -34,7 +34,7 @@ COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/package.json ./package.json
 
 # Install only production deps
-RUN npm install --only=production
+RUN npm install --production
 
 USER nestjs
 
