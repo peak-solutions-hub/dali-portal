@@ -21,13 +21,14 @@ applyTo: "**"
   - `IF <condition> THEN <system> SHALL <response>`
   - `WHILE <state> THEN <system> SHALL <invariant>`
 - Explicitly call out:
-  - Roles and permissions (Public vs. internal roles)
+  - - **Roles and permissions:** Use specific User Classes (e.g., `BE-6 VM Admin Office Staff Head`)
   - Privacy constraints (avoid account enumeration; minimize PII exposure)
   - Time zone requirements (Philippine Time, GMT+8) when timestamps/scheduling exists
   - Accessibility constraints (WCAG AA)
 
 ## Design writing rules
-
+- **Architecture Check:** Explicitly define if the feature belongs in the Public Portal (SSR) or Internal System (CSR).
+- **Domain Alignment:** Align DB schema changes with existing Domain Models (Inquiries, Documents, Sessions).
 - Keep design tied to requirements; every major design element should map to one or more `FR/NFR/CON`.
 - Include only what is needed to implement the feature (avoid gold-plating).
 - Include a short "Error Handling" section that defines user-safe errors and logging expectations.
