@@ -4,10 +4,9 @@
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",
-		"lint": "turbo run lint",
+		"lint": "biome check .",
+		"lint:fix": "biome check . --write",
 		"check-types": "turbo run check-types",
-		"format-and-lint": "biome check .",
-		"format-and-lint:fix": "biome check . --write",
 		"prepare": "husky"
 	},
 	"devDependencies": {
