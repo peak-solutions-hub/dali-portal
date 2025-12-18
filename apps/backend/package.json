@@ -7,8 +7,8 @@
 	"license": "UNLICENSED",
 	"scripts": {
 		"build": "nest build",
-		"format": "",
-		"lint": "",
+		"format": "biome format --write",
+		"lint": "biome check",
 		"start": "nest start",
 		"start:dev": "nest start --watch",
 		"start:debug": "nest start --debug --watch",
