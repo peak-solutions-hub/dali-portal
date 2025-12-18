@@ -1,3 +1,5 @@
+name: Lint and Build
+
 on:
   push:
     branches:
@@ -22,7 +24,7 @@ jobs:
           node-version: "22"
           cache: "pnpm"
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Check types
         run: pnpm run check-types
       - name: Lint projects
