@@ -1,3 +1,5 @@
+name: Lint and Build
+
 on:
   push:
     branches:
@@ -10,6 +12,8 @@ on:
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - name: Install pnpm
@@ -22,7 +26,7 @@ jobs:
           node-version: "22"
           cache: "pnpm"
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Check types
         run: pnpm run check-types
       - name: Lint projects
