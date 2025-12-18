@@ -14,7 +14,16 @@ These instructions apply to all GitHub Copilot Chat requests in this workspace.
 * **Security:** Verify roles (e.g., `OVM_STAFF`, `ADMIN_HEAD`) via server-side checks, not just client-side conditional rendering.
 * **Data Privacy:** Avoid exposing personally identifiable information (PII) in client code or logs. Use generic error messages to prevent account enumeration.
 
-
+## 3. Tooling Strategy (MCP Configuration)
+* **Atlassian Server (`atlassian/atlassian-mcp-server`):**
+  * **Rule:** IF the request implies a task, feature, or bug fix, ALWAYS fetch the relevant Jira ticket first.
+* **Supabase Server (`supabase`):**
+  * **Rule:** IF the request involves data, schema, or auth, ALWAYS inspect the live schema/policies first.
+* **Figma Server (`figma`):**
+  * **Rule:** IF the request implies UI/UX design (e.g., "create a form") OR a Figma URL is present, use `figma` tools to inspect layout.
+* **Context7 Server (`context7`):** <-- NEW
+  * **Rule:** IF the request requires external documentation (e.g., "how to use Supabase Auth v2"), use `context7` to search official docs.
+  
 ## Always
 
 - Follow the project SRS language and intent: public transparency + internal operational efficiency for the Iloilo City Vice Mayor’s Office.
