@@ -1,3 +1,3 @@
 export default function VisitorAndBeneficiaryHub() {
-  return <div>visit</div>;
+	return <div>visit</div>;
 }

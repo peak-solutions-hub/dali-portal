@@ -1,3 +1,3 @@
 export default function Inquiries() {
-  return <div>inquiries</div>;
+	return <div>inquiries</div>;
 }

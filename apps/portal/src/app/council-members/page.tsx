@@ -1,3 +1,3 @@
 export default function CouncilMembers() {
-  return <div>council</div>;
+	return <div>council</div>;
 }

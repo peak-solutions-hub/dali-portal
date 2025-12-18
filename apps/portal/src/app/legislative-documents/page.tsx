@@ -1,3 +1,3 @@
 export default function LegislativeDocuments() {
-  return <div>legis</div>;
+	return <div>legis</div>;
 }

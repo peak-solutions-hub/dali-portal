@@ -1,3 +1,3 @@
 export default function Sessions() {
-  return <div>sessions</div>;
+	return <div>sessions</div>;
 }
