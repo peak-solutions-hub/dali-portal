@@ -1,4 +1,4 @@
-name: Build and Push Images
+name: Build, Push, and Deploy Images
 
 on:
   push:
@@ -12,8 +12,9 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-and-push:
+  build-push-deploy:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
     strategy:
       matrix:
         include:
