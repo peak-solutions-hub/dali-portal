@@ -14,22 +14,24 @@ env:
 jobs:
   build-push-deploy:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    environment:
+      name: ${{ format('{0}-{1}', github.ref_name == 'main' && 'production' || 'staging', matrix.app) }}
+      url: ${{ matrix.deployment_url }}
     strategy:
       matrix:
         include:
           - app: portal
             dockerfile: apps/portal/Dockerfile
             context: .
-            webhook_secret: COOLIFY_PORTAL_WEBHOOK
+            deployment_url: https://dali-portal.josearron.dev
           - app: admin
             dockerfile: apps/admin/Dockerfile
             context: .
-            webhook_secret: COOLIFY_ADMIN_WEBHOOK
+            deployment_url: https://admin-dali-portal.josearron.dev
           - app: backend
             dockerfile: apps/backend/Dockerfile
             context: .
-            webhook_secret: COOLIFY_BACKEND_WEBHOOK
+            deployment_url: https://api-dali-portal.josearron.dev
     permissions:
       contents: read
       packages: write
@@ -72,6 +74,6 @@ jobs:
 
       - name: Deploy ${{ matrix.app }} to Coolify
         env:
-          WEBHOOK_URL: ${{ secrets[matrix.webhook_secret] }}
+          WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK }}
         run: |
           curl --request GET "$WEBHOOK_URL" --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
