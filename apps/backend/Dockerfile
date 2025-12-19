@@ -22,6 +22,9 @@ COPY --from=installer /app/ .
 COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo build --filter=backend
 
+# Isolate build files and prod deps
+RUN pnpm deploy --filter=backend --prod /prod/backend
+
 # Production image
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -30,8 +33,7 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 
-COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nestjs:nodejs /prod/backend .
 
 USER nestjs
 
