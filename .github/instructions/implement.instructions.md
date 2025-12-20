@@ -14,7 +14,7 @@ applyTo: "**"
     * **Data Access:** Enforce **Row-Level Security (RLS)** policies in Supabase.
 
 ## Coding Style & Patterns
-* **Naming:** PascalCase for Components, camelCase for functions/vars.
+* **Naming:** kebab-case for files, PascalCase for component names, camelCase for functions/vars.
 * **Folder Structure:** Follow `@/src/app`, `@/src/components`, `@/src/lib`.
 
 ## Collaboration + tone

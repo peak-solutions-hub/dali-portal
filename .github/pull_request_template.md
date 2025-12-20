@@ -43,7 +43,7 @@ Please ensure all necessary steps have been completed before requesting a review
 * [ ] I have performed a self-review of my code.
 * [ ] I have checked for mobile responsiveness (if applicable).
 * [ ] I have tested my changes thoroughly against the acceptance criteria.
-* [ ] My code follows the established style guide (e.g., passes linting/Prettier).
+* [ ] My code follows the established style guide (e.g., passes linting/Biome).
 * [ ] I have updated any relevant documentation (e.g., README or inline comments).
 
 

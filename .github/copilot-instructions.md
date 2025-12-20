@@ -3,7 +3,7 @@
 These instructions apply to all GitHub Copilot Chat requests in this workspace.
 
 ## 1. Project Context & Tech Stack
-* **Frameworks:** Next.js 14+ (App Router), NestJS (Backend API).
+* **Frameworks:** Next.js 16 (App Router), NestJS (Backend API).
 * **Database & Auth:** Supabase (PostgreSQL, Auth, Storage).
 * **Styling:** Tailwind CSS, Shadcn/UI components.
 * **State Management:** Zustand (Internal System only).
