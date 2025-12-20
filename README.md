@@ -127,6 +127,3 @@ pnpm --filter backend dev
 <div align="center">
   <sub>Built by PEAK Solutions 🏔️</sub>
 </div>
-
-
-[def]: #dali-portal
