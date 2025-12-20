@@ -29,7 +29,9 @@ export default async function LegislativeDocumentsPage({
 		searchTerm: params.search,
 		type: params.type ? (params.type as DocumentFilters["type"]) : undefined,
 		year: params.year ? Number(params.year) : "all",
-		classification: params.classification,
+		classification: params.classification
+			? (params.classification as DocumentFilters["classification"])
+			: undefined,
 		page: params.page ? Number(params.page) : 1,
 	};
 
