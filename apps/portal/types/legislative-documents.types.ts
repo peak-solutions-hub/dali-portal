@@ -49,6 +49,34 @@ export type ClassificationType =
 	| "administrative_docs"
 	| "invitation";
 
+export type DocumentClassification =
+	| "Appropriation"
+	| "Barangay Affairs"
+	| "Charter Amendment"
+	| "Civil Service"
+	| "Commendation"
+	| "Committee Investigation"
+	| "Committee Report"
+	| "Cultural Development"
+	| "Declaration"
+	| "Economic Development"
+	| "Education"
+	| "Environment"
+	| "Good Governance"
+	| "Health & Sanitation"
+	| "Infrastructure"
+	| "Labor & Employment"
+	| "Laws & Ordinances"
+	| "Public Safety"
+	| "Public Works"
+	| "Social Services"
+	| "Tourism"
+	| "Transportation"
+	| "Urban Planning"
+	| "Ways and Means"
+	| "Women & Children"
+	| "Youth Development";
+
 // Main Document interface (from document table)
 export interface Document {
 	id: string;
@@ -92,7 +120,7 @@ export interface DocumentFilters {
 	searchTerm?: string;
 	type?: LegislativeDocType | "all";
 	year?: number | "all";
-	classification?: string | "all";
+	classification?: DocumentClassification | "all";
 	page?: number;
 	limit?: number;
 }
