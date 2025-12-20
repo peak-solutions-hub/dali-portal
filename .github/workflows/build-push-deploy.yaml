@@ -1,37 +1,39 @@
-name: Build, Push, and Deploy Images
+name: Build, Push, and Deploy Image
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-  # allow manual trigger
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      enabled:
+        description: Flag whether to build and deploy to iamge
+        required: true
+        type: boolean
+      app:
+        description: "App image to build: portal, admin, or backend"
+        required: true
+        type: string
+      dockerfile:
+        description: "Path to the Dockerfile"
+        required: true
+        type: string
+      context:
+        description: "Build context for Docker"
+        required: true
+        type: string
+      deployment_url:
+        description: "The deployment URL for the environment"
+        required: true
+        type: string
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-push-deploy:
+  build-push:
     runs-on: ubuntu-latest
+    if: inputs.enabled == true
     environment:
-      name: ${{ format('{0}-{1}', github.ref_name == 'main' && 'production' || 'staging', matrix.app) }}
-      url: ${{ matrix.deployment_url }}
-    strategy:
-      matrix:
-        include:
-          - app: portal
-            dockerfile: apps/portal/Dockerfile
-            context: .
-            deployment_url: https://dali-portal.josearron.dev
-          - app: admin
-            dockerfile: apps/admin/Dockerfile
-            context: .
-            deployment_url: https://admin-dali-portal.josearron.dev
-          - app: backend
-            dockerfile: apps/backend/Dockerfile
-            context: .
-            deployment_url: https://api-dali-portal.josearron.dev
+      name: ${{ format('{0}-{1}', github.ref_name == 'main' && 'production' || 'staging', inputs.app) }}
+      url: ${{ inputs.deployment_url }}
     permissions:
       contents: read
       packages: write
@@ -48,12 +50,11 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/dali-${{ matrix.app }}
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/dali-${{ inputs.app }}
 
           # tag image with branch (develop) and latest if default branch
           tags: |
@@ -64,15 +65,14 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
-
-      - name: Deploy ${{ matrix.app }} to Coolify
+          cache-from: type=gha,scope=${{ inputs.app }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.app }}
+      - name: Deploy ${{ inputs.app }} to Coolify
         env:
           WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK }}
         run: |

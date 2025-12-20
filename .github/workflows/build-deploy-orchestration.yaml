@@ -1,0 +1,66 @@
+name: Build and Deploy Images Orchestration
+on:
+  push:
+    branches:
+      - main
+      - develop
+  # allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      portal: ${{ steps.filter.outputs.portal }}
+      admin: ${{ steps.filter.outputs.admin }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            portal:
+              - 'apps/portal/**'
+              - 'packages/**'
+            admin:
+              - 'apps/admin/**'
+              - 'packages/**'
+            backend:
+              - 'apps/backend/**'
+              - 'packages/**'
+
+  call-build-deploy-image:
+    needs: detect-changes
+    strategy:
+      matrix:
+        include:
+          - app: portal
+            enabled: ${{ needs.detect-changes.outputs.portal == 'true' }}
+            dockerfile: apps/portal/Dockerfile
+            context: .
+            deployment_url: https://dali-portal.josearron.dev
+          - app: admin
+            enabled: ${{ needs.detect-changes.outputs.admin == 'true' }}
+            dockerfile: apps/admin/Dockerfile
+            context: .
+            deployment_url: https://admin-dali-portal.josearron.dev
+          - app: backend
+            enabled: ${{ needs.detect-changes.outputs.backend == 'true' }}
+            dockerfile: apps/backend/Dockerfile
+            context: .
+            deployment_url: https://api-dali-portal.josearron.dev
+
+    uses: ./.github/workflows/build-push-deploy.yaml
+    with:
+      enabled: ${{ matrix.enabled }}
+      app: ${{ matrix.app }}
+      dockerfile: ${{ matrix.dockerfile }}
+      context: ${{ matrix.context }}
+      deployment_url: ${{ matrix.deployment_url }}
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
