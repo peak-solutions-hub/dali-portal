@@ -272,12 +272,14 @@ This project uses Model Context Protocol (MCP) servers to enhance AI-assisted de
 | **Supabase** | Database schema inspection | Checking tables, RLS policies, migrations |
 | **Figma** | Design-to-code | Inspecting designs, generating UI code |
 | **Context7** | External documentation | Looking up library docs (Next.js, NestJS, Supabase, etc.) |
+| **Shadcn** | Shadcn component registry & code generation | When adding or updating Shadcn UI components; use the `shadcn` MCP tools and work inside `packages/ui` |
 
 ### Usage Tips
 
 - When implementing a feature, ask the AI to fetch the related Jira ticket first
 - When working with database schema, ask to inspect the Supabase schema
 - When building UI from designs, provide the Figma URL for accurate implementation
+ - When adding or updating Shadcn components, `cd packages/ui` first and run the Shadcn CLI (or ask the `shadcn` MCP server to generate component code). Ensure new components are exported from `packages/ui`.
 
 ---
 
