@@ -3,7 +3,7 @@
 These instructions apply to all GitHub Copilot Chat requests in this workspace.
 
 ## 1. Project Context & Tech Stack
-* **Frameworks:** Next.js 14+ (App Router), NestJS (Backend API).
+* **Frameworks:** Next.js 16 (App Router), NestJS (Backend API).
 * **Database & Auth:** Supabase (PostgreSQL, Auth, Storage).
 * **Styling:** Tailwind CSS, Shadcn/UI components.
 * **State Management:** Zustand (Internal System only).
@@ -23,6 +23,8 @@ These instructions apply to all GitHub Copilot Chat requests in this workspace.
   * **Rule:** IF the request implies UI/UX design (e.g., "create a form") OR a Figma URL is present, use `figma` tools to inspect layout.
 * **Context7 Server (`context7`):** <-- NEW
   * **Rule:** IF the request requires external documentation (e.g., "how to use Supabase Auth v2"), use `context7` to search official docs.
+* **Shadcn Server (`shadcn`):**
+  * **Rule:** IF the request involves creating, updating, or generating UI components using the shadcn component set or registry (for example, adding shadcn components to the shared UI package), use `shadcn` tools and ensure the developer first works inside `packages/ui`.
   
 ## Always
 
