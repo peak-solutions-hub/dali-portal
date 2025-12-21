@@ -1,4 +1,4 @@
-import { HeroSection } from "@/components/home/hero-section";
+import { HeroSection, QuickActions } from "@/components/home";
 
 export default function HomePage() {
 	// TODO: Replace with actual data from Supabase
@@ -6,11 +6,12 @@ export default function HomePage() {
 	const approvedResolutions = 9;
 
 	return (
-		<div>
+		<div className="min-h-screen bg-white">
 			<HeroSection
 				approvedOrdinances={approvedOrdinances}
 				approvedResolutions={approvedResolutions}
 			/>
+			<QuickActions />
 		</div>
 	);
 }
