@@ -39,6 +39,40 @@ export default function HomePage() {
 		},
 	];
 
+	// TODO: Replace with actual data
+	const upcomingSessions = [
+		{
+			id: "1",
+			type: "Regular",
+			sessionNumber: "45",
+			date: "2026-12-23",
+			month: "Dec",
+			day: "23",
+			weekday: "Monday",
+			fullDate: "Monday, December 23, 2026",
+		},
+		{
+			id: "2",
+			type: "Special",
+			sessionNumber: "46",
+			date: "2026-12-27",
+			month: "Dec",
+			day: "27",
+			weekday: "Friday",
+			fullDate: "Friday, December 27, 2026",
+		},
+		{
+			id: "3",
+			type: "Regular",
+			sessionNumber: "47",
+			date: "2026-01-06",
+			month: "Jan",
+			day: "06",
+			weekday: "Monday",
+			fullDate: "Monday, January 6, 2026",
+		},
+	];
+
 	return (
 		<div className="min-h-screen bg-white">
 			<HeroSection
@@ -46,7 +80,7 @@ export default function HomePage() {
 				approvedResolutions={approvedResolutions}
 			/>
 			<QuickActions />
-			<RecentUpdates documents={latestDocuments} />
+			<RecentUpdates documents={latestDocuments} sessions={upcomingSessions} />
 		</div>
 	);
 }
