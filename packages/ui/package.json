@@ -29,7 +29,6 @@
 		"typescript": "5.9.3",
 		"autoprefixer": "^10.4.20",
 		"tailwindcss": "^4.1.18"
-
 	},
 	"dependencies": {
 		"@radix-ui/react-dialog": "^1.1.15",

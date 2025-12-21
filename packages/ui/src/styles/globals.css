@@ -145,6 +145,13 @@
 	}
 }
 
+@layer utilities {
+	.font-playfair-display {
+		font-family:
+			var(--font-playfair-display), "Playfair Display", Georgia, serif;
+	}
+}
+
 /**
  * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
  */
