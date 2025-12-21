@@ -2,11 +2,19 @@
 
 import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
-import { Search } from "@repo/ui/lib/lucide-react";
+import { FileText, Search, TrendingUp } from "@repo/ui/lib/lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
-export function HeroSection() {
+interface HeroSectionProps {
+	approvedOrdinances: number;
+	approvedResolutions: number;
+}
+
+export function HeroSection({
+	approvedOrdinances,
+	approvedResolutions,
+}: HeroSectionProps) {
 	const router = useRouter();
 	const [searchQuery, setSearchQuery] = useState("");
 
@@ -90,6 +98,42 @@ export function HeroSection() {
 								</Button>
 							</div>
 						</form>
+					</div>
+
+					{/* Right Side - Performance Indicators */}
+					<div className="shrink-0 w-[280px] hidden lg:flex flex-col gap-8">
+						{/* Ordinances Enacted */}
+						<div className="group">
+							<div className="flex items-baseline gap-3 mb-1">
+								<span className="text-6xl font-bold text-white/95 font-playfair-display">
+									{approvedOrdinances}
+								</span>
+								<FileText
+									className="w-5 h-5 text-white/60 mb-2"
+									strokeWidth={1.5}
+								/>
+							</div>
+							<p className="text-white/70 text-sm uppercase tracking-wider pl-1">
+								Ordinances Enacted
+							</p>
+							<div className="h-px bg-linear-to-r from-white/30 to-transparent mt-3" />
+						</div>
+
+						{/* Resolutions Adopted */}
+						<div className="group">
+							<div className="flex items-baseline gap-3 mb-1">
+								<span className="text-6xl font-bold text-white/95 font-playfair-display">
+									{approvedResolutions}
+								</span>
+								<TrendingUp
+									className="w-5 h-5 text-white/60 mb-2"
+									strokeWidth={1.5}
+								/>
+							</div>
+							<p className="text-white/70 text-sm uppercase tracking-wider pl-1">
+								Resolutions Adopted
+							</p>
+						</div>
 					</div>
 				</div>
 			</div>
