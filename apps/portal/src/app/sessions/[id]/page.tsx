@@ -31,7 +31,7 @@ const getSessionData = (id: string): SessionData => {
 		type: "Regular Session",
 		status: "Completed",
 		date: "Wednesday, September 17, 2025",
-		time: "10:00",
+		time: "10:00 AM",
 		sessionNumber: "120",
 		minutesFileUrl: "/documents/session-120-minutes.pdf", // Replace with actual file URL from storage
 		agendaItems: [
