@@ -108,12 +108,13 @@ const getSessionData = (id: string): SessionData => {
 	};
 };
 
-export default function SessionDetailPage({
+export default async function SessionDetailPage({
 	params,
 }: {
-	params: { id: string };
+	params: Promise<{ id: string }>;
 }) {
-	const session = getSessionData(params.id);
+	const { id } = await params;
+	const session = getSessionData(id);
 
 	return (
 		<div className="min-h-screen bg-gray-50">
