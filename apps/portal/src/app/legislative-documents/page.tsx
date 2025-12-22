@@ -1,13 +1,15 @@
 import { Card } from "@repo/ui/components/card";
 import { Suspense } from "react";
-import type { DocumentFilters } from "types/legislative-documents.types";
-import { DocumentCard } from "@/components/legislative-documents/document-card";
-import { PaginationControls } from "@/components/legislative-documents/pagination-controls";
-import { SearchFilterBar } from "@/components/legislative-documents/search-filter-bar";
+import {
+	DocumentCard,
+	PaginationControls,
+	SearchFilterBar,
+} from "@/components/legislative-documents/";
 import {
 	fetchAvailableYears,
 	fetchLegislativeDocuments,
 } from "@/lib/legislative-documents/data";
+import { validateQueryParams } from "@/lib/legislative-documents/utils";
 
 interface PageProps {
 	searchParams: Promise<{
@@ -19,21 +21,19 @@ interface PageProps {
 	}>;
 }
 
+export const metadata = {
+	title: "Legislative Documents — Iloilo City",
+	description:
+		"Browse Iloilo City's official legislative documents: ordinances, resolutions, and committee reports.",
+};
+
 export default async function LegislativeDocumentsPage({
 	searchParams,
 }: PageProps) {
 	const params = await searchParams;
 
-	// Build filters from URL search params
-	const filters: DocumentFilters = {
-		searchTerm: params.search,
-		type: params.type ? (params.type as DocumentFilters["type"]) : undefined,
-		year: params.year ? Number(params.year) : "all",
-		classification: params.classification
-			? (params.classification as DocumentFilters["classification"])
-			: undefined,
-		page: params.page ? Number(params.page) : 1,
-	};
+	// Validate and normalize query parameters
+	const filters = validateQueryParams(params);
 
 	// Fetch data server-side
 	const [{ documents, pagination }, availableYears] = await Promise.all([
@@ -41,12 +41,12 @@ export default async function LegislativeDocumentsPage({
 		fetchAvailableYears(),
 	]);
 
-	// Build current filters for pagination
+	// Build current filters for pagination using validated values
 	const currentFilters = {
-		search: params.search || "",
-		type: params.type || "all",
-		year: params.year || "all",
-		classification: params.classification || "all",
+		search: filters.searchTerm || "",
+		type: filters.type || "all",
+		year: typeof filters.year === "number" ? String(filters.year) : "all",
+		classification: filters.classification || "all",
 	};
 
 	return (
