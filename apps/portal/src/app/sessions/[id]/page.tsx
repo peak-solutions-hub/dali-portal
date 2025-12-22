@@ -131,7 +131,11 @@ export default async function SessionDetailPage({
 			<div className="container mx-auto max-w-7xl px-4 py-10">
 				{/* Back Button */}
 				<Link href="/sessions" className="mb-8 inline-block">
-					<Button variant="outline" size="sm">
+					<Button
+						variant="outline"
+						size="sm"
+						aria-label="Back to Sessions list"
+					>
 						<ChevronLeft className="size-4" />
 						Back to Sessions
 					</Button>
@@ -143,10 +147,19 @@ export default async function SessionDetailPage({
 					<div className="mb-12 space-y-4">
 						{/* Badges */}
 						<div className="flex gap-3">
-							<Badge variant="default" className="bg-primary text-white">
+							<Badge
+								variant="default"
+								className="bg-primary text-white"
+								aria-label={`Session type: ${session.type}`}
+							>
 								{session.type}
 							</Badge>
-							<Badge variant="outline">{session.status}</Badge>
+							<Badge
+								variant="outline"
+								aria-label={`Session status: ${session.status}`}
+							>
+								{session.status}
+							</Badge>
 						</div>
 
 						{/* Date */}
@@ -157,7 +170,9 @@ export default async function SessionDetailPage({
 						{/* Time - WCAG AA compliant contrast */}
 						<div className="flex items-center gap-2">
 							<span className="text-lg font-medium text-gray-900">Time:</span>
-							<time className="text-lg text-gray-900">{session.time}</time>
+							<time dateTime="10:00" className="text-lg text-gray-900">
+								{session.time}
+							</time>
 						</div>
 
 						{/* Download removed as per latest requirements */}
@@ -184,7 +199,10 @@ export default async function SessionDetailPage({
 										</p>
 									)}
 									{item.documents && item.documents.length > 0 && (
-										<ul className="mt-3 space-y-2">
+										<ul
+											className="mt-3 space-y-2"
+											aria-label="Related documents"
+										>
 											{item.documents.map((doc) => (
 												<li key={doc.id} className="flex items-start">
 													<span className="mr-2 text-primary">•</span>
