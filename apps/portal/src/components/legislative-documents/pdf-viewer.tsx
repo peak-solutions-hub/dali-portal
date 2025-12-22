@@ -1,7 +1,9 @@
 "use client";
 import { Button } from "@repo/ui/components/button";
 import { Download, FileText, X } from "@repo/ui/lib/lucide-react";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRef, useState } from "react";
+import { useBodyScrollLock, useFocusTrap, useMobile } from "@/hooks";
 
 interface PDFViewerProps {
 	documentId: string;
@@ -15,28 +17,18 @@ export function PDFViewer({
 	documentTitle,
 }: PDFViewerProps) {
 	const [isOpen, setIsOpen] = useState(false);
-	const [isMobile, setIsMobile] = useState(false);
+	const triggerRef = useRef<HTMLButtonElement | null>(null);
+	const modalRef = useRef<HTMLDivElement | null>(null);
 
-	// Detect mobile viewport
-	useEffect(() => {
-		const checkMobile = () => {
-			setIsMobile(window.innerWidth < 1024);
-		};
-
-		checkMobile();
-		window.addEventListener("resize", checkMobile);
-		return () => window.removeEventListener("resize", checkMobile);
-	}, []);
-
-	// Lock body scroll when viewer is open
-	useEffect(() => {
-		if (isOpen) {
-			document.body.style.overflow = "hidden";
-			return () => {
-				document.body.style.overflow = "";
-			};
-		}
-	}, [isOpen]);
+	// Use custom hooks for side effects
+	const isMobile = useMobile(1024);
+	useBodyScrollLock(isOpen);
+	useFocusTrap({
+		isActive: isOpen,
+		containerRef: modalRef,
+		triggerRef,
+		onEscape: () => setIsOpen(false),
+	});
 
 	if (!pdfUrl) {
 		return (
@@ -55,6 +47,7 @@ export function PDFViewer({
 		<div className="mb-4 sm:mb-6">
 			{/* Trigger Button */}
 			<Button
+				ref={triggerRef}
 				onClick={() => setIsOpen(true)}
 				variant="outline"
 				className="w-full sm:w-auto border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-8 py-6"
@@ -65,25 +58,22 @@ export function PDFViewer({
 
 			{/* Download Button */}
 			<div className="mt-4">
-				<a
-					href={pdfUrl}
-					download
-					target="_blank"
-					rel="noopener noreferrer"
-					className="block sm:inline-block"
-				>
+				<Link href={`${pdfUrl}`} download>
 					<Button className="w-full sm:w-auto bg-[#a60202] hover:bg-[#8a0101] text-white px-8 py-6">
 						<Download className="w-5 h-5 mr-2" />
 						Download PDF
 					</Button>
-				</a>
+				</Link>
 			</div>
 
 			{/* PDF Viewer */}
 			{isOpen && (
 				<>
 					{isMobile ? (
-						<div className="fixed inset-0 z-50 bg-white flex flex-col h-dvh">
+						<div
+							ref={modalRef}
+							className="fixed inset-0 z-50 bg-white flex flex-col h-dvh"
+						>
 							<div className="shrink-0 bg-[#a60202] text-white p-4 flex items-center justify-between gap-4">
 								<h2 className="text-base font-semibold truncate flex-1">
 									{documentTitle}
@@ -110,7 +100,10 @@ export function PDFViewer({
 								className="fixed inset-0 z-50 bg-black/50"
 								onClick={() => setIsOpen(false)}
 							/>
-							<div className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-50 w-[90vw] max-w-350 h-[90vh] bg-white rounded-lg shadow-lg flex flex-col">
+							<div
+								ref={modalRef}
+								className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-50 w-[90vw] max-w-350 h-[90vh] bg-white rounded-lg shadow-lg flex flex-col"
+							>
 								<div className="shrink-0 bg-[#a60202] text-white p-4 rounded-t-lg flex items-center justify-between gap-4">
 									<h2 className="text-lg font-semibold truncate flex-1">
 										{documentTitle}

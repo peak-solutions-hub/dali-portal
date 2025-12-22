@@ -849,7 +849,11 @@ export async function fetchLegislativeDocument(
   // satisfy linter for async function
   await Promise.resolve();
 
-  const document = MOCK_DOCUMENTS.find((doc) => doc.id === Number(id));
+  // Validate numeric id before searching
+  const idNum = Number(id);
+  if (!Number.isFinite(idNum) || Number.isNaN(idNum)) return null;
+
+  const document = MOCK_DOCUMENTS.find((doc) => doc.id === idNum);
   return document || null;
 }
 

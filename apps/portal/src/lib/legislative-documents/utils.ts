@@ -2,17 +2,25 @@
  * Utility functions for Legislative Documents
  */
 
-import type { LegislativeDocumentWithDetails } from "../../../types/legislative-documents.types";
-import { DOCUMENT_TYPE_LABELS } from "./constants";
+import type {
+	DocumentFilters,
+	LegislativeDocumentWithDetails,
+} from "types/legislative-documents.types";
+import {
+	CLASSIFICATIONS,
+	DOCUMENT_TYPE_LABELS,
+	DOCUMENT_TYPES,
+} from "./constants";
 
 /**
  * Format a date string to Philippine locale format (e.g., "January 15, 2024")
  */
 export function formatDate(dateStr: string): string {
 	if (!dateStr) return "N/A";
+	const date = new Date(dateStr);
+	if (isNaN(date.getTime())) return "N/A";
 
 	try {
-		const date = new Date(dateStr);
 		return date.toLocaleDateString("en-PH", {
 			year: "numeric",
 			month: "long",
@@ -93,6 +101,62 @@ export function getDocumentTypeBadgeClass(type: string): string {
  */
 export function getClassificationBadgeClass(): string {
 	return "bg-[#a60202]/10 text-[#a60202] border border-[#a60202]/20";
+}
+
+/**
+ * Validate and normalize query parameters from URL search params
+ */
+export function validateQueryParams(params: {
+	search?: string;
+	type?: string;
+	year?: string;
+	classification?: string;
+	page?: string;
+}): DocumentFilters {
+	// Extract valid type values from DOCUMENT_TYPES constant and type them
+	const validTypes = DOCUMENT_TYPES.map((t) => t.value) as ReadonlyArray<
+		DocumentFilters["type"]
+	>;
+
+	// Validate and normalize type parameter
+	const validatedType: DocumentFilters["type"] =
+		params.type && validTypes.includes(params.type as DocumentFilters["type"])
+			? (params.type as DocumentFilters["type"])
+			: undefined;
+
+	// Validate and normalize classification parameter (typed from constants)
+	const validClassifications = CLASSIFICATIONS as ReadonlyArray<
+		DocumentFilters["classification"]
+	>;
+
+	const validatedClassification: DocumentFilters["classification"] =
+		params.classification &&
+		validClassifications.includes(
+			params.classification as DocumentFilters["classification"],
+		)
+			? (params.classification as DocumentFilters["classification"])
+			: undefined;
+
+	// Normalize numeric query params
+	const yearParam = params.year ? Number(params.year) : undefined;
+	const validYear: DocumentFilters["year"] =
+		typeof yearParam === "number" && !Number.isNaN(yearParam) && yearParam > 0
+			? yearParam
+			: "all";
+
+	const pageParam = params.page ? Number(params.page) : undefined;
+	const validPage =
+		typeof pageParam === "number" && Number.isFinite(pageParam) && pageParam > 0
+			? Math.floor(pageParam)
+			: 1;
+
+	return {
+		searchTerm: params.search,
+		type: validatedType,
+		year: validYear,
+		classification: validatedClassification,
+		page: validPage,
+	};
 }
 
 /**
