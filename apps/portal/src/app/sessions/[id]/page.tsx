@@ -1,7 +1,8 @@
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
-import { ChevronLeft, Download } from "@repo/ui/lib/lucide-react";
+import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 interface AgendaItem {
 	number: string;
@@ -20,12 +21,17 @@ interface SessionData {
 	date: string;
 	time: string;
 	sessionNumber: string;
-	minutesFileUrl: string;
 	agendaItems: AgendaItem[];
 }
 
 // Mock data - replace with actual data fetching
-const getSessionData = (id: string): SessionData => {
+const getSessionData = (id: string): SessionData | null => {
+	// Validate session exists - in production, query database
+	// For now, only accept session ID "1" as valid
+	if (id !== "1") {
+		return null;
+	}
+
 	return {
 		id,
 		type: "Regular Session",
@@ -33,7 +39,6 @@ const getSessionData = (id: string): SessionData => {
 		date: "Wednesday, September 17, 2025",
 		time: "10:00 AM",
 		sessionNumber: "120",
-		minutesFileUrl: "/documents/session-120-minutes.pdf", // Replace with actual file URL from storage
 		agendaItems: [
 			{
 				number: "01",
@@ -116,6 +121,11 @@ export default async function SessionDetailPage({
 	const { id } = await params;
 	const session = getSessionData(id);
 
+	// Generic error - prevents enumeration of valid session IDs
+	if (!session) {
+		notFound();
+	}
+
 	return (
 		<div className="min-h-screen bg-gray-50">
 			<div className="container mx-auto max-w-7xl px-4 py-10">
@@ -144,21 +154,13 @@ export default async function SessionDetailPage({
 							{session.date}
 						</h1>
 
-						{/* Time */}
-						<p className="text-lg text-gray-600">Time: {session.time}</p>
-
-						{/* Download Button */}
-						<div>
-							<Link href={session.minutesFileUrl} download>
-								<Button
-									variant="default"
-									className="bg-accent text-accent-foreground hover:bg-accent/90"
-								>
-									<Download className="size-4" />
-									Download Session Minutes
-								</Button>
-							</Link>
+						{/* Time - WCAG AA compliant contrast */}
+						<div className="flex items-center gap-2">
+							<span className="text-lg font-medium text-gray-900">Time:</span>
+							<time className="text-lg text-gray-900">{session.time}</time>
 						</div>
+
+						{/* Download removed as per latest requirements */}
 					</div>
 
 					{/* Session Agenda */}
