@@ -31,23 +31,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
 	const hasPdfFile = Boolean(document.pdfUrl);
 
-	const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
-		e.preventDefault();
-		e.stopPropagation();
-
-		if (!document.pdfUrl) return;
-
-		// Create a temporary link to trigger download
-		const link = window.document.createElement("a");
-		link.href = document.pdfUrl;
-		link.download =
-			document.pdfFilename || `${documentNumber.replace(/\s+/g, "_")}.pdf`;
-		link.target = "_blank";
-		window.document.body.appendChild(link);
-		link.click();
-		window.document.body.removeChild(link);
-	};
-
 	return (
 		<Card className="overflow-hidden hover:shadow-md transition-all border-l-4 border-l-[#a60202]">
 			<div className="px-5">
@@ -117,14 +100,12 @@ export function DocumentCard({ document }: DocumentCardProps) {
 							</Button>
 						</Link>
 						{hasPdfFile ? (
-							<Button
-								variant="outline"
-								onClick={handleDownload}
-								title="Download PDF"
-							>
-								<Download className="w-4 h-4 mr-2" />
-								Download
-							</Button>
+							<Link href={`${document.pdfUrl}`} download>
+								<Button variant="outline" title="Download PDF">
+									<Download className="w-4 h-4 mr-2" />
+									Download
+								</Button>
+							</Link>
 						) : null}
 					</div>
 				</div>
