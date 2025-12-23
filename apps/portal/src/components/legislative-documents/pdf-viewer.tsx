@@ -3,19 +3,18 @@ import { Button } from "@repo/ui/components/button";
 import { Download, FileText, X } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
+import type { LegislativeDocumentWithDetails } from "types/legislative-documents.types";
 import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@/hooks";
+import {
+	getDocumentFilename,
+	isValidPdfUrl,
+} from "@/lib/legislative-documents/utils";
 
 interface PDFViewerProps {
-	documentId: string;
-	pdfUrl: string;
-	documentTitle: string;
+	document: LegislativeDocumentWithDetails;
 }
 
-export function PDFViewer({
-	documentId,
-	pdfUrl,
-	documentTitle,
-}: PDFViewerProps) {
+export function PDFViewer({ document }: PDFViewerProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
 	const modalRef = useRef<HTMLDivElement | null>(null);
@@ -30,14 +29,22 @@ export function PDFViewer({
 		onEscape: () => setIsOpen(false),
 	});
 
-	if (!pdfUrl) {
+	const pdfUrl = document.pdfUrl;
+	const documentTitle =
+		document.displayTitle || document.document?.title || "Untitled Document";
+	const downloadFilename = getDocumentFilename(document);
+
+	// Validate PDF URL for security
+	const isValidUrl = pdfUrl ? isValidPdfUrl(pdfUrl) : false;
+
+	if (!pdfUrl || !isValidUrl) {
 		return (
 			<div className="bg-gray-100 rounded-lg p-8 sm:p-12 mb-4 sm:mb-6 flex flex-col items-center justify-center min-h-75 sm:min-h-100">
 				<p className="text-gray-600 mb-4 text-sm sm:text-base">
 					PDF Document Preview
 				</p>
 				<p className="text-xs sm:text-sm text-gray-500">
-					PDF not available for public viewing
+					{!pdfUrl ? "PDF not available for public viewing" : "Invalid PDF URL"}
 				</p>
 			</div>
 		);
@@ -58,7 +65,7 @@ export function PDFViewer({
 
 			{/* Download Button */}
 			<div className="mt-4">
-				<Link href={`${pdfUrl}`} download>
+				<Link href={pdfUrl} download={downloadFilename}>
 					<Button className="w-full sm:w-auto bg-[#a60202] hover:bg-[#8a0101] text-white px-8 py-6">
 						<Download className="w-5 h-5 mr-2" />
 						Download PDF

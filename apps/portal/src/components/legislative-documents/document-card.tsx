@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { Calendar, Download, FileText } from "@repo/ui/lib/lucide-react";
@@ -7,6 +5,7 @@ import Link from "next/link";
 import type { LegislativeDocumentWithDetails } from "types/legislative-documents.types";
 import {
 	formatDate,
+	getDocumentFilename,
 	getDocumentNumber,
 	getDocumentTitle,
 	getDocumentType,
@@ -100,7 +99,10 @@ export function DocumentCard({ document }: DocumentCardProps) {
 							</Button>
 						</Link>
 						{hasPdfFile ? (
-							<Link href={`${document.pdfUrl}`} download>
+							<Link
+								href={document.pdfUrl || ""}
+								download={getDocumentFilename(document)}
+							>
 								<Button variant="outline" title="Download PDF">
 									<Download className="w-4 h-4 mr-2" />
 									Download

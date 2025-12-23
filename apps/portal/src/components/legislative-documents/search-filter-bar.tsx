@@ -10,13 +10,13 @@ import {
 } from "@repo/ui/components/select";
 import { Search } from "@repo/ui/lib/lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDebounce } from "@/hooks";
 import {
+	buildQueryString,
 	CLASSIFICATIONS,
 	DOCUMENT_TYPES,
-} from "@/lib/legislative-documents/constants";
-import { buildQueryString } from "@/lib/legislative-documents/utils";
+} from "@/lib/legislative-documents/utils";
 
 interface SearchFilterBarProps {
 	availableYears: number[];
@@ -39,19 +39,22 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	const debouncedSearch = useDebounce(searchInput, 400);
 
 	// Helper to navigate with sanitized params
-	const navigateWithParams = (params: Record<string, string>) => {
-		const baseParams = {
-			search: searchInput,
-			type: selectedType,
-			year: selectedYear,
-			classification: selectedClassification,
-			page: "1",
-		};
+	const navigateWithParams = useCallback(
+		(params: Record<string, string>) => {
+			const baseParams = {
+				search: searchInput,
+				type: selectedType,
+				year: selectedYear,
+				classification: selectedClassification,
+				page: "1",
+			};
 
-		const newParams = { ...baseParams, ...params };
-		const queryString = buildQueryString(newParams);
-		router.push(`/legislative-documents?${queryString}`);
-	};
+			const newParams = { ...baseParams, ...params };
+			const queryString = buildQueryString(newParams);
+			router.push(`/legislative-documents?${queryString}`);
+		},
+		[searchInput, selectedType, selectedYear, selectedClassification, router],
+	);
 
 	const handleFilterChange = (key: string, value: string) => {
 		navigateWithParams({ [key]: value });
@@ -62,7 +65,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 		if (debouncedSearch !== rawSearch) {
 			navigateWithParams({ search: debouncedSearch });
 		}
-	}, [debouncedSearch]);
+	}, [debouncedSearch, rawSearch, navigateWithParams]);
 
 	return (
 		<div className="sticky top-19 z-20 bg-gray-50 pt-6 pb-4 mb-0 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between border-b border-gray-200">

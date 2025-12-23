@@ -23,10 +23,7 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 	return (
 		<div className="mb-6 sm:mb-8">
 			{/* Document Number */}
-			<h1
-				className="text-xl sm:text-2xl md:text-3xl text-[#a60202] mb-3 sm:mb-4"
-				style={{ fontFamily: "Playfair Display" }}
-			>
+			<h1 className="font-['Playfair_Display'] text-xl sm:text-2xl md:text-3xl text-[#a60202] mb-3 sm:mb-4">
 				{documentNumber}
 			</h1>
 			{/* Title */}
