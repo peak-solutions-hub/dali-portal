@@ -1,0 +1,34 @@
+{
+	"name": "@repo/shared",
+	"version": "0.0.0",
+	"private": true,
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		},
+		"./enums": {
+			"types": "./src/enums/index.ts",
+			"default": "./src/enums/index.ts"
+		},
+		"./constants": {
+			"types": "./src/constants/index.ts",
+			"default": "./src/constants/index.ts"
+		}
+	},
+	"files": [
+		"src"
+	],
+	"scripts": {
+		"build": "tsc",
+		"lint": "biome check",
+		"format": "biome format --write",
+		"check-types": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"typescript": "5.9.3",
+		"@repo/typescript-config": "workspace:*"
+	}
+}
