@@ -1,4 +1,5 @@
 import { Card } from "@repo/ui/components/card";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import {
 	DocumentCard,
@@ -9,7 +10,11 @@ import {
 	fetchAvailableYears,
 	fetchLegislativeDocuments,
 } from "@/lib/legislative-documents/data";
-import { validateQueryParams } from "@/lib/legislative-documents/utils";
+import {
+	buildQueryString,
+	toDocumentFilters,
+	validateSearchParams,
+} from "@/lib/legislative-documents/utils";
 
 interface PageProps {
 	searchParams: Promise<{
@@ -32,8 +37,25 @@ export default async function LegislativeDocumentsPage({
 }: PageProps) {
 	const params = await searchParams;
 
-	// Validate and normalize query parameters
-	const filters = validateQueryParams(params);
+	// Validate search parameters with Zod
+	const validationResult = validateSearchParams(params);
+
+	// If validation fails, redirect to valid default params
+	if (!validationResult.success) {
+		const queryString = buildQueryString({
+			search: "",
+			type: "all",
+			year: "all",
+			classification: "all",
+			page: "1",
+		});
+		redirect(`/legislative-documents?${queryString}`);
+	}
+
+	const validatedParams = validationResult.data;
+
+	// Convert to DocumentFilters format
+	const filters = toDocumentFilters(validatedParams);
 
 	// Fetch data server-side
 	const [{ documents, pagination }, availableYears] = await Promise.all([
@@ -43,10 +65,13 @@ export default async function LegislativeDocumentsPage({
 
 	// Build current filters for pagination using validated values
 	const currentFilters = {
-		search: filters.searchTerm || "",
-		type: filters.type || "all",
-		year: typeof filters.year === "number" ? String(filters.year) : "all",
-		classification: filters.classification || "all",
+		search: validatedParams.search,
+		type: validatedParams.type,
+		year:
+			typeof validatedParams.year === "number"
+				? String(validatedParams.year)
+				: "all",
+		classification: validatedParams.classification,
 	};
 
 	return (

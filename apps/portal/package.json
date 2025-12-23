@@ -14,7 +14,8 @@
 		"@repo/ui": "workspace:*",
 		"next": "16.0.10",
 		"react": "19.2.1",
-		"react-dom": "19.2.1"
+		"react-dom": "19.2.1",
+		"zod": "^4.2.1"
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
