@@ -2,24 +2,76 @@
  * Utility functions for Legislative Documents
  */
 
+import { DocumentType } from "@repo/shared";
 import type {
 	DocumentFilters,
 	LegislativeDocumentWithDetails,
 } from "types/legislative-documents.types";
 import { z } from "zod";
-import {
-	CLASSIFICATIONS,
-	DOCUMENT_TYPE_LABELS,
-	DOCUMENT_TYPES,
-} from "./constants";
+
+/**
+ * Display labels for legislative document types
+ */
+export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+	[DocumentType.PROPOSED_ORDINANCE]: "Proposed Ordinance",
+	[DocumentType.PROPOSED_RESOLUTION]: "Proposed Resolution",
+	[DocumentType.COMMITTEE_REPORT]: "Committee Report",
+};
+
+/**
+ * Document types for filtering (used in UI)
+ */
+export const DOCUMENT_TYPES = [
+	{ value: DocumentType.PROPOSED_ORDINANCE, label: "Proposed Ordinance" },
+	{ value: DocumentType.PROPOSED_RESOLUTION, label: "Proposed Resolution" },
+	{ value: DocumentType.COMMITTEE_REPORT, label: "Committee Report" },
+] as const;
+
+/**
+ * Items per page for pagination
+ */
+export const ITEMS_PER_PAGE = 10;
+
+/**
+ * Classifications for legislative documents (display labels)
+ * These map to user-friendly labels shown in the UI
+ */
+export const CLASSIFICATIONS = [
+	"Appropriation",
+	"Barangay Affairs",
+	"Charter Amendment",
+	"Civil Service",
+	"Commendation",
+	"Committee Investigation",
+	"Committee Report",
+	"Cultural Development",
+	"Declaration",
+	"Economic Development",
+	"Education",
+	"Environment",
+	"Good Governance",
+	"Health & Sanitation",
+	"Infrastructure",
+	"Labor & Employment",
+	"Laws & Ordinances",
+	"Public Safety",
+	"Public Works",
+	"Social Services",
+	"Tourism",
+	"Transportation",
+	"Urban Planning",
+	"Ways and Means",
+	"Women & Children",
+	"Youth Development",
+] as const;
 
 /**
  * Zod schema for validating search parameters from URL
  */
 const DocumentTypeSchema = z.enum([
-	"proposed_ordinance",
-	"proposed_resolution",
-	"committee_report",
+	DocumentType.PROPOSED_ORDINANCE,
+	DocumentType.PROPOSED_RESOLUTION,
+	DocumentType.COMMITTEE_REPORT,
 ]);
 
 const ClassificationSchema = z.enum([
@@ -164,6 +216,48 @@ export function getDocumentTypeBadgeClass(type: string): string {
  */
 export function getClassificationBadgeClass(): string {
 	return "bg-[#a60202]/10 text-[#a60202] border border-[#a60202]/20";
+}
+
+/**
+ * Validate and sanitize URL to prevent XSS attacks
+ * Only allows HTTP(S) URLs and relative paths
+ */
+export function isValidPdfUrl(url: string): boolean {
+	if (!url) return false;
+
+	try {
+		// Allow relative URLs
+		if (url.startsWith("/")) {
+			return true;
+		}
+
+		// Parse and validate absolute URLs
+		const parsedUrl = new URL(url);
+		const validProtocols = ["http:", "https:"];
+
+		return validProtocols.includes(parsedUrl.protocol);
+	} catch {
+		// If URL parsing fails, it's invalid
+		return false;
+	}
+}
+
+/**
+ * Generate a safe filename for document downloads
+ */
+export function getDocumentFilename(
+	doc: LegislativeDocumentWithDetails,
+): string {
+	// Use pdfFilename if available
+	if (doc.pdfFilename) {
+		return doc.pdfFilename;
+	}
+
+	// Generate from document number
+	const documentNumber = getDocumentNumber(doc);
+	const sanitized = documentNumber.replace(/[^a-zA-Z0-9-_]/g, "_");
+
+	return `${sanitized}.pdf`;
 }
 
 /**

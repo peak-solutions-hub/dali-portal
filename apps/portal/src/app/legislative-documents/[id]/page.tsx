@@ -60,13 +60,9 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 		notFound();
 	}
 
-	const documentTitle =
-		document.displayTitle || document.document?.title || "Untitled Document";
-	const pdfUrl = document.pdfUrl!;
-
 	return (
 		<div className="min-h-screen bg-gray-50">
-			{/* Back Button */}
+			{/* will remove this later */}
 			<div className="bg-white border-b border-gray-200">
 				<div className="container mx-auto px-4 py-4">
 					<Link href="/legislative-documents">
@@ -82,19 +78,11 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 				</div>
 			</div>
 
-			{/* Main Content */}
 			<div className="container mx-auto px-4 py-8">
 				<Card className="p-4 sm:p-6 md:p-8">
 					<div className="space-y-6">
-						{/* Document Header with Metadata */}
 						<DocumentHeader document={document} />
-
-						{/* PDF Viewer */}
-						<PDFViewer
-							documentId={id}
-							pdfUrl={pdfUrl}
-							documentTitle={documentTitle}
-						/>
+						<PDFViewer document={document} />
 					</div>
 				</Card>
 			</div>
