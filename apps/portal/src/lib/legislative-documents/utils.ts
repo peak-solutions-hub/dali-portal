@@ -6,11 +6,74 @@ import type {
 	DocumentFilters,
 	LegislativeDocumentWithDetails,
 } from "types/legislative-documents.types";
+import { z } from "zod";
 import {
 	CLASSIFICATIONS,
 	DOCUMENT_TYPE_LABELS,
 	DOCUMENT_TYPES,
 } from "./constants";
+
+/**
+ * Zod schema for validating search parameters from URL
+ */
+const DocumentTypeSchema = z.enum([
+	"proposed_ordinance",
+	"proposed_resolution",
+	"committee_report",
+]);
+
+const ClassificationSchema = z.enum([
+	"Appropriation",
+	"Barangay Affairs",
+	"Charter Amendment",
+	"Civil Service",
+	"Commendation",
+	"Committee Investigation",
+	"Committee Report",
+	"Cultural Development",
+	"Declaration",
+	"Economic Development",
+	"Education",
+	"Environment",
+	"Good Governance",
+	"Health & Sanitation",
+	"Infrastructure",
+	"Labor & Employment",
+	"Laws & Ordinances",
+	"Public Safety",
+	"Public Works",
+	"Social Services",
+	"Tourism",
+	"Transportation",
+	"Urban Planning",
+	"Ways and Means",
+	"Women & Children",
+	"Youth Development",
+]);
+
+export const searchParamsSchema = z.object({
+	search: z.string().optional().default(""),
+	type: z
+		.union([DocumentTypeSchema, z.literal("all")])
+		.optional()
+		.default("all"),
+	year: z
+		.union([
+			z.coerce.number().int().positive(),
+			z.literal("all"),
+			z.literal(""),
+		])
+		.optional()
+		.default("all")
+		.transform((val: number | "all" | "") => (val === "" ? "all" : val)),
+	classification: z
+		.union([ClassificationSchema, z.literal("all")])
+		.optional()
+		.default("all"),
+	page: z.coerce.number().int().positive().optional().default(1),
+});
+
+export type SearchParams = z.infer<typeof searchParamsSchema>;
 
 /**
  * Format a date string to Philippine locale format (e.g., "January 15, 2024")
@@ -104,58 +167,28 @@ export function getClassificationBadgeClass(): string {
 }
 
 /**
- * Validate and normalize query parameters from URL search params
+ * Validate search parameters using Zod schema
+ * Returns either validated params or null if validation fails
  */
-export function validateQueryParams(params: {
-	search?: string;
-	type?: string;
-	year?: string;
-	classification?: string;
-	page?: string;
-}): DocumentFilters {
-	// Extract valid type values from DOCUMENT_TYPES constant and type them
-	const validTypes = DOCUMENT_TYPES.map((t) => t.value) as ReadonlyArray<
-		DocumentFilters["type"]
-	>;
+export function validateSearchParams(
+	params: Record<string, string | undefined>,
+) {
+	return searchParamsSchema.safeParse(params);
+}
 
-	// Validate and normalize type parameter
-	const validatedType: DocumentFilters["type"] =
-		params.type && validTypes.includes(params.type as DocumentFilters["type"])
-			? (params.type as DocumentFilters["type"])
-			: undefined;
-
-	// Validate and normalize classification parameter (typed from constants)
-	const validClassifications = CLASSIFICATIONS as ReadonlyArray<
-		DocumentFilters["classification"]
-	>;
-
-	const validatedClassification: DocumentFilters["classification"] =
-		params.classification &&
-		validClassifications.includes(
-			params.classification as DocumentFilters["classification"],
-		)
-			? (params.classification as DocumentFilters["classification"])
-			: undefined;
-
-	// Normalize numeric query params
-	const yearParam = params.year ? Number(params.year) : undefined;
-	const validYear: DocumentFilters["year"] =
-		typeof yearParam === "number" && !Number.isNaN(yearParam) && yearParam > 0
-			? yearParam
-			: "all";
-
-	const pageParam = params.page ? Number(params.page) : undefined;
-	const validPage =
-		typeof pageParam === "number" && Number.isFinite(pageParam) && pageParam > 0
-			? Math.floor(pageParam)
-			: 1;
-
+/**
+ * Convert validated search params to DocumentFilters format
+ */
+export function toDocumentFilters(
+	params: z.infer<typeof searchParamsSchema>,
+): DocumentFilters {
 	return {
-		searchTerm: params.search,
-		type: validatedType,
-		year: validYear,
-		classification: validatedClassification,
-		page: validPage,
+		searchTerm: params.search || undefined,
+		type: params.type === "all" ? undefined : params.type,
+		year: params.year === "all" ? "all" : params.year,
+		classification:
+			params.classification === "all" ? undefined : params.classification,
+		page: params.page,
 	};
 }
 

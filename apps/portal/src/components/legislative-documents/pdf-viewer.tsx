@@ -3,7 +3,7 @@ import { Button } from "@repo/ui/components/button";
 import { Download, FileText, X } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useBodyScrollLock, useFocusTrap, useMobile } from "@/hooks";
+import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@/hooks";
 
 interface PDFViewerProps {
 	documentId: string;
@@ -21,7 +21,7 @@ export function PDFViewer({
 	const modalRef = useRef<HTMLDivElement | null>(null);
 
 	// Use custom hooks for side effects
-	const isMobile = useMobile(1024);
+	const isMobile = useIsMobile();
 	useBodyScrollLock(isOpen);
 	useFocusTrap({
 		isActive: isOpen,
