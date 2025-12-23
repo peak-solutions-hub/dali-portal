@@ -851,7 +851,7 @@ export async function fetchLegislativeDocument(
 
   // Validate numeric id before searching
   const idNum = Number(id);
-  if (!Number.isFinite(idNum) || Number.isNaN(idNum)) return null;
+  if (!Number.isFinite(idNum)) return null;
 
   const document = MOCK_DOCUMENTS.find((doc) => doc.id === idNum);
   return document || null;

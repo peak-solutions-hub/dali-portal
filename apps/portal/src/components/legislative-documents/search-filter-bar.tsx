@@ -10,9 +10,8 @@ import {
 } from "@repo/ui/components/select";
 import { Search } from "@repo/ui/lib/lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
-import type { DocumentFilters } from "types/legislative-documents.types";
-import { useDebounce, useSanitizeParams } from "@/hooks";
+import { useEffect, useState } from "react";
+import { useDebounce } from "@/hooks";
 import {
 	CLASSIFICATIONS,
 	DOCUMENT_TYPES,
@@ -27,65 +26,17 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 
+	// Get params from URL - guaranteed to be valid from SSR validation
 	const rawSearch = searchParams.get("search") || "";
-	const rawType = searchParams.get("type") || "all";
-	const rawYear = searchParams.get("year") || "all";
-	const rawClassification = searchParams.get("classification") || "all";
+	const selectedType = searchParams.get("type") || "all";
+	const selectedYear = searchParams.get("year") || "all";
+	const selectedClassification = searchParams.get("classification") || "all";
 
 	// Local state for debounced search input
 	const [searchInput, setSearchInput] = useState<string>(rawSearch);
 
-	// Compute valid options
-	const validTypeValues = useMemo(() => DOCUMENT_TYPES.map((t) => t.value), []);
-	const validYearValues = useMemo(
-		() => availableYears.map((y) => String(y)),
-		[availableYears],
-	);
-	const validClassifications = useMemo(() => CLASSIFICATIONS, []);
-
-	// Sanitize incoming params to avoid blank selects when URL contains invalid values
-	type DocType = DocumentFilters["type"];
-	type DocClass = DocumentFilters["classification"];
-
-	const isValidType = (v: unknown): v is DocType =>
-		typeof v === "string" &&
-		(Array.from(validTypeValues) as unknown as string[]).includes(v as string);
-	const isValidClassification = (v: unknown): v is DocClass =>
-		typeof v === "string" &&
-		(Array.from(validClassifications) as unknown as string[]).includes(
-			v as string,
-		);
-
-	const selectedType: DocType | "all" = isValidType(rawType) ? rawType : "all";
-	const selectedYear =
-		rawYear === "all" || validYearValues.includes(rawYear) ? rawYear : "all";
-	const selectedClassification: DocClass | "all" = isValidClassification(
-		rawClassification,
-	)
-		? rawClassification
-		: "all";
-
 	// Use debounce hook for search input
 	const debouncedSearch = useDebounce(searchInput, 400);
-
-	// Use sanitize hook to clean up URL params on mount
-	useSanitizeParams({
-		rawParams: {
-			search: rawSearch,
-			type: rawType,
-			year: rawYear,
-			classification: rawClassification,
-		},
-		sanitizedParams: {
-			search: rawSearch || "",
-			type: selectedType,
-			year: selectedYear,
-			classification: selectedClassification,
-			page: searchParams.get("page") || "1",
-		},
-		buildQuery: buildQueryString,
-		basePath: "/legislative-documents",
-	});
 
 	// Helper to navigate with sanitized params
 	const navigateWithParams = (params: Record<string, string>) => {
@@ -107,9 +58,11 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	};
 
 	// Navigate when debounced search changes (not on every keystroke)
-	if (debouncedSearch !== rawSearch) {
-		navigateWithParams({ search: debouncedSearch });
-	}
+	useEffect(() => {
+		if (debouncedSearch !== rawSearch) {
+			navigateWithParams({ search: debouncedSearch });
+		}
+	}, [debouncedSearch]);
 
 	return (
 		<div className="sticky top-19 z-20 bg-gray-50 pt-6 pb-4 mb-0 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between border-b border-gray-200">
@@ -179,9 +132,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 							<SelectItem value="all">All Classifications</SelectItem>
 							{CLASSIFICATIONS.map((classification) => (
 								<SelectItem key={classification} value={classification}>
-									{classification.length > 30
-										? `${classification.slice(0, 30)}...`
-										: classification}
+									{classification}
 								</SelectItem>
 							))}
 						</SelectContent>
