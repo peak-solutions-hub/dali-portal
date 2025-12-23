@@ -6,6 +6,8 @@ import { FileText, Search, TrendingUp } from "@repo/ui/lib/lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
+const MAX_SEARCH_QUERY_LENGTH = 200;
+
 interface HeroSectionProps {
 	approvedOrdinances: number;
 	approvedResolutions: number;
@@ -57,10 +59,10 @@ export function HeroSection({
 			<div className="relative z-10 px-4 w-full max-w-7xl mx-auto pt-32">
 				<div className="flex items-center justify-between gap-16 mb-40">
 					{/* Left Side - Main Content */}
-					<div className="flex-1 max-w-[700px]">
+					<div className="flex-1 max-w-175">
 						<div className="mb-8">
 							<h1
-								className="text-4xl sm:text-5xl lg:text-[72px] lg:leading-[88px] mb-2 font-playfair-display"
+								className="text-4xl sm:text-5xl lg:text-[72px] lg:leading-22 mb-2 font-playfair-display"
 								style={{ letterSpacing: "0.08em" }}
 							>
 								SANGGUNIANG PANLUNGSOD
@@ -86,7 +88,7 @@ export function HeroSection({
 										placeholder="Search for an ordinance, resolution, or committee report..."
 										className="pl-12 h-14 bg-white text-gray-900 border-0 text-sm rounded-r-none focus:ring-2 focus:ring-white"
 										value={searchQuery}
-										maxLength={2048}
+										maxLength={MAX_SEARCH_QUERY_LENGTH}
 										onChange={(e) => setSearchQuery(e.target.value)}
 									/>
 								</div>
@@ -101,7 +103,7 @@ export function HeroSection({
 					</div>
 
 					{/* Right Side - Performance Indicators */}
-					<div className="shrink-0 w-[280px] hidden lg:flex flex-col gap-8">
+					<div className="shrink-0 w-70 hidden lg:flex flex-col gap-8">
 						{/* Ordinances Enacted */}
 						<div className="group">
 							<div className="flex items-baseline gap-3 mb-1">
