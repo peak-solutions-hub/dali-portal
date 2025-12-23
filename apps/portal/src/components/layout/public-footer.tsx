@@ -4,7 +4,8 @@ import Link from "next/link";
 
 export function PublicFooter() {
 	const address = "MHVF+F7R, Iloilo City Proper, Iloilo City, Iloilo";
-	const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+	const embedUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+	const googleMapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(address)}`;
 	return (
 		<footer className="bg-[#a60202] py-8 sm:py-12">
 			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5">
@@ -22,7 +23,7 @@ export function PublicFooter() {
 								<div className="bg-white h-75 sm:h-100 lg:h-113 rounded-lg overflow-hidden relative hover:shadow-xl transition-shadow">
 									<div className="relative h-full min-h-100">
 										<iframe
-											src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(address)}&zoom=17`}
+											src={embedUrl}
 											width="100%"
 											height="100%"
 											style={{ border: 0, minHeight: "400px" }}
