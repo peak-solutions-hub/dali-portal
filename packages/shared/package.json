@@ -12,6 +12,10 @@
 		"./enums": {
 			"types": "./src/enums/index.ts",
 			"default": "./src/enums/index.ts"
+		},
+		"./constants": {
+			"types": "./src/constants/index.ts",
+			"default": "./src/constants/index.ts"
 		}
 	},
 	"files": [
