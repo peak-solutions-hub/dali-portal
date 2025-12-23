@@ -24,7 +24,7 @@ import { DocumentType, PurposeType, StatusType } from "../enums";
  * - Legislative docs (Ordinances, Resolutions, Committee Reports) → FOR_AGENDA or FOR_FILING
  * - Administrative docs (Payroll, Contracts, Leave) → FOR_ACTION or FOR_FILING
  * - Flexible docs (Letters, Memos, Endorsements) → Any purpose
- * - Invitations → FOR_CALLER_SLIP or FOR_FILING
+ * - Invitations → FOR_CALLER_SLIP
  */
 export const DOCUMENT_PURPOSE_MAP: Record<
 	DocumentType,
