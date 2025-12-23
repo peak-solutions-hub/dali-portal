@@ -79,7 +79,7 @@ export function PublicHeader() {
 								</h1>
 								<p className="text-white/90 text-xs sm:text-sm">ng Iloilo</p>
 							</div>
-							<div className="hidden md:block w-px h-10 bg-white/30" />
+							<div className="hidden md:block w-px h-10 bg-white" />
 							<p className="hidden md:block text-white text-base sm:text-lg font-semibold">
 								DALI Portal
 							</p>

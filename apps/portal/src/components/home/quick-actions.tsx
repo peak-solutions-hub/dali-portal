@@ -5,7 +5,7 @@ export function QuickActions() {
 	return (
 		<div className="bg-[#a60202]">
 			<div className="max-w-7xl mx-auto px-4 py-6">
-				<div className="flex items-center justify-left gap-8">
+				<div className="flex items-center justify-start gap-8">
 					{/* Citizen Services Label */}
 					<div className="hidden lg:flex items-center gap-3">
 						<div className="w-1 h-12 bg-white/30 rounded-full" />
