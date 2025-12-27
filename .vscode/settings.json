@@ -2,8 +2,11 @@
 	"github.copilot.chat.codeGeneration.useInstructionFiles": true,
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"editor.defaultFormatter": "biomejs.biome",
+	"editor.formatOnSave": true,
 	"[jsonc]": {
 		"editor.defaultFormatter": "biomejs.biome"
 	},
-	"editor.formatOnSave": true
+	"[javascript]": { "editor.defaultFormatter": "biomejs.biome" },
+	"[typescript]": { "editor.defaultFormatter": "biomejs.biome" },
+	"prettier.enable": false
 }
