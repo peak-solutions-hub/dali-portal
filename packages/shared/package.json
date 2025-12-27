@@ -2,27 +2,28 @@
 	"name": "@repo/shared",
 	"version": "0.0.0",
 	"private": true,
-	"main": "./src/index.ts",
+	"main": "./dist/index.js",
 	"types": "./src/index.ts",
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
-			"default": "./src/index.ts"
+			"default": "./dist/index.js"
 		},
 		"./enums": {
 			"types": "./src/enums/index.ts",
-			"default": "./src/enums/index.ts"
+			"default": "./dist/enums/index.js"
 		},
 		"./constants": {
 			"types": "./src/constants/index.ts",
-			"default": "./src/constants/index.ts"
+			"default": "./dist/constants/index.js"
 		}
 	},
 	"files": [
-		"src"
+		"dist"
 	],
 	"scripts": {
 		"build": "tsc",
+		"dev": "tsc --watch",
 		"lint": "biome check",
 		"format": "biome format --write",
 		"check-types": "tsc --noEmit"
