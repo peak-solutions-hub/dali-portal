@@ -65,6 +65,14 @@ Before you begin, ensure you have the following installed:
     pnpm install
     ```
 
+4. **Build Shared Packages**
+
+    Since the shared library is a compiled package, you must build it to generate the `dist/` folders.
+
+    ```bash
+    pnpm run build
+    ```
+
 
 ## 🔑 Environment Variables
 
