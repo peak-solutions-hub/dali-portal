@@ -3,4 +3,5 @@ export default () => ({
 	database: {
 		url: process.env.DATABASE_URL,
 	},
+	// add config values/envs here
 });
