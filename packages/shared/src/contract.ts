@@ -8,3 +8,4 @@ export const contract = oc.router({
 });
 
 export type Contract = typeof contract;
+export type CreateInquiryTicketInput = typeof contract.inquiries.create;
