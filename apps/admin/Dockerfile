@@ -40,5 +40,6 @@ EXPOSE 3001
 
 ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
+ENV NODE_ENV=production
 
 CMD ["node", "apps/admin/server.js"]

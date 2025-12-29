@@ -45,5 +45,6 @@ USER nestjs
 EXPOSE 8080
 
 ENV PORT=8080
+ENV NODE_ENV=production
 
 CMD ["node", "dist/src/app/main.js"]

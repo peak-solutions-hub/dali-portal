@@ -9,7 +9,7 @@
 		"dist"
 	],
 	"scripts": {
-		"postinstall": "prisma generate || true",
+		"postinstall": "prisma generate",
 		"build": "nest build",
 		"dev": "nest start --watch",
 		"format": "biome format --write",
