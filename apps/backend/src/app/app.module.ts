@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { REQUEST } from "@nestjs/core";
-import { ORPCError, ORPCModule, onError } from "@orpc/nest";
-import { experimental_RethrowHandlerPlugin as RethrowHandlerPlugin } from "@orpc/server/plugins";
+import { ORPCModule, onError } from "@orpc/nest";
 import type { Request } from "express";
 import { AppController } from "@/app/app.controller";
 import { DbModule } from "@/app/db/db.module";

@@ -25,7 +25,7 @@ export const GetInquiryTicketListSchema = z.object({
 	status: InquiryTicketStatusEnum.optional(),
 	category: InquiryTicketCategoryEnum.optional(),
 	// Pagination
-	limit: z.number().int().min(1).max(100).default(20),
+	limit: z.coerce.number().int().min(1).max(100).default(20),
 	cursor: z.uuid().optional(),
 });
 

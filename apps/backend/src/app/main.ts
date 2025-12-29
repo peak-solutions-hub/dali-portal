@@ -3,7 +3,6 @@ import { OpenAPIGenerator } from "@orpc/openapi";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { contract } from "@repo/shared";
 import { apiReference } from "@scalar/nestjs-api-reference";
-import { Response } from "express";
 import { AppModule } from "@/app/app.module";
 import { ConfigService } from "@/lib/config.service";
 

@@ -20,6 +20,9 @@ export const createInquiryTicket = oc
 			"Citizens submit inquiries via the public portal. Returns a reference number for tracking.",
 		tags: ["Inquiry", "Public"],
 	})
+	.errors({
+		// define possible errors here
+	})
 	.input(CreateInquiryTicketSchema)
 	.output(CreateInquiryTicketResponseSchema);
 
@@ -32,6 +35,12 @@ export const getInquiryTicketList = oc
 			"Staff retrieves list of inquiry tickets with optional filters.",
 		tags: ["Inquiry", "Admin"],
 	})
+	.errors({
+		UNAUTHORIZED: {
+			status: 401,
+			description: "Unauthorized access",
+		},
+	})
 	.input(GetInquiryTicketListSchema)
 	.output(InquiryTicketListSchema);
 
@@ -42,6 +51,9 @@ export const getInquiryTicketById = oc
 		summary: "Get inquiry details",
 		description: "Staff retrieves full inquiry details.",
 		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		// define possible errors here
 	})
 	.input(GetInquiryTicketByIdSchema)
 	.output(InquiryTicketSchema);

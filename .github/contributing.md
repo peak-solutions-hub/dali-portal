@@ -12,7 +12,8 @@
 - [Keeping Your Branch Updated](#keeping-your-branch-updated)
 - [File Naming](#file-naming)
 - [MCP Servers (AI Tooling)](#mcp-servers-ai-tooling)
-- [Backend Development](#backend)
+- [Backend Development](#backend-development)
+- [Frontend Development](#frontend-development)
 - [Additional Guidelines](#additional-guidelines)
 
 ---
@@ -363,6 +364,54 @@ export class DomainService {
    - `<domain>.module.ts` (connect controller & service)
 5. Import module in `apps/backend/src/app/app.module.ts`
 
+---
+
+## Frontend Development
+
+### oRPC Client Usage
+
+The frontend apps use **oRPC with OpenAPILink** for type-safe API communication. Each app has its own isolated client instance.
+
+**See comprehensive guide:** [Frontend oRPC Client Guide](./instructions/frontend-orpc-client.md)
+
+### Quick Start
+
+1. **Client is auto-configured** in each app:
+   - `apps/portal/src/lib/orpc-client.ts` (public)
+   - `apps/admin/src/lib/orpc-client.ts` (admin)
+
+2. **Import and use** in any component:
+
+   ```typescript
+   import { api } from '@/lib/orpc-client'
+
+   // fetch
+   const [error, data] = await api.inquiries.getList({ limit: 20 })
+
+   // mutate
+   const [error, data] = await api.inquiries.create({
+     citizenEmail: 'citizen@example.com',
+     citizenName: 'John Doe',
+     subject: 'Help needed',
+     category: 'appointment_request',
+     message: 'I need assistance with...',
+   })
+   ```
+
+3. **Handle errors properly**:
+
+   ```typescript
+   import { isDefinedError } from '@orpc/client'
+
+   if (error) {
+     if (isDefinedError(error)) {
+       // Server error with code (UNAUTHORIZED, NOT_FOUND, etc.)
+       console.error(error.code, error.message)
+     } else {
+       console.error(error.message)
+     }
+   }
+   ```
 ---
 
 ## Additional Guidelines

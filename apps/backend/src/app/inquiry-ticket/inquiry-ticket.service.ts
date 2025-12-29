@@ -1,10 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { ORPCError } from "@orpc/nest";
 import {
-	Contract,
 	type CreateInquiryTicketInput,
 	type CreateInquiryTicketResponse,
-	contract,
 	type GetInquiryTicketByIdInput,
 	type GetInquiryTicketListInput,
 	type InquiryTicket,
@@ -31,10 +29,19 @@ export class InquiryTicketService {
 
 	async getList(input: GetInquiryTicketListInput): Promise<InquiryTicketList> {
 		// to change
-		const inquiryTickets = await this.db.inquiryTicket.findMany({
-			cursor: { id: input.cursor || undefined },
-			take: input.limit,
-		});
+
+		let inquiryTickets: InquiryTicket[] = [];
+
+		if (input.cursor) {
+			inquiryTickets = await this.db.inquiryTicket.findMany({
+				cursor: { id: input.cursor },
+				take: input.limit,
+			});
+		} else {
+			inquiryTickets = await this.db.inquiryTicket.findMany({
+				take: input.limit,
+			});
+		}
 
 		return inquiryTickets;
 	}
@@ -45,7 +52,7 @@ export class InquiryTicketService {
 		});
 
 		if (!inquiryTicket) {
-			throw new ORPCError("Inquiry ticket not found");
+			throw new ORPCError("Record not found");
 		}
 
 		return inquiryTicket;

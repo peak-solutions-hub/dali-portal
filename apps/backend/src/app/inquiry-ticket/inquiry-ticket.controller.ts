@@ -1,5 +1,5 @@
-import { Controller, Param } from "@nestjs/common";
-import { Implement, implement } from "@orpc/nest";
+import { Controller } from "@nestjs/common";
+import { Implement, implement, ORPCError } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { InquiryTicketService } from "./inquiry-ticket.service";
 
@@ -17,6 +17,12 @@ export class InquiryTicketController {
 	@Implement(contract.inquiries.getList)
 	getList() {
 		return implement(contract.inquiries.getList).handler(async ({ input }) => {
+			// sample only to test error handling
+			if (input.limit == 10) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "You are not authorized to view inquiries.",
+				});
+			}
 			return await this.inquiryService.getList(input);
 		});
 	}
