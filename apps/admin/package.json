@@ -14,6 +14,7 @@
 		"@orpc/openapi-client": "^1.13.2",
 		"@repo/shared": "workspace:*",
 		"@repo/ui": "workspace:*",
+		"@repo/shared": "workspace:*",
 		"next": "16.0.10",
 		"react": "19.2.1",
 		"react-dom": "19.2.1"
