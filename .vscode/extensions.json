@@ -2,7 +2,6 @@
 	"recommendations": [
 		"biomejs.biome",
 		"ms-vsliveshare.vsliveshare",
-		"rangav.vscode-thunder-client",
-		"jakubkozera.my-todos"
+		"rangav.vscode-thunder-client"
 	]
 }

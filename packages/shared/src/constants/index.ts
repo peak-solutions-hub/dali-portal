@@ -1,1 +1,8 @@
 export * from "./document-rules";
+
+export const TEXT_LIMITS = {
+	XS: 50, // names, etc
+	SM: 280, // titles, subjects
+	MD: 500, // Short descriptions, remarks
+	LG: 1000,
+};
