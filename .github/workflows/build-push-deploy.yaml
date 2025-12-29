@@ -1,4 +1,4 @@
-name: Build, Push, and Deploy Image
+name: Build, push, and deploy image
 
 on:
   workflow_call:
@@ -29,6 +29,7 @@ env:
 
 jobs:
   build-push:
+    name: Build, push, and deploy ${{ inputs.app }} image
     runs-on: ubuntu-latest
     if: inputs.enabled == true
     environment:

@@ -1,4 +1,4 @@
-name: Build and Deploy Images Orchestration
+name: Detect changes & deploy images
 on:
   push:
     branches:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   detect-changes:
-    name: Detect Changes
+    name: Detect changed paths
     runs-on: ubuntu-latest
     outputs:
       portal: ${{ steps.filter.outputs.portal }}
@@ -34,6 +34,7 @@ jobs:
 
   call-build-deploy-image:
     needs: detect-changes
+    name: Build & deploy ${{matrix.app}}
     strategy:
       matrix:
         include:
