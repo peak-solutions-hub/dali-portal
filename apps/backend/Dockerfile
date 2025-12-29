@@ -2,8 +2,8 @@ FROM node:22-alpine AS base
 RUN apk update && apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install turbo cli and pnpm
-RUN npm install -g turbo@2.6.3 pnpm@9.0.0
+# install pnpm and turbo cli
+RUN corepack enable && npm install -g turbo@2.6.3
 
 # Prune to isolate app
 FROM base AS pruner
@@ -22,24 +22,28 @@ COPY --from=installer /app/ .
 COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo build --filter=backend
 
-# Isolate build files and prod deps
-RUN pnpm deploy --filter=backend --prod /prod/backend
-
 # Production image
 FROM node:22-alpine AS runner
 WORKDIR /app
+
+# install pnpm 
+RUN corepack enable
 
 # Don't run as root for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 
-COPY --from=builder --chown=nestjs:nodejs /prod/backend .
+COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/package.json ./package.json
+COPY --from=builder --chown=nestjs:nodejs /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/src/app/db ./src/app/db
+
+RUN pnpm install --prod
 
 USER nestjs
 
 EXPOSE 8080
 
 ENV PORT=8080
-ENV NODE_ENV=production
 
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/app/main.js"]
