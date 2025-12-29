@@ -1,4 +1,4 @@
-import { createORPCClient, createSafeClient, safe } from "@orpc/client";
+import { createORPCClient, createSafeClient } from "@orpc/client";
 import type { ContractRouterClient } from "@orpc/contract";
 import type { JsonifiedClient } from "@orpc/openapi-client";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";

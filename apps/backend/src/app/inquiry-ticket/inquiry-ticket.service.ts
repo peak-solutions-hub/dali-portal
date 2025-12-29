@@ -52,7 +52,7 @@ export class InquiryTicketService {
 		});
 
 		if (!inquiryTicket) {
-			throw new ORPCError("Record not found");
+			throw new ORPCError("NOT_FOUND", { message: "Record not found" });
 		}
 
 		return inquiryTicket;

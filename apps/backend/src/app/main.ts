@@ -46,7 +46,7 @@ async function bootstrap() {
 		"/docs",
 		apiReference({
 			theme: "moon",
-			url: "/api/openapi.json",
+			url: "/openapi.json",
 			favicon: "https://avatars.githubusercontent.com/u/301879?s=48&v=4",
 		}),
 	);

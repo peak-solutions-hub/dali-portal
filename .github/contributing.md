@@ -372,18 +372,16 @@ export class DomainService {
 
 The frontend apps use **oRPC with OpenAPILink** for type-safe API communication. Each app has its own isolated client instance.
 
-**See comprehensive guide:** [Frontend oRPC Client Guide](./instructions/frontend-orpc-client.md)
-
 ### Quick Start
 
 1. **Client is auto-configured** in each app:
-   - `apps/portal/src/lib/orpc-client.ts` (public)
-   - `apps/admin/src/lib/orpc-client.ts` (admin)
+   - `apps/portal/src/lib/api.client.ts` (public)
+   - `apps/admin/src/lib/api.client.ts` (admin)
 
 2. **Import and use** in any component:
 
    ```typescript
-   import { api } from '@/lib/orpc-client'
+   import { api } from '@/lib/api.client'
 
    // fetch
    const [error, data] = await api.inquiries.getList({ limit: 20 })
