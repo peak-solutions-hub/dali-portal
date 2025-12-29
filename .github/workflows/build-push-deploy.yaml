@@ -1,5 +1,3 @@
-name: Build, push, and deploy image
-
 on:
   workflow_call:
     inputs:
