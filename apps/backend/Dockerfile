@@ -14,12 +14,18 @@ RUN turbo prune backend --docker
 FROM base AS installer
 COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN pnpm install --frozen-lockfile
+
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Build the application
 FROM base AS builder
 COPY --from=installer /app/ .
+
 COPY --from=pruner /app/out/full/ .
+
+# generate prisma client
+RUN pnpm --filter=backend db:generate
+
 RUN pnpm turbo build --filter=backend
 
 # Production image
@@ -36,9 +42,9 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/package.json ./package.json
 COPY --from=builder --chown=nestjs:nodejs /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/src/app/db ./src/app/db
+COPY --from=builder --chown=nestjs:nodejs /app/apps/backend/generated ./generated
 
-RUN pnpm install --prod
+RUN pnpm install --prod --ignore-scripts
 
 USER nestjs
 
