@@ -1,3 +1,3 @@
 export default function InquiryTickets() {
-	return <div>inquiryticks</div>;
+	return <div>inquirytickets</div>;
 }

@@ -7,6 +7,6 @@ import { LibModule } from "@/lib/lib.module";
 @Module({
 	imports: [LibModule, DbModule],
 	controllers: [AppController], // to remove
-	providers: [AppService], // to remove
+	providers: [AppService], // to removee
 })
 export class AppModule {}
