@@ -1,0 +1,312 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../../../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model AssistanceRecord {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claimantId      String      @map("claimant_id") @db.Uuid
+  patientName     String      @map("patient_name")
+  type            String
+  amountNeeded    Float       @map("amount_needed")
+  approvedAmount  Float       @map("approved_amount")
+  referredBy      String      @map("referred_by")
+  endorsementDate DateTime    @map("endorsement_date") @db.Date
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  constituent     Constituent @relation(fields: [claimantId], references: [id])
+
+  @@map("assistance_record")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model CallerSlip {
+  id          String       @id(map: "caller_slips_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  status      String
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  generatedBy String       @map("generated_by") @db.Uuid
+  user        User         @relation(fields: [generatedBy], references: [id], map: "caller_slips_generated_by_fkey")
+  invitation  Invitation[]
+
+  @@map("caller_slip")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Constituent {
+  id                     String                   @id(map: "constituents_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  householdId            String                   @map("household_id") @db.Uuid
+  firstName              String                   @map("first_name")
+  lastName               String                   @map("last_name")
+  extName                String?                  @map("ext_name")
+  sex                    String
+  contactNumber          String                   @map("contact_number")
+  assistanceRecord       AssistanceRecord[]
+  household              Household                @relation(fields: [householdId], references: [id], map: "constituents_household_id_fkey")
+  scholarshipApplication ScholarshipApplication[]
+  visitorLog             VisitorLog[]
+
+  @@map("constituent")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Document {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codeNumber          String                @map("code_number")
+  title               String
+  type                String
+  purpose             String
+  source              String
+  status              String
+  classification      String
+  remarks             String?
+  receivedAt          DateTime              @default(now()) @map("received_at") @db.Timestamptz(6)
+  documentAudit       DocumentAudit[]
+  documentVersion     DocumentVersion[]
+  invitation          Invitation[]
+  legislativeDocument LegislativeDocument[]
+  sessionAgendaItem   SessionAgendaItem[]
+
+  @@map("document")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model DocumentAudit {
+  id            String   @id(map: "document_audits_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId       String   @map("actor_id") @db.Uuid
+  documentId    String   @map("document_id") @db.Uuid
+  versionNumber Decimal  @map("version_number") @db.Decimal
+  filePath      String   @map("file_path")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          User     @relation(fields: [actorId], references: [id], map: "document_audits_actor_id_fkey")
+  document      Document @relation(fields: [documentId], references: [id], map: "document_audits_document_id_fkey")
+
+  @@map("document_audit")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model DocumentVersion {
+  id            String   @id(map: "document_versions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId    String   @map("document_id") @db.Uuid
+  uploaderId    String   @map("uploader_id") @db.Uuid
+  versionNumber Decimal  @map("version_number") @db.Decimal
+  filePath      String   @map("file_path")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  document      Document @relation(fields: [documentId], references: [id], map: "document_versions_document_id_fkey")
+  user          User     @relation(fields: [uploaderId], references: [id], map: "document_versions_uploader_id_fkey")
+
+  @@map("document_version")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Household {
+  id                String        @id(map: "households_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  streetAndBarangay String        @map("street_and_barangay")
+  town              String
+  lastAidDate       DateTime      @map("last_aid_date") @db.Timestamptz(6)
+  constituent       Constituent[]
+
+  @@map("household")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model InquiryMessage {
+  id              String        @id(map: "inquiry_messages_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId        String        @map("ticket_id")
+  senderType      String        @map("sender_type")
+  senderName      String        @map("sender_name")
+  content         String
+  attachmentPaths String[]      @map("attachment_paths")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  inquiryTicket   InquiryTicket @relation(fields: [ticketId], references: [referenceNumber], map: "inquiry_messages_ticket_id_fkey")
+
+  @@map("inquiry_message")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model InquiryTicket {
+  id              String           @id(map: "inquiry_tickets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceNumber String           @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
+  assignedTo      String           @map("assigned_to") @db.Uuid
+  citizenEmail    String           @map("citizen_email")
+  citizenName     String           @map("citizen_name")
+  subject         String
+  category        String
+  status          String
+  closureRemarks  String?          @map("closure_remarks")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  inquiryMessage  InquiryMessage[]
+  user            User             @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
+
+  @@map("inquiry_ticket")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Invitation {
+  id                 String     @id(map: "invitations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId         String     @map("document_id") @db.Uuid
+  callerSlipId       String     @map("caller_slip_id") @db.Uuid
+  eventVenue         String     @map("event_venue")
+  eventStartTime     DateTime   @map("event_start_time") @db.Timestamptz(6)
+  eventEndTime       DateTime   @map("event_end_time") @db.Timestamptz(6)
+  vmDecision         String?    @map("vm_decision")
+  vmDecisionRemarks  String?    @map("vm_decision_remarks")
+  representativeName String?    @map("representative_name")
+  callerSlip         CallerSlip @relation(fields: [callerSlipId], references: [id], map: "invitations_caller_slip_id_fkey")
+  document           Document   @relation(fields: [documentId], references: [id], map: "invitations_document_id_fkey")
+
+  @@map("invitation")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model LegislativeDocument {
+  id             BigInt   @id(map: "legislative_documents_pkey") @default(autoincrement())
+  documentId     String   @map("document_id") @db.Uuid
+  officialNumber String   @map("official_number")
+  seriesYear     Decimal  @map("series_year") @db.Decimal
+  type           String
+  dateEnacted    DateTime @map("date_enacted") @db.Date
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  sponsorNames   String[] @map("sponsor_names")
+  authorNames    String[] @map("author_names")
+  document       Document @relation(fields: [documentId], references: [id], map: "legislative_documents_document_id_fkey")
+
+  @@map("legislative_document")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Role {
+  id        String   @id(map: "roles_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User[]
+
+  @@map("role")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RoomBooking {
+  id           String   @id(map: "room_bookings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookedBy     String   @map("booked_by") @db.Uuid
+  title        String
+  startTime    DateTime @map("start_time") @db.Timestamptz(6)
+  endTime      DateTime @map("end_time") @db.Timestamptz(6)
+  requestedFor String   @map("requested_for")
+  status       String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user         User     @relation(fields: [bookedBy], references: [id], map: "room_bookings_booked_by_fkey")
+
+  @@map("room_booking")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ScholarshipApplication {
+  id                    BigInt      @id @default(autoincrement())
+  constituentId         String      @map("constituent_id") @db.Uuid
+  seqNumber             Decimal     @map("seq_number") @db.Decimal
+  studentId             String      @map("student_id")
+  middleName            String      @map("middle_name")
+  birthDate             DateTime    @map("birth_date") @db.Date
+  programName           String      @map("program_name")
+  yearLevel             String      @map("year_level")
+  province              String
+  zipCode               Decimal     @map("zip_code") @db.Decimal
+  heiUii                String      @map("hei_uii")
+  heiName               String      @map("hei_name")
+  fatherLastName        String      @map("father_last_name")
+  fatherMiddleName      String      @map("father_middle_name")
+  fatherGivenName       String      @map("father_given_name")
+  motherMiddleName      String      @map("mother_middle_name")
+  motherLastName        String      @map("mother_last_name")
+  motherGivenName       String      @map("mother_given_name")
+  guardianContactNumber String      @map("guardian_contact_number")
+  guardianEmailAddress  String      @map("guardian_email_address")
+  constituent           Constituent @relation(fields: [constituentId], references: [id])
+
+  @@map("scholarship_application")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Session {
+  id                String              @id(map: "sessions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionNumber     Decimal             @map("session_number") @db.Decimal
+  type              String
+  status            String
+  scheduleDate      DateTime            @map("schedule_date") @db.Timestamptz(6)
+  agendaFilePath    String?             @map("agenda_file_path")
+  minutesFilePath   String?             @map("minutes_file_path")
+  journalFilePath   String?             @map("journal_file_path")
+  sessionAgendaItem SessionAgendaItem[]
+
+  @@map("session")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SessionAgendaItem {
+  id             String    @id(map: "session_agenda_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId      String    @map("session_id") @db.Uuid
+  section        String
+  orderIndex     Decimal   @map("order_index") @db.Decimal
+  contentText    String?   @map("content_text")
+  linkedDocument String?   @map("linked_document") @db.Uuid
+  attachmentPath String?   @map("attachment_path")
+  attachmentName String?   @map("attachment_name")
+  document       Document? @relation(fields: [linkedDocument], references: [id], onDelete: Restrict, map: "session_agenda_items_linked_document_fkey")
+  session        Session   @relation(fields: [sessionId], references: [id], map: "session_agenda_items_session_id_fkey")
+
+  @@map("session_agenda_item")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model User {
+  id              String            @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roleId          String            @map("role_id") @db.Uuid
+  fullName        String            @map("full_name")
+  email           String
+  status          String
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  callerSlip      CallerSlip[]
+  documentAudit   DocumentAudit[]
+  documentVersion DocumentVersion[]
+  inquiryTicket   InquiryTicket[]
+  roomBooking     RoomBooking[]
+  role            Role              @relation(fields: [roleId], references: [id], map: "users_role_id_fkey")
+
+  @@map("user")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model VisitorLog {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  constituentId String      @map("constituent_id") @db.Uuid
+  company       String?
+  dateVisited   DateTime    @map("date_visited") @db.Date
+  purpose       String
+  remarks       String?
+  constituent   Constituent @relation(fields: [constituentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("visitor_log")
+}
