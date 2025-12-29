@@ -21,7 +21,7 @@ applyTo: "**"
   - `IF <condition> THEN <system> SHALL <response>`
   - `WHILE <state> THEN <system> SHALL <invariant>`
 - Explicitly call out:
-  - - **Roles and permissions:** Use specific User Classes (e.g., `BE-6 VM Admin Office Staff Head`)
+  - - **Roles and permissions:** Use specific User Classes (e.g., `it_admin, admin_staff, ovm_staff, admin_head`)
   - Privacy constraints (avoid account enumeration; minimize PII exposure)
   - Time zone requirements (Philippine Time, GMT+8) when timestamps/scheduling exists
   - Accessibility constraints (WCAG AA)

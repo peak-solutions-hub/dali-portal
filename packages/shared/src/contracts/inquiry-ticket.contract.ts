@@ -26,10 +26,10 @@ export const createInquiryTicket = oc
 export const getInquiryTicketList = oc
 	.route({
 		method: "GET",
-		path: "/admin/inquiries",
+		path: "/inquiries",
 		summary: "Get list of inquiry tickets",
 		description:
-			"Staff retrieves list of inquiry tickets with optional filters (simplified).",
+			"Staff retrieves list of inquiry tickets with optional filters.",
 		tags: ["Inquiry", "Admin"],
 	})
 	.input(GetInquiryTicketListSchema)
@@ -38,9 +38,9 @@ export const getInquiryTicketList = oc
 export const getInquiryTicketById = oc
 	.route({
 		method: "GET",
-		path: "/admin/inquiries/{id}",
+		path: "/inquiries/{id}",
 		summary: "Get inquiry details",
-		description: "Staff retrieves full inquiry details (simplified).",
+		description: "Staff retrieves full inquiry details.",
 		tags: ["Inquiry", "Admin"],
 	})
 	.input(GetInquiryTicketByIdSchema)
@@ -49,7 +49,7 @@ export const getInquiryTicketById = oc
 export const updateInquiryTicketStatus = oc
 	.route({
 		method: "PATCH",
-		path: "/admin/inquiries/{id}/status",
+		path: "/inquiries/{id}/status",
 		summary: "Update inquiry status",
 		description:
 			"Staff updates inquiry status. Closure remarks required for RESOLVED/REJECTED.",

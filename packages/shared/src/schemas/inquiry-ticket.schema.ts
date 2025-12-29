@@ -29,8 +29,8 @@ export const GetInquiryTicketListSchema = z.object({
 	cursor: z.uuid().optional(),
 });
 
-export const GetInquiryTicketByIdSchema = z.object({
-	id: z.uuid(),
+export const GetInquiryTicketByIdSchema = InquiryTicketSchema.pick({
+	id: true,
 });
 
 export const CreateInquiryTicketSchema = z.object({
@@ -45,9 +45,10 @@ export const CreateInquiryTicketResponseSchema = z.object({
 	referenceNumber: z.string(),
 });
 
-export const UpdateInquiryTicketStatusSchema = z.object({
-	id: z.uuid(),
-	status: InquiryTicketStatusEnum,
+export const UpdateInquiryTicketStatusSchema = InquiryTicketSchema.pick({
+	id: true,
+	status: true,
+}).extend({
 	closureRemarks: z.string().max(TEXT_LIMITS.SM).optional(),
 });
 

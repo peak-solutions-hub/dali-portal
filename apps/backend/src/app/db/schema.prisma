@@ -47,8 +47,8 @@ model Constituent {
   firstName              String                   @map("first_name")
   lastName               String                   @map("last_name")
   extName                String?                  @map("ext_name")
-  sex                    String
   contactNumber          String                   @map("contact_number")
+  sex                    SexType
   assistanceRecord       AssistanceRecord[]
   household              Household                @relation(fields: [householdId], references: [id], map: "constituents_household_id_fkey")
   scholarshipApplication ScholarshipApplication[]
@@ -63,13 +63,13 @@ model Document {
   id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   codeNumber          String                @map("code_number")
   title               String
-  type                String
-  purpose             String
-  source              String
-  status              String
-  classification      String
   remarks             String?
   receivedAt          DateTime              @default(now()) @map("received_at") @db.Timestamptz(6)
+  type                DocumentType
+  purpose             PurposeType
+  source              SourceType
+  status              StatusType
+  classification      ClassificationType
   documentAudit       DocumentAudit[]
   documentVersion     DocumentVersion[]
   invitation          Invitation[]
@@ -124,14 +124,14 @@ model Household {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model InquiryMessage {
-  id              String        @id(map: "inquiry_messages_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ticketId        String        @map("ticket_id")
-  senderType      String        @map("sender_type")
-  senderName      String        @map("sender_name")
+  id              String                   @id(map: "inquiry_messages_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId        String                   @map("ticket_id")
+  senderName      String                   @map("sender_name")
   content         String
-  attachmentPaths String[]      @map("attachment_paths")
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  inquiryTicket   InquiryTicket @relation(fields: [ticketId], references: [referenceNumber], map: "inquiry_messages_ticket_id_fkey")
+  attachmentPaths String[]                 @map("attachment_paths")
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  senderType      InquiryMessageSenderType @map("sender_type")
+  inquiryTicket   InquiryTicket            @relation(fields: [ticketId], references: [referenceNumber], map: "inquiry_messages_ticket_id_fkey")
 
   @@map("inquiry_message")
 }
@@ -145,10 +145,10 @@ model InquiryTicket {
   citizenEmail    String           @map("citizen_email")
   citizenName     String           @map("citizen_name")
   subject         String
-  category        String
-  status          String
   closureRemarks  String?          @map("closure_remarks")
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  category        InquiryCategory
+  status          InquiryStatus
   inquiryMessage  InquiryMessage[]
   user            User             @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
 
@@ -158,17 +158,17 @@ model InquiryTicket {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Invitation {
-  id                 String     @id(map: "invitations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  documentId         String     @map("document_id") @db.Uuid
-  callerSlipId       String     @map("caller_slip_id") @db.Uuid
-  eventVenue         String     @map("event_venue")
-  eventStartTime     DateTime   @map("event_start_time") @db.Timestamptz(6)
-  eventEndTime       DateTime   @map("event_end_time") @db.Timestamptz(6)
-  vmDecision         String?    @map("vm_decision")
-  vmDecisionRemarks  String?    @map("vm_decision_remarks")
-  representativeName String?    @map("representative_name")
-  callerSlip         CallerSlip @relation(fields: [callerSlipId], references: [id], map: "invitations_caller_slip_id_fkey")
-  document           Document   @relation(fields: [documentId], references: [id], map: "invitations_document_id_fkey")
+  id                 String        @id(map: "invitations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId         String        @map("document_id") @db.Uuid
+  callerSlipId       String        @map("caller_slip_id") @db.Uuid
+  eventVenue         String        @map("event_venue")
+  eventStartTime     DateTime      @map("event_start_time") @db.Timestamptz(6)
+  eventEndTime       DateTime      @map("event_end_time") @db.Timestamptz(6)
+  vmDecisionRemarks  String?       @map("vm_decision_remarks")
+  representativeName String?       @map("representative_name")
+  vmDecision         DecisionType? @map("vm_decision")
+  callerSlip         CallerSlip    @relation(fields: [callerSlipId], references: [id], map: "invitations_caller_slip_id_fkey")
+  document           Document      @relation(fields: [documentId], references: [id], map: "invitations_document_id_fkey")
 
   @@map("invitation")
 }
@@ -193,9 +193,9 @@ model LegislativeDocument {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Role {
-  id        String   @id(map: "roles_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      RoleType
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   user      User[]
 
   @@map("role")
@@ -204,15 +204,15 @@ model Role {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model RoomBooking {
-  id           String   @id(map: "room_bookings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bookedBy     String   @map("booked_by") @db.Uuid
+  id           String            @id(map: "room_bookings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookedBy     String            @map("booked_by") @db.Uuid
   title        String
-  startTime    DateTime @map("start_time") @db.Timestamptz(6)
-  endTime      DateTime @map("end_time") @db.Timestamptz(6)
-  requestedFor String   @map("requested_for")
-  status       String
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  user         User     @relation(fields: [bookedBy], references: [id], map: "room_bookings_booked_by_fkey")
+  startTime    DateTime          @map("start_time") @db.Timestamptz(6)
+  endTime      DateTime          @map("end_time") @db.Timestamptz(6)
+  requestedFor String            @map("requested_for")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  status       RoomBookingStatus
+  user         User              @relation(fields: [bookedBy], references: [id], map: "room_bookings_booked_by_fkey")
 
   @@map("room_booking")
 }
@@ -250,12 +250,12 @@ model ScholarshipApplication {
 model Session {
   id                String              @id(map: "sessions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   sessionNumber     Decimal             @map("session_number") @db.Decimal
-  type              String
-  status            String
   scheduleDate      DateTime            @map("schedule_date") @db.Timestamptz(6)
   agendaFilePath    String?             @map("agenda_file_path")
   minutesFilePath   String?             @map("minutes_file_path")
   journalFilePath   String?             @map("journal_file_path")
+  type              SessionType
+  status            SessionStatus
   sessionAgendaItem SessionAgendaItem[]
 
   @@map("session")
@@ -264,16 +264,16 @@ model Session {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model SessionAgendaItem {
-  id             String    @id(map: "session_agenda_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sessionId      String    @map("session_id") @db.Uuid
-  section        String
-  orderIndex     Decimal   @map("order_index") @db.Decimal
-  contentText    String?   @map("content_text")
-  linkedDocument String?   @map("linked_document") @db.Uuid
-  attachmentPath String?   @map("attachment_path")
-  attachmentName String?   @map("attachment_name")
-  document       Document? @relation(fields: [linkedDocument], references: [id], onDelete: Restrict, map: "session_agenda_items_linked_document_fkey")
-  session        Session   @relation(fields: [sessionId], references: [id], map: "session_agenda_items_session_id_fkey")
+  id             String         @id(map: "session_agenda_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId      String         @map("session_id") @db.Uuid
+  orderIndex     Decimal        @map("order_index") @db.Decimal
+  contentText    String?        @map("content_text")
+  linkedDocument String?        @map("linked_document") @db.Uuid
+  attachmentPath String?        @map("attachment_path")
+  attachmentName String?        @map("attachment_name")
+  section        SessionSection
+  document       Document?      @relation(fields: [linkedDocument], references: [id], onDelete: Restrict, map: "session_agenda_items_linked_document_fkey")
+  session        Session        @relation(fields: [sessionId], references: [id], map: "session_agenda_items_session_id_fkey")
 
   @@map("session_agenda_item")
 }
@@ -285,14 +285,14 @@ model User {
   roleId          String            @map("role_id") @db.Uuid
   fullName        String            @map("full_name")
   email           String
-  status          String
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  status          UserStatus
   callerSlip      CallerSlip[]
   documentAudit   DocumentAudit[]
   documentVersion DocumentVersion[]
   inquiryTicket   InquiryTicket[]
   roomBooking     RoomBooking[]
-  role            Role              @relation(fields: [roleId], references: [id], map: "users_role_id_fkey")
+  role            Role              @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "users_role_id_fkey")
 
   @@map("user")
 }
@@ -309,4 +309,189 @@ model VisitorLog {
   constituent   Constituent @relation(fields: [constituentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("visitor_log")
+}
+
+enum SexType {
+  male
+  female
+
+  @@map("sex_type")
+}
+
+enum DocumentType {
+  proposed_ordinance
+  proposed_resolution
+  committee_report
+  payroll
+  contract_of_service
+  leave_application
+  letter
+  memo
+  endorsement
+  invitation
+
+  @@map("document_type")
+}
+
+enum PurposeType {
+  for_agenda
+  for_action
+  for_filing
+  for_caller_slip
+
+  @@map("purpose_type")
+}
+
+enum StatusType {
+  received
+  for_initial
+  for_signature
+  approved
+  calendared
+  published
+  returned
+  released
+
+  @@map("status_type")
+}
+
+enum SourceType {
+  administrators_office
+  city_councilors_office
+  city_treasurers_office
+  health_office
+  mayors_office
+  mdrrmo
+  philippine_national_police
+  vice_mayors_office
+  others
+
+  @@map("source_type")
+}
+
+enum ClassificationType {
+  appropriations
+  barangay_affairs_and_community_development
+  communication_and_public_information
+  cooperative_and_livelihood
+  disaster_relief
+  domestic_and_international_relations
+  education_science_and_technology
+  electric_gas_and_utilities
+  engineering_construction_and_public_works
+  ethics_and_rules_of_professional_sports
+  fire_sanitation_and_hospital_services
+  information_technology_and_computerization
+  labor_employment_manpower_development_and_personnel
+  market_and_slaughterhouse
+  peace_and_order
+  public_safety_good_government_and_public_accountability
+  public_fire_penology_public_safety_order_and_security
+  public_services_environmental_protection_and_ecology
+  public_utilities_energy_style_justice_and_legal_matters
+  real_estate
+  social_welfare_and_historical_affairs
+  tourism_culture_and_industry
+  trade_commerce_and_industry
+  transportation_housing_and_land_development_zoning
+  urban_poor_human_rights_and_minority_groups
+  veterans_retirees_elderly_and_disabled_person
+  women_and_family_relations
+  youth_and_sports_development
+
+  @@map("classification_type")
+}
+
+enum InquiryCategory {
+  general_inquiry
+  request_for_assistance
+  appointment_request
+  document_follow_up
+
+  @@map("inquiry_category")
+}
+
+enum InquiryStatus {
+  new
+  open
+  waiting_for_citizen
+  resolved
+  rejected
+
+  @@map("inquiry_status")
+}
+
+enum InquiryMessageSenderType {
+  citizen
+  staff
+
+  @@map("inquiry_message_sender_type")
+}
+
+enum DecisionType {
+  attend
+  decline
+  assign_representative
+
+  @@map("decision_type")
+}
+
+enum RoomBookingStatus {
+  pending
+  confirmed
+  rejected
+
+  @@map("room_booking_status")
+}
+
+enum SessionSection {
+  intro
+  opening_prayer_invocation
+  national_anthem_and_pledge_of_allegiance
+  roll_call
+  reading_and_or_approval_of_minutes
+  agenda
+  first_reading_and_references
+  committee_report
+  calendar_of_business
+  third_reading
+  other_matters
+  closing_prayer
+  adjournment
+
+  @@map("session_section")
+}
+
+enum SessionType {
+  regular
+  special
+
+  @@map("session_type")
+}
+
+enum SessionStatus {
+  draft
+  scheduled
+  completed
+
+  @@map("session_status")
+}
+
+enum UserStatus {
+  active
+  invited
+
+  @@map("user_status")
+}
+
+enum RoleType {
+  it_admin
+  vice_mayor
+  head_admin
+  admin_staff
+  legislative_staff
+  ovm_staff
+  councilor
+
+  @@map("role_type")
 }
