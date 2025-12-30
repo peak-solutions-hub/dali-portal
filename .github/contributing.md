@@ -12,6 +12,8 @@
 - [Keeping Your Branch Updated](#keeping-your-branch-updated)
 - [File Naming](#file-naming)
 - [MCP Servers (AI Tooling)](#mcp-servers-ai-tooling)
+- [Backend Development](#backend-development)
+- [Frontend Development](#frontend-development)
 - [Additional Guidelines](#additional-guidelines)
 
 ---
@@ -281,6 +283,133 @@ This project uses Model Context Protocol (MCP) servers to enhance AI-assisted de
 - When building UI from designs, provide the Figma URL for accurate implementation
  - When adding or updating Shadcn components, `cd packages/ui` first and run the Shadcn CLI (or ask the `shadcn` MCP server to generate component code). Ensure new components are exported from `packages/ui`.
 
+---
+
+## Backend Development
+
+The backend uses **oRPC** for type-safe API contracts with **NestJS**.
+
+### Directory Structure
+
+```bash
+apps/backend/src/
+├── app/
+│   ├── db/                    # Database module (Prisma)
+│   │   ├── db.service.ts
+│   │   └── db.module.ts
+│   ├── <domain>/              # Feature modules
+│   │   ├── <domain>.controller.ts
+│   │   ├── <domain>.service.ts
+│   │   └── <domain>.module.ts
+│   └── app.module.ts          # Root module
+├── lib/
+│   ├── lib.module.ts          # Global libs
+│   └── <lib>.service.ts       # any lib wrapper
+└── main.ts                    # entry file
+```
+
+### Contract-First Workflow
+
+1. **Define Zod schemas** in `packages/shared/src/schemas/<domain>.schema.ts`
+2. **Define oRPC contracts** in `packages/shared/src/contracts/<domain>.contract.ts`
+3. **Re-export** from `packages/shared/src/contract.ts` root router
+4. **Implement** in `apps/backend/src/app/<domain>/`
+
+### Controller Pattern (use @Implement)
+
+```typescript
+import { Controller } from "@nestjs/common";
+import { Implement, implement } from "@orpc/nest";
+import { contract } from "@repo/shared";
+
+@Controller()
+export class DomainController {
+  constructor(private readonly service: DomainService) {}
+
+  @Implement(contract.domain.create)
+  create() {
+    return implement(contract.domain.create).handler(async ({ input }) => {
+      return this.service.create(input);
+    });
+  }
+}
+```
+
+### Service Pattern (use ORPCError)
+
+```typescript
+import { Injectable } from "@nestjs/common";
+import { ORPCError } from "@orpc/nest";
+import { DbService } from "@/app/db/db.service";
+
+@Injectable()
+export class DomainService {
+  constructor(private readonly db: DbService) {}
+
+  async create(input) {
+    // Use ORPCError for typed errors
+    throw new ORPCError("NOT_FOUND", { message: "Record not found" });
+  }
+}
+```
+
+### Adding a New Feature Module
+
+1. Create schemas in `packages/shared/src/schemas/<domain>.schema.ts`
+2. Create contracts in `packages/shared/src/contracts/<domain>.contract.ts`
+3. Export from `packages/shared/src/contract.ts`
+4. Create `apps/backend/src/app/<domain>/`:
+   - `<domain>.controller.ts` 
+   - `<domain>.service.ts` (inject `DbService` and other relevant services)
+   - `<domain>.module.ts` (connect controller & service)
+5. Import module in `apps/backend/src/app/app.module.ts`
+
+---
+
+## Frontend Development
+
+### oRPC Client Usage
+
+The frontend apps use **oRPC with OpenAPILink** for type-safe API communication. Each app has its own isolated client instance.
+
+### Quick Start
+
+1. **Client is auto-configured** in each app:
+   - `apps/portal/src/lib/api.client.ts` (public)
+   - `apps/admin/src/lib/api.client.ts` (admin)
+
+2. **Import and use** in any component:
+
+   ```typescript
+   import { api } from '@/lib/api.client'
+
+   // fetch
+   const [error, data] = await api.inquiries.getList({ limit: 20 })
+
+   // mutate
+   const [error, data] = await api.inquiries.create({
+     citizenEmail: 'citizen@example.com',
+     citizenName: 'John Doe',
+     subject: 'Help needed',
+     category: 'appointment_request',
+     message: 'I need assistance with...',
+   })
+   ```
+
+3. **Handle errors properly**:
+
+   ```typescript
+   import { isDefinedError } from '@orpc/client'
+
+   if (error) {
+     if (isDefinedError(error)) {
+       // Server error with code (UNAUTHORIZED, NOT_FOUND, etc.)
+       console.error(error.code, error.message)
+     } else {
+       console.error(error.message)
+     }
+   }
+   ```
 ---
 
 ## Additional Guidelines

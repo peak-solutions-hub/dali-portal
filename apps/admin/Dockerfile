@@ -18,6 +18,10 @@ RUN pnpm install --frozen-lockfile
 
 # Build the application
 FROM base AS builder
+
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 COPY --from=installer /app/ .
 COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo build --filter=admin

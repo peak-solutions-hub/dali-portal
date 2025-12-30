@@ -21,6 +21,10 @@ on:
         description: "The deployment URL for the environment"
         required: true
         type: string
+      build_args:
+        description: "Build arguments for Docker"
+        required: false
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -64,6 +68,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
+          build-args: ${{ inputs.build_args }}
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           push: true

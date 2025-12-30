@@ -43,16 +43,21 @@ jobs:
             dockerfile: apps/portal/Dockerfile
             context: .
             deployment_url: https://dali-portal.josearron.dev
+            build_args: |
+              NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
           - app: admin
             enabled: ${{ needs.detect-changes.outputs.admin == 'true' }}
             dockerfile: apps/admin/Dockerfile
             context: .
             deployment_url: https://admin-dali-portal.josearron.dev
+            build_args: |
+              NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
           - app: backend
             enabled: ${{ needs.detect-changes.outputs.backend == 'true' }}
             dockerfile: apps/backend/Dockerfile
             context: .
             deployment_url: https://api-dali-portal.josearron.dev
+            build_args: ""
 
     uses: ./.github/workflows/build-push-deploy.yaml
     with:
@@ -61,6 +66,7 @@ jobs:
       dockerfile: ${{ matrix.dockerfile }}
       context: ${{ matrix.context }}
       deployment_url: ${{ matrix.deployment_url }}
+      build_args: ${{ matrix.build_args }}
     secrets: inherit
     permissions:
       id-token: write

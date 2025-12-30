@@ -3,6 +3,9 @@
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"editor.defaultFormatter": "biomejs.biome",
 	"editor.formatOnSave": true,
+	"editor.codeActionsOnSave": {
+		"source.organizeImports.biome": "explicit"
+	},
 	"[jsonc]": {
 		"editor.defaultFormatter": "biomejs.biome"
 	},

@@ -16,6 +16,10 @@
 		"./constants": {
 			"types": "./dist/constants/index.d.ts",
 			"default": "./dist/constants/index.js"
+		},
+		"./schemas": {
+			"types": "./dist/schemas/index.d.ts",
+			"default": "./dist/schemas/index.js"
 		}
 	},
 	"files": [
@@ -29,7 +33,11 @@
 		"check-types": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"typescript": "5.9.3",
-		"@repo/typescript-config": "workspace:*"
+		"@repo/typescript-config": "workspace:*",
+		"typescript": "5.9.3"
+	},
+	"dependencies": {
+		"@orpc/contract": "^1.13.1",
+		"zod": "^4.2.1"
 	}
 }
