@@ -380,7 +380,7 @@ const getErrorMessage = (error: unknown): string => {
 ## Coding Style & Patterns
 
 ### Naming Conventions
-* **Files:** kebab-case (`document-card.tsx`, `use-auth.ts`, `inquiry-ticket-list.tsx`,(component file names))
+* **Files:** kebab-case for all `.ts`/`.tsx` files (e.g., `document-card.tsx`, `use-auth.ts`, `inquiry-ticket-list.tsx`)
 * **Component Names:** PascalCase (`DocumentCard`, `InquiriesList`)
 * **Functions/Variables:** camelCase (`handleSubmit`, `isLoading`)
 * **Constants:** UPPER_SNAKE_CASE (`API_URL`, `MAX_LIMIT`)

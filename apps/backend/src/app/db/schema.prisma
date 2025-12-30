@@ -141,7 +141,7 @@ model InquiryMessage {
 model InquiryTicket {
   id              String           @id(map: "inquiry_tickets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   referenceNumber String           @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
-  assignedTo      String           @map("assigned_to") @db.Uuid
+  assignedTo      String?          @map("assigned_to") @db.Uuid
   citizenEmail    String           @map("citizen_email")
   citizenName     String           @map("citizen_name")
   subject         String
@@ -150,7 +150,7 @@ model InquiryTicket {
   category        InquiryCategory
   status          InquiryStatus
   inquiryMessage  InquiryMessage[]
-  user            User             @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
+  user            User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
 
   @@map("inquiry_ticket")
 }
@@ -193,9 +193,9 @@ model LegislativeDocument {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Role {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      RoleType
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   user      User[]
 
   @@map("role")

@@ -8,7 +8,7 @@ const InquiryTicketCategoryEnum = z.enum(INQUIRY_CATEGORY_VALUES);
 export const InquiryTicketSchema = z.object({
 	id: z.uuid(),
 	referenceNumber: z.string(),
-	assignedTo: z.uuid(),
+	assignedTo: z.uuid().nullable(),
 	citizenEmail: z.email(),
 	citizenName: z.string().min(1).max(TEXT_LIMITS.XS),
 	subject: z.string().min(1).max(TEXT_LIMITS.SM),

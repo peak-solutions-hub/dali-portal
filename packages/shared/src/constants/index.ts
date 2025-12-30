@@ -5,4 +5,4 @@ export const TEXT_LIMITS = {
 	SM: 280, // titles, subjects
 	MD: 500, // Short descriptions, remarks
 	LG: 1000,
-};
+} as const;
