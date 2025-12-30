@@ -1,5 +1,7 @@
 "use client";
 
+import type { PaginationInfo } from "@repo/shared";
+import { buildQueryString } from "@repo/shared";
 import {
 	Pagination,
 	PaginationContent,
@@ -10,8 +12,6 @@ import {
 	PaginationPrevious,
 } from "@repo/ui/components/pagination";
 import { useRouter } from "next/navigation";
-import type { PaginationInfo } from "types/legislative-documents.types";
-import { buildQueryString } from "@/lib/legislative-documents/utils";
 
 interface PaginationControlsProps {
 	pagination: PaginationInfo;

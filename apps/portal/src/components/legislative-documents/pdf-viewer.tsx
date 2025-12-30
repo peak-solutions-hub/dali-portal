@@ -1,14 +1,14 @@
 "use client";
+import {
+	getDocumentFilename,
+	isValidPdfUrl,
+	type LegislativeDocumentWithDetails,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Download, FileText, X } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import type { LegislativeDocumentWithDetails } from "types/legislative-documents.types";
 import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@/hooks";
-import {
-	getDocumentFilename,
-	isValidPdfUrl,
-} from "@/lib/legislative-documents/utils";
 
 interface PDFViewerProps {
 	document: LegislativeDocumentWithDetails;

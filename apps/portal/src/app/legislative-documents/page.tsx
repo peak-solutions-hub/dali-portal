@@ -1,3 +1,10 @@
+import { isDefinedError } from "@orpc/client";
+import {
+	buildQueryString,
+	toApiFilters,
+	transformDocumentListDates,
+	validateSearchParams,
+} from "@repo/shared";
 import { Card } from "@repo/ui/components/card";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -6,15 +13,7 @@ import {
 	PaginationControls,
 	SearchFilterBar,
 } from "@/components/legislative-documents/";
-import {
-	fetchAvailableYears,
-	fetchLegislativeDocuments,
-} from "@/lib/legislative-documents/data";
-import {
-	buildQueryString,
-	toDocumentFilters,
-	validateSearchParams,
-} from "@/lib/legislative-documents/utils";
+import { api } from "@/lib/api.client";
 
 interface PageProps {
 	searchParams: Promise<{
@@ -54,29 +53,56 @@ export default async function LegislativeDocumentsPage({
 
 	const validatedParams = validationResult.data;
 
-	// Convert to DocumentFilters format
-	const filters = toDocumentFilters(validatedParams);
+	// Convert to API input format
+	const filters = toApiFilters(validatedParams);
 
 	// Fetch data server-side
-	const [{ documents, pagination }, availableYears] = await Promise.all([
-		fetchLegislativeDocuments(filters),
-		fetchAvailableYears(),
-	]);
+	const [error, documentsData] = await api.legislativeDocuments.list(filters);
+
+	// Handle errors
+	if (error) {
+		if (isDefinedError(error)) {
+			console.error(error);
+		}
+	}
+
+	// Extract data and transform date strings to Date objects
+	const documents = documentsData?.documents
+		? transformDocumentListDates(documentsData.documents)
+		: [];
+	const pagination = documentsData?.pagination || {
+		currentPage: 1,
+		totalPages: 0,
+		totalItems: 0,
+		itemsPerPage: filters.limit || 10,
+		hasNextPage: false,
+		hasPreviousPage: false,
+	};
+
+	// Generate available years from 1950 to present
+	const currentYear = new Date().getFullYear();
+	const availableYears = Array.from(
+		{ length: currentYear - 1950 + 1 },
+		(_, i) => currentYear - i,
+	);
 
 	// Build current filters for pagination using validated values
 	const currentFilters = {
 		search: validatedParams.search,
-		type: validatedParams.type,
+		type: validatedParams.type === "all" ? "all" : validatedParams.type,
 		year:
 			typeof validatedParams.year === "number"
 				? String(validatedParams.year)
 				: "all",
-		classification: validatedParams.classification,
+		classification:
+			validatedParams.classification === "all"
+				? "all"
+				: validatedParams.classification,
 	};
 
 	return (
 		<div className="min-h-screen bg-gray-50">
-			<div className="container mx-auto px-4 py-8 mt-19 max-w-7xl">
+			<div className="container mx-auto px-4 py-8 max-w-7xl">
 				{/* Page Header */}
 				<div className="mb-6">
 					<h1

@@ -1,5 +1,10 @@
 "use client";
 
+import {
+	buildQueryString,
+	CLASSIFICATION_TYPES,
+	LEGISLATIVE_DOCUMENT_TYPES,
+} from "@repo/shared";
 import { Input } from "@repo/ui/components/input";
 import {
 	Select,
@@ -12,11 +17,6 @@ import { Search } from "@repo/ui/lib/lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useDebounce } from "@/hooks";
-import {
-	buildQueryString,
-	CLASSIFICATIONS,
-	DOCUMENT_TYPES,
-} from "@/lib/legislative-documents/utils";
 
 interface SearchFilterBarProps {
 	availableYears: number[];
@@ -41,11 +41,12 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	// Helper to navigate with sanitized params
 	const navigateWithParams = useCallback(
 		(params: Record<string, string>) => {
+			// Get current values from URL (source of truth)
 			const baseParams = {
-				search: searchInput,
-				type: selectedType,
-				year: selectedYear,
-				classification: selectedClassification,
+				search: searchParams.get("search") || "",
+				type: searchParams.get("type") || "all",
+				year: searchParams.get("year") || "all",
+				classification: searchParams.get("classification") || "all",
 				page: "1",
 			};
 
@@ -53,7 +54,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 			const queryString = buildQueryString(newParams);
 			router.push(`/legislative-documents?${queryString}`);
 		},
-		[searchInput, selectedType, selectedYear, selectedClassification, router],
+		[searchParams, router],
 	);
 
 	const handleFilterChange = (key: string, value: string) => {
@@ -95,7 +96,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 						</SelectTrigger>
 						<SelectContent>
 							<SelectItem value="all">All Types</SelectItem>
-							{DOCUMENT_TYPES.map((type) => (
+							{LEGISLATIVE_DOCUMENT_TYPES.map((type) => (
 								<SelectItem key={type.value} value={type.value}>
 									{type.label}
 								</SelectItem>
@@ -133,9 +134,12 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 						</SelectTrigger>
 						<SelectContent>
 							<SelectItem value="all">All Classifications</SelectItem>
-							{CLASSIFICATIONS.map((classification) => (
-								<SelectItem key={classification} value={classification}>
-									{classification}
+							{CLASSIFICATION_TYPES.map((classification) => (
+								<SelectItem
+									key={classification.value}
+									value={classification.value}
+								>
+									{classification.label}
 								</SelectItem>
 							))}
 						</SelectContent>
