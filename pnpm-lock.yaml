@@ -32,6 +32,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@orpc/openapi-client':
+        specifier: ^1.13.2
+        version: 1.13.2
       '@repo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -169,6 +172,9 @@ importers:
 
   apps/portal:
     dependencies:
+      '@orpc/openapi-client':
+        specifier: ^1.13.2
+        version: 1.13.2
       '@repo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
