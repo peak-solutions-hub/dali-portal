@@ -1,10 +1,11 @@
-import type { LegislativeDocumentWithDetails } from "types/legislative-documents.types";
 import {
 	formatDate,
+	getClassificationLabel,
 	getDocumentNumber,
 	getDocumentTitle,
-	getDocumentType,
-} from "@/lib/legislative-documents/utils";
+	getDocumentTypeLabel,
+	type LegislativeDocumentWithDetails,
+} from "@repo/shared";
 
 interface DocumentHeaderProps {
 	document: LegislativeDocumentWithDetails;
@@ -12,13 +13,14 @@ interface DocumentHeaderProps {
 
 export function DocumentHeader({ document }: DocumentHeaderProps) {
 	const documentNumber = getDocumentNumber(document);
-	const documentType = getDocumentType(document);
+	const documentType = getDocumentTypeLabel(document.type);
 	const documentTitle = getDocumentTitle(document);
-	const formattedDate = formatDate(document.date_enacted);
-	const classification =
-		document.displayClassification ||
-		document.document?.classification ||
-		"N/A";
+	const formattedDate = formatDate(document.dateEnacted);
+	const classification = document.displayClassification
+		? getClassificationLabel(document.displayClassification)
+		: document.document?.classification
+			? getClassificationLabel(document.document.classification)
+			: "N/A";
 
 	return (
 		<div className="mb-6 sm:mb-8">
@@ -39,12 +41,12 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 					<p className="font-medium">{formattedDate}</p>
 				</div>
 				{/* Author(s) */}
-				{(document.author_names || document.sponsor_names) && (
+				{(document.authorNames || document.sponsorNames) && (
 					<div>
 						<p className="text-sm text-gray-600">Author(s)</p>
 						<p className="font-medium">
-							{document.author_names?.join(", ") ||
-								document.sponsor_names?.join(", ")}
+							{document.authorNames?.join(", ") ||
+								document.sponsorNames?.join(", ")}
 						</p>
 					</div>
 				)}

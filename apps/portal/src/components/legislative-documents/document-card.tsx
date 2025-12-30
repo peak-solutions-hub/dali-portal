@@ -1,15 +1,16 @@
+import {
+	formatDate,
+	getClassificationLabel,
+	getDocumentFilename,
+	getDocumentNumber,
+	getDocumentTitle,
+	getDocumentTypeLabel,
+	type LegislativeDocumentWithDetails,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { Calendar, Download, FileText } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
-import type { LegislativeDocumentWithDetails } from "types/legislative-documents.types";
-import {
-	formatDate,
-	getDocumentFilename,
-	getDocumentNumber,
-	getDocumentTitle,
-	getDocumentType,
-} from "@/lib/legislative-documents/utils";
 
 interface DocumentCardProps {
 	document: LegislativeDocumentWithDetails;
@@ -17,16 +18,17 @@ interface DocumentCardProps {
 
 export function DocumentCard({ document }: DocumentCardProps) {
 	const documentNumber = getDocumentNumber(document);
-	const documentType = getDocumentType(document);
+	const documentType = getDocumentTypeLabel(document.type);
 	const documentTitle = getDocumentTitle(document);
-	const formattedDate = formatDate(document.date_enacted);
-	const year = document.date_enacted
-		? new Date(document.date_enacted).getFullYear()
+	const formattedDate = formatDate(document.dateEnacted);
+	const year = document.dateEnacted
+		? new Date(document.dateEnacted).getFullYear()
 		: "";
-	const classification =
-		document.displayClassification ||
-		document.document?.classification ||
-		"N/A";
+	const classification = document.displayClassification
+		? getClassificationLabel(document.displayClassification)
+		: document.document?.classification
+			? getClassificationLabel(document.document.classification)
+			: "N/A";
 
 	const hasPdfFile = Boolean(document.pdfUrl);
 
@@ -65,16 +67,16 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
 						{/* Metadata */}
 						<div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-							{(document.author_names || document.sponsor_names) && (
+							{(document.authorNames || document.sponsorNames) && (
 								<span>
 									Author:{" "}
 									<span className="font-medium">
-										{document.author_names?.join(", ") ||
-											document.sponsor_names?.join(", ")}
+										{document.authorNames?.join(", ") ||
+											document.sponsorNames?.join(", ")}
 									</span>
 								</span>
 							)}
-							{document.date_enacted && (
+							{document.dateEnacted && (
 								<span>
 									Date Passed:{" "}
 									<span className="font-medium">{formattedDate}</span>
