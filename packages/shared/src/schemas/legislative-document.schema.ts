@@ -4,6 +4,7 @@ import {
 	DocumentSchema,
 	LegislativeDocumentTypeEnum,
 } from "./document.schema";
+import { DocumentVersionSchema } from "./document-version.schema";
 
 /**
  * Legislative Document schema (from legislative_document table)
@@ -29,8 +30,9 @@ export const LegislativeDocumentWithDetailsSchema =
 		displayTitle: z.string().optional(),
 		displayType: z.string().optional(),
 		displayClassification: z.string().optional(),
-		pdfUrl: z.string().optional(),
+		pdfUrl: z.url().optional(),
 		pdfFilename: z.string().optional(),
+		latestVersion: DocumentVersionSchema.optional(),
 	});
 
 /**

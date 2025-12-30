@@ -5,9 +5,8 @@ import {
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { Download, FileText, X } from "@repo/ui/lib/lucide-react";
-import Link from "next/link";
-import { useRef, useState } from "react";
+import { Download, FileText, Loader2, X } from "@repo/ui/lib/lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@/hooks";
 
 interface PDFViewerProps {
@@ -16,10 +15,10 @@ interface PDFViewerProps {
 
 export function PDFViewer({ document }: PDFViewerProps) {
 	const [isOpen, setIsOpen] = useState(false);
+	const [isDownloading, setIsDownloading] = useState(false);
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
 	const modalRef = useRef<HTMLDivElement | null>(null);
 
-	// Use custom hooks for side effects
 	const isMobile = useIsMobile();
 	useBodyScrollLock(isOpen);
 	useFocusTrap({
@@ -34,8 +33,41 @@ export function PDFViewer({ document }: PDFViewerProps) {
 		document.displayTitle || document.document?.title || "Untitled Document";
 	const downloadFilename = getDocumentFilename(document);
 
-	// Validate PDF URL for security
 	const isValidUrl = pdfUrl ? isValidPdfUrl(pdfUrl) : false;
+
+	const handleDownload = useCallback(async () => {
+		if (!pdfUrl) return;
+
+		setIsDownloading(true);
+		try {
+			const response = await fetch(pdfUrl);
+			if (!response.ok) {
+				throw new Error("Failed to download file");
+			}
+
+			const blob = await response.blob();
+			const url = window.URL.createObjectURL(blob);
+			const link = window.document.createElement("a");
+			link.href = url;
+			link.download = downloadFilename;
+			window.document.body.appendChild(link);
+			link.click();
+			window.document.body.removeChild(link);
+			window.URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error("Download failed:", error);
+			// Fallback: open in new tab if fetch fails
+			window.open(pdfUrl, "_blank");
+		} finally {
+			setIsDownloading(false);
+		}
+	}, [pdfUrl, downloadFilename]);
+
+	const handleViewInNewTab = useCallback(() => {
+		if (pdfUrl) {
+			window.open(pdfUrl, "_blank", "noopener,noreferrer");
+		}
+	}, [pdfUrl]);
 
 	if (!pdfUrl || !isValidUrl) {
 		return (
@@ -52,28 +84,36 @@ export function PDFViewer({ document }: PDFViewerProps) {
 
 	return (
 		<div className="mb-4 sm:mb-6">
-			{/* Trigger Button */}
-			<Button
-				ref={triggerRef}
-				onClick={() => setIsOpen(true)}
-				variant="outline"
-				className="w-full sm:w-auto border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-8 py-6"
-			>
-				<FileText className="w-5 h-5 mr-2" />
-				View PDF Document
-			</Button>
+			{/* View Button - Opens in modal or new tab */}
+			<div className="flex flex-col sm:flex-row gap-3">
+				<Button
+					ref={triggerRef}
+					onClick={() => setIsOpen(true)}
+					variant="outline"
+					className="w-full sm:w-auto border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-8 py-6"
+				>
+					<FileText className="w-5 h-5 mr-2" />
+					View PDF Document
+				</Button>
 
-			{/* Download Button */}
-			<div className="mt-4">
-				<Link href={pdfUrl} download={downloadFilename}>
-					<Button className="w-full sm:w-auto bg-[#a60202] hover:bg-[#8a0101] text-white px-8 py-6">
-						<Download className="w-5 h-5 mr-2" />
-						Download PDF
-					</Button>
-				</Link>
+				{/* Download Button - Instant download */}
+				<Button
+					onClick={handleDownload}
+					disabled={isDownloading}
+					className="w-full sm:w-auto sm:min-w-45 bg-[#a60202] hover:bg-[#8a0101] text-white px-8 py-6"
+				>
+					{isDownloading ? (
+						<Loader2 className="w-5 h-5 animate-spin" />
+					) : (
+						<>
+							<Download className="w-5 h-5 mr-2" />
+							Download PDF
+						</>
+					)}
+				</Button>
 			</div>
 
-			{/* PDF Viewer */}
+			{/* PDF Viewer Modal */}
 			{isOpen && (
 				<>
 					{isMobile ? (
@@ -87,6 +127,14 @@ export function PDFViewer({ document }: PDFViewerProps) {
 								</h2>
 								<div className="flex items-center gap-2">
 									<Button
+										onClick={handleViewInNewTab}
+										size="sm"
+										variant="ghost"
+										className="text-white hover:bg-white/20 text-xs"
+									>
+										Open in Tab
+									</Button>
+									<Button
 										onClick={() => setIsOpen(false)}
 										size="sm"
 										variant="ghost"
@@ -98,7 +146,24 @@ export function PDFViewer({ document }: PDFViewerProps) {
 							</div>
 
 							<div className="flex-1 overflow-hidden">
-								<iframe src={pdfUrl} className="w-full h-full border-0" />
+								<object
+									data={pdfUrl}
+									type="application/pdf"
+									className="w-full h-full"
+									title={documentTitle}
+								>
+									<div className="flex flex-col items-center justify-center h-full p-4 text-center">
+										<p className="text-gray-600 mb-4">
+											Unable to display PDF in browser.
+										</p>
+										<Button
+											onClick={handleViewInNewTab}
+											className="bg-[#a60202] hover:bg-[#8a0101]"
+										>
+											Open PDF in New Tab
+										</Button>
+									</div>
+								</object>
 							</div>
 						</div>
 					) : (
@@ -117,6 +182,14 @@ export function PDFViewer({ document }: PDFViewerProps) {
 									</h2>
 									<div className="flex items-center gap-2">
 										<Button
+											onClick={handleViewInNewTab}
+											size="sm"
+											variant="ghost"
+											className="text-white hover:bg-white/20 text-xs"
+										>
+											Open in New Tab
+										</Button>
+										<Button
 											onClick={() => setIsOpen(false)}
 											size="sm"
 											variant="ghost"
@@ -128,11 +201,24 @@ export function PDFViewer({ document }: PDFViewerProps) {
 								</div>
 
 								<div className="flex-1 overflow-auto p-4 bg-gray-50">
-									<iframe
-										src={pdfUrl}
+									<object
+										data={pdfUrl}
+										type="application/pdf"
 										className="w-full h-full border border-gray-300 rounded bg-white"
 										title={documentTitle}
-									/>
+									>
+										<div className="flex flex-col items-center justify-center h-full p-8 text-center">
+											<p className="text-gray-600 mb-4">
+												Unable to display PDF in browser.
+											</p>
+											<Button
+												onClick={handleViewInNewTab}
+												className="bg-[#a60202] hover:bg-[#8a0101]"
+											>
+												Open PDF in New Tab
+											</Button>
+										</div>
+									</object>
 								</div>
 							</div>
 						</>

@@ -1,3 +1,5 @@
+"use client";
+
 import {
 	formatDate,
 	getClassificationLabel,
@@ -9,14 +11,22 @@ import {
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
-import { Calendar, Download, FileText } from "@repo/ui/lib/lucide-react";
+import {
+	Calendar,
+	Download,
+	FileText,
+	Loader2,
+} from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
+import { useCallback, useState } from "react";
 
 interface DocumentCardProps {
 	document: LegislativeDocumentWithDetails;
 }
 
 export function DocumentCard({ document }: DocumentCardProps) {
+	const [isDownloading, setIsDownloading] = useState(false);
+
 	const documentNumber = getDocumentNumber(document);
 	const documentType = getDocumentTypeLabel(document.type);
 	const documentTitle = getDocumentTitle(document);
@@ -31,9 +41,37 @@ export function DocumentCard({ document }: DocumentCardProps) {
 			: "N/A";
 
 	const hasPdfFile = Boolean(document.pdfUrl);
+	const downloadFilename = getDocumentFilename(document);
+
+	const handleDownload = useCallback(async () => {
+		if (!document.pdfUrl) return;
+
+		setIsDownloading(true);
+		try {
+			const response = await fetch(document.pdfUrl);
+			if (!response.ok) {
+				throw new Error("Failed to download file");
+			}
+
+			const blob = await response.blob();
+			const url = window.URL.createObjectURL(blob);
+			const link = window.document.createElement("a");
+			link.href = url;
+			link.download = downloadFilename;
+			window.document.body.appendChild(link);
+			link.click();
+			window.document.body.removeChild(link);
+			window.URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error("Download failed:", error);
+			window.open(document.pdfUrl, "_blank");
+		} finally {
+			setIsDownloading(false);
+		}
+	}, [document.pdfUrl, downloadFilename]);
 
 	return (
-		<Card className="overflow-hidden hover:shadow-md transition-all border-l-4 border-l-[#a60202]">
+		<Card className="overflow-hidden hover:shadow-md focus-within:shadow-md transition-all border-l-4 border-l-[#a60202]">
 			<div className="px-5">
 				<div className="flex items-start justify-between gap-4">
 					{/* Left Content */}
@@ -59,7 +97,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 						<h3 className="text-lg font-semibold mb-2 text-gray-900">
 							<Link
 								href={`/legislative-documents/${document.id}`}
-								className="hover:text-[#a60202] transition-colors"
+								className="hover:text-[#a60202] focus-visible:text-[#a60202] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a60202] transition-colors rounded"
 							>
 								{documentTitle}
 							</Link>
@@ -101,15 +139,22 @@ export function DocumentCard({ document }: DocumentCardProps) {
 							</Button>
 						</Link>
 						{hasPdfFile ? (
-							<Link
-								href={document.pdfUrl || ""}
-								download={getDocumentFilename(document)}
+							<Button
+								variant="outline"
+								title="Download PDF"
+								onClick={handleDownload}
+								disabled={isDownloading}
+								className="min-w-30"
 							>
-								<Button variant="outline" title="Download PDF">
-									<Download className="w-4 h-4 mr-2" />
-									Download
-								</Button>
-							</Link>
+								{isDownloading ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									<>
+										<Download className="w-4 h-4 mr-2" />
+										Download
+									</>
+								)}
+							</Button>
 						) : null}
 					</div>
 				</div>

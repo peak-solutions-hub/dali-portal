@@ -7,10 +7,95 @@ import type {
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 import type { Prisma } from "@/generated/prisma/client";
+import { StorageService } from "@/lib/storage.service";
+
+type LegislativeDocumentWithRelations = Prisma.LegislativeDocumentGetPayload<{
+	include: {
+		document: {
+			include: {
+				documentVersion: true;
+			};
+		};
+	};
+}>;
 
 @Injectable()
 export class LegislativeDocumentsService {
-	constructor(private readonly db: DbService) {}
+	constructor(
+		private readonly db: DbService,
+		private readonly storage: StorageService,
+	) {}
+
+	/**
+	 * Transform a database document to the response format
+	 * Extracts common transformation logic used across multiple methods
+	 */
+	private async transformToResponse(
+		doc: LegislativeDocumentWithRelations,
+	): Promise<LegislativeDocumentWithDetails> {
+		const latestVersion = doc.document.documentVersion[0];
+		let pdfUrl: string | undefined;
+
+		if (latestVersion?.filePath) {
+			try {
+				pdfUrl = await this.storage.getSignedUrl(
+					"documents",
+					latestVersion.filePath,
+					3600, // 1 hour expiry
+				);
+			} catch (error) {
+				console.error("Failed to generate signed URL:", error);
+			}
+		}
+
+		return {
+			id: Number(doc.id),
+			documentId: doc.documentId,
+			officialNumber: doc.officialNumber,
+			seriesYear: Number(doc.seriesYear),
+			type: doc.type as
+				| "proposed_ordinance"
+				| "proposed_resolution"
+				| "committee_report",
+			dateEnacted: doc.dateEnacted,
+			createdAt: doc.createdAt,
+			sponsorNames:
+				doc.sponsorNames && doc.sponsorNames.length > 0
+					? doc.sponsorNames
+					: null,
+			authorNames:
+				doc.authorNames && doc.authorNames.length > 0 ? doc.authorNames : null,
+			document: {
+				id: doc.document.id,
+				codeNumber: doc.document.codeNumber,
+				title: doc.document.title,
+				type: doc.document.type as string,
+				purpose: doc.document.purpose as string,
+				source: doc.document.source as string,
+				status: doc.document.status as string,
+				classification: doc.document.classification as string,
+				remarks: doc.document.remarks ?? null,
+				receivedAt: doc.document.receivedAt,
+			},
+			displayTitle: doc.document.title,
+			displayType: this.getDisplayType(doc.type),
+			displayClassification: doc.document.classification,
+			pdfUrl,
+			pdfFilename: latestVersion?.filePath
+				? latestVersion.filePath.split("/").pop()
+				: undefined,
+			latestVersion: latestVersion
+				? {
+						id: latestVersion.id,
+						documentId: latestVersion.documentId,
+						uploaderId: latestVersion.uploaderId,
+						versionNumber: Number(latestVersion.versionNumber),
+						filePath: latestVersion.filePath,
+						createdAt: latestVersion.createdAt,
+					}
+				: undefined,
+		};
+	}
 
 	async findAll(
 		input: GetLegislativeDocumentListInput,
@@ -50,7 +135,16 @@ export class LegislativeDocumentsService {
 		const documents = await this.db.legislativeDocument.findMany({
 			where,
 			include: {
-				document: true,
+				document: {
+					include: {
+						documentVersion: {
+							orderBy: {
+								versionNumber: "desc",
+							},
+							take: 1,
+						},
+					},
+				},
 			},
 			orderBy: {
 				createdAt: "desc",
@@ -61,43 +155,9 @@ export class LegislativeDocumentsService {
 
 		const totalPages = Math.ceil(totalItems / limit);
 
-		// Transform to response format
-		const transformedDocs: LegislativeDocumentWithDetails[] = documents.map(
-			(doc) => ({
-				id: Number(doc.id),
-				documentId: doc.documentId,
-				officialNumber: doc.officialNumber,
-				seriesYear: Number(doc.seriesYear),
-				type: doc.type as
-					| "proposed_ordinance"
-					| "proposed_resolution"
-					| "committee_report",
-				dateEnacted: doc.dateEnacted,
-				createdAt: doc.createdAt,
-				sponsorNames:
-					doc.sponsorNames && doc.sponsorNames.length > 0
-						? doc.sponsorNames
-						: null,
-				authorNames:
-					doc.authorNames && doc.authorNames.length > 0
-						? doc.authorNames
-						: null,
-				document: {
-					id: doc.document.id,
-					codeNumber: doc.document.codeNumber,
-					title: doc.document.title,
-					type: doc.document.type as string,
-					purpose: doc.document.purpose as string,
-					source: doc.document.source as string,
-					status: doc.document.status as string,
-					classification: doc.document.classification as string,
-					remarks: doc.document.remarks ?? null,
-					receivedAt: doc.document.receivedAt,
-				},
-				displayTitle: doc.document.title,
-				displayType: this.getDisplayType(doc.type),
-				displayClassification: doc.document.classification,
-			}),
+		// Transform to response format with signed URLs
+		const transformedDocs = await Promise.all(
+			documents.map((doc) => this.transformToResponse(doc)),
 		);
 
 		return {
@@ -117,7 +177,16 @@ export class LegislativeDocumentsService {
 		const document = await this.db.legislativeDocument.findUnique({
 			where: { id: BigInt(id) },
 			include: {
-				document: true,
+				document: {
+					include: {
+						documentVersion: {
+							orderBy: {
+								versionNumber: "desc",
+							},
+							take: 1,
+						},
+					},
+				},
 			},
 		});
 
@@ -127,41 +196,7 @@ export class LegislativeDocumentsService {
 			});
 		}
 
-		return {
-			id: Number(document.id),
-			documentId: document.documentId,
-			officialNumber: document.officialNumber,
-			seriesYear: Number(document.seriesYear),
-			type: document.type as
-				| "proposed_ordinance"
-				| "proposed_resolution"
-				| "committee_report",
-			dateEnacted: document.dateEnacted,
-			createdAt: document.createdAt,
-			sponsorNames:
-				document.sponsorNames && document.sponsorNames.length > 0
-					? document.sponsorNames
-					: null,
-			authorNames:
-				document.authorNames && document.authorNames.length > 0
-					? document.authorNames
-					: null,
-			document: {
-				id: document.document.id,
-				codeNumber: document.document.codeNumber,
-				title: document.document.title,
-				type: document.document.type,
-				purpose: document.document.purpose,
-				source: document.document.source,
-				status: document.document.status,
-				classification: document.document.classification,
-				remarks: document.document.remarks ?? null,
-				receivedAt: document.document.receivedAt,
-			},
-			displayTitle: document.document.title,
-			displayType: this.getDisplayType(document.type),
-			displayClassification: document.document.classification,
-		};
+		return this.transformToResponse(document);
 	}
 
 	private getDisplayType(type: string): string {
@@ -208,50 +243,25 @@ export class LegislativeDocumentsService {
 				},
 			},
 			include: {
-				document: true,
+				document: {
+					include: {
+						documentVersion: {
+							orderBy: {
+								versionNumber: "desc",
+							},
+							take: 1,
+						},
+					},
+				},
 			},
 			orderBy: {
-				dateEnacted: "desc",
+				id: "desc",
 			},
 			take: limit,
 		});
 
-		const mappedDocuments: LegislativeDocumentWithDetails[] = documents.map(
-			(doc) => ({
-				id: Number(doc.id),
-				documentId: doc.documentId,
-				officialNumber: doc.officialNumber,
-				seriesYear: Number(doc.seriesYear),
-				type: doc.type as
-					| "proposed_ordinance"
-					| "proposed_resolution"
-					| "committee_report",
-				dateEnacted: doc.dateEnacted,
-				createdAt: doc.createdAt,
-				sponsorNames:
-					doc.sponsorNames && doc.sponsorNames.length > 0
-						? doc.sponsorNames
-						: null,
-				authorNames:
-					doc.authorNames && doc.authorNames.length > 0
-						? doc.authorNames
-						: null,
-				document: {
-					id: doc.document.id,
-					codeNumber: doc.document.codeNumber,
-					title: doc.document.title,
-					type: doc.document.type as string,
-					purpose: doc.document.purpose as string,
-					source: doc.document.source as string,
-					status: doc.document.status as string,
-					classification: doc.document.classification as string,
-					remarks: doc.document.remarks ?? null,
-					receivedAt: doc.document.receivedAt,
-				},
-				displayTitle: doc.document.title,
-				displayType: this.getDisplayType(doc.type),
-				displayClassification: doc.document.classification,
-			}),
+		const mappedDocuments = await Promise.all(
+			documents.map((doc) => this.transformToResponse(doc)),
 		);
 
 		return {

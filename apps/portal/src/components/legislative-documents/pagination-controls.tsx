@@ -41,11 +41,11 @@ export function PaginationControls({
 		itemsPerPage,
 	} = pagination;
 
-	// Calculate showing range
-	const startItem = (currentPage - 1) * itemsPerPage + 1;
+	// Calculate showing range (handle empty state)
+	const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
 
 	if (totalPages <= 1) {
-		return null; // Don't show pagination if only one page
+		return null; // Don't show pagination if only one page or no items
 	}
 
 	// Calculate which page numbers to show
