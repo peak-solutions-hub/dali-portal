@@ -75,7 +75,7 @@ export const getLatestLegislativeDocuments = oc
 	.output(LegislativeDocumentListResponseSchema);
 
 export const legislativeDocumentContract = {
-	// Public endpoints - order matters! Specific routes before parameterized routes
+	// Public endpoints
 	list: listLegislativeDocuments,
 	statistics: getLegislativeDocumentStatistics,
 	latest: getLatestLegislativeDocuments,

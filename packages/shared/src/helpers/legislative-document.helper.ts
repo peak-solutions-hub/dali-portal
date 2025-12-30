@@ -299,12 +299,18 @@ export function getAvailableYearsFromDocs(
  */
 export type LegislativeDocumentAPIResponse = Omit<
 	LegislativeDocumentWithDetails,
-	"dateEnacted" | "createdAt" | "document"
+	"dateEnacted" | "createdAt" | "document" | "latestVersion"
 > & {
 	dateEnacted: string;
 	createdAt: string;
 	document: Omit<LegislativeDocumentWithDetails["document"], "receivedAt"> & {
 		receivedAt: string;
+	};
+	latestVersion?: Omit<
+		NonNullable<LegislativeDocumentWithDetails["latestVersion"]>,
+		"createdAt"
+	> & {
+		createdAt: string;
 	};
 };
 
@@ -323,6 +329,12 @@ export function transformDocumentDates(
 			...doc.document,
 			receivedAt: new Date(doc.document.receivedAt),
 		},
+		latestVersion: doc.latestVersion
+			? {
+					...doc.latestVersion,
+					createdAt: new Date(doc.latestVersion.createdAt),
+				}
+			: undefined,
 	};
 }
 
