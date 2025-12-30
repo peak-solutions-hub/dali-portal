@@ -211,7 +211,7 @@ export class LegislativeDocumentsService {
 				document: true,
 			},
 			orderBy: {
-				id: "desc",
+				dateEnacted: "desc",
 			},
 			take: limit,
 		});
