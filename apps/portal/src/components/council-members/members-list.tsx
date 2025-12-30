@@ -1,4 +1,3 @@
-// apps/portal/src/components/council-members/members-list.tsx
 import { Mail, Phone } from "lucide-react";
 
 interface CouncilMember {
@@ -60,9 +59,10 @@ export function CouncilMembersList({ members }: CouncilMembersListProps) {
 								<h3 className="text-lg font-bold text-gray-900 mb-1 font-playfair-display">
 									{member.name}
 								</h3>
-								<p className="text-sm text-red-700 font-semibold mb-3">
+								<p className="text-sm text-red-700 font-semibold mb-2">
 									{member.position}
 								</p>
+								<div className="border-t border-gray-200 my-3"></div>
 
 								{/* Contact Links */}
 								<div className="space-y-2 text-sm">

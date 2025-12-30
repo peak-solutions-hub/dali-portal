@@ -30,8 +30,6 @@ export function ViceMayor({
 			// Create preview URL
 			const url = URL.createObjectURL(file);
 			setPreviewUrl(url);
-
-			// Call parent callback
 			onImageChange?.(file);
 		}
 	};
@@ -89,10 +87,10 @@ export function ViceMayor({
 							<h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 font-playfair-display">
 								{name}
 							</h2>
-							<p className="text-xl text-red-700 font-semibold mb-6">
+							<p className="text-xl text-red-700 font-semibold mb-2">
 								{position}
 							</p>
-
+							<div className="border-t border-gray-200 my-3"></div>
 							{/* Email */}
 							<div className="space-y-2">
 								<div className="flex items-start">
