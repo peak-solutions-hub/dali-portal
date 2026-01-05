@@ -4,10 +4,10 @@ import {
 	ViceMayor,
 } from "@/components/council-members";
 
-export default function CouncilMembersPage() {
+export default function CouncilMembers() {
 	// TODO: Replace with actual data from Supabase
 	const viceMayorData = {
-		name: "Hon. Lady Julie Grace (Love-Love) Baronda ",
+		name: "Hon. Lady Julie Grace (Love-Love) Baronda",
 		position: "Vice Mayor / Presiding Officer",
 		email: "vmbaronda.iloilocity@gmail.com",
 		phone: "(033) 332-433",
@@ -18,7 +18,7 @@ export default function CouncilMembersPage() {
 	const councilMembers = [
 		{
 			id: "1",
-			name: "Lyndon Acap",
+			name: "Hon. Lyndon Acap",
 			position: "City Councilor",
 			email: "councilor1@iloilocity.gov.ph",
 			phone: "(033) 337-1234",
