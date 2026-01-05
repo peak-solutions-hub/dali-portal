@@ -1,7 +1,4 @@
-"use client";
-
-import { Mail, Phone, Upload } from "lucide-react";
-import { useState } from "react";
+import { Mail, Phone } from "lucide-react";
 
 interface ViceMayorProps {
 	name: string;
@@ -9,8 +6,6 @@ interface ViceMayorProps {
 	email: string;
 	phone: string;
 	imageUrl?: string;
-	onImageChange?: (file: File) => void;
-	editable?: boolean;
 }
 
 export function ViceMayor({
@@ -19,21 +14,7 @@ export function ViceMayor({
 	email,
 	phone,
 	imageUrl,
-	onImageChange,
-	editable = false,
 }: ViceMayorProps) {
-	const [previewUrl, setPreviewUrl] = useState<string | undefined>(imageUrl);
-
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (file) {
-			// Create preview URL
-			const url = URL.createObjectURL(file);
-			setPreviewUrl(url);
-			onImageChange?.(file);
-		}
-	};
-
 	return (
 		<section className="py-16 px-4 bg-gray-50">
 			<div className="max-w-7xl mx-auto">
@@ -50,34 +31,18 @@ export function ViceMayor({
 						{/* Image Section */}
 						<div className="md:w-2/5 relative">
 							<div className="aspect-3/4 relative bg-gray-200">
-								{previewUrl ? (
+								{imageUrl ? (
 									<img
-										src={previewUrl}
+										src={imageUrl}
 										alt={name}
 										className="w-full h-full object-cover"
 									/>
 								) : (
 									<div className="w-full h-full flex items-center justify-center text-gray-400">
 										<div className="text-center">
-											<Upload className="w-12 h-12 mx-auto mb-2" />
-											<p className="text-sm">No image uploaded</p>
+											<p className="text-sm">No image available</p>
 										</div>
 									</div>
-								)}
-
-								{/* Upload Button (shown when editable) */}
-								{editable && (
-									<label className="absolute bottom-4 right-4 cursor-pointer">
-										<div className="bg-red-700 hover:bg-red-800 text-white p-3 rounded-full shadow-lg transition-colors">
-											<Upload className="w-5 h-5" />
-										</div>
-										<input
-											type="file"
-											accept="image/*"
-											onChange={handleFileChange}
-											className="hidden"
-										/>
-									</label>
 								)}
 							</div>
 						</div>
