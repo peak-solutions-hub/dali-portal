@@ -21,6 +21,9 @@ interface FocusTrapConfig {
 	onEscape?: () => void;
 }
 
+const FOCUSABLE_ELEMENTS_SELECTOR =
+	'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 /**
  * Hook to trap focus within a container (e.g., modal)
  * Implements accessibility best practices:
@@ -29,6 +32,19 @@ interface FocusTrapConfig {
  * - Restores focus to trigger element on cleanup
  *
  * @param config - Configuration object for the focus trap
+ *
+ * @example
+ * ```tsx
+ * const modalRef = useRef<HTMLDivElement>(null);
+ * const buttonRef = useRef<HTMLButtonElement>(null);
+ *
+ * useFocusTrap({
+ *   isActive: isModalOpen,
+ *   containerRef: modalRef,
+ *   triggerRef: buttonRef,
+ *   onEscape: () => setIsModalOpen(false),
+ * });
+ * ```
  */
 export function useFocusTrap(config: FocusTrapConfig): void {
 	const { isActive, containerRef, triggerRef, onEscape } = config;
@@ -41,8 +57,8 @@ export function useFocusTrap(config: FocusTrapConfig): void {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			// Handle Escape key
 			if (e.key === "Escape" && onEscape) {
+				e.preventDefault();
 				onEscape();
-				return;
 			}
 
 			// Handle Tab key for focus trapping
@@ -51,21 +67,23 @@ export function useFocusTrap(config: FocusTrapConfig): void {
 				if (!container) return;
 
 				const focusableElements = container.querySelectorAll<HTMLElement>(
-					'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+					FOCUSABLE_ELEMENTS_SELECTOR,
 				);
-
-				if (focusableElements.length === 0) return;
-
 				const firstElement = focusableElements[0];
 				const lastElement = focusableElements[focusableElements.length - 1];
 
-				// Trap focus within the container
-				if (!e.shiftKey && document.activeElement === lastElement) {
-					e.preventDefault();
-					firstElement?.focus();
-				} else if (e.shiftKey && document.activeElement === firstElement) {
-					e.preventDefault();
-					lastElement?.focus();
+				if (e.shiftKey) {
+					// Shift+Tab: if on first element, go to last
+					if (document.activeElement === firstElement) {
+						e.preventDefault();
+						lastElement?.focus();
+					}
+				} else {
+					// Tab: if on last element, go to first
+					if (document.activeElement === lastElement) {
+						e.preventDefault();
+						firstElement?.focus();
+					}
 				}
 			}
 		};
@@ -82,11 +100,11 @@ export function useFocusTrap(config: FocusTrapConfig): void {
 			if (!container) return;
 
 			const focusableElements = container.querySelectorAll<HTMLElement>(
-				'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+				FOCUSABLE_ELEMENTS_SELECTOR,
 			);
-
-			if (focusableElements.length > 0) {
-				focusableElements[0]?.focus();
+			const firstElement = focusableElements[0];
+			if (focusableElements.length > 0 && firstElement) {
+				firstElement.focus();
 			}
 		}, 0);
 
@@ -94,17 +112,11 @@ export function useFocusTrap(config: FocusTrapConfig): void {
 		return () => {
 			document.removeEventListener("keydown", handleKeyDown);
 
-			// Restore focus to trigger element or previous active element
-			if (
-				triggerRef?.current &&
-				typeof triggerRef.current.focus === "function"
-			) {
+			// Restore focus to trigger element or previously focused element
+			if (triggerRef?.current) {
 				triggerRef.current.focus();
-			} else if (
-				previousActiveElement &&
-				(previousActiveElement as HTMLElement).focus
-			) {
-				(previousActiveElement as HTMLElement).focus();
+			} else if (previousActiveElement instanceof HTMLElement) {
+				previousActiveElement.focus();
 			}
 		};
 	}, [isActive, containerRef, triggerRef, onEscape]);

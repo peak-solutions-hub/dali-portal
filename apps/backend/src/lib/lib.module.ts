@@ -2,7 +2,6 @@ import { Global, Module } from "@nestjs/common";
 import { ConfigModule as NestConfigModule } from "@nestjs/config";
 import config from "@/config";
 import { ConfigService } from "./config.service";
-import { StorageService } from "./storage.service";
 
 @Global()
 @Module({
@@ -11,7 +10,7 @@ import { StorageService } from "./storage.service";
 			load: [config],
 		}),
 	],
-	providers: [ConfigService, StorageService],
-	exports: [ConfigService, StorageService],
+	providers: [ConfigService],
+	exports: [ConfigService],
 })
 export class LibModule {}

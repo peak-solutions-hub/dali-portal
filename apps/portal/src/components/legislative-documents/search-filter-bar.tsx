@@ -13,10 +13,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
+import { useDebounce } from "@repo/ui/hooks";
 import { Search } from "@repo/ui/lib/lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { useDebounce } from "@/hooks";
 
 interface SearchFilterBarProps {
 	availableYears: number[];
@@ -69,11 +69,18 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	}, [debouncedSearch, rawSearch, navigateWithParams]);
 
 	return (
-		<div className="sticky top-19 z-20 bg-gray-50 pt-6 pb-4 mb-0 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between border-b border-gray-200">
+		<div
+			className="sticky top-19 z-20 bg-gray-50 pt-6 pb-4 mb-0 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between border-b border-gray-200"
+			role="search"
+			aria-label="Filter legislative documents"
+		>
 			<div className="container mx-auto flex flex-col md:flex-row gap-3 items-start md:items-center justify-between w-full">
 				{/* Left: Search */}
 				<div className="relative w-full md:w-80">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+					<Search
+						className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"
+						aria-hidden="true"
+					/>
 					<Input
 						placeholder="Search documents..."
 						value={searchInput}
@@ -81,17 +88,25 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 							setSearchInput(e.target.value)
 						}
 						className="pl-9 h-10 bg-white"
+						aria-label="Search legislative documents by title, number, or author"
 					/>
 				</div>
 
 				{/* Right: Filters */}
-				<div className="flex gap-3 items-center flex-wrap">
+				<div
+					className="flex gap-3 items-center flex-wrap"
+					role="group"
+					aria-label="Document filters"
+				>
 					{/* Type Filter */}
 					<Select
 						value={selectedType}
 						onValueChange={(value) => handleFilterChange("type", value)}
 					>
-						<SelectTrigger className="w-48 h-10 bg-white">
+						<SelectTrigger
+							className="w-48 h-10 bg-white"
+							aria-label="Filter by document type"
+						>
 							<SelectValue placeholder="All Types" />
 						</SelectTrigger>
 						<SelectContent>
@@ -109,7 +124,10 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 						value={selectedYear}
 						onValueChange={(value) => handleFilterChange("year", value)}
 					>
-						<SelectTrigger className="w-36 h-10 bg-white">
+						<SelectTrigger
+							className="w-36 h-10 bg-white"
+							aria-label="Filter by year"
+						>
 							<SelectValue placeholder="All Years" />
 						</SelectTrigger>
 						<SelectContent>
@@ -129,7 +147,10 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 							handleFilterChange("classification", value)
 						}
 					>
-						<SelectTrigger className="w-52 h-10 bg-white">
+						<SelectTrigger
+							className="w-52 h-10 bg-white"
+							aria-label="Filter by classification"
+						>
 							<SelectValue placeholder="All Classifications" />
 						</SelectTrigger>
 						<SelectContent>

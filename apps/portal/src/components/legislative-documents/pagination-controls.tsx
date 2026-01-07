@@ -83,13 +83,16 @@ export function PaginationControls({
 	return (
 		<div className="sticky top-38.5 z-20 bg-white py-3 px-4 mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-gray-200 shadow-sm">
 			<div className="container mx-auto px-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between w-full">
-				<span className="text-sm text-gray-700">
+				<span className="text-sm text-gray-700" aria-live="polite">
 					Showing <span className="font-semibold">{startItem}</span> of{" "}
 					<span className="font-semibold">{totalItems}</span> results
 				</span>
 
 				{totalPages > 1 && (
-					<Pagination className="mx-0 w-auto justify-end">
+					<Pagination
+						className="mx-0 w-auto justify-end"
+						aria-label="Document list pagination"
+					>
 						<PaginationContent>
 							<PaginationItem>
 								<PaginationPrevious
@@ -99,6 +102,8 @@ export function PaginationControls({
 											? "pointer-events-none opacity-50"
 											: "cursor-pointer"
 									}
+									aria-label="Go to previous page"
+									aria-disabled={!hasPreviousPage}
 								/>
 							</PaginationItem>
 
@@ -109,13 +114,14 @@ export function PaginationControls({
 											onClick={() => handlePageChange(1)}
 											isActive={currentPage === 1}
 											className="cursor-pointer"
+											aria-label="Go to first page"
 										>
 											1
 										</PaginationLink>
 									</PaginationItem>
 									{startPage > 2 && (
 										<PaginationItem>
-											<PaginationEllipsis />
+											<PaginationEllipsis aria-hidden="true" />
 										</PaginationItem>
 									)}
 								</>
@@ -127,6 +133,8 @@ export function PaginationControls({
 										onClick={() => handlePageChange(number)}
 										isActive={currentPage === number}
 										className="cursor-pointer"
+										aria-label={`Go to page ${number}`}
+										aria-current={currentPage === number ? "page" : undefined}
 									>
 										{number}
 									</PaginationLink>
@@ -137,7 +145,7 @@ export function PaginationControls({
 								<>
 									{endPage < totalPages - 1 && (
 										<PaginationItem>
-											<PaginationEllipsis />
+											<PaginationEllipsis aria-hidden="true" />
 										</PaginationItem>
 									)}
 									<PaginationItem>
@@ -145,6 +153,7 @@ export function PaginationControls({
 											onClick={() => handlePageChange(totalPages)}
 											isActive={currentPage === totalPages}
 											className="cursor-pointer"
+											aria-label={`Go to last page (page ${totalPages})`}
 										>
 											{totalPages}
 										</PaginationLink>
@@ -160,6 +169,8 @@ export function PaginationControls({
 											? "pointer-events-none opacity-50"
 											: "cursor-pointer"
 									}
+									aria-label="Go to next page"
+									aria-disabled={!hasNextPage}
 								/>
 							</PaginationItem>
 						</PaginationContent>
