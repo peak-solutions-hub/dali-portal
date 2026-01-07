@@ -72,32 +72,36 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
 	return (
 		<Card className="overflow-hidden hover:shadow-md focus-within:shadow-md transition-all border-l-4 border-l-[#a60202]">
-			<div className="px-5">
+			<article className="px-5" aria-labelledby={`doc-title-${document.id}`}>
 				<div className="flex items-start justify-between gap-4">
 					{/* Left Content */}
 					<div className="flex-1">
 						{/* Type Badge and Number */}
 						<div className="flex items-center gap-3 mb-2 flex-wrap">
 							<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-gray-100 text-gray-700 font-medium">
-								<FileText className="w-3 h-3" />
-								{documentType}
+								<FileText className="w-3 h-3" aria-hidden="true" />
+								<span>{documentType}</span>
 							</span>
 							<span className="text-sm text-[#a60202] font-semibold">
 								{documentNumber}
 							</span>
 							{year && (
 								<span className="inline-flex items-center gap-1 text-xs text-gray-500">
-									<Calendar className="w-3 h-3" />
-									{year}
+									<Calendar className="w-3 h-3" aria-hidden="true" />
+									<time dateTime={String(year)}>{year}</time>
 								</span>
 							)}
 						</div>
 
 						{/* Title */}
-						<h3 className="text-lg font-semibold mb-2 text-gray-900">
+						<h3
+							id={`doc-title-${document.id}`}
+							className="text-lg font-semibold mb-2 text-gray-900"
+						>
 							<Link
 								href={`/legislative-documents/${document.id}`}
 								className="hover:text-[#a60202] focus-visible:text-[#a60202] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a60202] transition-colors rounded"
+								aria-label={`View details for ${documentTitle}`}
 							>
 								{documentTitle}
 							</Link>
@@ -145,12 +149,21 @@ export function DocumentCard({ document }: DocumentCardProps) {
 								onClick={handleDownload}
 								disabled={isDownloading}
 								className="min-w-30"
+								aria-label={
+									isDownloading
+										? "Downloading PDF..."
+										: `Download PDF for ${documentNumber}`
+								}
+								aria-busy={isDownloading}
 							>
 								{isDownloading ? (
-									<Loader2 className="w-4 h-4 animate-spin" />
+									<Loader2
+										className="w-4 h-4 animate-spin"
+										aria-hidden="true"
+									/>
 								) : (
 									<>
-										<Download className="w-4 h-4 mr-2" />
+										<Download className="w-4 h-4 mr-2" aria-hidden="true" />
 										Download
 									</>
 								)}
@@ -158,7 +171,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 						) : null}
 					</div>
 				</div>
-			</div>
+			</article>
 		</Card>
 	);
 }

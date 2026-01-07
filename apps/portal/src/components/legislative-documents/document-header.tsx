@@ -23,9 +23,12 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 			: "N/A";
 
 	return (
-		<div className="mb-6 sm:mb-8">
+		<header className="mb-6 sm:mb-8">
 			{/* Document Number */}
-			<h1 className="font-['Playfair_Display'] text-xl sm:text-2xl md:text-3xl text-[#a60202] mb-3 sm:mb-4">
+			<h1
+				className="font-['Playfair_Display'] text-xl sm:text-2xl md:text-3xl text-[#a60202] mb-3 sm:mb-4"
+				aria-label={`Document Number: ${documentNumber}`}
+			>
 				{documentNumber}
 			</h1>
 			{/* Title */}
@@ -34,35 +37,39 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 			</h2>
 
 			{/* Metadata Grid */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 p-4 sm:p-6 rounded-lg">
+			<dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 p-4 sm:p-6 rounded-lg">
 				{/* Date Passed/Approved */}
 				<div>
-					<p className="text-sm text-gray-600">Date Passed/Approved</p>
-					<p className="font-medium">{formattedDate}</p>
+					<dt className="text-sm text-gray-600">Date Passed/Approved</dt>
+					<dd className="font-medium">
+						<time dateTime={document.dateEnacted?.toISOString()}>
+							{formattedDate}
+						</time>
+					</dd>
 				</div>
 				{/* Author(s) */}
 				{(document.authorNames || document.sponsorNames) && (
 					<div>
-						<p className="text-sm text-gray-600">Author(s)</p>
-						<p className="font-medium">
+						<dt className="text-sm text-gray-600">Author(s)</dt>
+						<dd className="font-medium">
 							{document.authorNames?.join(", ") ||
 								document.sponsorNames?.join(", ")}
-						</p>
+						</dd>
 					</div>
 				)}
 				{/* Classification */}
 				{classification && classification !== "N/A" && (
 					<div>
-						<p className="text-sm text-gray-600">Classification</p>
-						<p className="font-medium">{classification}</p>
+						<dt className="text-sm text-gray-600">Classification</dt>
+						<dd className="font-medium">{classification}</dd>
 					</div>
 				)}
 				{/* Document Type */}
 				<div>
-					<p className="text-sm text-gray-600">Document Type</p>
-					<p className="font-medium">{documentType}</p>
+					<dt className="text-sm text-gray-600">Document Type</dt>
+					<dd className="font-medium">{documentType}</dd>
 				</div>
-			</div>
-		</div>
+			</dl>
+		</header>
 	);
 }

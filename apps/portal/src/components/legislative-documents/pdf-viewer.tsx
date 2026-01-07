@@ -5,9 +5,9 @@ import {
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@repo/ui/hooks";
 import { Download, FileText, Loader2, X } from "@repo/ui/lib/lucide-react";
 import { useCallback, useRef, useState } from "react";
-import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@/hooks";
 
 interface PDFViewerProps {
 	document: LegislativeDocumentWithDetails;
@@ -85,14 +85,19 @@ export function PDFViewer({ document }: PDFViewerProps) {
 	return (
 		<div className="mb-4 sm:mb-6">
 			{/* View Button - Opens in modal or new tab */}
-			<div className="flex flex-col sm:flex-row gap-3">
+			<div
+				className="flex flex-col sm:flex-row gap-3"
+				role="group"
+				aria-label="Document actions"
+			>
 				<Button
 					ref={triggerRef}
 					onClick={() => setIsOpen(true)}
 					variant="outline"
 					className="w-full sm:w-auto border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-8 py-6"
+					aria-label={`View PDF document: ${documentTitle}`}
 				>
-					<FileText className="w-5 h-5 mr-2" />
+					<FileText className="w-5 h-5 mr-2" aria-hidden="true" />
 					View PDF Document
 				</Button>
 
@@ -101,12 +106,18 @@ export function PDFViewer({ document }: PDFViewerProps) {
 					onClick={handleDownload}
 					disabled={isDownloading}
 					className="w-full sm:w-auto sm:min-w-45 bg-[#a60202] hover:bg-[#8a0101] text-white px-8 py-6"
+					aria-label={
+						isDownloading
+							? "Downloading PDF..."
+							: `Download PDF: ${downloadFilename}`
+					}
+					aria-busy={isDownloading}
 				>
 					{isDownloading ? (
-						<Loader2 className="w-5 h-5 animate-spin" />
+						<Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
 					) : (
 						<>
-							<Download className="w-5 h-5 mr-2" />
+							<Download className="w-5 h-5 mr-2" aria-hidden="true" />
 							Download PDF
 						</>
 					)}
@@ -120,9 +131,15 @@ export function PDFViewer({ document }: PDFViewerProps) {
 						<div
 							ref={modalRef}
 							className="fixed inset-0 z-50 bg-white flex flex-col h-dvh"
+							role="dialog"
+							aria-modal="true"
+							aria-labelledby="pdf-modal-title"
 						>
 							<div className="shrink-0 bg-[#a60202] text-white p-4 flex items-center justify-between gap-4">
-								<h2 className="text-base font-semibold truncate flex-1">
+								<h2
+									id="pdf-modal-title"
+									className="text-base font-semibold truncate flex-1"
+								>
 									{documentTitle}
 								</h2>
 								<div className="flex items-center gap-2">
@@ -131,6 +148,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 										size="sm"
 										variant="ghost"
 										className="text-white hover:bg-white/20 text-xs"
+										aria-label="Open PDF in new browser tab"
 									>
 										Open in Tab
 									</Button>
@@ -139,8 +157,9 @@ export function PDFViewer({ document }: PDFViewerProps) {
 										size="sm"
 										variant="ghost"
 										className="text-white hover:bg-white/20"
+										aria-label="Close PDF viewer"
 									>
-										<X className="h-4 w-4" />
+										<X className="h-4 w-4" aria-hidden="true" />
 									</Button>
 								</div>
 							</div>
@@ -171,13 +190,20 @@ export function PDFViewer({ document }: PDFViewerProps) {
 							<div
 								className="fixed inset-0 z-50 bg-black/50"
 								onClick={() => setIsOpen(false)}
+								aria-hidden="true"
 							/>
 							<div
 								ref={modalRef}
 								className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-50 w-[90vw] max-w-350 h-[90vh] bg-white rounded-lg shadow-lg flex flex-col"
+								role="dialog"
+								aria-modal="true"
+								aria-labelledby="pdf-modal-title-desktop"
 							>
 								<div className="shrink-0 bg-[#a60202] text-white p-4 rounded-t-lg flex items-center justify-between gap-4">
-									<h2 className="text-lg font-semibold truncate flex-1">
+									<h2
+										id="pdf-modal-title-desktop"
+										className="text-lg font-semibold truncate flex-1"
+									>
 										{documentTitle}
 									</h2>
 									<div className="flex items-center gap-2">
@@ -186,6 +212,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 											size="sm"
 											variant="ghost"
 											className="text-white hover:bg-white/20 text-xs"
+											aria-label="Open PDF in new browser tab"
 										>
 											Open in New Tab
 										</Button>
@@ -194,8 +221,9 @@ export function PDFViewer({ document }: PDFViewerProps) {
 											size="sm"
 											variant="ghost"
 											className="text-white hover:bg-white/20"
+											aria-label="Close PDF viewer"
 										>
-											<X className="h-4 w-4" />
+											<X className="h-4 w-4" aria-hidden="true" />
 										</Button>
 									</div>
 								</div>
