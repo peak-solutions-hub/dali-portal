@@ -1,4 +1,9 @@
-import { HeroSection, QuickActions, RecentUpdates } from "@/components/home";
+import {
+	AboutSection,
+	HeroSection,
+	QuickActions,
+	RecentUpdates,
+} from "@/components/home";
 
 export default function HomePage() {
 	// TODO: Replace with actual data
@@ -80,6 +85,7 @@ export default function HomePage() {
 				approvedResolutions={approvedResolutions}
 			/>
 			<QuickActions />
+			<AboutSection councilorCount={12} />
 			<RecentUpdates documents={latestDocuments} sessions={upcomingSessions} />
 		</div>
 	);
