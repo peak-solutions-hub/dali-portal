@@ -1,10 +1,12 @@
 "use client";
 
 import {
+	createSupabaseBrowserClient,
 	formatDate,
 	getClassificationLabel,
 	getDocumentFilename,
 	getDocumentNumber,
+	getDocumentPdfUrl,
 	getDocumentTitle,
 	getDocumentTypeLabel,
 	type LegislativeDocumentWithDetails,
@@ -18,7 +20,8 @@ import {
 	Loader2,
 } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { downloadFile } from "@/utils/download-utils";
 
 interface DocumentCardProps {
 	document: LegislativeDocumentWithDetails;
@@ -26,6 +29,7 @@ interface DocumentCardProps {
 
 export function DocumentCard({ document }: DocumentCardProps) {
 	const [isDownloading, setIsDownloading] = useState(false);
+	const [pdfUrl, setPdfUrl] = useState<string | undefined>();
 
 	const documentNumber = getDocumentNumber(document);
 	const documentType = getDocumentTypeLabel(document.type);
@@ -40,35 +44,35 @@ export function DocumentCard({ document }: DocumentCardProps) {
 			? getClassificationLabel(document.document.classification)
 			: "N/A";
 
-	const hasPdfFile = Boolean(document.pdfUrl);
+	const hasPdfFile = Boolean(document.storagePath && document.storageBucket);
 	const downloadFilename = getDocumentFilename(document);
 
+	// Generate signed URL when component mounts
+	useEffect(() => {
+		if (document.storagePath && document.storageBucket) {
+			const supabase = createSupabaseBrowserClient();
+			getDocumentPdfUrl(supabase, document).then(setPdfUrl);
+		}
+	}, [document]);
+
 	const handleDownload = useCallback(async () => {
-		if (!document.pdfUrl) return;
+		if (!pdfUrl || !document.storagePath || !document.storageBucket) return;
 
 		setIsDownloading(true);
 		try {
-			const response = await fetch(document.pdfUrl);
-			if (!response.ok) {
-				throw new Error("Failed to download file");
-			}
-
-			const blob = await response.blob();
-			const url = window.URL.createObjectURL(blob);
-			const link = window.document.createElement("a");
-			link.href = url;
-			link.download = downloadFilename;
-			window.document.body.appendChild(link);
-			link.click();
-			window.document.body.removeChild(link);
-			window.URL.revokeObjectURL(url);
-		} catch (error) {
-			console.error("Download failed:", error);
-			window.open(document.pdfUrl, "_blank");
+			const supabase = createSupabaseBrowserClient();
+			await downloadFile(
+				supabase,
+				document.storageBucket,
+				document.storagePath,
+				downloadFilename,
+			);
+		} catch {
+			// Error already logged and handled by downloadFile
 		} finally {
 			setIsDownloading(false);
 		}
-	}, [document.pdfUrl, downloadFilename]);
+	}, [pdfUrl, downloadFilename, document]);
 
 	return (
 		<Card className="overflow-hidden hover:shadow-md focus-within:shadow-md transition-all border-l-4 border-l-[#a60202]">

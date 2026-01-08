@@ -31,6 +31,8 @@ export const LegislativeDocumentWithDetailsSchema =
 		displayType: z.string().optional(),
 		displayClassification: z.string().optional(),
 		pdfUrl: z.url().optional(),
+		storageBucket: z.string().optional(),
+		storagePath: z.string().optional(),
 		pdfFilename: z.string().optional(),
 		latestVersion: DocumentVersionSchema.optional(),
 	});
@@ -53,7 +55,7 @@ export const PaginationInfoSchema = z.object({
 export const GetLegislativeDocumentListSchema = z.object({
 	search: z.string().optional(),
 	type: LegislativeDocumentTypeEnum.optional(),
-	year: z.coerce.number().int().min(2000).optional(),
+	year: z.coerce.number().int().min(1950).optional(),
 	classification: ClassificationTypeEnum.optional(),
 	page: z.coerce.number().int().min(1).default(1),
 	limit: z.coerce.number().int().min(1).max(100).default(10),

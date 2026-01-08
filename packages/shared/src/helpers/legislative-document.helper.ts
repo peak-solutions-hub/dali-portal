@@ -33,58 +33,29 @@ export const LEGISLATIVE_DOCUMENT_TYPES = [
 ] as const;
 
 /**
- * Classification type display labels (snake_case to Title Case)
+ * Helper function to convert snake_case to Title Case
  */
-export const CLASSIFICATION_TYPE_LABELS: Record<string, string> = {
-	[ClassificationType.APPROPRIATIONS]: "Appropriations",
-	[ClassificationType.BARANGAY_AFFAIRS_AND_COMMUNITY_DEVELOPMENT]:
-		"Barangay Affairs & Community Development",
-	[ClassificationType.COMMUNICATION_AND_PUBLIC_INFORMATION]:
-		"Communication & Public Information",
-	[ClassificationType.COOPERATIVE_AND_LIVELIHOOD]: "Cooperative & Livelihood",
-	[ClassificationType.DISASTER_RELIEF]: "Disaster Relief",
-	[ClassificationType.DOMESTIC_AND_INTERNATIONAL_RELATIONS]:
-		"Domestic & International Relations",
-	[ClassificationType.EDUCATION_SCIENCE_AND_TECHNOLOGY]:
-		"Education, Science & Technology",
-	[ClassificationType.ELECTRIC_GAS_AND_UTILITIES]: "Electric, Gas & Utilities",
-	[ClassificationType.ENGINEERING_CONSTRUCTION_AND_PUBLIC_WORKS]:
-		"Engineering, Construction & Public Works",
-	[ClassificationType.ETHICS_AND_RULES_OF_PROFESSIONAL_SPORTS]:
-		"Ethics & Rules of Professional Sports",
-	[ClassificationType.FIRE_SANITATION_AND_HOSPITAL_SERVICES]:
-		"Fire, Sanitation & Hospital Services",
-	[ClassificationType.INFORMATION_TECHNOLOGY_AND_COMPUTERIZATION]:
-		"Information Technology & Computerization",
-	[ClassificationType.LABOR_EMPLOYMENT_MANPOWER_DEVELOPMENT_AND_PERSONNEL]:
-		"Labor, Employment & Manpower Development",
-	[ClassificationType.MARKET_AND_SLAUGHTERHOUSE]: "Market & Slaughterhouse",
-	[ClassificationType.PEACE_AND_ORDER]: "Peace & Order",
-	[ClassificationType.PUBLIC_SAFETY_GOOD_GOVERNMENT_AND_PUBLIC_ACCOUNTABILITY]:
-		"Public Safety & Good Government",
-	[ClassificationType.PUBLIC_FIRE_PENOLOGY_PUBLIC_SAFETY_ORDER_AND_SECURITY]:
-		"Public Fire, Penology & Security",
-	[ClassificationType.PUBLIC_SERVICES_ENVIRONMENTAL_PROTECTION_AND_ECOLOGY]:
-		"Public Services & Environmental Protection",
-	[ClassificationType.PUBLIC_UTILITIES_ENERGY_STYLE_JUSTICE_AND_LEGAL_MATTERS]:
-		"Public Utilities & Legal Matters",
-	[ClassificationType.REAL_ESTATE]: "Real Estate",
-	[ClassificationType.SOCIAL_WELFARE_AND_HISTORICAL_AFFAIRS]:
-		"Social Welfare & Historical Affairs",
-	[ClassificationType.TOURISM_CULTURE_AND_INDUSTRY]:
-		"Tourism, Culture & Industry",
-	[ClassificationType.TRADE_COMMERCE_AND_INDUSTRY]:
-		"Trade, Commerce & Industry",
-	[ClassificationType.TRANSPORTATION_HOUSING_AND_LAND_DEVELOPMENT_ZONING]:
-		"Transportation, Housing & Land Development",
-	[ClassificationType.URBAN_POOR_HUMAN_RIGHTS_AND_MINORITY_GROUPS]:
-		"Urban Poor & Human Rights",
-	[ClassificationType.VETERANS_RETIREES_ELDERLY_AND_DISABLED_PERSON]:
-		"Veterans, Retirees & Elderly",
-	[ClassificationType.WOMEN_AND_FAMILY_RELATIONS]: "Women & Family Relations",
-	[ClassificationType.YOUTH_AND_SPORTS_DEVELOPMENT]:
-		"Youth & Sports Development",
-};
+function toTitleCase(snakeCase: string): string {
+	return snakeCase
+		.split("_")
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+		.join(" ")
+		.replace(/And/g, "&")
+		.replace(/Of/g, "of");
+}
+
+/**
+ * Classification type display labels (auto-generated from enum)
+ */
+export const CLASSIFICATION_TYPE_LABELS: Record<string, string> = Object.values(
+	ClassificationType,
+).reduce(
+	(acc, value) => {
+		acc[value] = toTitleCase(value);
+		return acc;
+	},
+	{} as Record<string, string>,
+);
 
 /**
  * Classification types for filtering (used in UI)
