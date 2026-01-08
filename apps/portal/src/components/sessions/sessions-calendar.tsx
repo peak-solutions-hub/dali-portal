@@ -150,9 +150,9 @@ export function SessionsCalendar({
 	const nextYear = month === 11 ? year + 1 : year;
 
 	return (
-		<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-6">
+		<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6">
 			{/* Calendar Header */}
-			<div className="mb-8 flex items-center justify-between">
+			<div className="mb-4 sm:mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0">
 				<div className="flex items-center gap-2">
 					{/* Month Selector */}
 					<Select value={month.toString()} onValueChange={handleMonthChange}>
@@ -192,7 +192,7 @@ export function SessionsCalendar({
 						<Button
 							size="sm"
 							variant="outline"
-							className="h-8 border-[rgba(0,0,0,0.1)] bg-white px-3 text-sm cursor-pointer"
+							className="h-9 border-[rgba(0,0,0,0.1)] bg-white px-3 text-sm cursor-pointer"
 						>
 							Today
 						</Button>
@@ -203,7 +203,7 @@ export function SessionsCalendar({
 						<Button
 							size="sm"
 							variant="outline"
-							className="h-8 w-10 border-[rgba(0,0,0,0.1)] bg-white p-0 cursor-pointer"
+							className="h-9 w-9 border-[rgba(0,0,0,0.1)] bg-white p-0 cursor-pointer"
 						>
 							<ChevronLeftIcon className="h-4 w-4" />
 						</Button>
@@ -214,7 +214,7 @@ export function SessionsCalendar({
 						<Button
 							size="sm"
 							variant="outline"
-							className="h-8 w-10 border-[rgba(0,0,0,0.1)] bg-white p-0 cursor-pointer"
+							className="h-9 w-9 border-[rgba(0,0,0,0.1)] bg-white p-0 cursor-pointer"
 						>
 							<ChevronRightIcon className="h-4 w-4" />
 						</Button>
@@ -225,33 +225,40 @@ export function SessionsCalendar({
 			{/* Calendar Grid */}
 			<div className="mb-4">
 				{/* Day headers */}
-				<div className="mb-2 grid grid-cols-7 gap-2">
+				<div className="mb-2 grid grid-cols-7 gap-1 sm:gap-2">
 					{dayNames.map((day) => (
 						<div key={day} className="text-center">
-							<p className="text-sm font-semibold text-[#4a5565]">{day}</p>
+							<p className="text-xs sm:text-sm font-semibold text-[#4a5565]">
+								{day}
+							</p>
 						</div>
 					))}
 				</div>
 
 				{/* Calendar cells */}
-				<div className="grid grid-cols-7 gap-2">
+				<div className="grid grid-cols-7 gap-1 sm:gap-2">
 					{calendarCells.map((cell, index) => {
 						// Determine border color based on session type
 						const hasSessions = cell.sessions.length > 0;
 						const firstSession = hasSessions ? cell.sessions[0] : null;
+
+						// Priority: Session border > Today border > Default border
 						const borderClass =
 							hasSessions && firstSession
 								? firstSession.type === "regular"
 									? "border-2 border-[#dc2626]"
 									: "border-2 border-[#fe9a00]"
-								: "border border-[rgba(0,0,0,0.1)]";
+								: cell.isToday
+									? "border-2 border-[#dc2626]"
+									: "border border-[rgba(0,0,0,0.1)]";
 
-						// Enhanced today styling with red border and background
-						const bgClass = cell.isToday
-							? "bg-[#dc2626] bg-opacity-10 border-2 !border-[#dc2626]"
-							: cell.isCurrentMonth
-								? "bg-white"
-								: "bg-[#f9fafb]";
+						// Background: lighter for today, white for current month, gray for other months
+						const bgClass =
+							cell.isToday && !hasSessions
+								? "bg-[#dc2626] bg-opacity-10"
+								: cell.isCurrentMonth
+									? "bg-white"
+									: "bg-[#f9fafb]";
 
 						const textClass = cell.isToday
 							? "font-bold text-[#dc2626]"
@@ -264,22 +271,24 @@ export function SessionsCalendar({
 						// Create clickable link if there are sessions
 						const cellContent = (
 							<div
-								className={`flex min-h-24 flex-col rounded-lg p-2 transition-all ${borderClass} ${bgClass} ${
+								className={`flex flex-col rounded-lg p-1 sm:p-2 transition-all aspect-square ${borderClass} ${bgClass} ${
 									hasSessions
 										? "cursor-pointer hover:shadow-md hover:scale-[1.02]"
 										: ""
 								}`}
 							>
-								<div className="flex items-center justify-between mb-1">
-									<p className={`text-sm ${textClass}`}>{cell.day}</p>
+								<div className="flex items-center justify-between mb-0.5 sm:mb-1">
+									<p className={`text-xs sm:text-sm ${textClass}`}>
+										{cell.day}
+									</p>
 									{cell.isToday && (
-										<span className="text-[10px] font-bold text-[#dc2626] bg-white px-1.5 py-0.5 rounded">
+										<span className="hidden sm:inline text-[10px] font-bold text-[#dc2626] bg-white px-1.5 py-0.5 rounded">
 											TODAY
 										</span>
 									)}
 								</div>
 								{/* Session info */}
-								<div className="flex flex-col gap-1">
+								<div className="flex flex-col gap-0.5 sm:gap-1">
 									{cell.sessions.map((session) => (
 										<div
 											key={session.id}
@@ -288,17 +297,17 @@ export function SessionsCalendar({
 												session.type === "regular" ? "Regular" : "Special"
 											} Session #${session.sessionNumber} - ${session.time}`}
 										>
-											<div className="text-xs text-[#4a5565]">
+											<div className="hidden sm:block text-xs text-[#4a5565]">
 												Session #{session.sessionNumber}
 											</div>
 											<Badge
-												className={`h-auto rounded px-1 py-0.5 text-[10px] font-medium ${
+												className={`h-auto rounded px-1 py-0.5 text-[8px] sm:text-[10px] font-medium ${
 													session.type === "regular"
 														? "bg-[#dc2626] text-white hover:bg-[#dc2626]"
 														: "bg-[#fe9a00] text-white hover:bg-[#fe9a00]"
 												}`}
 											>
-												{session.type === "regular" ? "Regular" : "Special"}
+												{session.type === "regular" ? "Reg" : "Spc"}
 											</Badge>
 										</div>
 									))}
@@ -318,14 +327,14 @@ export function SessionsCalendar({
 			</div>
 
 			{/* Legend */}
-			<div className="flex gap-4">
+			<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
 				<div className="flex items-center gap-2">
-					<div className="h-4 w-4 rounded-sm bg-[#dc2626]" />
-					<p className="text-sm text-[#0a0a0a]">Regular Session</p>
+					<div className="h-3 w-3 sm:h-4 sm:w-4 rounded-sm bg-[#dc2626]" />
+					<p className="text-xs sm:text-sm text-[#0a0a0a]">Regular Session</p>
 				</div>
 				<div className="flex items-center gap-2">
-					<div className="h-4 w-4 rounded-sm bg-[#fe9a00]" />
-					<p className="text-sm text-[#0a0a0a]">Special Session</p>
+					<div className="h-3 w-3 sm:h-4 sm:w-4 rounded-sm bg-[#fe9a00]" />
+					<p className="text-xs sm:text-sm text-[#0a0a0a]">Special Session</p>
 				</div>
 			</div>
 		</Card>

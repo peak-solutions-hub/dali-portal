@@ -12,8 +12,8 @@ import {
 } from "@repo/ui/components/pagination";
 import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
-import { SessionsCalendar } from "@/components/sessions-calendar";
-import { SortSelect } from "@/components/sort-select";
+import { SessionsCalendar } from "@/components/sessions/sessions-calendar";
+import { SortSelect } from "@/components/sessions/sort-select";
 import type { Session } from "@/types/session";
 
 // Mock data for legislative sessions (sorted by date descending - newest/upcoming first)
@@ -29,7 +29,7 @@ const ALL_SESSIONS: Session[] = [
 		id: "9",
 		sessionNumber: "128",
 		type: "regular" as const,
-		date: "2026-01-07",
+		date: "2026-01-09",
 		time: "10:00 AM",
 	},
 	{
@@ -139,31 +139,34 @@ export default async function Sessions({
 
 	return (
 		<div className="min-h-screen bg-[#f9fafb]">
-			<div className="mx-auto max-w-5xl px-4 py-8">
+			<div className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
 				{/* Page Header */}
-				<div className="mb-8 space-y-2">
-					<h1 className="font-serif text-4xl font-normal leading-10 text-[#a60202]">
+				<div className="mb-6 sm:mb-8 space-y-2">
+					<h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-normal leading-tight sm:leading-10 text-[#a60202]">
 						Council Sessions
 					</h1>
-					<p className="text-base leading-6 text-[#4a5565]">
+					<p className="text-sm sm:text-base leading-6 text-[#4a5565]">
 						Regular sessions are held every Wednesday at 10:00 AM
 					</p>
 				</div>
 
 				{/* View Toggle and Sort */}
-				<div className="mb-8 flex items-center justify-between gap-4">
+				<div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
 					{/* Sort Dropdown (only shown in list view) */}
-					{view === "list" ? <SortSelect currentSort={sortOrder} /> : <div />}
+					<div className="w-full sm:w-40">
+						{view === "list" && <SortSelect currentSort={sortOrder} />}
+					</div>
 
 					{/* View Toggle */}
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2 w-full sm:w-auto">
 						<Link
 							href={`/sessions?view=calendar&month=${selectedMonth}&year=${selectedYear}`}
+							className="flex-1 sm:flex-none"
 						>
 							<Button
 								variant={view === "calendar" ? "default" : "outline"}
 								size="sm"
-								className={`h-9 gap-2 text-sm ${
+								className={`h-9 gap-2 text-sm w-full cursor-pointer ${
 									view === "calendar"
 										? "bg-[#dc2626] text-white hover:bg-[#dc2626]/90"
 										: "border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a]"
@@ -173,11 +176,14 @@ export default async function Sessions({
 								Calendar
 							</Button>
 						</Link>
-						<Link href={`/sessions?view=list&page=1&sort=${sortOrder}`}>
+						<Link
+							href={`/sessions?view=list&page=1&sort=${sortOrder}`}
+							className="flex-1 sm:flex-none"
+						>
 							<Button
 								variant={view === "list" ? "default" : "outline"}
 								size="sm"
-								className={`h-9 gap-2 text-sm ${
+								className={`h-9 gap-2 text-sm w-full cursor-pointer ${
 									view === "list"
 										? "bg-[#dc2626] text-white hover:bg-[#dc2626]/90"
 										: "border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a]"
@@ -193,17 +199,17 @@ export default async function Sessions({
 				{/* List View */}
 				{view === "list" && (
 					<>
-						<div className="space-y-4">
+						<div className="space-y-3 sm:space-y-4">
 							{MOCK_SESSIONS.map((session) => (
 								<Card
 									key={session.id}
-									className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-6"
+									className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6"
 								>
-									<div className="flex items-start justify-between gap-4">
-										<div className="flex-1 space-y-2">
-											<div className="flex items-center gap-3">
+									<div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
+										<div className="flex-1 space-y-2 w-full">
+											<div className="flex flex-wrap items-center gap-2 sm:gap-3">
 												<Badge
-													className={`rounded-md px-2.5 py-1 text-xs font-medium text-white ${
+													className={`rounded-md px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium text-white ${
 														session.type === "regular"
 															? "bg-[#dc2626]"
 															: "bg-[#fe9a00]"
@@ -213,21 +219,24 @@ export default async function Sessions({
 														? "Regular Session"
 														: "Special Session"}
 												</Badge>
-												<span className="text-sm text-[#4a5565]">
+												<span className="text-xs sm:text-sm text-[#4a5565]">
 													Session #{session.sessionNumber}
 												</span>
 											</div>
-											<h2 className="text-lg font-semibold leading-7 text-[#0a0a0a]">
+											<h2 className="text-base sm:text-lg font-semibold leading-6 sm:leading-7 text-[#0a0a0a]">
 												{formatDate(session.date)}
 											</h2>
-											<p className="text-sm text-[#4a5565]">
+											<p className="text-xs sm:text-sm text-[#4a5565]">
 												Time: {session.time}
 											</p>
 										</div>
-										<Link href={`/sessions/${session.id}`}>
+										<Link
+											href={`/sessions/${session.id}`}
+											className="w-full sm:w-auto"
+										>
 											<Button
 												size="sm"
-												className="h-9 rounded-md bg-[#dc2626] px-4 text-sm text-white hover:bg-[#dc2626]/90"
+												className="h-8 sm:h-9 w-full sm:w-auto rounded-md bg-[#dc2626] px-4 text-xs sm:text-sm text-white hover:bg-[#dc2626]/90 cursor-pointer"
 											>
 												View Details
 											</Button>

@@ -135,6 +135,7 @@ export default async function SessionDetailPage({
 						variant="outline"
 						size="sm"
 						aria-label="Back to Sessions list"
+						className="cursor-pointer"
 					>
 						<ChevronLeft className="size-4" />
 						Back to Sessions
@@ -155,7 +156,8 @@ export default async function SessionDetailPage({
 								{session.type}
 							</Badge>
 							<Badge
-								variant="outline"
+								variant="default"
+								className="bg-green-600 text-white font-medium"
 								aria-label={`Session status: ${session.status}`}
 							>
 								{session.status}

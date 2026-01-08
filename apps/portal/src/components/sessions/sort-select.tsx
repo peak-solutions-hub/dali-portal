@@ -27,12 +27,25 @@ export function SortSelect({ currentSort }: SortSelectProps) {
 	return (
 		<div className="flex items-center gap-2">
 			<Select value={currentSort} onValueChange={handleSortChange}>
-				<SelectTrigger className="h-9 w-40 border-[rgba(0,0,0,0.1)] bg-white text-sm">
+				<SelectTrigger className="h-8 sm:h-9 w-full border-[rgba(0,0,0,0.1)] bg-white text-xs sm:text-sm cursor-pointer">
 					<SelectValue />
 				</SelectTrigger>
-				<SelectContent side="bottom" align="start">
-					<SelectItem value="desc">Latest</SelectItem>
-					<SelectItem value="asc">Oldest</SelectItem>
+				<SelectContent
+					side="bottom"
+					align="start"
+					sideOffset={4}
+					position="popper"
+					className="z-50"
+				>
+					<SelectItem
+						value="desc"
+						className="cursor-pointer text-xs sm:text-sm"
+					>
+						Latest
+					</SelectItem>
+					<SelectItem value="asc" className="cursor-pointer text-xs sm:text-sm">
+						Oldest
+					</SelectItem>
 				</SelectContent>
 			</Select>
 		</div>
