@@ -60,9 +60,9 @@ function transformDocumentVersion(
 
 export function transformLegislativeDocument(
 	doc: LegislativeDocumentWithRelations,
-	pdfUrl?: string,
 ): LegislativeDocumentWithDetails {
 	const latestVersion = doc.document.documentVersion[0];
+	const storagePath = latestVersion?.filePath;
 
 	return {
 		id: Number(doc.id),
@@ -80,8 +80,9 @@ export function transformLegislativeDocument(
 		displayTitle: doc.document.title,
 		displayType: DOCUMENT_TYPE_DISPLAY_MAP[doc.type] ?? "Unknown",
 		displayClassification: doc.document.classification,
-		pdfUrl,
-		pdfFilename: latestVersion?.filePath?.split("/").pop(),
+		storageBucket: storagePath ? "documents" : undefined,
+		storagePath: storagePath,
+		pdfFilename: storagePath?.split("/").pop(),
 		latestVersion: latestVersion
 			? transformDocumentVersion(latestVersion)
 			: undefined,

@@ -1,13 +1,16 @@
 "use client";
 import {
+	createSupabaseBrowserClient,
 	getDocumentFilename,
+	getDocumentPdfUrl,
 	isValidPdfUrl,
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@repo/ui/hooks";
 import { Download, FileText, Loader2, X } from "@repo/ui/lib/lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { downloadFile } from "@/utils/download-utils";
 
 interface PDFViewerProps {
 	document: LegislativeDocumentWithDetails;
@@ -16,6 +19,7 @@ interface PDFViewerProps {
 export function PDFViewer({ document }: PDFViewerProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDownloading, setIsDownloading] = useState(false);
+	const [pdfUrl, setPdfUrl] = useState<string | undefined>();
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
 	const modalRef = useRef<HTMLDivElement | null>(null);
 
@@ -28,58 +32,42 @@ export function PDFViewer({ document }: PDFViewerProps) {
 		onEscape: () => setIsOpen(false),
 	});
 
-	const pdfUrl = document.pdfUrl;
 	const documentTitle =
 		document.displayTitle || document.document?.title || "Untitled Document";
 	const downloadFilename = getDocumentFilename(document);
 
+	// Generate signed URL when component mounts
+	useEffect(() => {
+		if (document.storagePath && document.storageBucket) {
+			const supabase = createSupabaseBrowserClient();
+			getDocumentPdfUrl(supabase, document).then(setPdfUrl);
+		}
+	}, [document]);
+
 	const isValidUrl = pdfUrl ? isValidPdfUrl(pdfUrl) : false;
 
 	const handleDownload = useCallback(async () => {
-		if (!pdfUrl) return;
+		if (!pdfUrl || !document.storagePath || !document.storageBucket) return;
 
 		setIsDownloading(true);
 		try {
-			const response = await fetch(pdfUrl);
-			if (!response.ok) {
-				throw new Error("Failed to download file");
-			}
-
-			const blob = await response.blob();
-			const url = window.URL.createObjectURL(blob);
-			const link = window.document.createElement("a");
-			link.href = url;
-			link.download = downloadFilename;
-			window.document.body.appendChild(link);
-			link.click();
-			window.document.body.removeChild(link);
-			window.URL.revokeObjectURL(url);
-		} catch (error) {
-			console.error("Download failed:", error);
-			// Fallback: open in new tab if fetch fails
-			window.open(pdfUrl, "_blank");
+			const supabase = createSupabaseBrowserClient();
+			await downloadFile(
+				supabase,
+				document.storageBucket,
+				document.storagePath,
+				downloadFilename,
+			);
+		} catch {
+			// Error already logged and handled by downloadFile
 		} finally {
 			setIsDownloading(false);
 		}
-	}, [pdfUrl, downloadFilename]);
+	}, [pdfUrl, downloadFilename, document]);
 
-	const handleViewInNewTab = useCallback(() => {
-		if (pdfUrl) {
-			window.open(pdfUrl, "_blank", "noopener,noreferrer");
-		}
-	}, [pdfUrl]);
-
+	// Don't render anything until PDF URL is loaded
 	if (!pdfUrl || !isValidUrl) {
-		return (
-			<div className="bg-gray-100 rounded-lg p-8 sm:p-12 mb-4 sm:mb-6 flex flex-col items-center justify-center min-h-75 sm:min-h-100">
-				<p className="text-gray-600 mb-4 text-sm sm:text-base">
-					PDF Document Preview
-				</p>
-				<p className="text-xs sm:text-sm text-gray-500">
-					{!pdfUrl ? "PDF not available for public viewing" : "Invalid PDF URL"}
-				</p>
-			</div>
-		);
+		return null;
 	}
 
 	return (
@@ -142,26 +130,15 @@ export function PDFViewer({ document }: PDFViewerProps) {
 								>
 									{documentTitle}
 								</h2>
-								<div className="flex items-center gap-2">
-									<Button
-										onClick={handleViewInNewTab}
-										size="sm"
-										variant="ghost"
-										className="text-white hover:bg-white/20 text-xs"
-										aria-label="Open PDF in new browser tab"
-									>
-										Open in Tab
-									</Button>
-									<Button
-										onClick={() => setIsOpen(false)}
-										size="sm"
-										variant="ghost"
-										className="text-white hover:bg-white/20"
-										aria-label="Close PDF viewer"
-									>
-										<X className="h-4 w-4" aria-hidden="true" />
-									</Button>
-								</div>
+								<Button
+									onClick={() => setIsOpen(false)}
+									size="sm"
+									variant="ghost"
+									className="text-white hover:bg-white/20"
+									aria-label="Close PDF viewer"
+								>
+									<X className="h-4 w-4" aria-hidden="true" />
+								</Button>
 							</div>
 
 							<div className="flex-1 overflow-hidden">
@@ -173,13 +150,22 @@ export function PDFViewer({ document }: PDFViewerProps) {
 								>
 									<div className="flex flex-col items-center justify-center h-full p-4 text-center">
 										<p className="text-gray-600 mb-4">
-											Unable to display PDF in browser.
+											Unable to display PDF in browser. Please download the
+											file.
 										</p>
 										<Button
-											onClick={handleViewInNewTab}
+											onClick={handleDownload}
+											disabled={isDownloading}
 											className="bg-[#a60202] hover:bg-[#8a0101]"
 										>
-											Open PDF in New Tab
+											{isDownloading ? (
+												<Loader2
+													className="w-4 h-4 animate-spin"
+													aria-hidden="true"
+												/>
+											) : (
+												"Download PDF"
+											)}
 										</Button>
 									</div>
 								</object>
@@ -206,26 +192,15 @@ export function PDFViewer({ document }: PDFViewerProps) {
 									>
 										{documentTitle}
 									</h2>
-									<div className="flex items-center gap-2">
-										<Button
-											onClick={handleViewInNewTab}
-											size="sm"
-											variant="ghost"
-											className="text-white hover:bg-white/20 text-xs"
-											aria-label="Open PDF in new browser tab"
-										>
-											Open in New Tab
-										</Button>
-										<Button
-											onClick={() => setIsOpen(false)}
-											size="sm"
-											variant="ghost"
-											className="text-white hover:bg-white/20"
-											aria-label="Close PDF viewer"
-										>
-											<X className="h-4 w-4" aria-hidden="true" />
-										</Button>
-									</div>
+									<Button
+										onClick={() => setIsOpen(false)}
+										size="sm"
+										variant="ghost"
+										className="text-white hover:bg-white/20"
+										aria-label="Close PDF viewer"
+									>
+										<X className="h-4 w-4" aria-hidden="true" />
+									</Button>
 								</div>
 
 								<div className="flex-1 overflow-auto p-4 bg-gray-50">
@@ -237,13 +212,22 @@ export function PDFViewer({ document }: PDFViewerProps) {
 									>
 										<div className="flex flex-col items-center justify-center h-full p-8 text-center">
 											<p className="text-gray-600 mb-4">
-												Unable to display PDF in browser.
+												Unable to display PDF in browser. Please download the
+												file.
 											</p>
 											<Button
-												onClick={handleViewInNewTab}
+												onClick={handleDownload}
+												disabled={isDownloading}
 												className="bg-[#a60202] hover:bg-[#8a0101]"
 											>
-												Open PDF in New Tab
+												{isDownloading ? (
+													<Loader2
+														className="w-4 h-4 animate-spin"
+														aria-hidden="true"
+													/>
+												) : (
+													"Download PDF"
+												)}
 											</Button>
 										</div>
 									</object>

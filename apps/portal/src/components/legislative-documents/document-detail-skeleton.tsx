@@ -15,41 +15,33 @@ export function DocumentDetailSkeleton() {
 				<Card className="p-4 sm:p-6 md:p-8">
 					<div className="space-y-6">
 						{/* Document Header Skeleton */}
-						<div className="space-y-4">
-							{/* Document number and type */}
-							<div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-								<Skeleton className="h-8 w-48" />
-								<Skeleton className="h-6 w-32" />
-							</div>
+						<header className="mb-6 sm:mb-8">
+							{/* Document Number */}
+							<Skeleton className="h-8 sm:h-9 md:h-10 w-64 mb-3 sm:mb-4" />
 
 							{/* Title */}
-							<Skeleton className="h-10 w-full" />
-							<Skeleton className="h-10 w-3/4" />
+							<Skeleton className="h-6 sm:h-7 md:h-8 w-full mb-2" />
+							<Skeleton className="h-6 sm:h-7 md:h-8 w-3/4 mb-4 sm:mb-6" />
 
-							{/* Metadata grid */}
-							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-								{Array.from({ length: 4 }).map((_, i) => (
-									<div key={i} className="space-y-2">
-										<Skeleton className="h-4 w-20" />
-										<Skeleton className="h-5 w-32" />
-									</div>
-								))}
+							{/* Metadata Grid */}
+							<div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+									{Array.from({ length: 4 }).map((_, i) => (
+										<div key={i} className="space-y-2">
+											<Skeleton className="h-4 w-32" />
+											<Skeleton className="h-5 w-40" />
+										</div>
+									))}
+								</div>
 							</div>
+						</header>
 
-							{/* Authors/Sponsors */}
-							<div className="space-y-2 pt-2">
-								<Skeleton className="h-4 w-24" />
-								<Skeleton className="h-5 w-64" />
+						{/* PDF Viewer Skeleton - Two buttons */}
+						<div className="mb-4 sm:mb-6">
+							<div className="flex flex-col sm:flex-row gap-3">
+								<Skeleton className="h-14 w-full sm:w-48" />
+								<Skeleton className="h-14 w-full sm:w-48" />
 							</div>
-						</div>
-
-						{/* PDF Viewer Skeleton */}
-						<div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-							<div className="flex items-center justify-between mb-4">
-								<Skeleton className="h-5 w-48" />
-								<Skeleton className="h-10 w-32" />
-							</div>
-							<Skeleton className="h-150 w-full rounded" />
 						</div>
 					</div>
 				</Card>

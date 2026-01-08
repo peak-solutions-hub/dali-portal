@@ -6,7 +6,6 @@ import { AppController } from "@/app/app.controller";
 import { DbModule } from "@/app/db/db.module";
 import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module";
 import { LegislativeDocumentsModule } from "@/app/legislative-documents/legislative-documents.module";
-import { StorageModule } from "@/app/storage/storage.module";
 import { LibModule } from "@/lib/lib.module";
 import { AppService } from "./app.service";
 
@@ -14,7 +13,6 @@ import { AppService } from "./app.service";
 	imports: [
 		LibModule,
 		DbModule,
-		StorageModule,
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
 		// orpc

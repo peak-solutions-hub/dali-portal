@@ -7,12 +7,10 @@ import type {
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 import {
-	getLatestVersionFilePath,
 	type LegislativeDocumentWithRelations,
 	transformLegislativeDocument,
 	transformPagination,
 } from "@/app/legislative-documents/pipes";
-import { StorageService } from "@/app/storage/storage.service";
 import type { Prisma } from "@/generated/prisma/client";
 
 const LEGISLATIVE_DOCUMENT_INCLUDE = {
@@ -28,28 +26,12 @@ const LEGISLATIVE_DOCUMENT_INCLUDE = {
 
 @Injectable()
 export class LegislativeDocumentsService {
-	constructor(
-		private readonly db: DbService,
-		private readonly storage: StorageService,
-	) {}
+	constructor(private readonly db: DbService) {}
 
-	private async generatePdfUrl(filePath?: string): Promise<string | undefined> {
-		if (!filePath) return undefined;
-
-		try {
-			return await this.storage.getSignedUrl("documents", filePath, 3600);
-		} catch (error) {
-			console.error("Failed to generate signed URL:", error);
-			return undefined;
-		}
-	}
-
-	private async toResponse(
+	private toResponse(
 		doc: LegislativeDocumentWithRelations,
-	): Promise<LegislativeDocumentWithDetails> {
-		const filePath = getLatestVersionFilePath(doc);
-		const pdfUrl = await this.generatePdfUrl(filePath);
-		return transformLegislativeDocument(doc, pdfUrl);
+	): LegislativeDocumentWithDetails {
+		return transformLegislativeDocument(doc);
 	}
 
 	async findAll(
@@ -68,9 +50,7 @@ export class LegislativeDocumentsService {
 			take: limit,
 		});
 
-		const transformedDocs = await Promise.all(
-			documents.map((doc) => this.toResponse(doc)),
-		);
+		const transformedDocs = documents.map((doc) => this.toResponse(doc));
 
 		return {
 			documents: transformedDocs,
@@ -124,9 +104,7 @@ export class LegislativeDocumentsService {
 			take: limit,
 		});
 
-		const transformedDocs = await Promise.all(
-			documents.map((doc) => this.toResponse(doc)),
-		);
+		const transformedDocs = documents.map((doc) => this.toResponse(doc));
 
 		return {
 			documents: transformedDocs,
@@ -165,8 +143,8 @@ export class LegislativeDocumentsService {
 			where.OR = [
 				{ officialNumber: { contains: search, mode: "insensitive" } },
 				{ document: { title: { contains: search, mode: "insensitive" } } },
-				{ authorNames: { has: search } },
-				{ sponsorNames: { has: search } },
+				{ authorNames: { hasSome: [search] } },
+				{ sponsorNames: { hasSome: [search] } },
 			];
 		}
 
