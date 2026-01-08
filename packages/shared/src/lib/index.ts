@@ -1,3 +1,1 @@
-export * from "./documents";
-export * from "./supabase/client";
-export * from "./supabase/storage";
+// Documents utilities have been moved to @repo/ui/lib

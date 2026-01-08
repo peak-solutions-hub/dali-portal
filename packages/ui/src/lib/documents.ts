@@ -1,5 +1,5 @@
+import type { LegislativeDocumentWithDetails } from "@repo/shared";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { LegislativeDocumentWithDetails } from "../schemas/legislative-document.schema";
 import { getSignedUrl } from "./supabase/storage";
 
 /**
@@ -11,17 +11,9 @@ import { getSignedUrl } from "./supabase/storage";
  *
  * @example
  * ```typescript
- * // In Server Component
- * import { createSupabaseServerClient, getDocumentPdfUrl } from "@repo/shared";
- *
- * const supabase = await createSupabaseServerClient();
- * const pdfUrl = await getDocumentPdfUrl(supabase, document);
- * ```
- *
- * @example
- * ```typescript
  * // In Client Component
- * import { createSupabaseBrowserClient, getDocumentPdfUrl } from "@repo/shared";
+ * import { createSupabaseBrowserClient } from "@repo/ui/lib";
+ * import { getDocumentPdfUrl } from "@repo/shared";
  *
  * const supabase = createSupabaseBrowserClient();
  * const pdfUrl = await getDocumentPdfUrl(supabase, document);
@@ -53,9 +45,10 @@ export async function getDocumentPdfUrl(
  *
  * @example
  * ```typescript
- * import { createSupabaseServerClient, getDocumentsPdfUrls } from "@repo/shared";
+ * import { createSupabaseBrowserClient } from "@repo/ui/lib";
+ * import { getDocumentsPdfUrls } from "@repo/shared";
  *
- * const supabase = await createSupabaseServerClient();
+ * const supabase = createSupabaseBrowserClient();
  * const documentsWithUrls = await getDocumentsPdfUrls(supabase, documents);
  * ```
  */
