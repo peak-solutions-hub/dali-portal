@@ -1,18 +1,17 @@
 "use client";
 
 import {
-	createSupabaseBrowserClient,
 	formatDate,
 	getClassificationLabel,
 	getDocumentFilename,
 	getDocumentNumber,
-	getDocumentPdfUrl,
 	getDocumentTitle,
 	getDocumentTypeLabel,
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
+import { createSupabaseBrowserClient, getDocumentPdfUrl } from "@repo/ui/lib";
 import {
 	Calendar,
 	Download,
