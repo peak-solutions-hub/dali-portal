@@ -11,7 +11,7 @@ import {
 	transformLegislativeDocument,
 	transformPagination,
 } from "@/app/legislative-documents/pipes";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 const LEGISLATIVE_DOCUMENT_INCLUDE = {
 	document: {
@@ -39,7 +39,33 @@ export class LegislativeDocumentsService {
 	): Promise<LegislativeDocumentListResponse> {
 		const { search, type, year, classification, page = 1, limit = 10 } = input;
 
-		const where = this.buildWhereClause({ search, type, year, classification });
+		const baseWhere = this.buildWhereClause({ type, year, classification });
+		let where: Prisma.LegislativeDocumentWhereInput = baseWhere;
+
+		if (search?.trim()) {
+			const searchWhere = this.buildWhereClause({
+				search,
+				type,
+				year,
+				classification,
+			});
+
+			const arraySearchIds = await this.searchArrayFields(search.trim());
+
+			if (arraySearchIds.length > 0) {
+				where = {
+					AND: [
+						baseWhere,
+						{
+							OR: [...(searchWhere.OR || []), { id: { in: arraySearchIds } }],
+						},
+					],
+				};
+			} else {
+				where = searchWhere;
+			}
+		}
+
 		const totalItems = await this.db.legislativeDocument.count({ where });
 
 		// Calculate total pages and validate requested page
@@ -156,26 +182,28 @@ export class LegislativeDocumentsService {
 		}
 
 		if (search) {
-			const searchLower = search.toLowerCase();
-
 			where.OR = [
-				// Search in document number
-				{ officialNumber: { contains: searchLower, mode: "insensitive" } },
-				// Search in document title
-				{ document: { title: { contains: searchLower, mode: "insensitive" } } },
+				{ officialNumber: { search: search } },
+				{ document: { title: { search: search } } },
 			];
-
-			// For array fields (authorNames, sponsorNames), we need to fetch and filter
-			// since Prisma's hasSome only matches exact array elements.
-			// We'll use a raw query approach or fetch all and filter in memory for better UX.
-			// For now, we'll keep hasSome for exact matches and add a note for future improvement.
-			// TODO: Consider using PostgreSQL array operators or full-text search for better partial matching
-			where.OR.push(
-				{ authorNames: { hasSome: [searchLower] } },
-				{ sponsorNames: { hasSome: [searchLower] } },
-			);
 		}
 
 		return where;
+	}
+
+	private async searchArrayFields(searchTerm: string): Promise<bigint[]> {
+		if (!searchTerm.trim()) return [];
+
+		const results = await this.db.$queryRaw<{ id: bigint }[]>`
+			SELECT DISTINCT ld.id
+			FROM legislative_document ld
+			WHERE (
+				to_tsvector('simple', array_to_string(ld.author_names, ' ')) @@ plainto_tsquery('simple', ${searchTerm})
+				OR
+				to_tsvector('simple', array_to_string(ld.sponsor_names, ' ')) @@ plainto_tsquery('simple', ${searchTerm})
+			)
+		`;
+
+		return results.map((r) => r.id);
 	}
 }

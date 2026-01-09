@@ -80,12 +80,6 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	);
 
 	useEffect(() => {
-		if (currentParams.search !== searchInput) {
-			setSearchInput(currentParams.search);
-		}
-	}, [currentParams.search]);
-
-	useEffect(() => {
 		if (debouncedSearch !== currentParams.search) {
 			navigateWithParams({ search: debouncedSearch });
 		}
