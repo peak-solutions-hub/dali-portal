@@ -72,7 +72,6 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 
 	const hasActiveFilters = useMemo(
 		() =>
-			currentParams.search !== "" ||
 			currentParams.type !== "all" ||
 			currentParams.year !== "all" ||
 			currentParams.classification !== "all",
@@ -104,9 +103,19 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
 							setSearchInput(e.target.value)
 						}
-						className="pl-9 h-10 bg-white"
+						className="pl-9 pr-9 h-10 bg-white"
 						aria-label="Search legislative documents by title, number, or author"
 					/>
+					{searchInput && (
+						<button
+							type="button"
+							onClick={() => setSearchInput("")}
+							className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+							aria-label="Clear search"
+						>
+							<X className="w-4 h-4" aria-hidden="true" />
+						</button>
+					)}
 				</div>
 
 				{/* Right: Filters */}
