@@ -147,7 +147,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 				<Button
 					onClick={handleDownload}
 					disabled={isDownloading}
-					className="w-full sm:w-auto sm:min-w-45 bg-[#a60202] hover:bg-[#8a0101] text-white px-8 py-6"
+					className="w-full sm:w-auto sm:min-w-45 border-2 border- bg-[#a60202] hover:bg-[#8a0101] text-white px-8 py-6"
 					aria-label={
 						isDownloading
 							? "Downloading PDF..."

@@ -176,8 +176,8 @@ export class LegislativeDocumentsService {
 
 		if (search) {
 			where.OR = [
-				{ officialNumber: { search: search } },
-				{ document: { title: { search: search } } },
+				{ officialNumber: { contains: search, mode: "insensitive" } },
+				{ document: { title: { contains: search, mode: "insensitive" } } },
 			];
 		}
 
@@ -191,9 +191,9 @@ export class LegislativeDocumentsService {
 			SELECT DISTINCT ld.id
 			FROM legislative_document ld
 			WHERE (
-				to_tsvector('simple', array_to_string(ld.author_names, ' ')) @@ plainto_tsquery('simple', ${searchTerm})
+				to_tsvector('english', array_to_string(ld.author_names, ' ')) @@ plainto_tsquery('english', ${searchTerm})
 				OR
-				to_tsvector('simple', array_to_string(ld.sponsor_names, ' ')) @@ plainto_tsquery('simple', ${searchTerm})
+				to_tsvector('english', array_to_string(ld.sponsor_names, ' ')) @@ plainto_tsquery('english', ${searchTerm})
 			)
 		`;
 
