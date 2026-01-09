@@ -6,7 +6,6 @@ import {
 	getDocumentFilename,
 	getDocumentNumber,
 	getDocumentTitle,
-	getDocumentTypeBadgeClass,
 	getDocumentTypeLabel,
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
@@ -135,12 +134,19 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
 						{/* Metadata */}
 						<div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-							{(document.authorNames || document.sponsorNames) && (
+							{document.authorNames && document.authorNames.length > 0 && (
 								<span>
 									Author:{" "}
 									<span className="font-medium">
-										{document.authorNames?.join(", ") ||
-											document.sponsorNames?.join(", ")}
+										{document.authorNames.join(", ")}
+									</span>
+								</span>
+							)}
+							{document.sponsorNames && document.sponsorNames.length > 0 && (
+								<span>
+									Sponsor:{" "}
+									<span className="font-medium">
+										{document.sponsorNames.join(", ")}
 									</span>
 								</span>
 							)}

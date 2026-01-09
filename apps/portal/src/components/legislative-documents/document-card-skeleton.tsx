@@ -17,17 +17,17 @@ export function DocumentCardSkeleton() {
 
 						{/* Title */}
 						<Skeleton className="h-6 w-full mb-2" />
-						<Skeleton className="h-6 w-4/5 mb-2" />
 
 						{/* Metadata */}
 						<div className="flex flex-wrap gap-x-4 gap-y-1">
-							<Skeleton className="h-5 w-32" /> {/* Author */}
-							<Skeleton className="h-5 w-28" /> {/* Date Passed */}
+							<Skeleton className="h-5 w-48" /> {/* Author */}
+							<Skeleton className="h-5 w-44" /> {/* Sponsor */}
+							<Skeleton className="h-5 w-40" /> {/* Date Passed */}
 						</div>
 
 						{/* Classification */}
 						<div className="mt-2">
-							<Skeleton className="h-5 w-64" />
+							<Skeleton className="h-5 w-56" />
 						</div>
 					</div>
 

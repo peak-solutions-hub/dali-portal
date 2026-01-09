@@ -42,11 +42,23 @@ export class LegislativeDocumentsService {
 		const where = this.buildWhereClause({ search, type, year, classification });
 		const totalItems = await this.db.legislativeDocument.count({ where });
 
+		// Calculate total pages and validate requested page
+		const totalPages = Math.ceil(totalItems / limit);
+		const validatedPage =
+			totalPages > 0 ? Math.min(Math.max(1, page), totalPages) : 1;
+
+		// If requested page exceeds total pages, throw error
+		if (page > totalPages && totalPages > 0) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Page ${page} exceeds total pages (${totalPages}). Showing page ${validatedPage} instead.`,
+			});
+		}
+
 		const documents = await this.db.legislativeDocument.findMany({
 			where,
 			include: LEGISLATIVE_DOCUMENT_INCLUDE,
 			orderBy: { createdAt: "desc" },
-			skip: (page - 1) * limit,
+			skip: (validatedPage - 1) * limit,
 			take: limit,
 		});
 
@@ -54,7 +66,11 @@ export class LegislativeDocumentsService {
 
 		return {
 			documents: transformedDocs,
-			pagination: transformPagination({ page, limit, totalItems }),
+			pagination: transformPagination({
+				page: validatedPage,
+				limit,
+				totalItems,
+			}),
 		};
 	}
 
@@ -140,12 +156,24 @@ export class LegislativeDocumentsService {
 		}
 
 		if (search) {
+			const searchLower = search.toLowerCase();
+
 			where.OR = [
-				{ officialNumber: { contains: search, mode: "insensitive" } },
-				{ document: { title: { contains: search, mode: "insensitive" } } },
-				{ authorNames: { hasSome: [search] } },
-				{ sponsorNames: { hasSome: [search] } },
+				// Search in document number
+				{ officialNumber: { contains: searchLower, mode: "insensitive" } },
+				// Search in document title
+				{ document: { title: { contains: searchLower, mode: "insensitive" } } },
 			];
+
+			// For array fields (authorNames, sponsorNames), we need to fetch and filter
+			// since Prisma's hasSome only matches exact array elements.
+			// We'll use a raw query approach or fetch all and filter in memory for better UX.
+			// For now, we'll keep hasSome for exact matches and add a note for future improvement.
+			// TODO: Consider using PostgreSQL array operators or full-text search for better partial matching
+			where.OR.push(
+				{ authorNames: { hasSome: [searchLower] } },
+				{ sponsorNames: { hasSome: [searchLower] } },
+			);
 		}
 
 		return where;

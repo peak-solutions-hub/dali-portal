@@ -101,7 +101,7 @@ export default async function LegislativeDocumentsPage({
 
 	return (
 		<div className="min-h-screen bg-gray-50">
-			<div className="container mx-auto px-4 py-8 max-w-7xl">
+			<div className="container mx-auto px-6 py-8 max-w-7xl">
 				{/* Page Header */}
 				<div className="mb-6">
 					<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">

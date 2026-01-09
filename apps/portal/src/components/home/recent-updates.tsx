@@ -37,7 +37,15 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 	const handleNavigation = (href: string) => {
 		setClickedLink(href);
 		startTransition(() => {
-			router.push(href);
+			try {
+				router.push(href);
+			} catch (error) {
+				console.error(
+					"Navigation error in RecentUpdates.handleNavigation:",
+					error,
+				);
+				setClickedLink(null);
+			}
 		});
 	};
 

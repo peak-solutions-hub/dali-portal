@@ -26,10 +26,10 @@ export function DocumentDetailSkeleton() {
 							{/* Metadata Grid */}
 							<div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
 								<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-									{Array.from({ length: 4 }).map((_, i) => (
+									{Array.from({ length: 5 }).map((_, i) => (
 										<div key={i} className="space-y-2">
-											<Skeleton className="h-4 w-32" />
-											<Skeleton className="h-5 w-40" />
+											<Skeleton className="h-4 w-36" />
+											<Skeleton className="h-5 w-48" />
 										</div>
 									))}
 								</div>

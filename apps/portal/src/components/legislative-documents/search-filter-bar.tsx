@@ -17,7 +17,7 @@ import {
 import { useDebounce } from "@repo/ui/hooks";
 import { Search, X } from "@repo/ui/lib/lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface SearchFilterBarProps {
 	availableYears: number[];
@@ -27,30 +27,31 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 
-	const rawSearch = searchParams.get("search") || "";
-	const selectedType = searchParams.get("type") || "all";
-	const selectedYear = searchParams.get("year") || "all";
-	const selectedClassification = searchParams.get("classification") || "all";
+	const currentParams = useMemo(
+		() => ({
+			search: searchParams.get("search") || "",
+			type: searchParams.get("type") || "all",
+			year: searchParams.get("year") || "all",
+			classification: searchParams.get("classification") || "all",
+		}),
+		[searchParams],
+	);
 
-	const [searchInput, setSearchInput] = useState<string>(rawSearch);
+	const [searchInput, setSearchInput] = useState<string>(currentParams.search);
 
 	const debouncedSearch = useDebounce(searchInput, 400);
 
 	const navigateWithParams = useCallback(
 		(params: Record<string, string>) => {
-			const baseParams = {
-				search: searchParams.get("search") || "",
-				type: searchParams.get("type") || "all",
-				year: searchParams.get("year") || "all",
-				classification: searchParams.get("classification") || "all",
-				page: "1",
+			const newParams = {
+				...currentParams,
+				...params,
+				page: "1", // Reset to page 1 when filters change
 			};
-
-			const newParams = { ...baseParams, ...params };
 			const queryString = buildQueryString(newParams);
 			router.push(`/legislative-documents?${queryString}`);
 		},
-		[searchParams, router],
+		[currentParams, router],
 	);
 
 	const handleFilterChange = (key: string, value: string) => {
@@ -69,17 +70,26 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 		router.push(`/legislative-documents?${queryString}`);
 	}, [router]);
 
-	const hasActiveFilters =
-		rawSearch !== "" ||
-		selectedType !== "all" ||
-		selectedYear !== "all" ||
-		selectedClassification !== "all";
+	const hasActiveFilters = useMemo(
+		() =>
+			currentParams.search !== "" ||
+			currentParams.type !== "all" ||
+			currentParams.year !== "all" ||
+			currentParams.classification !== "all",
+		[currentParams],
+	);
 
 	useEffect(() => {
-		if (debouncedSearch !== rawSearch) {
+		if (currentParams.search !== searchInput) {
+			setSearchInput(currentParams.search);
+		}
+	}, [currentParams.search]);
+
+	useEffect(() => {
+		if (debouncedSearch !== currentParams.search) {
 			navigateWithParams({ search: debouncedSearch });
 		}
-	}, [debouncedSearch, rawSearch, navigateWithParams]);
+	}, [debouncedSearch, currentParams.search, navigateWithParams]);
 
 	return (
 		<div
@@ -127,7 +137,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 
 					{/* Type Filter */}
 					<Select
-						value={selectedType}
+						value={currentParams.type}
 						onValueChange={(value) => handleFilterChange("type", value)}
 					>
 						<SelectTrigger
@@ -148,7 +158,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 
 					{/* Year Filter */}
 					<Select
-						value={selectedYear}
+						value={currentParams.year}
 						onValueChange={(value) => handleFilterChange("year", value)}
 					>
 						<SelectTrigger
@@ -169,7 +179,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 
 					{/* Classification Filter */}
 					<Select
-						value={selectedClassification}
+						value={currentParams.classification}
 						onValueChange={(value) =>
 							handleFilterChange("classification", value)
 						}

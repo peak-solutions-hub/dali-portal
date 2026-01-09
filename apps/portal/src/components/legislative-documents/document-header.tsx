@@ -48,13 +48,17 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 					</dd>
 				</div>
 				{/* Author(s) */}
-				{(document.authorNames || document.sponsorNames) && (
+				{document.authorNames && document.authorNames.length > 0 && (
 					<div>
 						<dt className="text-sm text-gray-600">Author(s)</dt>
-						<dd className="font-medium">
-							{document.authorNames?.join(", ") ||
-								document.sponsorNames?.join(", ")}
-						</dd>
+						<dd className="font-medium">{document.authorNames.join(", ")}</dd>
+					</div>
+				)}
+				{/* Sponsor(s) */}
+				{document.sponsorNames && document.sponsorNames.length > 0 && (
+					<div>
+						<dt className="text-sm text-gray-600">Sponsor(s)</dt>
+						<dd className="font-medium">{document.sponsorNames.join(", ")}</dd>
 					</div>
 				)}
 				{/* Classification */}
