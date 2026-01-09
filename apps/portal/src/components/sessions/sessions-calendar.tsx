@@ -254,22 +254,22 @@ export function SessionsCalendar({
 						const borderClass =
 							hasSessions && firstSession
 								? firstSession.type === "regular"
-									? "border-2 border-[#dc2626]"
+									? "border-2 border-[#a60202]"
 									: "border-2 border-[#fe9a00]"
 								: cell.isToday
-									? "border-2 border-[#dc2626]"
+									? "border-2 border-[#a60202]"
 									: "border border-[rgba(0,0,0,0.1)]";
 
 						// Background: lighter for today, white for current month, gray for other months
 						const bgClass =
 							cell.isToday && !hasSessions
-								? "bg-[#dc2626] bg-opacity-10"
+								? "bg-[#a60202] bg-opacity-10"
 								: cell.isCurrentMonth
 									? "bg-white"
 									: "bg-[#f9fafb]";
 
 						const textClass = cell.isToday
-							? "font-bold text-[#dc2626]"
+							? "font-bold text-[#a60202]"
 							: cell.isCurrentMonth
 								? hasSessions
 									? "font-bold text-[#364153]"
@@ -344,7 +344,7 @@ export function SessionsCalendar({
 			{/* Legend */}
 			<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
 				<div className="flex items-center gap-2">
-					<div className="h-3 w-3 sm:h-4 sm:w-4 rounded-sm bg-[#dc2626]" />
+					<div className="h-3 w-3 sm:h-4 sm:w-4 rounded-sm bg-[#a60202]" />
 					<p className="text-xs sm:text-sm text-[#0a0a0a]">Regular Session</p>
 				</div>
 				<div className="flex items-center gap-2">

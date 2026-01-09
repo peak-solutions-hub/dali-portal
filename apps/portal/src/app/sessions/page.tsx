@@ -139,7 +139,7 @@ export default async function Sessions({
 
 	return (
 		<div className="min-h-screen bg-[#f9fafb]">
-			<div className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
+			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
 				{/* Page Header */}
 				<div className="mb-6 sm:mb-8 space-y-2">
 					<h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-normal leading-tight sm:leading-10 text-[#a60202]">
@@ -168,7 +168,7 @@ export default async function Sessions({
 								size="sm"
 								className={`h-9 gap-2 text-sm w-full cursor-pointer ${
 									view === "calendar"
-										? "bg-[#dc2626] text-white hover:bg-[#dc2626]/90"
+										? "bg-[#a60202] text-white hover:bg-[#8a0101]"
 										: "border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a]"
 								}`}
 							>
@@ -185,7 +185,7 @@ export default async function Sessions({
 								size="sm"
 								className={`h-9 gap-2 text-sm w-full cursor-pointer ${
 									view === "list"
-										? "bg-[#dc2626] text-white hover:bg-[#dc2626]/90"
+										? "bg-[#a60202] text-white hover:bg-[#8a0101]"
 										: "border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a]"
 								}`}
 							>
@@ -236,7 +236,7 @@ export default async function Sessions({
 										>
 											<Button
 												size="sm"
-												className="h-8 sm:h-9 w-full sm:w-auto rounded-md bg-[#dc2626] px-4 text-xs sm:text-sm text-white hover:bg-[#dc2626]/90 cursor-pointer"
+												className="h-8 sm:h-9 w-full sm:w-auto rounded-md bg-[#a60202] px-4 text-xs sm:text-sm text-white hover:bg-[#8a0101] cursor-pointer"
 											>
 												View Details
 											</Button>
