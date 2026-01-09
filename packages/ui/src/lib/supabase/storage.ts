@@ -25,7 +25,6 @@ export async function getSignedUrl(
 		.createSignedUrl(path, expiresIn);
 
 	if (error) {
-		console.error("Failed to generate signed URL:", error);
 		return undefined;
 	}
 

@@ -5,6 +5,7 @@ import {
 	CLASSIFICATION_TYPES,
 	LEGISLATIVE_DOCUMENT_TYPES,
 } from "@repo/shared";
+import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
 import {
 	Select,
@@ -14,7 +15,7 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { useDebounce } from "@repo/ui/hooks";
-import { Search } from "@repo/ui/lib/lucide-react";
+import { Search, X } from "@repo/ui/lib/lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -26,22 +27,17 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 
-	// Get params from URL - guaranteed to be valid from SSR validation
 	const rawSearch = searchParams.get("search") || "";
 	const selectedType = searchParams.get("type") || "all";
 	const selectedYear = searchParams.get("year") || "all";
 	const selectedClassification = searchParams.get("classification") || "all";
 
-	// Local state for debounced search input
 	const [searchInput, setSearchInput] = useState<string>(rawSearch);
 
-	// Use debounce hook for search input
 	const debouncedSearch = useDebounce(searchInput, 400);
 
-	// Helper to navigate with sanitized params
 	const navigateWithParams = useCallback(
 		(params: Record<string, string>) => {
-			// Get current values from URL (source of truth)
 			const baseParams = {
 				search: searchParams.get("search") || "",
 				type: searchParams.get("type") || "all",
@@ -61,7 +57,24 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 		navigateWithParams({ [key]: value });
 	};
 
-	// Navigate when debounced search changes (not on every keystroke)
+	const clearFilters = useCallback(() => {
+		setSearchInput("");
+		const queryString = buildQueryString({
+			search: "",
+			type: "all",
+			year: "all",
+			classification: "all",
+			page: "1",
+		});
+		router.push(`/legislative-documents?${queryString}`);
+	}, [router]);
+
+	const hasActiveFilters =
+		rawSearch !== "" ||
+		selectedType !== "all" ||
+		selectedYear !== "all" ||
+		selectedClassification !== "all";
+
 	useEffect(() => {
 		if (debouncedSearch !== rawSearch) {
 			navigateWithParams({ search: debouncedSearch });
@@ -98,6 +111,20 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 					role="group"
 					aria-label="Document filters"
 				>
+					{/* Clear Filters Button */}
+					{hasActiveFilters && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={clearFilters}
+							className="h-10 px-3 bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
+							aria-label="Clear all filters"
+						>
+							<X className="w-4 h-4 mr-2" aria-hidden="true" />
+							Clear Filters
+						</Button>
+					)}
+
 					{/* Type Filter */}
 					<Select
 						value={selectedType}

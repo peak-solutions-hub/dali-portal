@@ -7,7 +7,6 @@ import {
 } from "@repo/shared";
 import { Card } from "@repo/ui/components/card";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import {
 	DocumentCard,
 	PaginationControls,
@@ -105,33 +104,23 @@ export default async function LegislativeDocumentsPage({
 			<div className="container mx-auto px-4 py-8 max-w-7xl">
 				{/* Page Header */}
 				<div className="mb-6">
-					<h1
-						className="text-3xl text-gray-800 mb-1"
-						style={{ fontFamily: "Playfair Display" }}
-					>
-						LEGISLATIVE DOCUMENTS
+					<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
+						Legislative Documents
 					</h1>
 					<p className="text-gray-600 text-sm">
 						Browse the official list of Iloilo City legislative documents
 					</p>
 				</div>
 
-				{/* Search and Filters - Client Component */}
-				<Suspense fallback={<div className="h-32 bg-white animate-pulse" />}>
-					<SearchFilterBar availableYears={availableYears} />
-				</Suspense>
+				<SearchFilterBar availableYears={availableYears} />
 
-				{/* Pagination Controls - Top */}
 				{documents.length > 0 && (
-					<Suspense fallback={<div className="h-16 bg-white animate-pulse" />}>
-						<PaginationControls
-							pagination={pagination}
-							currentFilters={currentFilters}
-						/>
-					</Suspense>
+					<PaginationControls
+						pagination={pagination}
+						currentFilters={currentFilters}
+					/>
 				)}
 
-				{/* Documents List */}
 				{documents.length > 0 ? (
 					<div className="space-y-3">
 						{documents.map((document) => (
