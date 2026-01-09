@@ -156,12 +156,16 @@ export function SessionsCalendar({
 				<div className="flex items-center gap-2">
 					{/* Month Selector */}
 					<Select value={month.toString()} onValueChange={handleMonthChange}>
-						<SelectTrigger className="h-9 w-35 border-[rgba(0,0,0,0.1)] bg-white text-lg font-semibold">
+						<SelectTrigger className="h-9 w-35 border-[rgba(0,0,0,0.1)] bg-white text-lg font-semibold cursor-pointer">
 							<SelectValue />
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent className="cursor-pointer">
 							{monthNames.map((name, index) => (
-								<SelectItem key={index} value={index.toString()}>
+								<SelectItem
+									key={index}
+									value={index.toString()}
+									className="cursor-pointer"
+								>
 									{name}
 								</SelectItem>
 							))}
@@ -170,15 +174,19 @@ export function SessionsCalendar({
 
 					{/* Year Selector */}
 					<Select value={year.toString()} onValueChange={handleYearChange}>
-						<SelectTrigger className="h-9 w-25 border-[rgba(0,0,0,0.1)] bg-white text-lg font-semibold">
+						<SelectTrigger className="h-9 w-25 border-[rgba(0,0,0,0.1)] bg-white text-lg font-semibold cursor-pointer">
 							<SelectValue />
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent className="cursor-pointer">
 							{Array.from(
 								{ length: yearRange.maxYear - yearRange.minYear + 1 },
 								(_, i) => yearRange.minYear + i,
 							).map((y) => (
-								<SelectItem key={y} value={y.toString()}>
+								<SelectItem
+									key={y}
+									value={y.toString()}
+									className="cursor-pointer"
+								>
 									{y}
 								</SelectItem>
 							))}
@@ -307,7 +315,14 @@ export function SessionsCalendar({
 														: "bg-[#fe9a00] text-white hover:bg-[#fe9a00]"
 												}`}
 											>
-												{session.type === "regular" ? "Reg" : "Spc"}
+												<span className="lg:hidden">
+													{session.type === "regular" ? "Reg" : "Spc"}
+												</span>
+												<span className="hidden lg:inline">
+													{session.type === "regular"
+														? "Regular Session"
+														: "Special Session"}
+												</span>
 											</Badge>
 										</div>
 									))}
