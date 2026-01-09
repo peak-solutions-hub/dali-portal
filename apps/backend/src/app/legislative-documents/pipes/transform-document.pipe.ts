@@ -18,15 +18,11 @@ export type LegislativeDocumentWithRelations =
 	}>;
 
 const DOCUMENT_TYPE_DISPLAY_MAP: Record<string, string> = {
-	proposed_ordinance: "Proposed Ordinance",
-	proposed_resolution: "Proposed Resolution",
-	committee_report: "Committee Report",
+	ordinance: "Ordinance",
+	resolution: "Resolution",
 };
 
-type LegislativeDocumentType =
-	| "proposed_ordinance"
-	| "proposed_resolution"
-	| "committee_report";
+type LegislativeDocumentType = "ordinance" | "resolution";
 
 function transformDocument(
 	doc: LegislativeDocumentWithRelations["document"],

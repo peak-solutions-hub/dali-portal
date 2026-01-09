@@ -81,27 +81,20 @@ export function DocumentCard({ document }: DocumentCardProps) {
 					<div className="flex-1">
 						{/* Type Badge and Number */}
 						<div className="flex items-center gap-3 mb-2 flex-wrap">
-							{document.type === "proposed_ordinance" && (
+							{document.type === "ordinance" && (
 								<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-blue-100 text-blue-800">
 									<FileText className="w-3 h-3" aria-hidden="true" />
 									<span>{documentType}</span>
 								</span>
 							)}
-							{document.type === "proposed_resolution" && (
+							{document.type === "resolution" && (
 								<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-green-100 text-green-800">
 									<FileText className="w-3 h-3" aria-hidden="true" />
 									<span>{documentType}</span>
 								</span>
 							)}
-							{document.type === "committee_report" && (
-								<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-purple-100 text-purple-800">
-									<FileText className="w-3 h-3" aria-hidden="true" />
-									<span>{documentType}</span>
-								</span>
-							)}
-							{document.type !== "proposed_ordinance" &&
-								document.type !== "proposed_resolution" &&
-								document.type !== "committee_report" && (
+							{document.type !== "ordinance" &&
+								document.type !== "resolution" && (
 									<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-gray-100 text-gray-800">
 										<FileText className="w-3 h-3" aria-hidden="true" />
 										<span>{documentType}</span>

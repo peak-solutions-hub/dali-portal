@@ -19,6 +19,8 @@ export function PDFViewer({ document }: PDFViewerProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [pdfUrl, setPdfUrl] = useState<string | undefined>();
+	const [isLoadingUrl, setIsLoadingUrl] = useState(true);
+	const [urlError, setUrlError] = useState(false);
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
 	const modalRef = useRef<HTMLDivElement | null>(null);
 
@@ -38,8 +40,26 @@ export function PDFViewer({ document }: PDFViewerProps) {
 	// Generate signed URL when component mounts
 	useEffect(() => {
 		if (document.storagePath && document.storageBucket) {
+			setIsLoadingUrl(true);
+			setUrlError(false);
 			const supabase = createSupabaseBrowserClient();
-			getDocumentPdfUrl(supabase, document).then(setPdfUrl);
+			getDocumentPdfUrl(supabase, document)
+				.then((url) => {
+					if (url) {
+						setPdfUrl(url);
+					} else {
+						setUrlError(true);
+					}
+				})
+				.catch(() => {
+					setUrlError(true);
+				})
+				.finally(() => {
+					setIsLoadingUrl(false);
+				});
+		} else {
+			setIsLoadingUrl(false);
+			setUrlError(true);
 		}
 	}, [document]);
 
@@ -64,9 +84,44 @@ export function PDFViewer({ document }: PDFViewerProps) {
 		}
 	}, [pdfUrl, downloadFilename, document]);
 
-	// Don't render anything until PDF URL is loaded
-	if (!pdfUrl || !isValidUrl) {
-		return null;
+	// Show loading state while generating PDF URL
+	if (isLoadingUrl) {
+		return (
+			<div className="mb-4 sm:mb-6">
+				<div className="flex items-center justify-center gap-2 p-4 border border-gray-200 rounded-lg bg-gray-50">
+					<Loader2
+						className="w-5 h-5 animate-spin text-[#a60202]"
+						aria-hidden="true"
+					/>
+					<span className="text-sm text-gray-600">Loading document...</span>
+				</div>
+			</div>
+		);
+	}
+
+	// Show error state if PDF URL generation failed
+	if (urlError || !pdfUrl || !isValidUrl) {
+		return (
+			<div className="mb-4 sm:mb-6">
+				<div className="p-4 border border-amber-200 rounded-lg bg-amber-50">
+					<div className="flex items-start gap-3">
+						<FileText
+							className="w-5 h-5 text-amber-600 mt-0.5"
+							aria-hidden="true"
+						/>
+						<div className="flex-1">
+							<h3 className="text-sm font-medium text-amber-800">
+								PDF Unavailable
+							</h3>
+							<p className="text-sm text-amber-700 mt-1">
+								The PDF document cannot be viewed at this time. The file may be
+								missing or there was an error generating the viewing URL.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	return (

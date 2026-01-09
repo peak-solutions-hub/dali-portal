@@ -30,7 +30,7 @@ export default async function HomePage() {
 				number: doc.officialNumber,
 				title: doc.displayTitle || doc.document.title,
 				type:
-					doc.type === "proposed_ordinance"
+					doc.type === "ordinance"
 						? ("Ordinance" as const)
 						: ("Resolution" as const),
 			}))

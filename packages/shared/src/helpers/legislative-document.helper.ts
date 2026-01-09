@@ -4,7 +4,8 @@
  */
 
 import { z } from "zod";
-import { ClassificationType, DocumentType } from "../enums/document";
+import { ClassificationType } from "../enums/document";
+import { LegislativeDocumentType } from "../enums/legislative-document";
 import {
 	ClassificationTypeEnum,
 	LegislativeDocumentTypeEnum,
@@ -18,18 +19,16 @@ import type {
  * Display labels for legislative document types
  */
 export const LEGISLATIVE_DOCUMENT_TYPE_LABELS: Record<string, string> = {
-	[DocumentType.PROPOSED_ORDINANCE]: "Proposed Ordinance",
-	[DocumentType.PROPOSED_RESOLUTION]: "Proposed Resolution",
-	[DocumentType.COMMITTEE_REPORT]: "Committee Report",
+	[LegislativeDocumentType.ORDINANCE]: "Ordinance",
+	[LegislativeDocumentType.RESOLUTION]: "Resolution",
 };
 
 /**
  * Document types for filtering (used in UI)
  */
 export const LEGISLATIVE_DOCUMENT_TYPES = [
-	{ value: DocumentType.PROPOSED_ORDINANCE, label: "Proposed Ordinance" },
-	{ value: DocumentType.PROPOSED_RESOLUTION, label: "Proposed Resolution" },
-	{ value: DocumentType.COMMITTEE_REPORT, label: "Committee Report" },
+	{ value: LegislativeDocumentType.ORDINANCE, label: "Ordinance" },
+	{ value: LegislativeDocumentType.RESOLUTION, label: "Resolution" },
 ] as const;
 
 /**
@@ -139,9 +138,8 @@ export function buildQueryString(
  */
 export function getDocumentTypeBadgeClass(type: string): string {
 	const typeColorMap: Record<string, string> = {
-		proposed_ordinance: "bg-blue-100 text-blue-800",
-		proposed_resolution: "bg-green-100 text-green-800",
-		committee_report: "bg-purple-100 text-purple-800",
+		ordinance: "bg-blue-100 text-blue-800",
+		resolution: "bg-green-100 text-green-800",
 	};
 
 	return typeColorMap[type] || "bg-gray-100 text-gray-800";

@@ -26,11 +26,7 @@ export const ClassificationTypeEnum = z.enum(
 );
 
 // Legislative document specific type (subset of DocumentType)
-export const LegislativeDocumentTypeEnum = z.enum([
-	"proposed_ordinance",
-	"proposed_resolution",
-	"committee_report",
-]);
+export const LegislativeDocumentTypeEnum = z.enum(["ordinance", "resolution"]);
 
 /**
  * Base Document schema (from document table)

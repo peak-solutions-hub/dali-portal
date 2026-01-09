@@ -37,6 +37,14 @@ export const LegislativeDocumentWithDetailsSchema =
 		latestVersion: DocumentVersionSchema.optional(),
 	});
 
+// Override the inferred type to ensure type field uses LegislativeDocumentTypeEnum
+export type LegislativeDocumentWithDetails = Omit<
+	z.infer<typeof LegislativeDocumentWithDetailsSchema>,
+	"type"
+> & {
+	type: "ordinance" | "resolution";
+};
+
 /**
  * Pagination info schema
  */
@@ -93,9 +101,7 @@ export const LegislativeDocumentStatisticsSchema = z.object({
 
 // Types
 export type LegislativeDocument = z.infer<typeof LegislativeDocumentSchema>;
-export type LegislativeDocumentWithDetails = z.infer<
-	typeof LegislativeDocumentWithDetailsSchema
->;
+// LegislativeDocumentWithDetails type is defined above with explicit override
 export type PaginationInfo = z.infer<typeof PaginationInfoSchema>;
 export type GetLegislativeDocumentListInput = z.infer<
 	typeof GetLegislativeDocumentListSchema

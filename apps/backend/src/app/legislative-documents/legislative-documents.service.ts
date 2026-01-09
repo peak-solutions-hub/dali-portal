@@ -73,13 +73,6 @@ export class LegislativeDocumentsService {
 		const validatedPage =
 			totalPages > 0 ? Math.min(Math.max(1, page), totalPages) : 1;
 
-		// If requested page exceeds total pages, throw error
-		if (page > totalPages && totalPages > 0) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Page ${page} exceeds total pages (${totalPages}). Showing page ${validatedPage} instead.`,
-			});
-		}
-
 		const documents = await this.db.legislativeDocument.findMany({
 			where,
 			include: LEGISLATIVE_DOCUMENT_INCLUDE,
@@ -121,10 +114,10 @@ export class LegislativeDocumentsService {
 	}> {
 		const [ordinances, resolutions] = await Promise.all([
 			this.db.legislativeDocument.count({
-				where: { type: "proposed_ordinance" },
+				where: { type: "ordinance" },
 			}),
 			this.db.legislativeDocument.count({
-				where: { type: "proposed_resolution" },
+				where: { type: "resolution" },
 			}),
 		]);
 
@@ -139,7 +132,7 @@ export class LegislativeDocumentsService {
 	): Promise<LegislativeDocumentListResponse> {
 		const documents = await this.db.legislativeDocument.findMany({
 			where: {
-				type: { in: ["proposed_ordinance", "proposed_resolution"] },
+				type: { in: ["ordinance", "resolution"] },
 			},
 			include: LEGISLATIVE_DOCUMENT_INCLUDE,
 			orderBy: { id: "desc" },

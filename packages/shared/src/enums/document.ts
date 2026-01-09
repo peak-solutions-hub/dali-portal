@@ -2,6 +2,8 @@ export const DocumentType = {
 	// Legislative Documents (go through Sessions)
 	PROPOSED_ORDINANCE: "proposed_ordinance",
 	PROPOSED_RESOLUTION: "proposed_resolution",
+
+	// not included
 	COMMITTEE_REPORT: "committee_report",
 
 	// Administrative Documents (internal processing)
