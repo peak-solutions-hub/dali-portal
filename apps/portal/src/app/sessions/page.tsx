@@ -24,13 +24,15 @@ const ALL_SESSIONS: Session[] = [
 		type: "regular" as const,
 		date: "2026-01-14",
 		time: "10:00 AM",
+		status: "scheduled" as const,
 	},
 	{
 		id: "9",
 		sessionNumber: "128",
 		type: "regular" as const,
-		date: "2026-01-09",
+		date: "2026-01-10",
 		time: "10:00 AM",
+		status: "completed" as const,
 	},
 	{
 		id: "8",
@@ -38,6 +40,7 @@ const ALL_SESSIONS: Session[] = [
 		type: "special" as const,
 		date: "2025-12-30",
 		time: "2:00 PM",
+		status: "completed" as const,
 	},
 	{
 		id: "7",
@@ -45,6 +48,7 @@ const ALL_SESSIONS: Session[] = [
 		type: "regular" as const,
 		date: "2025-12-24",
 		time: "10:00 AM",
+		status: "completed" as const,
 	},
 	{
 		id: "6",
@@ -52,6 +56,7 @@ const ALL_SESSIONS: Session[] = [
 		type: "regular" as const,
 		date: "2025-12-17",
 		time: "10:00 AM",
+		status: "completed" as const,
 	},
 	{
 		id: "5",
@@ -59,6 +64,7 @@ const ALL_SESSIONS: Session[] = [
 		type: "regular" as const,
 		date: "2025-12-10",
 		time: "10:00 AM",
+		status: "completed" as const,
 	},
 	{
 		id: "4",
@@ -66,6 +72,7 @@ const ALL_SESSIONS: Session[] = [
 		type: "special" as const,
 		date: "2025-12-03",
 		time: "2:00 PM",
+		status: "completed" as const,
 	},
 	{
 		id: "3",
@@ -73,6 +80,7 @@ const ALL_SESSIONS: Session[] = [
 		type: "regular" as const,
 		date: "2025-11-26",
 		time: "10:00 AM",
+		status: "completed" as const,
 	},
 	{
 		id: "2",
@@ -80,6 +88,7 @@ const ALL_SESSIONS: Session[] = [
 		type: "regular" as const,
 		date: "2025-11-19",
 		time: "10:00 AM",
+		status: "completed" as const,
 	},
 	{
 		id: "1",
@@ -87,6 +96,7 @@ const ALL_SESSIONS: Session[] = [
 		type: "regular" as const,
 		date: "2025-11-12",
 		time: "10:00 AM",
+		status: "completed" as const,
 	},
 ];
 
@@ -218,6 +228,17 @@ export default async function Sessions({
 													{session.type === "regular"
 														? "Regular Session"
 														: "Special Session"}
+												</Badge>
+												<Badge
+													className={`rounded-md px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium ${
+														session.status === "completed"
+															? "bg-[#16a34a] text-white"
+															: "bg-[#3b82f6] text-white"
+													}`}
+												>
+													{session.status === "completed"
+														? "Completed"
+														: "Scheduled"}
 												</Badge>
 												<span className="text-xs sm:text-sm text-[#4a5565]">
 													Session #{session.sessionNumber}

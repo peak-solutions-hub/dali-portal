@@ -260,13 +260,17 @@ export function SessionsCalendar({
 									? "border-2 border-[#a60202]"
 									: "border border-[rgba(0,0,0,0.1)]";
 
-						// Background: lighter for today, white for current month, gray for other months
+						// Background: Add status tint for sessions, lighter for today, white for current month, gray for other months
 						const bgClass =
-							cell.isToday && !hasSessions
-								? "bg-[#a60202] bg-opacity-10"
-								: cell.isCurrentMonth
-									? "bg-white"
-									: "bg-[#f9fafb]";
+							hasSessions && firstSession
+								? firstSession.status === "completed"
+									? "bg-[#dcfce7]" // Light green for completed
+									: "bg-[#dbeafe]" // Light blue for scheduled
+								: cell.isToday && !hasSessions
+									? "bg-[#a60202] bg-opacity-10"
+									: cell.isCurrentMonth
+										? "bg-white"
+										: "bg-[#f9fafb]";
 
 						const textClass = cell.isToday
 							? "font-bold text-[#a60202]"
@@ -279,13 +283,13 @@ export function SessionsCalendar({
 						// Create clickable link if there are sessions
 						const cellContent = (
 							<div
-								className={`flex flex-col rounded-lg p-1 sm:p-2 transition-all aspect-square ${borderClass} ${bgClass} ${
+								className={`flex flex-col rounded-lg p-1 sm:p-2 transition-all aspect-square overflow-hidden ${borderClass} ${bgClass} ${
 									hasSessions
 										? "cursor-pointer hover:shadow-md hover:scale-[1.02]"
 										: ""
 								}`}
 							>
-								<div className="flex items-center justify-between mb-0.5 sm:mb-1">
+								<div className="flex items-center justify-between mb-0.5 sm:mb-1 flex-shrink-0">
 									<p className={`text-xs sm:text-sm ${textClass}`}>
 										{cell.day}
 									</p>
@@ -296,20 +300,33 @@ export function SessionsCalendar({
 									)}
 								</div>
 								{/* Session info */}
-								<div className="flex flex-col gap-0.5 sm:gap-1">
+								<div className="flex flex-col gap-0.5 sm:gap-1 overflow-hidden flex-1 min-h-0">
 									{cell.sessions.map((session) => (
 										<div
 											key={session.id}
-											className="flex flex-col gap-0.5"
+											className="flex flex-col gap-0.5 flex-shrink-0"
 											title={`${
 												session.type === "regular" ? "Regular" : "Special"
-											} Session #${session.sessionNumber} - ${session.time}`}
+											} Session #${session.sessionNumber} - ${session.time} - ${
+												session.status === "completed"
+													? "Completed"
+													: "Scheduled"
+											}`}
 										>
-											<div className="hidden sm:block text-xs text-[#4a5565]">
-												Session #{session.sessionNumber}
+											<div className="hidden lg:flex items-center gap-1 text-xs text-[#4a5565] mb-0.5">
+												<span>Session #{session.sessionNumber}</span>
 											</div>
+											{/* Mobile: Compact badge indicator */}
+											<div
+												className={`flex sm:hidden h-2 w-6 rounded flex-shrink-0 ${
+													session.type === "regular"
+														? "bg-[#dc2626]"
+														: "bg-[#fe9a00]"
+												}`}
+											/>
+											{/* Tablet/Desktop: Badge */}
 											<Badge
-												className={`h-auto rounded px-1 py-0.5 text-[8px] sm:text-[10px] font-medium ${
+												className={`hidden sm:flex h-auto rounded px-1 py-0.5 text-[8px] sm:text-[10px] font-medium flex-shrink-0 ${
 													session.type === "regular"
 														? "bg-[#dc2626] text-white hover:bg-[#dc2626]"
 														: "bg-[#fe9a00] text-white hover:bg-[#fe9a00]"
@@ -342,14 +359,30 @@ export function SessionsCalendar({
 			</div>
 
 			{/* Legend */}
-			<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-				<div className="flex items-center gap-2">
-					<div className="h-3 w-3 sm:h-4 sm:w-4 rounded-sm bg-[#a60202]" />
-					<p className="text-xs sm:text-sm text-[#0a0a0a]">Regular Session</p>
+			<div className="flex flex-col gap-3">
+				<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+					<div className="flex items-center gap-2 sm:min-w-[180px]">
+						<div className="h-6 w-6 flex-shrink-0 rounded border-2 border-[#a60202] bg-white flex items-center justify-center">
+							<div className="h-2 w-4 rounded bg-[#dc2626]" />
+						</div>
+						<p className="text-xs sm:text-sm text-[#6b7280]">Regular Session</p>
+					</div>
+					<div className="flex items-center gap-2 sm:min-w-[180px]">
+						<div className="h-6 w-6 flex-shrink-0 rounded border-2 border-[#fe9a00] bg-white flex items-center justify-center">
+							<div className="h-2 w-4 rounded bg-[#fe9a00]" />
+						</div>
+						<p className="text-xs sm:text-sm text-[#6b7280]">Special Session</p>
+					</div>
 				</div>
-				<div className="flex items-center gap-2">
-					<div className="h-3 w-3 sm:h-4 sm:w-4 rounded-sm bg-[#fe9a00]" />
-					<p className="text-xs sm:text-sm text-[#0a0a0a]">Special Session</p>
+				<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+					<div className="flex items-center gap-2 sm:min-w-[180px]">
+						<div className="h-6 w-6 flex-shrink-0 rounded bg-[#dcfce7] border border-[rgba(0,0,0,0.1)]" />
+						<p className="text-xs sm:text-sm text-[#6b7280]">Completed</p>
+					</div>
+					<div className="flex items-center gap-2 sm:min-w-[180px]">
+						<div className="h-6 w-6 flex-shrink-0 rounded bg-[#dbeafe] border border-[rgba(0,0,0,0.1)]" />
+						<p className="text-xs sm:text-sm text-[#6b7280]">Scheduled</p>
+					</div>
 				</div>
 			</div>
 		</Card>

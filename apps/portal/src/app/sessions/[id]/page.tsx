@@ -127,8 +127,8 @@ export default async function SessionDetailPage({
 	}
 
 	return (
-		<div className="min-h-screen bg-gray-50">
-			<div className="container mx-auto max-w-7xl px-4 py-10">
+		<div className="min-h-screen bg-[#f9fafb]">
+			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
 				{/* Back Button */}
 				<Link href="/sessions" className="mb-8 inline-block">
 					<Button
