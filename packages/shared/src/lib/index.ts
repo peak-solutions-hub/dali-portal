@@ -1,1 +1,1 @@
-// Documents utilities have been moved to @repo/ui/lib
+export * from "./documents";

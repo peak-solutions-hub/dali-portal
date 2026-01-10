@@ -1,3 +1,3 @@
-export * from "./documents";
-export * from "./supabase/client";
-export * from "./supabase/storage";
+// All Supabase utilities have been moved to individual apps (portal/admin)
+// Document utilities have been moved to @repo/shared
+
