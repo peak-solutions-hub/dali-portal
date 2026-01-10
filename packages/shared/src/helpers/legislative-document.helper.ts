@@ -39,8 +39,8 @@ function toTitleCase(snakeCase: string): string {
 		.split("_")
 		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
 		.join(" ")
-		.replace(/And/g, "&")
-		.replace(/Of/g, "of");
+		.replace(/\bAnd\b/g, "&")
+		.replace(/\bOf\b/g, "of");
 }
 
 /**
@@ -84,7 +84,7 @@ export function formatDate(date: Date | string): string {
 			day: "numeric",
 		});
 	} catch {
-		return String(date);
+		return "N/A";
 	}
 }
 
@@ -134,18 +134,6 @@ export function buildQueryString(
 }
 
 /**
- * Get badge color class for document type
- */
-export function getDocumentTypeBadgeClass(type: string): string {
-	const typeColorMap: Record<string, string> = {
-		ordinance: "bg-blue-100 text-blue-800",
-		resolution: "bg-green-100 text-green-800",
-	};
-
-	return typeColorMap[type] || "bg-gray-100 text-gray-800";
-}
-
-/**
  * Get classification badge color (using primary color)
  */
 export function getClassificationBadgeClass(): string {
@@ -186,7 +174,9 @@ export function getDocumentFilename(
 	}
 
 	const documentNumber = getDocumentNumber(doc);
-	const sanitized = documentNumber.replace(/[^a-zA-Z0-9-_]/g, "_");
+	const sanitized = documentNumber
+		.replace(/[^a-zA-Z0-9-_]+/g, "_")
+		.replace(/^_+|_+$/g, "");
 
 	return `${sanitized}.pdf`;
 }
@@ -203,7 +193,7 @@ export const searchParamsSchema = z.object({
 		.default("all")
 		.transform((val) => (val === "" ? "all" : val)),
 	year: z
-		.union([z.coerce.number().int().min(2000), z.literal("all"), z.literal("")])
+		.union([z.coerce.number().int().min(1950), z.literal("all"), z.literal("")])
 		.optional()
 		.default("all")
 		.transform((val) => (val === "" ? "all" : val)),

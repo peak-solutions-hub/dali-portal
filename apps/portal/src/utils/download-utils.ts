@@ -46,6 +46,7 @@ export async function downloadFile(
 		// Clean up the blob URL
 		window.URL.revokeObjectURL(blobUrl);
 	} catch (error) {
+		window.alert("Failed to download file. Please try again.");
 		console.error("Download failed:", error);
 		throw error;
 	}
