@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
+import { Toaster } from "sonner";
 import "@repo/ui/globals.css";
 import { PublicFooter, PublicHeader } from "@/components/layout/";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
 				<PublicHeader />
 				<main className="flex-1 pt-18 sm:pt-20">{children}</main>
 				<PublicFooter />
+				<Toaster position="bottom-right" richColors />
 			</body>
 		</html>
 	);

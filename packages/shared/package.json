@@ -38,6 +38,7 @@
 	},
 	"dependencies": {
 		"@orpc/contract": "^1.13.1",
+		"@supabase/supabase-js": "^2.90.0",
 		"zod": "^4.2.1"
 	}
 }

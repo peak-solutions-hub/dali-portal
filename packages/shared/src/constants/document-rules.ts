@@ -39,6 +39,8 @@ export const DOCUMENT_PURPOSE_MAP: Record<
 		PurposeType.FOR_AGENDA,
 		PurposeType.FOR_FILING,
 	],
+
+	// not included in public portal
 	[DocumentType.COMMITTEE_REPORT]: [
 		PurposeType.FOR_AGENDA,
 		PurposeType.FOR_FILING,

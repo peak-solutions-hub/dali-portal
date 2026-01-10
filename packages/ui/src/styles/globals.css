@@ -209,4 +209,17 @@
 
 html {
 	font-size: var(--font-size);
+	scrollbar-gutter: stable;
+}
+
+html body[data-scroll-locked] {
+	/* 1. Force the scrollbar to stay visible */
+	overflow: visible !important;
+
+	/* 2. Reset both margin AND padding to stop layout shifts */
+	margin-right: 0 !important;
+	padding-right: 0 !important;
+
+	/* 3. Reset the internal CSS variable Radix uses for scrollbar width */
+	--removed-body-scroll-bar-size: 0px !important;
 }
