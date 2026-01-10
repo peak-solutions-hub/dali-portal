@@ -85,7 +85,7 @@ export function HeroSection({
 								<div className="relative flex-1">
 									<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#99A1AF] w-5 h-5" />
 									<Input
-										placeholder="Search for an ordinance, resolution, or committee report..."
+										placeholder="Search for an ordinance or resolution in the legislative documents archive..."
 										className="pl-12 h-14 bg-white text-gray-900 border-0 text-sm rounded-r-none focus:ring-2 focus:ring-white"
 										value={searchQuery}
 										maxLength={MAX_SEARCH_QUERY_LENGTH}
