@@ -1,14 +1,15 @@
 "use client";
 import {
 	getDocumentFilename,
+	getDocumentPdfUrl,
 	isValidPdfUrl,
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@repo/ui/hooks";
-import { createSupabaseBrowserClient, getDocumentPdfUrl } from "@repo/ui/lib";
 import { Download, FileText, Loader2, X } from "@repo/ui/lib/lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { downloadFile } from "@/utils/download-utils";
 
 interface PDFViewerProps {
@@ -44,7 +45,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 			setUrlError(false);
 			const supabase = createSupabaseBrowserClient();
 			getDocumentPdfUrl(supabase, document)
-				.then((url) => {
+				.then((url: string | undefined) => {
 					if (url) {
 						setPdfUrl(url);
 					} else {
