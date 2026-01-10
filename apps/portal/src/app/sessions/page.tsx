@@ -95,9 +95,33 @@ const ALL_SESSIONS: Session[] = [
 		time: "10:00 AM",
 		status: "completed" as const,
 	},
+	{
+		id: "11",
+		sessionNumber: "119",
+		type: "regular" as const,
+		date: "2025-11-05",
+		time: "10:00 AM",
+		status: "completed" as const,
+	},
+	{
+		id: "12",
+		sessionNumber: "118",
+		type: "special" as const,
+		date: "2025-10-29",
+		time: "2:00 PM",
+		status: "completed" as const,
+	},
+	{
+		id: "13",
+		sessionNumber: "117",
+		type: "regular" as const,
+		date: "2025-10-22",
+		time: "10:00 AM",
+		status: "completed" as const,
+	},
 ];
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 10;
 
 export default async function Sessions({
 	searchParams,
