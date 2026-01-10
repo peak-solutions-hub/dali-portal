@@ -21,8 +21,8 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 	const searchParams = useSearchParams();
 
 	// Get current filters from URL
-	const currentTypes = searchParams.get("types")?.split(",") || [];
-	const currentStatuses = searchParams.get("statuses")?.split(",") || [];
+	const currentTypes = searchParams.getAll("type");
+	const currentStatuses = searchParams.getAll("status");
 	const currentDateFrom = searchParams.get("dateFrom") || "";
 	const currentDateTo = searchParams.get("dateTo") || "";
 
@@ -66,12 +66,14 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		params.set("page", "1");
 		params.set("sort", sortOrder);
 
-		if (selectedTypes.length > 0) {
-			params.set("types", selectedTypes.join(","));
+		// Add multiple type filters
+		for (const type of selectedTypes) {
+			params.append("type", type);
 		}
 
-		if (selectedStatuses.length > 0) {
-			params.set("statuses", selectedStatuses.join(","));
+		// Add multiple status filters
+		for (const status of selectedStatuses) {
+			params.append("status", status);
 		}
 
 		if (dateFrom) {
@@ -96,32 +98,46 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 	};
 
 	const removeFilter = (
-		type: "type" | "status" | "dateFrom" | "dateTo",
+		filterType: "type" | "status" | "dateFrom" | "dateTo",
 		value: string,
 	) => {
-		const params = new URLSearchParams(searchParams.toString());
+		const params = new URLSearchParams();
+		params.set("view", searchParams.get("view") || "list");
+		params.set("page", "1");
+		params.set("sort", searchParams.get("sort") || "desc");
 
-		if (type === "type") {
+		if (filterType === "type") {
 			const types = currentTypes.filter((t) => t !== value);
-			if (types.length > 0) {
-				params.set("types", types.join(","));
-			} else {
-				params.delete("types");
+			for (const type of types) {
+				params.append("type", type);
 			}
-		} else if (type === "status") {
+			for (const status of currentStatuses) {
+				params.append("status", status);
+			}
+		} else if (filterType === "status") {
 			const statuses = currentStatuses.filter((s) => s !== value);
-			if (statuses.length > 0) {
-				params.set("statuses", statuses.join(","));
-			} else {
-				params.delete("statuses");
+			for (const type of currentTypes) {
+				params.append("type", type);
 			}
-		} else if (type === "dateFrom") {
-			params.delete("dateFrom");
-		} else if (type === "dateTo") {
-			params.delete("dateTo");
+			for (const status of statuses) {
+				params.append("status", status);
+			}
+		} else {
+			for (const type of currentTypes) {
+				params.append("type", type);
+			}
+			for (const status of currentStatuses) {
+				params.append("status", status);
+			}
 		}
 
-		params.set("page", "1");
+		if (filterType !== "dateFrom" && currentDateFrom) {
+			params.set("dateFrom", currentDateFrom);
+		}
+		if (filterType !== "dateTo" && currentDateTo) {
+			params.set("dateTo", currentDateTo);
+		}
+
 		router.push(`/sessions?${params.toString()}`);
 	};
 

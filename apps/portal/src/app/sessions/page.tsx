@@ -1,3 +1,4 @@
+import { isDefinedError } from "@orpc/client";
 import { Button } from "@repo/ui/components/button";
 import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
@@ -6,6 +7,7 @@ import { SessionListView } from "@/components/sessions/session-list-view";
 import { SessionPagination } from "@/components/sessions/session-pagination";
 import { SessionsCalendar } from "@/components/sessions/sessions-calendar";
 import { SortSelect } from "@/components/sessions/sort-select";
+import { api } from "@/lib/api.client";
 import {
 	filterSessions,
 	paginateSessions,
