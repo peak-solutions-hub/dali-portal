@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
 /**
  * Download utilities for handling file downloads with proper memory management
@@ -46,8 +47,10 @@ export async function downloadFile(
 		// Clean up the blob URL
 		window.URL.revokeObjectURL(blobUrl);
 	} catch (error) {
-		window.alert("Failed to download file. Please try again.");
 		console.error("Download failed:", error);
+		toast.error("Failed to download file", {
+			description: "Please try again or contact support if the issue persists.",
+		});
 		throw error;
 	}
 }

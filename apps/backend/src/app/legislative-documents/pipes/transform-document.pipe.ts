@@ -104,9 +104,3 @@ export function transformPagination(input: PaginationInput): PaginationInfo {
 		hasPreviousPage: page > 1,
 	};
 }
-
-export function getLatestVersionFilePath(
-	doc: LegislativeDocumentWithRelations,
-): string | undefined {
-	return doc.document.documentVersion[0]?.filePath;
-}

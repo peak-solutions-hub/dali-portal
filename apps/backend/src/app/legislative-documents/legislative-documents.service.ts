@@ -185,15 +185,23 @@ export class LegislativeDocumentsService {
 	}
 
 	private async searchArrayFields(searchTerm: string): Promise<bigint[]> {
-		if (!searchTerm.trim()) return [];
+		const trimmed = searchTerm.trim();
+
+		// Validate and sanitize search input
+		if (!trimmed) return [];
+
+		// Remove potentially problematic characters for full-text search
+		const sanitized = trimmed.replace(/[<>{}[\]\\]/g, "");
+
+		if (!sanitized) return [];
 
 		const results = await this.db.$queryRaw<{ id: bigint }[]>`
 			SELECT DISTINCT ld.id
 			FROM legislative_document ld
 			WHERE (
-				to_tsvector('english', array_to_string(ld.author_names, ' ')) @@ plainto_tsquery('english', ${searchTerm})
+				to_tsvector('english', array_to_string(ld.author_names, ' ')) @@ plainto_tsquery('english', ${sanitized})
 				OR
-				to_tsvector('english', array_to_string(ld.sponsor_names, ' ')) @@ plainto_tsquery('english', ${searchTerm})
+				to_tsvector('english', array_to_string(ld.sponsor_names, ' ')) @@ plainto_tsquery('english', ${sanitized})
 			)
 		`;
 

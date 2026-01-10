@@ -58,11 +58,41 @@ export default async function LegislativeDocumentsPage({
 	// Fetch data server-side
 	const [error, documentsData] = await api.legislativeDocuments.list(filters);
 
-	// Handle errors
+	// Handle API errors with user-visible message
 	if (error) {
+		console.error("API error fetching documents:", error);
+
+		let errorMessage = "An unexpected error occurred";
 		if (isDefinedError(error)) {
-			console.error(error);
+			errorMessage = (error as { message?: string }).message || errorMessage;
 		}
+
+		return (
+			<div className="min-h-screen bg-gray-50">
+				<div className="container mx-auto px-6 py-8 max-w-7xl">
+					<div className="mb-6">
+						<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
+							Legislative Documents
+						</h1>
+						<p className="text-gray-600 text-sm">
+							Browse the official list of Iloilo City legislative documents
+						</p>
+					</div>
+					<Card className="p-12 border-red-200 bg-red-50">
+						<div className="text-center">
+							<p className="text-lg mb-2 text-red-800 font-semibold">
+								Unable to Load Documents
+							</p>
+							<p className="text-sm text-red-700 mb-4">
+								We're experiencing technical difficulties loading the
+								legislative documents. Please try refreshing the page.
+							</p>
+							<p className="text-xs text-red-600">Error: {errorMessage}</p>
+						</div>
+					</Card>
+				</div>
+			</div>
+		);
 	}
 
 	// Extract data and transform date strings to Date objects

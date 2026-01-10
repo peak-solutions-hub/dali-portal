@@ -105,6 +105,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 						}
 						className="pl-9 pr-9 h-10 bg-white"
 						aria-label="Search legislative documents by title, number, or author"
+						maxLength={200}
 					/>
 					{searchInput && (
 						<button

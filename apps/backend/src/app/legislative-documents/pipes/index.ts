@@ -1,5 +1,4 @@
 export {
-	getLatestVersionFilePath,
 	type LegislativeDocumentWithRelations,
 	transformLegislativeDocument,
 	transformPagination,
