@@ -1,45 +1,42 @@
+import { isDefinedError } from "@orpc/client";
+import { transformDocumentListDates } from "@repo/shared";
 import { HeroSection, QuickActions, RecentUpdates } from "@/components/home";
+import { api } from "@/lib/api.client";
 
-export default function HomePage() {
-	// TODO: Replace with actual data
-	const approvedOrdinances = 37;
-	const approvedResolutions = 9;
+export default async function HomePage() {
+	// Fetch statistics
+	const [statsError, stats] = await api.legislativeDocuments.statistics({});
+	const approvedOrdinances = stats?.totalOrdinances ?? 0;
+	const approvedResolutions = stats?.totalResolutions ?? 0;
 
-	// TODO: Replace with actual data
-	const latestDocuments = [
-		{
-			id: "1",
-			number: "Ordinance No. 2024-123",
-			title: "Annual Investment Plan 2025",
-			type: "Ordinance" as const,
-		},
-		{
-			id: "2",
-			number: "Resolution No. 2024-456",
-			title: "Commendation to Outstanding Teachers",
-			type: "Resolution" as const,
-		},
-		{
-			id: "3",
-			number: "Ordinance No. 2024-122",
-			title: "Tax Relief for Small Businesses",
-			type: "Ordinance" as const,
-		},
-		{
-			id: "4",
-			number: "Resolution No. 2024-455",
-			title: "Support for Local Farmers",
-			type: "Resolution" as const,
-		},
-		{
-			id: "5",
-			number: "Ordinance No. 2024-121",
-			title: "Environmental Protection Ordinance",
-			type: "Ordinance" as const,
-		},
-	];
+	if (statsError && isDefinedError(statsError)) {
+		console.error("Failed to fetch statistics:", statsError.message);
+	}
 
-	// TODO: Replace with actual data
+	// Fetch latest documents
+	const [latestDocsError, latestDocsResponse] =
+		await api.legislativeDocuments.latest({
+			limit: 5,
+		});
+
+	if (latestDocsError && isDefinedError(latestDocsError)) {
+		console.error("Failed to fetch latest documents:", latestDocsError.message);
+	}
+
+	// Transform documents and map to the format expected by RecentUpdates
+	const latestDocuments = latestDocsResponse?.documents
+		? transformDocumentListDates(latestDocsResponse.documents).map((doc) => ({
+				id: String(doc.id),
+				number: doc.officialNumber,
+				title: doc.displayTitle || doc.document.title,
+				type:
+					doc.type === "ordinance"
+						? ("Ordinance" as const)
+						: ("Resolution" as const),
+			}))
+		: [];
+
+	// TODO: Replace with actual session data from API when sessions feature is implemented
 	const upcomingSessions = [
 		{
 			id: "1",
