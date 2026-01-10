@@ -1,4 +1,6 @@
+import { isDefinedError } from "@orpc/client";
 import type { Session } from "@repo/shared";
+import { filterSessions, paginateSessions, sortSessions } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
@@ -7,11 +9,7 @@ import { SessionListView } from "@/components/sessions/session-list-view";
 import { SessionPagination } from "@/components/sessions/session-pagination";
 import { SessionsCalendar } from "@/components/sessions/sessions-calendar";
 import { SortSelect } from "@/components/sessions/sort-select";
-import {
-	filterSessions,
-	paginateSessions,
-	sortSessions,
-} from "@/lib/session-utils";
+import { api } from "@/lib/api.client";
 
 // Mock data for legislative sessions (sorted by date descending - newest/upcoming first)
 const ALL_SESSIONS: Session[] = [
@@ -177,12 +175,11 @@ export default async function Sessions({
 
 	// Process sessions: sort, filter, paginate
 	const sortedSessions = sortSessions(ALL_SESSIONS, sortOrder);
-	const filteredSessions = filterSessions({
-		sessions: sortedSessions,
-		filterTypes,
-		filterStatuses,
-		filterDateFrom,
-		filterDateTo,
+	const filteredSessions = filterSessions(sortedSessions, {
+		types: filterTypes,
+		statuses: filterStatuses,
+		dateFrom: filterDateFrom,
+		dateTo: filterDateTo,
 	});
 	const { paginatedSessions, totalPages } = paginateSessions(
 		filteredSessions,

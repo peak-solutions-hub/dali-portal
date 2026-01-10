@@ -1,5 +1,11 @@
 "use client";
 
+import {
+	getSessionStatusBadgeClass,
+	getSessionStatusLabel,
+	getSessionTypeBadgeClass,
+	getSessionTypeLabel,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -322,13 +328,11 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 					{currentTypes.map((type) => (
 						<Badge
 							key={type}
-							className={`h-6 gap-1 rounded-md px-2 text-xs text-white ${
-								type === "regular"
-									? "bg-[#dc2626] hover:bg-[#dc2626]"
-									: "bg-[#fe9a00] hover:bg-[#fe9a00]"
-							}`}
+							className={`h-6 gap-1 rounded-md px-2 text-xs text-white ${getSessionTypeBadgeClass(
+								type,
+							)} hover:${getSessionTypeBadgeClass(type)}`}
 						>
-							{type === "regular" ? "Regular" : "Special"}
+							{getSessionTypeLabel(type)}
 							<button
 								type="button"
 								onClick={() => removeFilter("type", type)}
@@ -341,13 +345,11 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 					{currentStatuses.map((status) => (
 						<Badge
 							key={status}
-							className={`h-6 gap-1 rounded-md px-2 text-xs text-white ${
-								status === "completed"
-									? "bg-[#16a34a] hover:bg-[#16a34a]"
-									: "bg-[#3b82f6] hover:bg-[#3b82f6]"
-							}`}
+							className={`h-6 gap-1 rounded-md px-2 text-xs text-white ${getSessionStatusBadgeClass(
+								status,
+							)} hover:${getSessionStatusBadgeClass(status)}`}
 						>
-							{status === "completed" ? "Completed" : "Scheduled"}
+							{getSessionStatusLabel(status)}
 							<button
 								type="button"
 								onClick={() => removeFilter("status", status)}

@@ -1,4 +1,12 @@
 import type { Session } from "@repo/shared";
+import {
+	formatSessionDate,
+	formatSessionTime,
+	getSessionStatusBadgeClass,
+	getSessionStatusLabel,
+	getSessionTypeBadgeClass,
+	getSessionTypeLabel,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -7,25 +15,6 @@ import Link from "next/link";
 interface SessionListViewProps {
 	sessions: Session[];
 	hasActiveFilters: boolean;
-}
-
-function formatDate(dateString: string) {
-	const date = new Date(dateString);
-	return date.toLocaleDateString("en-US", {
-		weekday: "long",
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-	});
-}
-
-function formatTime(dateString: string) {
-	const date = new Date(dateString);
-	return date.toLocaleTimeString("en-US", {
-		hour: "numeric",
-		minute: "2-digit",
-		hour12: true,
-	});
 }
 
 export function SessionListView({
@@ -44,34 +33,28 @@ export function SessionListView({
 							<div className="flex-1 space-y-2 w-full">
 								<div className="flex flex-wrap items-center gap-2 sm:gap-3">
 									<Badge
-										className={`rounded-md px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium text-white ${
-											session.type === "regular"
-												? "bg-[#dc2626]"
-												: "bg-[#fe9a00]"
-										}`}
+										className={`rounded-md px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium text-white ${getSessionTypeBadgeClass(
+											session.type,
+										)}`}
 									>
-										{session.type === "regular"
-											? "Regular Session"
-											: "Special Session"}
+										{getSessionTypeLabel(session.type)}
 									</Badge>
 									<Badge
-										className={`rounded-md px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium ${
-											session.status === "completed"
-												? "bg-[#16a34a] text-white"
-												: "bg-[#3b82f6] text-white"
-										}`}
+										className={`rounded-md px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium text-white ${getSessionStatusBadgeClass(
+											session.status,
+										)}`}
 									>
-										{session.status === "completed" ? "Completed" : "Scheduled"}
+										{getSessionStatusLabel(session.status)}
 									</Badge>
 									<span className="text-xs sm:text-sm text-[#4a5565]">
 										Session #{session.sessionNumber}
 									</span>
 								</div>
 								<h2 className="text-base sm:text-lg font-semibold leading-6 sm:leading-7 text-[#0a0a0a]">
-									{formatDate(session.scheduleDate.toISOString())}
+									{formatSessionDate(session.scheduleDate)}
 								</h2>
 								<p className="text-xs sm:text-sm text-[#4a5565]">
-									{formatTime(session.scheduleDate.toISOString())}
+									{formatSessionTime(session.scheduleDate)}
 								</p>
 							</div>
 							<Link

@@ -1,6 +1,13 @@
 "use client";
 
 import type { Session } from "@repo/shared";
+import {
+	formatSessionTime,
+	getSessionStatusLabel,
+	getSessionTypeBadgeClass,
+	getSessionTypeLabel,
+	isSameDay,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -29,14 +36,6 @@ function getDaysInMonth(year: number, month: number): number {
 
 function getFirstDayOfMonth(year: number, month: number): number {
 	return new Date(year, month, 1).getDay();
-}
-
-function isSameDay(date1: Date, date2: Date): boolean {
-	return (
-		date1.getFullYear() === date2.getFullYear() &&
-		date1.getMonth() === date2.getMonth() &&
-		date1.getDate() === date2.getDate()
-	);
 }
 
 export function SessionsCalendar({
@@ -305,40 +304,28 @@ export function SessionsCalendar({
 										<div
 											key={session.id}
 											className="flex flex-col gap-0.5 flex-shrink-0"
-											title={`${
-												session.type === "regular" ? "Regular" : "Special"
-											} Session #${session.sessionNumber} - ${new Date(session.scheduleDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${
-												session.status === "completed"
-													? "Completed"
-													: "Scheduled"
-											}`}
+											title={`${getSessionTypeLabel(session.type)} #${session.sessionNumber} - ${formatSessionTime(session.scheduleDate)} - ${getSessionStatusLabel(session.status)}`}
 										>
 											<div className="hidden lg:flex items-center gap-1 text-xs text-[#4a5565] mb-0.5">
 												<span>Session #{session.sessionNumber}</span>
 											</div>
 											{/* Mobile: Compact badge indicator */}
 											<div
-												className={`flex sm:hidden h-2 w-6 rounded flex-shrink-0 ${
-													session.type === "regular"
-														? "bg-[#dc2626]"
-														: "bg-[#fe9a00]"
-												}`}
+												className={`flex sm:hidden h-2 w-6 rounded flex-shrink-0 ${getSessionTypeBadgeClass(
+													session.type,
+												)}`}
 											/>
 											{/* Tablet/Desktop: Badge */}
 											<Badge
-												className={`hidden sm:flex h-auto rounded px-1 py-0.5 text-[8px] sm:text-[10px] font-medium flex-shrink-0 ${
-													session.type === "regular"
-														? "bg-[#dc2626] text-white hover:bg-[#dc2626]"
-														: "bg-[#fe9a00] text-white hover:bg-[#fe9a00]"
-												}`}
+												className={`hidden sm:flex h-auto rounded px-1 py-0.5 text-[8px] sm:text-[10px] font-medium flex-shrink-0 ${getSessionTypeBadgeClass(
+													session.type,
+												)} text-white hover:${getSessionTypeBadgeClass(session.type)}`}
 											>
 												<span className="lg:hidden">
 													{session.type === "regular" ? "Reg" : "Spc"}
 												</span>
 												<span className="hidden lg:inline">
-													{session.type === "regular"
-														? "Regular Session"
-														: "Special Session"}
+													{getSessionTypeLabel(session.type)}
 												</span>
 											</Badge>
 										</div>
@@ -363,15 +350,23 @@ export function SessionsCalendar({
 				<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
 					<div className="flex items-center gap-2 sm:min-w-[180px]">
 						<div className="h-6 w-6 flex-shrink-0 rounded border-2 border-[#a60202] bg-white flex items-center justify-center">
-							<div className="h-2 w-4 rounded bg-[#dc2626]" />
+							<div
+								className={`h-2 w-4 rounded ${getSessionTypeBadgeClass("regular")}`}
+							/>
 						</div>
-						<p className="text-xs sm:text-sm text-[#6b7280]">Regular Session</p>
+						<p className="text-xs sm:text-sm text-[#6b7280]">
+							{getSessionTypeLabel("regular")}
+						</p>
 					</div>
 					<div className="flex items-center gap-2 sm:min-w-[180px]">
 						<div className="h-6 w-6 flex-shrink-0 rounded border-2 border-[#fe9a00] bg-white flex items-center justify-center">
-							<div className="h-2 w-4 rounded bg-[#fe9a00]" />
+							<div
+								className={`h-2 w-4 rounded ${getSessionTypeBadgeClass("special")}`}
+							/>
 						</div>
-						<p className="text-xs sm:text-sm text-[#6b7280]">Special Session</p>
+						<p className="text-xs sm:text-sm text-[#6b7280]">
+							{getSessionTypeLabel("special")}
+						</p>
 					</div>
 				</div>
 				<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
