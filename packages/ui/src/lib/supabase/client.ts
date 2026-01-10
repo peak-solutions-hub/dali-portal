@@ -6,7 +6,7 @@ export function createSupabaseBrowserClient() {
 
 	if (!supabaseUrl || !supabaseKey) {
 		throw new Error(
-			"Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file",
+			"Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your app's .env.local file",
 		);
 	}
 
