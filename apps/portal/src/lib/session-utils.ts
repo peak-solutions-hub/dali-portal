@@ -1,4 +1,4 @@
-import type { Session } from "@/types/session";
+import type { Session } from "@repo/shared";
 
 interface FilterSessionsParams {
 	sessions: Session[];
@@ -27,7 +27,7 @@ export function filterSessions({
 		}
 
 		// Filter by date range
-		const sessionDate = new Date(session.date);
+		const sessionDate = new Date(session.scheduleDate);
 
 		if (filterDateFrom) {
 			const fromDate = new Date(filterDateFrom);
@@ -54,8 +54,8 @@ export function sortSessions(
 	order: "asc" | "desc",
 ): Session[] {
 	return [...sessions].sort((a, b) => {
-		const dateA = new Date(a.date).getTime();
-		const dateB = new Date(b.date).getTime();
+		const dateA = new Date(a.scheduleDate).getTime();
+		const dateB = new Date(b.scheduleDate).getTime();
 		return order === "desc" ? dateB - dateA : dateA - dateB;
 	});
 }

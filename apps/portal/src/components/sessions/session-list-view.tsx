@@ -1,8 +1,8 @@
+import type { Session } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import Link from "next/link";
-import type { Session } from "@/types/session";
 
 interface SessionListViewProps {
 	sessions: Session[];
@@ -16,6 +16,15 @@ function formatDate(dateString: string) {
 		year: "numeric",
 		month: "long",
 		day: "numeric",
+	});
+}
+
+function formatTime(dateString: string) {
+	const date = new Date(dateString);
+	return date.toLocaleTimeString("en-US", {
+		hour: "numeric",
+		minute: "2-digit",
+		hour12: true,
 	});
 }
 
@@ -59,10 +68,10 @@ export function SessionListView({
 									</span>
 								</div>
 								<h2 className="text-base sm:text-lg font-semibold leading-6 sm:leading-7 text-[#0a0a0a]">
-									{formatDate(session.date)}
+									{formatDate(session.scheduleDate.toISOString())}
 								</h2>
 								<p className="text-xs sm:text-sm text-[#4a5565]">
-									Time: {session.time}
+									{formatTime(session.scheduleDate.toISOString())}
 								</p>
 							</div>
 							<Link

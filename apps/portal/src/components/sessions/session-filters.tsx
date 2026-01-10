@@ -21,8 +21,10 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 	const searchParams = useSearchParams();
 
 	// Get current filters from URL
-	const currentTypes = searchParams.getAll("type");
-	const currentStatuses = searchParams.getAll("status");
+	const currentTypes =
+		searchParams.get("types")?.split(",").filter(Boolean) || [];
+	const currentStatuses =
+		searchParams.get("statuses")?.split(",").filter(Boolean) || [];
 	const currentDateFrom = searchParams.get("dateFrom") || "";
 	const currentDateTo = searchParams.get("dateTo") || "";
 
@@ -66,14 +68,14 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		params.set("page", "1");
 		params.set("sort", sortOrder);
 
-		// Add multiple type filters
-		for (const type of selectedTypes) {
-			params.append("type", type);
+		// Add multiple type filters as comma-separated
+		if (selectedTypes.length > 0) {
+			params.set("types", selectedTypes.join(","));
 		}
 
-		// Add multiple status filters
-		for (const status of selectedStatuses) {
-			params.append("status", status);
+		// Add multiple status filters as comma-separated
+		if (selectedStatuses.length > 0) {
+			params.set("statuses", selectedStatuses.join(","));
 		}
 
 		if (dateFrom) {
@@ -108,34 +110,42 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 
 		if (filterType === "type") {
 			const types = currentTypes.filter((t) => t !== value);
-			for (const type of types) {
-				params.append("type", type);
+			if (types.length > 0) {
+				params.set("types", types.join(","));
 			}
-			for (const status of currentStatuses) {
-				params.append("status", status);
+			if (currentStatuses.length > 0) {
+				params.set("statuses", currentStatuses.join(","));
 			}
+			// Update local state to reflect the change
+			setSelectedTypes(types);
 		} else if (filterType === "status") {
 			const statuses = currentStatuses.filter((s) => s !== value);
-			for (const type of currentTypes) {
-				params.append("type", type);
+			if (currentTypes.length > 0) {
+				params.set("types", currentTypes.join(","));
 			}
-			for (const status of statuses) {
-				params.append("status", status);
+			if (statuses.length > 0) {
+				params.set("statuses", statuses.join(","));
 			}
+			// Update local state to reflect the change
+			setSelectedStatuses(statuses);
 		} else {
-			for (const type of currentTypes) {
-				params.append("type", type);
+			if (currentTypes.length > 0) {
+				params.set("types", currentTypes.join(","));
 			}
-			for (const status of currentStatuses) {
-				params.append("status", status);
+			if (currentStatuses.length > 0) {
+				params.set("statuses", currentStatuses.join(","));
 			}
 		}
 
 		if (filterType !== "dateFrom" && currentDateFrom) {
 			params.set("dateFrom", currentDateFrom);
+		} else if (filterType === "dateFrom") {
+			setDateFrom("");
 		}
 		if (filterType !== "dateTo" && currentDateTo) {
 			params.set("dateTo", currentDateTo);
+		} else if (filterType === "dateTo") {
+			setDateTo("");
 		}
 
 		router.push(`/sessions?${params.toString()}`);
@@ -312,7 +322,11 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 					{currentTypes.map((type) => (
 						<Badge
 							key={type}
-							className="h-6 gap-1 rounded-md bg-[#dc2626] px-2 text-xs text-white hover:bg-[#dc2626]"
+							className={`h-6 gap-1 rounded-md px-2 text-xs text-white ${
+								type === "regular"
+									? "bg-[#dc2626] hover:bg-[#dc2626]"
+									: "bg-[#fe9a00] hover:bg-[#fe9a00]"
+							}`}
 						>
 							{type === "regular" ? "Regular" : "Special"}
 							<button

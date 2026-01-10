@@ -1,5 +1,6 @@
 "use client";
 
+import type { Session } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -14,7 +15,6 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import type { Session } from "@/types/session";
 
 interface SessionsCalendarProps {
 	sessions: Session[];
@@ -81,7 +81,7 @@ export function SessionsCalendar({
 		}
 
 		const years = sessions.map((session) =>
-			new Date(session.date).getFullYear(),
+			new Date(session.scheduleDate).getFullYear(),
 		);
 		const minYear = Math.min(...years);
 		const maxYear = Math.max(...years);
@@ -93,7 +93,7 @@ export function SessionsCalendar({
 	const sessionsMap = React.useMemo(() => {
 		const map = new Map<string, Session[]>();
 		sessions.forEach((session) => {
-			const sessionDate = new Date(session.date);
+			const sessionDate = new Date(session.scheduleDate);
 			const key = `${sessionDate.getFullYear()}-${sessionDate.getMonth()}-${sessionDate.getDate()}`;
 			if (!map.has(key)) {
 				map.set(key, []);
@@ -307,7 +307,7 @@ export function SessionsCalendar({
 											className="flex flex-col gap-0.5 flex-shrink-0"
 											title={`${
 												session.type === "regular" ? "Regular" : "Special"
-											} Session #${session.sessionNumber} - ${session.time} - ${
+											} Session #${session.sessionNumber} - ${new Date(session.scheduleDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${
 												session.status === "completed"
 													? "Completed"
 													: "Scheduled"
