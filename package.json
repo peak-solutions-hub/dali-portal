@@ -4,6 +4,7 @@
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",
+		"dev:shared": "pnpm run dev --filter @repo/shared ",
 		"lint": "biome check .",
 		"lint:fix": "biome check . --write",
 		"check-types": "turbo run check-types",
