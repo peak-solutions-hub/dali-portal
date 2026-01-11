@@ -11,6 +11,7 @@ import {
 } from "@repo/ui/components/dialog";
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface User {
 	id: string;
@@ -42,13 +43,25 @@ export function DeleteUserDialog({
 		// TODO: Implement actual delete logic
 		console.log("Deactivating user:", user.id);
 
-		setIsDeleting(false);
-		onOpenChange(false);
+		try {
+			toast.success(`${user.fullName} has been deactivated`, {
+				description: "User account has been successfully deactivated",
+				duration: 3000,
+			});
+			onOpenChange(false);
+		} catch (error) {
+			console.error("Error deactivating user:", error);
+			toast.error("Failed to deactivate user", {
+				description: "Please try again later",
+			});
+		} finally {
+			setIsDeleting(false);
+		}
 	};
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[500px]">
+			<DialogContent className="sm:max-w-125">
 				<DialogHeader>
 					<div className="flex items-center gap-3">
 						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50">

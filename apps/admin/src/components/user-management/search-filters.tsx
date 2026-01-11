@@ -1,0 +1,81 @@
+"use client";
+
+import { Card } from "@repo/ui/components/card";
+import { Input } from "@repo/ui/components/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/ui/components/select";
+import { Filter, Search } from "lucide-react";
+
+interface Props {
+	searchQuery: string;
+	onSearchChange: (value: string) => void;
+	roleFilter: string;
+	onRoleChange: (value: string) => void;
+	roles: string[];
+	resultCount: number;
+	totalCount: number;
+}
+
+export function SearchFilters({
+	searchQuery,
+	onSearchChange,
+	roleFilter,
+	onRoleChange,
+	roles,
+	resultCount,
+	totalCount,
+}: Props) {
+	return (
+		<Card className="p-4 flex flex-col gap-6">
+			<div className="flex items-center gap-4">
+				<div className="relative flex-1">
+					<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#717182]" />
+					<Input
+						placeholder="Search by name or email..."
+						value={searchQuery}
+						onChange={(e) => onSearchChange(e.target.value)}
+						className="pl-10 bg-[#f3f3f5] border-transparent"
+					/>
+				</div>
+
+				<Select value={roleFilter} onValueChange={onRoleChange}>
+					<SelectTrigger className="w-64 bg-[#f3f3f5] border-transparent">
+						<Filter className="size-4" />
+						<SelectValue placeholder="All Roles" />
+					</SelectTrigger>
+					<SelectContent
+						position="popper"
+						side="bottom"
+						align="start"
+						sideOffset={4}
+					>
+						<SelectItem
+							value="all"
+							className="hover:bg-gray-100 cursor-pointer"
+						>
+							All Roles
+						</SelectItem>
+						{roles.map((role) => (
+							<SelectItem
+								key={role}
+								value={role}
+								className="hover:bg-gray-100 cursor-pointer"
+							>
+								{role}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+
+			<p className="text-sm text-[#4a5565]">
+				Showing {resultCount} of {totalCount} users
+			</p>
+		</Card>
+	);
+}

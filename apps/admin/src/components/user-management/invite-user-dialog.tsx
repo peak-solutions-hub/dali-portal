@@ -19,6 +19,7 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface InviteUserDialogProps {
 	open: boolean;
@@ -52,15 +53,23 @@ export function InviteUserDialog({
 		// Simulate API call
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 
-		// TODO: Implement actual invite logic
+		// TODO: Implement actual API call
 		console.log("Inviting user:", { fullName, email, role });
 
-		// Reset form and close dialog
-		setFullName("");
-		setEmail("");
-		setRole("");
-		setIsSubmitting(false);
-		onOpenChange(false);
+		try {
+			toast.success(`Invitation sent to ${fullName}`, {
+				description: `An email invitation has been sent to ${email}`,
+				duration: 4000,
+			});
+			handleCancel();
+		} catch (error) {
+			console.error("Error sending invitation:", error);
+			toast.error("Failed to send invitation", {
+				description: "Please try again later",
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const handleCancel = () => {
@@ -72,7 +81,7 @@ export function InviteUserDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[500px]">
+			<DialogContent className="sm:max-w-125">
 				<DialogHeader>
 					<DialogTitle>Invite New User</DialogTitle>
 					<DialogDescription>
@@ -115,9 +124,18 @@ export function InviteUserDialog({
 								<SelectTrigger id="role">
 									<SelectValue placeholder="Select a role" />
 								</SelectTrigger>
-								<SelectContent>
+								<SelectContent
+									position="popper"
+									side="bottom"
+									align="start"
+									sideOffset={4}
+								>
 									{roles.map((roleName) => (
-										<SelectItem key={roleName} value={roleName}>
+										<SelectItem
+											key={roleName}
+											value={roleName}
+											className="hover:bg-gray-100 cursor-pointer"
+										>
 											{roleName}
 										</SelectItem>
 									))}

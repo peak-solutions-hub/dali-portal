@@ -2,18 +2,10 @@
 
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
-import { Input } from "@repo/ui/components/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/ui/components/select";
-import { Filter, Search, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { useState } from "react";
 import { UsersTable } from "@/components/user-management";
-import { InviteUserDialog } from "@/components/user-management/invite-user-dialog";
+import { InviteUserDialog, SearchFilters } from "@/components/user-management/";
 
 export default function UserManagementPage() {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -187,8 +179,16 @@ export default function UserManagementPage() {
 		return matchesSearch && matchesRole;
 	});
 
-	// Get unique roles for filter dropdown
-	const uniqueRoles = Array.from(new Set(users.map((user) => user.role)));
+	const roles = [
+		"Administrator",
+		"Administrative Office Clerk",
+		"Administrative Office Department Head",
+		"City Councilor",
+		"Information Systems Analyst",
+		"Secretariat",
+		"Vice Mayor",
+		"Vice Mayor Office Staff",
+	];
 
 	return (
 		<div className="flex flex-col gap-6 p-6">
@@ -211,49 +211,20 @@ export default function UserManagementPage() {
 				</Button>
 			</div>
 
-			{/* Filters Card */}
-			<Card className="p-4 flex flex-col gap-6">
-				<div className="flex items-center gap-4">
-					{/* Search Input */}
-					<div className="relative flex-1">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#717182]" />
-						<Input
-							placeholder="Search by name or email..."
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-10 bg-[#f3f3f5] border-transparent"
-						/>
-					</div>
+			<SearchFilters
+				searchQuery={searchQuery}
+				onSearchChange={(v) => setSearchQuery(v)}
+				roleFilter={roleFilter}
+				onRoleChange={(v) => setRoleFilter(v)}
+				roles={roles}
+				resultCount={filteredUsers.length}
+				totalCount={users.length}
+			/>
 
-					{/* Role Filter */}
-					<Select value={roleFilter} onValueChange={setRoleFilter}>
-						<SelectTrigger className="w-64 bg-[#f3f3f5] border-transparent">
-							<Filter className="size-4" />
-							<SelectValue placeholder="All Roles" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">All Roles</SelectItem>
-							{uniqueRoles.map((role) => (
-								<SelectItem key={role} value={role}>
-									{role}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-
-				{/* Results Count */}
-				<p className="text-sm text-[#4a5565]">
-					Showing {filteredUsers.length} of {users.length} users
-				</p>
-			</Card>
-
-			{/* Users Table */}
 			<Card className="p-0 overflow-hidden">
 				<UsersTable users={filteredUsers} />
 			</Card>
 
-			{/* Invite User Dialog */}
 			<InviteUserDialog
 				open={inviteDialogOpen}
 				onOpenChange={setInviteDialogOpen}

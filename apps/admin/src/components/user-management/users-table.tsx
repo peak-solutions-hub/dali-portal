@@ -10,8 +10,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
-import { MoreVertical } from "lucide-react";
-import { useState } from "react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { DeleteUserDialog } from "./delete-user-dialog";
 import { UpdateUserDialog } from "./update-user-dialog";
 
@@ -32,11 +32,24 @@ export function UsersTable({ users }: UsersTableProps) {
 	const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
+	const [menuOpenUserId, setMenuOpenUserId] = useState<string | null>(null);
+	const menuRef = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		const onDocClick = (e: MouseEvent) => {
+			if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+				setMenuOpenUserId(null);
+			}
+		};
+		if (menuOpenUserId) {
+			document.addEventListener("click", onDocClick);
+		}
+		return () => document.removeEventListener("click", onDocClick);
+	}, [menuOpenUserId]);
+
 	const handleActionClick = (user: User) => {
 		setSelectedUser(user);
-		// For now, we'll open the update dialog
-		// In a real implementation, this would show a dropdown menu
-		setUpdateDialogOpen(true);
+		setMenuOpenUserId((prev) => (prev === user.id ? null : user.id));
 	};
 
 	const getRoleBadgeStyles = (role: string) => {
@@ -100,15 +113,49 @@ export function UsersTable({ users }: UsersTableProps) {
 									{user.status === "active" ? "Active" : "Invited"}
 								</Badge>
 							</TableCell>
-							<TableCell className="px-6 py-5 text-right">
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									onClick={() => handleActionClick(user)}
-									className="rounded-md"
-								>
-									<MoreVertical className="size-4" />
-								</Button>
+							<TableCell className="px-6 py-5 text-right relative">
+								<div className="inline-flex items-center justify-end relative">
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										onClick={() => handleActionClick(user)}
+										className="rounded-md"
+										aria-haspopup="menu"
+										aria-expanded={menuOpenUserId === user.id}
+									>
+										<MoreHorizontal className="size-4" />
+									</Button>
+									{menuOpenUserId === user.id && (
+										<div
+											ref={menuRef}
+											role="menu"
+											className="absolute right-0 top-full mt-2 w-40 rounded-md border bg-white shadow-md z-50"
+										>
+											<button
+												className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center"
+												onClick={() => {
+													setSelectedUser(user);
+													setUpdateDialogOpen(true);
+													setMenuOpenUserId(null);
+												}}
+											>
+												<Pencil className="w-4 h-4 mr-2" />
+												Edit
+											</button>
+											<button
+												className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 flex items-center"
+												onClick={() => {
+													setSelectedUser(user);
+													setDeleteDialogOpen(true);
+													setMenuOpenUserId(null);
+												}}
+											>
+												<Trash2 className="w-4 h-4 mr-2 text-red-600" />
+												Deactivate
+											</button>
+										</div>
+									)}
+								</div>
 							</TableCell>
 						</TableRow>
 					))}

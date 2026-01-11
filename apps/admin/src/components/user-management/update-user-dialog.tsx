@@ -19,6 +19,7 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 interface User {
 	id: string;
@@ -70,8 +71,21 @@ export function UpdateUserDialog({
 		// TODO: Implement actual update logic
 		console.log("Updating user:", { id: user.id, fullName, role });
 
-		setIsSubmitting(false);
-		onOpenChange(false);
+		try {
+			// Success toast
+			toast.success(`${fullName} updated successfully`, {
+				description: "User details have been saved",
+				duration: 3000,
+			});
+			onOpenChange(false);
+		} catch (error) {
+			console.error("Error updating user:", error);
+			toast.error("Failed to update user", {
+				description: "Please try again later",
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const handleCancel = () => {
@@ -83,7 +97,7 @@ export function UpdateUserDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[500px]">
+			<DialogContent className="sm:max-w-125">
 				<DialogHeader>
 					<DialogTitle>Update User Details</DialogTitle>
 					<DialogDescription>
@@ -128,9 +142,18 @@ export function UpdateUserDialog({
 								<SelectTrigger id="role">
 									<SelectValue placeholder="Select a role" />
 								</SelectTrigger>
-								<SelectContent>
+								<SelectContent
+									position="popper"
+									side="bottom"
+									align="start"
+									sideOffset={4}
+								>
 									{roles.map((roleName) => (
-										<SelectItem key={roleName} value={roleName}>
+										<SelectItem
+											key={roleName}
+											value={roleName}
+											className="hover:bg-gray-100 cursor-pointer"
+										>
 											{roleName}
 										</SelectItem>
 									))}
