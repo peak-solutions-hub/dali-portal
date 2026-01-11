@@ -73,6 +73,13 @@ Before you begin, ensure you have the following installed:
     pnpm run build
     ```
 
+    For smoother development, you can run the shared package in watch mode. This automatically rebuilds on every change so you don't have to manually rebuild after editing schemas, contracts or utils. 
+    
+    ```bash
+    pnpm run dev:shared
+    ```
+
+    > **Note**: Running `pnpm dev` will also start the shared package in watch mode automatically.
 
 ## 🔑 Environment Variables
 
