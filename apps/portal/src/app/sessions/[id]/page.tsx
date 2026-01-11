@@ -1,122 +1,22 @@
-import { formatSessionDate, formatSessionTime } from "@repo/shared";
+import { isDefinedError } from "@orpc/client";
+import {
+	formatSessionDate,
+	formatSessionTime,
+	type SessionWithAgenda,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { api } from "@/lib/api.client";
 import {
+	getSectionLabel,
 	getSessionStatusBadgeClass,
 	getSessionStatusLabel,
 	getSessionTypeBadgeClass,
 	getSessionTypeLabel,
 } from "@/lib/session-ui";
-
-interface AgendaItem {
-	number: string;
-	title: string;
-	description?: string;
-	documents?: {
-		id: string;
-		title: string;
-	}[];
-}
-
-interface SessionData {
-	id: string;
-	type: string;
-	status: string;
-	scheduleDate: Date;
-	sessionNumber: number;
-	agendaItems: AgendaItem[];
-}
-
-// Mock data - replace with actual data fetching
-const getSessionData = (id: string): SessionData | null => {
-	// Validate session exists - in production, query database
-	// For now, only accept session ID "1" as valid
-	if (id !== "1") {
-		return null;
-	}
-
-	return {
-		id,
-		type: "regular",
-		status: "completed",
-		scheduleDate: new Date("2025-11-12T10:00:00"),
-		sessionNumber: 120,
-		agendaItems: [
-			{
-				number: "01",
-				title: "INTRO",
-				description: "Session No. 120 | Regular Session | 9/17/2025",
-			},
-			{
-				number: "02",
-				title: "OPENING PRAYER/INVOCATION",
-			},
-			{
-				number: "03",
-				title: "NATIONAL ANTHEM AND PLEDGE OF ALLEGIANCE",
-			},
-			{
-				number: "04",
-				title: "ROLL CALL",
-				description: "All members present",
-			},
-			{
-				number: "05",
-				title: "READING AND/OR APPROVAL OF THE MINUTES",
-			},
-			{
-				number: "06",
-				title: "AGENDA",
-			},
-			{
-				number: "07",
-				title: "FIRST READING AND REFERENCES",
-				documents: [
-					{
-						id: "1",
-						title:
-							"An Ordinance Establishing a Smoke-Free Zone in All Public Markets and Commercial Centers",
-					},
-				],
-			},
-			{
-				number: "08",
-				title: "COMMITTEE REPORT",
-			},
-			{
-				number: "09",
-				title: "CALENDAR OF BUSINESS",
-			},
-			{
-				number: "10",
-				title: "THIRD READING",
-				documents: [
-					{
-						id: "2",
-						title:
-							"An Ordinance Regulating the Operation of Karaoke and Videoke Establishments",
-					},
-				],
-			},
-			{
-				number: "11",
-				title: "OTHER MATTERS",
-			},
-			{
-				number: "12",
-				title: "CLOSING PRAYER",
-			},
-			{
-				number: "13",
-				title: "ADJOURNMENT",
-				description: "Session adjourned",
-			},
-		],
-	};
-};
 
 export default async function SessionDetailPage({
 	params,
@@ -124,12 +24,32 @@ export default async function SessionDetailPage({
 	params: Promise<{ id: string }>;
 }) {
 	const { id } = await params;
-	const session = getSessionData(id);
 
-	// Generic error - prevents enumeration of valid session IDs
+	// Validate UUID format before making API call
+	const uuidRegex =
+		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	if (!uuidRegex.test(id)) {
+		notFound();
+	}
+
+	// Fetch session from API
+	const [error, session] = await api.sessions.getById({ id });
+
+	// Handle errors - use generic error to prevent enumeration
+	if (error) {
+		if (isDefinedError(error) && error.code === "NOT_FOUND") {
+			notFound();
+		}
+		// For other errors, also return not found to prevent enumeration
+		notFound();
+	}
+
 	if (!session) {
 		notFound();
 	}
+
+	// Ensure scheduleDate is a Date object
+	const scheduleDate = new Date(session.scheduleDate);
 
 	return (
 		<div className="min-h-screen bg-[#f9fafb]">
@@ -174,18 +94,16 @@ export default async function SessionDetailPage({
 
 						{/* Date */}
 						<h1 className="font-serif text-3xl font-normal text-primary">
-							{formatSessionDate(session.scheduleDate)}
+							{formatSessionDate(scheduleDate)}
 						</h1>
 
 						{/* Time - WCAG AA compliant contrast */}
 						<div className="flex items-center gap-2">
 							<span className="text-lg font-medium text-gray-900">Time:</span>
 							<time className="text-lg text-gray-900">
-								{formatSessionTime(session.scheduleDate)}
+								{formatSessionTime(scheduleDate)}
 							</time>
 						</div>
-
-						{/* Download removed as per latest requirements */}
 					</div>
 
 					{/* Session Agenda */}
@@ -194,42 +112,47 @@ export default async function SessionDetailPage({
 							Session Agenda
 						</h2>
 
-						<div className="space-y-6">
-							{session.agendaItems.map((item) => (
-								<div
-									key={item.number}
-									className="border-l-4 border-primary pl-7 py-2"
-								>
-									<h3 className="text-base font-semibold text-primary">
-										{item.number}. {item.title}
-									</h3>
-									{item.description && (
-										<p className="mt-3 text-base text-gray-600">
-											{item.description}
-										</p>
-									)}
-									{item.documents && item.documents.length > 0 && (
-										<ul
-											className="mt-3 space-y-2"
-											aria-label="Related documents"
-										>
-											{item.documents.map((doc) => (
-												<li key={doc.id} className="flex items-start">
-													<span className="mr-2 text-primary">•</span>
-													{/* not final, subject to changes --- will connect to michaels job */}
-													<Link
-														href={`/sessions/${session.id}/documents/${doc.id}`}
-														className="text-base text-primary hover:underline"
-													>
-														{doc.title}
-													</Link>
-												</li>
-											))}
-										</ul>
-									)}
-								</div>
-							))}
-						</div>
+						{session.agendaItems.length > 0 ? (
+							<div className="space-y-6">
+								{session.agendaItems.map((item, index) => (
+									<div
+										key={item.id}
+										className="border-l-4 border-primary pl-7 py-2"
+									>
+										<h3 className="text-base font-semibold text-primary">
+											{String(index + 1).padStart(2, "0")}.{" "}
+											{getSectionLabel(item.section)}
+										</h3>
+										{item.contentText && (
+											<p className="mt-3 text-base text-gray-600">
+												{item.contentText}
+											</p>
+										)}
+										{item.linkedDocument && (
+											<div className="mt-3">
+												<Link
+													href={`/legislative-documents/${item.linkedDocument}`}
+													className="text-base text-primary hover:underline"
+												>
+													View linked document
+												</Link>
+											</div>
+										)}
+										{item.attachmentPath && item.attachmentName && (
+											<div className="mt-3">
+												<span className="text-sm text-gray-500">
+													Attachment: {item.attachmentName}
+												</span>
+											</div>
+										)}
+									</div>
+								))}
+							</div>
+						) : (
+							<p className="text-base text-gray-600">
+								No agenda items available for this session.
+							</p>
+						)}
 					</div>
 				</div>
 			</div>

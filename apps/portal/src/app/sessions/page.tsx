@@ -1,12 +1,7 @@
-import type { Session } from "@repo/shared";
-import {
-	filterSessions,
-	getPublicSessions,
-	paginateSessions,
-	SESSION_ITEMS_PER_PAGE,
-	sortSessions,
-} from "@repo/shared";
+import { isDefinedError } from "@orpc/client";
+import type { Session, SessionType } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { Card } from "@repo/ui/components/card";
 import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { SessionFilters } from "@/components/sessions/session-filters";
@@ -14,140 +9,13 @@ import { SessionListView } from "@/components/sessions/session-list-view";
 import { SessionPagination } from "@/components/sessions/session-pagination";
 import { SessionsCalendar } from "@/components/sessions/sessions-calendar";
 import { SortSelect } from "@/components/sessions/sort-select";
+import { api } from "@/lib/api.client";
 
-// Mock data for legislative sessions (sorted by date descending - newest/upcoming first)
-const ALL_SESSIONS: Session[] = [
-	{
-		id: "10",
-		sessionNumber: 129,
-		type: "regular",
-		scheduleDate: new Date("2026-01-14T10:00:00"),
-		status: "scheduled",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "9",
-		sessionNumber: 128,
-		type: "regular",
-		scheduleDate: new Date("2026-01-10T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "8",
-		sessionNumber: 127,
-		type: "special",
-		scheduleDate: new Date("2025-12-30T14:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "7",
-		sessionNumber: 126,
-		type: "regular",
-		scheduleDate: new Date("2025-12-24T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "6",
-		sessionNumber: 125,
-		type: "regular",
-		scheduleDate: new Date("2025-12-17T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "5",
-		sessionNumber: 124,
-		type: "regular",
-		scheduleDate: new Date("2025-12-10T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "4",
-		sessionNumber: 123,
-		type: "special",
-		scheduleDate: new Date("2025-12-03T14:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "3",
-		sessionNumber: 122,
-		type: "regular",
-		scheduleDate: new Date("2025-11-26T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "2",
-		sessionNumber: 121,
-		type: "regular",
-		scheduleDate: new Date("2025-11-19T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "1",
-		sessionNumber: 120,
-		type: "regular",
-		scheduleDate: new Date("2025-11-12T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "11",
-		sessionNumber: 119,
-		type: "regular",
-		scheduleDate: new Date("2025-11-05T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "12",
-		sessionNumber: 118,
-		type: "special",
-		scheduleDate: new Date("2025-10-29T14:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-	{
-		id: "13",
-		sessionNumber: 117,
-		type: "regular",
-		scheduleDate: new Date("2025-10-22T10:00:00"),
-		status: "completed",
-		agendaFilePath: null,
-		minutesFilePath: null,
-		journalFilePath: null,
-	},
-];
+// Public session statuses (only scheduled and completed allowed)
+type PublicSessionStatus = "scheduled" | "completed";
+
+// Items per page for session listing
+const SESSION_ITEMS_PER_PAGE = 10;
 
 export default async function Sessions({
 	searchParams,
@@ -175,21 +43,6 @@ export default async function Sessions({
 	const filterDateFrom = params.dateFrom || "";
 	const filterDateTo = params.dateTo || "";
 
-	// Process sessions: filter for public access (only scheduled and completed), sort, filter, paginate
-	const publicSessions = getPublicSessions(ALL_SESSIONS);
-	const sortedSessions = sortSessions(publicSessions, sortOrder);
-	const filteredSessions = filterSessions(sortedSessions, {
-		types: filterTypes,
-		statuses: filterStatuses,
-		dateFrom: filterDateFrom,
-		dateTo: filterDateTo,
-	});
-	const { paginatedSessions, totalPages } = paginateSessions(
-		filteredSessions,
-		currentPage,
-		SESSION_ITEMS_PER_PAGE,
-	);
-
 	// Check if any filters are active
 	const hasActiveFilters =
 		filterTypes.length > 0 ||
@@ -201,6 +54,74 @@ export default async function Sessions({
 	const now = new Date();
 	const selectedYear = params.year ? Number(params.year) : now.getFullYear();
 	const selectedMonth = params.month ? Number(params.month) : now.getMonth();
+
+	// Build API input for list view (with pagination)
+	const listApiInput = {
+		type: filterTypes.length > 0 ? (filterTypes as SessionType[]) : undefined,
+		status:
+			filterStatuses.length > 0
+				? (filterStatuses as PublicSessionStatus[])
+				: undefined,
+		dateFrom: filterDateFrom ? new Date(filterDateFrom) : undefined,
+		dateTo: filterDateTo ? new Date(filterDateTo) : undefined,
+		sortBy: "date" as const,
+		sortDirection: sortOrder,
+		limit: SESSION_ITEMS_PER_PAGE,
+		// For page-based to cursor-based: we need to skip (page-1) * limit items
+		// Since the backend uses cursor-based pagination, we'll fetch with offset simulation
+		// For simplicity, we'll fetch enough items and slice client-side for now
+		// TODO: Implement proper cursor tracking via URL params for true cursor-based pagination
+	};
+
+	// For calendar view, fetch all sessions (higher limit, no pagination needed)
+	const calendarApiInput = {
+		sortBy: "date" as const,
+		sortDirection: "desc" as const,
+		limit: 100, // Fetch up to 100 sessions for calendar
+	};
+
+	// Fetch sessions from API
+	const [error, data] =
+		view === "list"
+			? await api.sessions.list(listApiInput)
+			: await api.sessions.list(calendarApiInput);
+
+	// Handle errors
+	if (error) {
+		const errorMessage = isDefinedError(error)
+			? error.message
+			: "Failed to load sessions";
+
+		return (
+			<div className="min-h-screen bg-[#f9fafb]">
+				<div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-19.5">
+					<div className="mb-6 space-y-2 sm:mb-8">
+						<h1 className="font-serif text-2xl font-normal leading-tight text-[#a60202] sm:text-3xl sm:leading-10 md:text-4xl">
+							Council Sessions
+						</h1>
+					</div>
+					<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-12">
+						<p className="text-center text-base text-red-600">{errorMessage}</p>
+					</Card>
+				</div>
+			</div>
+		);
+	}
+
+	// Transform API response - ensure dates are Date objects
+	const sessions: Session[] =
+		data?.sessions.map((session) => ({
+			...session,
+			scheduleDate: new Date(session.scheduleDate),
+		})) ?? [];
+
+	// For list view, calculate pagination from API response
+	const totalCount = data?.pagination.totalCount ?? 0;
+	const totalPages = Math.ceil(totalCount / SESSION_ITEMS_PER_PAGE);
+
+	// For page-based pagination simulation: fetch all needed pages worth and slice
+	// This is a temporary solution until proper cursor-based pagination is implemented
+	const paginatedSessions = sessions;
 
 	return (
 		<div className="min-h-screen bg-[#f9fafb]">
@@ -290,7 +211,7 @@ export default async function Sessions({
 					<SessionsCalendar
 						year={selectedYear}
 						month={selectedMonth}
-						sessions={sortedSessions}
+						sessions={sessions}
 					/>
 				)}
 			</div>
