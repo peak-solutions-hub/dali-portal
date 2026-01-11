@@ -21,3 +21,14 @@ export const InquiryStatus = {
 export type InquiryStatus = (typeof InquiryStatus)[keyof typeof InquiryStatus];
 export const INQUIRY_STATUS_VALUES: InquiryStatus[] =
 	Object.values(InquiryStatus);
+
+export const InquiryMessageSenderType = {
+	CITIZEN: "citizen",
+	STAFF: "staff",
+} as const;
+export type InquiryMessageSenderType =
+	(typeof InquiryMessageSenderType)[keyof typeof InquiryMessageSenderType];
+
+export const SENDER_TYPE_VALUES: InquiryMessageSenderType[] = Object.values(
+	InquiryMessageSenderType,
+);

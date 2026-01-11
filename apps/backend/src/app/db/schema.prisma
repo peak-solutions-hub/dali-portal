@@ -150,7 +150,7 @@ model InquiryTicket {
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   category        InquiryCategory
   status          InquiryStatus
-  inquiryMessage  InquiryMessage[]
+  inquiryMessages  InquiryMessage[]
   user            User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
 
   @@map("inquiry_ticket")

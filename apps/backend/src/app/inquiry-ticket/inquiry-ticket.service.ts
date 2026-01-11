@@ -4,10 +4,10 @@ import {
 	type CreateInquiryTicketInput,
 	type CreateInquiryTicketResponse,
 	type GetInquiryTicketByIdInput,
-	type GetInquiryTicketListInput,
 	type InquiryTicket,
-	type InquiryTicketList,
-	type UpdateInquiryTicketStatusInput,
+	InquiryTicketWithMessages,
+	TrackInquiryTicketInput,
+	TrackInquiryTicketResponse,
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 
@@ -21,61 +21,72 @@ export class InquiryTicketService {
 		const referenceNumber = this.generateReferenceNumber();
 
 		// create inquiry ticket
+		await this.db.inquiryTicket.create({
+			data: {
+				referenceNumber,
+				citizenEmail: input.citizenEmail,
+				citizenName: input.citizenName,
+				category: input.category,
+				subject: input.subject,
+				status: "new",
+				// create initial inquiry message
+				// https://www.prisma.io/docs/orm/prisma-client/queries/transactions#nested-writes-1
+				inquiryMessages: {
+					create: [
+						{
+							senderName: input.citizenName,
+							content: input.message,
+							senderType: "citizen",
+						},
+					],
+				},
+			},
+		});
 
-		await new Promise((resolve) => setTimeout(resolve, 1000));
+		// TODO: send reference number and citizen email to user email
 
 		return { referenceNumber };
 	}
 
-	async getList(input: GetInquiryTicketListInput): Promise<InquiryTicketList> {
-		// to change
+	async track(
+		input: TrackInquiryTicketInput,
+	): Promise<TrackInquiryTicketResponse | null> {
+		// fetch inquiry ticket by reference number and citizen email
+		const ticketId = await this.db.inquiryTicket.findFirst({
+			where: input,
+			select: { id: true },
+		});
 
-		let inquiryTickets: InquiryTicket[] = [];
+		return ticketId;
+	}
 
-		if (input.cursor) {
-			inquiryTickets = await this.db.inquiryTicket.findMany({
-				cursor: { id: input.cursor },
-				take: input.limit,
-			});
-		} else {
-			inquiryTickets = await this.db.inquiryTicket.findMany({
-				take: input.limit,
-			});
+	async getWithMessages(
+		input: GetInquiryTicketByIdInput,
+	): Promise<InquiryTicketWithMessages> {
+		const inquiryTicketWithMessages = await this.db.inquiryTicket.findFirst({
+			where: { id: input.id },
+			include: {
+				inquiryMessages: true,
+			},
+		});
+
+		if (!inquiryTicketWithMessages) {
+			throw new ORPCError("NOT_FOUND");
 		}
 
-		return inquiryTickets;
+		return inquiryTicketWithMessages;
 	}
 
 	async getById(input: GetInquiryTicketByIdInput): Promise<InquiryTicket> {
-		const inquiryTicket = await this.db.inquiryTicket.findUnique({
+		const inquiryTicket = await this.db.inquiryTicket.findFirst({
 			where: { id: input.id },
 		});
 
 		if (!inquiryTicket) {
-			throw new ORPCError("NOT_FOUND", { message: "Record not found" });
+			throw new ORPCError("NOT_FOUND");
 		}
 
 		return inquiryTicket;
-	}
-
-	async updateStatus(
-		input: UpdateInquiryTicketStatusInput,
-	): Promise<InquiryTicket> {
-		// implement
-
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-		return {
-			assignedTo: "",
-			category: "appointment_request",
-			citizenEmail: "",
-			citizenName: "",
-			closureRemarks: null,
-			createdAt: new Date(),
-			id: "",
-			referenceNumber: "",
-			status: "new",
-			subject: "",
-		};
 	}
 
 	private generateReferenceNumber(): string {

@@ -4,8 +4,13 @@ import {
 	CreateInquiryTicketSchema,
 	GetInquiryTicketByIdSchema,
 	GetInquiryTicketListSchema,
+	InquiryMessageSchema,
 	InquiryTicketListSchema,
 	InquiryTicketSchema,
+	InquiryTicketWithMessagesSchema,
+	SendInquiryMessageSchema,
+	TrackInquiryTicketResponseSchema,
+	TrackInquiryTicketSchema,
 	UpdateInquiryTicketStatusSchema,
 } from "../schemas/inquiry-ticket.schema";
 
@@ -21,10 +26,71 @@ export const createInquiryTicket = oc
 		tags: ["Inquiry", "Public"],
 	})
 	.errors({
-		// define possible errors here
+		TOO_MANY_REQUESTS: {
+			status: 429,
+			description: "Too many requests. Please try again later.",
+		},
 	})
 	.input(CreateInquiryTicketSchema)
 	.output(CreateInquiryTicketResponseSchema);
+
+export const trackInquiryTicket = oc
+	.route({
+		method: "GET",
+		path: "/inquiries/track",
+		summary: "Track inquiry status",
+		description:
+			"Citizens track inquiry status using their reference number and email.",
+		tags: ["Inquiry", "Public"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			description: "Inquiry not found.",
+		},
+	})
+	.input(TrackInquiryTicketSchema)
+	// null if not found
+	.output(TrackInquiryTicketResponseSchema);
+
+export const sendInquiryMessage = oc
+	.route({
+		method: "POST",
+		path: "/inquiries/{id}/messages",
+		summary: "Send message on inquiry",
+		description: "Citizens and staff can send messages on an inquiry.",
+		tags: ["Inquiry", "Public", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			description: "Inquiry not found",
+		},
+		TOO_MANY_REQUESTS: {
+			status: 429,
+			description: "Too many requests. Please try again later.",
+		},
+	})
+	.input(SendInquiryMessageSchema)
+	.output(InquiryMessageSchema);
+
+export const getInquiryTicketWithMessages = oc
+	.route({
+		method: "GET",
+		path: "/inquiries/{id}/messages",
+		summary: "Get inquiry details with messages",
+		description:
+			"Citizens and staff retrieves full inquiry details with messages.",
+		tags: ["Inquiry", "Public", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			description: "Inquiry not found",
+		},
+	})
+	.input(GetInquiryTicketByIdSchema)
+	.output(InquiryTicketWithMessagesSchema);
 
 export const getInquiryTicketList = oc
 	.route({
@@ -71,9 +137,11 @@ export const updateInquiryTicketStatus = oc
 	.output(InquiryTicketSchema);
 
 export const inquiryTicketContract = {
+	sendMessage: sendInquiryMessage,
+	getWithMessages: getInquiryTicketWithMessages,
 	// for public portal
 	create: createInquiryTicket,
-	// TODO: add track, reply,
+	track: trackInquiryTicket,
 
 	// for admin
 	getList: getInquiryTicketList,

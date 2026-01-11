@@ -1,5 +1,5 @@
 import { Controller } from "@nestjs/common";
-import { Implement, implement, ORPCError } from "@orpc/nest";
+import { Impl, Implement, implement, ORPCError } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { InquiryTicketService } from "./inquiry-ticket.service";
 
@@ -14,31 +14,18 @@ export class InquiryTicketController {
 		});
 	}
 
-	@Implement(contract.inquiries.getList)
-	getList() {
-		return implement(contract.inquiries.getList).handler(async ({ input }) => {
-			// sample only to test error handling
-			if (input.limit == 10) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "You are not authorized to view inquiries.",
-				});
-			}
-			return await this.inquiryService.getList(input);
+	@Implement(contract.inquiries.track)
+	track() {
+		return implement(contract.inquiries.track).handler(async ({ input }) => {
+			return await this.inquiryService.track(input);
 		});
 	}
 
-	@Implement(contract.inquiries.getById)
-	getById() {
-		return implement(contract.inquiries.getById).handler(async ({ input }) => {
-			return await this.inquiryService.getById(input);
-		});
-	}
-
-	@Implement(contract.inquiries.updateStatus)
-	updateStatus() {
-		return implement(contract.inquiries.updateStatus).handler(
+	@Implement(contract.inquiries.getWithMessages)
+	getWithMessages() {
+		return implement(contract.inquiries.getWithMessages).handler(
 			async ({ input }) => {
-				return await this.inquiryService.updateStatus(input);
+				return await this.inquiryService.getWithMessages(input);
 			},
 		);
 	}
