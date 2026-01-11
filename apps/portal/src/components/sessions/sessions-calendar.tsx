@@ -1,13 +1,7 @@
 "use client";
 
 import type { Session } from "@repo/shared";
-import {
-	formatSessionTime,
-	getSessionStatusLabel,
-	getSessionTypeBadgeClass,
-	getSessionTypeLabel,
-	isSameDay,
-} from "@repo/shared";
+import { formatSessionTime, isSameDay } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -22,6 +16,11 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import {
+	getSessionStatusLabel,
+	getSessionTypeBadgeClass,
+	getSessionTypeLabel,
+} from "@/lib/session-ui";
 
 interface SessionsCalendarProps {
 	sessions: Session[];
@@ -151,7 +150,7 @@ export function SessionsCalendar({
 	return (
 		<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6">
 			{/* Calendar Header */}
-			<div className="mb-4 sm:mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0">
+			<div className="mb-4 flex flex-col items-stretch justify-between gap-3 sm:mb-8 sm:flex-row sm:items-center sm:gap-0">
 				<div className="flex items-center gap-2">
 					{/* Month Selector */}
 					<Select value={month.toString()} onValueChange={handleMonthChange}>
@@ -282,28 +281,28 @@ export function SessionsCalendar({
 						// Create clickable link if there are sessions
 						const cellContent = (
 							<div
-								className={`flex flex-col rounded-lg p-1 sm:p-2 transition-all aspect-square overflow-hidden ${borderClass} ${bgClass} ${
+								className={`flex aspect-square flex-col overflow-hidden rounded-lg p-1 transition-all sm:p-2 ${borderClass} ${bgClass} ${
 									hasSessions
-										? "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+										? "cursor-pointer hover:scale-[1.02] hover:shadow-md"
 										: ""
 								}`}
 							>
-								<div className="flex items-center justify-between mb-0.5 sm:mb-1 flex-shrink-0">
+								<div className="mb-0.5 flex shrink-0 items-center justify-between sm:mb-1">
 									<p className={`text-xs sm:text-sm ${textClass}`}>
 										{cell.day}
 									</p>
 									{cell.isToday && (
-										<span className="hidden sm:inline text-[10px] font-bold text-[#dc2626] bg-white px-1.5 py-0.5 rounded">
+										<span className="hidden rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-[#dc2626] sm:inline">
 											TODAY
 										</span>
 									)}
 								</div>
 								{/* Session info */}
-								<div className="flex flex-col gap-0.5 sm:gap-1 overflow-hidden flex-1 min-h-0">
+								<div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden sm:gap-1">
 									{cell.sessions.map((session) => (
 										<div
 											key={session.id}
-											className="flex flex-col gap-0.5 flex-shrink-0"
+											className="flex shrink-0 flex-col gap-0.5"
 											title={`${getSessionTypeLabel(session.type)} #${session.sessionNumber} - ${formatSessionTime(session.scheduleDate)} - ${getSessionStatusLabel(session.status)}`}
 										>
 											<div className="hidden lg:flex items-center gap-1 text-xs text-[#4a5565] mb-0.5">
@@ -311,15 +310,15 @@ export function SessionsCalendar({
 											</div>
 											{/* Mobile: Compact badge indicator */}
 											<div
-												className={`flex sm:hidden h-2 w-6 rounded flex-shrink-0 ${getSessionTypeBadgeClass(
+												className={`flex h-2 w-6 shrink-0 rounded sm:hidden ${getSessionTypeBadgeClass(
 													session.type,
 												)}`}
 											/>
 											{/* Tablet/Desktop: Badge */}
 											<Badge
-												className={`hidden sm:flex h-auto rounded px-1 py-0.5 text-[8px] sm:text-[10px] font-medium flex-shrink-0 ${getSessionTypeBadgeClass(
+												className={`hidden h-auto shrink-0 rounded px-1 py-0.5 text-[8px] font-medium text-white sm:flex sm:text-[10px] ${getSessionTypeBadgeClass(
 													session.type,
-												)} text-white hover:${getSessionTypeBadgeClass(session.type)}`}
+												)} hover:${getSessionTypeBadgeClass(session.type)}`}
 											>
 												<span className="lg:hidden">
 													{session.type === "regular" ? "Reg" : "Spc"}
@@ -348,8 +347,8 @@ export function SessionsCalendar({
 			{/* Legend */}
 			<div className="flex flex-col gap-3">
 				<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-					<div className="flex items-center gap-2 sm:min-w-[180px]">
-						<div className="h-6 w-6 flex-shrink-0 rounded border-2 border-[#a60202] bg-white flex items-center justify-center">
+					<div className="flex items-center gap-2 sm:min-w-45">
+						<div className="h-6 w-6 shrink-0 rounded border-2 border-[#a60202] bg-white flex items-center justify-center">
 							<div
 								className={`h-2 w-4 rounded ${getSessionTypeBadgeClass("regular")}`}
 							/>
@@ -358,8 +357,8 @@ export function SessionsCalendar({
 							{getSessionTypeLabel("regular")}
 						</p>
 					</div>
-					<div className="flex items-center gap-2 sm:min-w-[180px]">
-						<div className="h-6 w-6 flex-shrink-0 rounded border-2 border-[#fe9a00] bg-white flex items-center justify-center">
+					<div className="flex items-center gap-2 sm:min-w-45">
+						<div className="h-6 w-6 shrink-0 rounded border-2 border-[#fe9a00] bg-white flex items-center justify-center">
 							<div
 								className={`h-2 w-4 rounded ${getSessionTypeBadgeClass("special")}`}
 							/>
@@ -370,12 +369,12 @@ export function SessionsCalendar({
 					</div>
 				</div>
 				<div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-					<div className="flex items-center gap-2 sm:min-w-[180px]">
-						<div className="h-6 w-6 flex-shrink-0 rounded bg-[#dcfce7] border border-[rgba(0,0,0,0.1)]" />
+					<div className="flex items-center gap-2 sm:min-w-45">
+						<div className="h-6 w-6 shrink-0 rounded bg-[#dcfce7] border border-[rgba(0,0,0,0.1)]" />
 						<p className="text-xs sm:text-sm text-[#6b7280]">Completed</p>
 					</div>
-					<div className="flex items-center gap-2 sm:min-w-[180px]">
-						<div className="h-6 w-6 flex-shrink-0 rounded bg-[#dbeafe] border border-[rgba(0,0,0,0.1)]" />
+					<div className="flex items-center gap-2 sm:min-w-45">
+						<div className="h-6 w-6 shrink-0 rounded bg-[#dbeafe] border border-[rgba(0,0,0,0.1)]" />
 						<p className="text-xs sm:text-sm text-[#6b7280]">Scheduled</p>
 					</div>
 				</div>

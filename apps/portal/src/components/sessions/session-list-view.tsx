@@ -1,16 +1,15 @@
 import type { Session } from "@repo/shared";
-import {
-	formatSessionDate,
-	formatSessionTime,
-	getSessionStatusBadgeClass,
-	getSessionStatusLabel,
-	getSessionTypeBadgeClass,
-	getSessionTypeLabel,
-} from "@repo/shared";
+import { formatSessionDate, formatSessionTime } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import Link from "next/link";
+import {
+	getSessionStatusBadgeClass,
+	getSessionStatusLabel,
+	getSessionTypeBadgeClass,
+	getSessionTypeLabel,
+} from "@/lib/session-ui";
 
 interface SessionListViewProps {
 	sessions: Session[];
@@ -29,18 +28,18 @@ export function SessionListView({
 						key={session.id}
 						className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6"
 					>
-						<div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
-							<div className="flex-1 space-y-2 w-full">
+						<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
+							<div className="w-full flex-1 space-y-2">
 								<div className="flex flex-wrap items-center gap-2 sm:gap-3">
 									<Badge
-										className={`rounded-md px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium text-white ${getSessionTypeBadgeClass(
+										className={`rounded-md px-2 py-0.5 text-xs font-medium text-white sm:px-2.5 sm:py-1 ${getSessionTypeBadgeClass(
 											session.type,
 										)}`}
 									>
 										{getSessionTypeLabel(session.type)}
 									</Badge>
 									<Badge
-										className={`rounded-md px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium text-white ${getSessionStatusBadgeClass(
+										className={`rounded-md px-2 py-0.5 text-xs font-medium text-white sm:px-2.5 sm:py-1 ${getSessionStatusBadgeClass(
 											session.status,
 										)}`}
 									>

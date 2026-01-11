@@ -1,57 +1,36 @@
 /**
  * Shared utility functions for Legislative Sessions
- * These can be used across portal and admin frontends
+ * These are data manipulation and business logic utilities
+ * UI-specific constants should be defined in the respective app (portal/admin)
  */
 
+import { SessionStatus } from "../enums/session";
 import type { Session } from "../schemas/session.schema";
 
-/**
- * Session type display labels
- */
-export const SESSION_TYPE_LABELS: Record<string, string> = {
-	regular: "Regular Session",
-	special: "Special Session",
-};
+// =============================================================================
+// ROLE-BASED ACCESS CONSTANTS
+// =============================================================================
 
 /**
- * Session status display labels
+ * Session statuses visible to public users (scheduled and completed only)
  */
-export const SESSION_STATUS_LABELS: Record<string, string> = {
-	scheduled: "Scheduled",
-	completed: "Completed",
-};
+export const PUBLIC_SESSION_STATUSES: SessionStatus[] = [
+	SessionStatus.SCHEDULED,
+	SessionStatus.COMPLETED,
+];
 
 /**
- * Session types for filtering (used in UI)
+ * Session statuses visible to admin users (all statuses including draft)
  */
-export const SESSION_TYPES = [
-	{ value: "regular", label: "Regular Session" },
-	{ value: "special", label: "Special Session" },
-] as const;
+export const ADMIN_SESSION_STATUSES: SessionStatus[] = [
+	SessionStatus.DRAFT,
+	SessionStatus.SCHEDULED,
+	SessionStatus.COMPLETED,
+];
 
-/**
- * Session statuses for filtering (used in UI)
- */
-export const SESSION_STATUSES = [
-	{ value: "scheduled", label: "Scheduled" },
-	{ value: "completed", label: "Completed" },
-] as const;
-
-/**
- * Badge color classes for session types
- */
-export const SESSION_TYPE_BADGE_COLORS: Record<string, string> = {
-	regular: "bg-[#dc2626]",
-	special: "bg-[#fe9a00]",
-};
-
-/**
- * Badge color classes for session statuses
- */
-export const SESSION_STATUS_BADGE_COLORS: Record<string, string> = {
-	completed: "bg-[#16a34a]",
-	scheduled: "bg-[#3b82f6]",
-};
+// =============================================================================
+// DATE & TIME FORMATTING
+// =============================================================================
 
 /**
  * Format a date to Philippine locale format (e.g., "Wednesday, January 15, 2024")
@@ -94,33 +73,51 @@ export function formatSessionTime(date: Date | string): string {
 	}
 }
 
+// =============================================================================
+// ROLE-BASED FILTERING
+// =============================================================================
+
 /**
- * Get the display label for a session type
+ * Filter sessions for public access (only scheduled and completed)
+ * @param sessions - Array of sessions to filter
+ * @returns Sessions visible to public users
  */
-export function getSessionTypeLabel(type: string): string {
-	return SESSION_TYPE_LABELS[type] || type;
+export function getPublicSessions(sessions: Session[]): Session[] {
+	return sessions.filter((session) =>
+		PUBLIC_SESSION_STATUSES.includes(session.status as SessionStatus),
+	);
 }
 
 /**
- * Get the display label for a session status
+ * Filter sessions for admin access (all statuses including draft)
+ * @param sessions - Array of sessions to filter
+ * @returns All sessions visible to admin users
  */
-export function getSessionStatusLabel(status: string): string {
-	return SESSION_STATUS_LABELS[status] || status;
+export function getAdminSessions(sessions: Session[]): Session[] {
+	return sessions.filter((session) =>
+		ADMIN_SESSION_STATUSES.includes(session.status as SessionStatus),
+	);
 }
 
 /**
- * Get badge color class for session type
+ * Filter sessions by role (public or admin)
+ * @param sessions - Array of sessions to filter
+ * @param role - User role ('public' or 'admin')
+ * @returns Filtered sessions based on role
  */
-export function getSessionTypeBadgeClass(type: string): string {
-	return SESSION_TYPE_BADGE_COLORS[type] || "bg-gray-500";
+export function filterSessionsByRole(
+	sessions: Session[],
+	role: "public" | "admin",
+): Session[] {
+	if (role === "admin") {
+		return getAdminSessions(sessions);
+	}
+	return getPublicSessions(sessions);
 }
 
-/**
- * Get badge color class for session status
- */
-export function getSessionStatusBadgeClass(status: string): string {
-	return SESSION_STATUS_BADGE_COLORS[status] || "bg-gray-500";
-}
+// =============================================================================
+// GENERAL FILTERING & SORTING
+// =============================================================================
 
 /**
  * Filter sessions by type, status, and date range

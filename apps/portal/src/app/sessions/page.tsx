@@ -1,6 +1,11 @@
-import { isDefinedError } from "@orpc/client";
 import type { Session } from "@repo/shared";
-import { filterSessions, paginateSessions, sortSessions } from "@repo/shared";
+import {
+	filterSessions,
+	getPublicSessions,
+	paginateSessions,
+	SESSION_ITEMS_PER_PAGE,
+	sortSessions,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
@@ -9,7 +14,6 @@ import { SessionListView } from "@/components/sessions/session-list-view";
 import { SessionPagination } from "@/components/sessions/session-pagination";
 import { SessionsCalendar } from "@/components/sessions/sessions-calendar";
 import { SortSelect } from "@/components/sessions/sort-select";
-import { api } from "@/lib/api.client";
 
 // Mock data for legislative sessions (sorted by date descending - newest/upcoming first)
 const ALL_SESSIONS: Session[] = [
@@ -145,8 +149,6 @@ const ALL_SESSIONS: Session[] = [
 	},
 ];
 
-const ITEMS_PER_PAGE = 10;
-
 export default async function Sessions({
 	searchParams,
 }: {
@@ -173,8 +175,9 @@ export default async function Sessions({
 	const filterDateFrom = params.dateFrom || "";
 	const filterDateTo = params.dateTo || "";
 
-	// Process sessions: sort, filter, paginate
-	const sortedSessions = sortSessions(ALL_SESSIONS, sortOrder);
+	// Process sessions: filter for public access (only scheduled and completed), sort, filter, paginate
+	const publicSessions = getPublicSessions(ALL_SESSIONS);
+	const sortedSessions = sortSessions(publicSessions, sortOrder);
 	const filteredSessions = filterSessions(sortedSessions, {
 		types: filterTypes,
 		statuses: filterStatuses,
@@ -184,7 +187,7 @@ export default async function Sessions({
 	const { paginatedSessions, totalPages } = paginateSessions(
 		filteredSessions,
 		currentPage,
-		ITEMS_PER_PAGE,
+		SESSION_ITEMS_PER_PAGE,
 	);
 
 	// Check if any filters are active
@@ -201,27 +204,27 @@ export default async function Sessions({
 
 	return (
 		<div className="min-h-screen bg-[#f9fafb]">
-			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
+			<div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-19.5">
 				{/* Page Header */}
-				<div className="mb-6 sm:mb-8 space-y-2">
-					<h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-normal leading-tight sm:leading-10 text-[#a60202]">
+				<div className="mb-6 space-y-2 sm:mb-8">
+					<h1 className="font-serif text-2xl font-normal leading-tight text-[#a60202] sm:text-3xl sm:leading-10 md:text-4xl">
 						Council Sessions
 					</h1>
-					<p className="text-sm sm:text-base leading-6 text-[#4a5565]">
+					<p className="text-sm leading-6 text-[#4a5565] sm:text-base">
 						Regular sessions are held every Wednesday at 10:00 AM
 					</p>
 				</div>
 
 				{/* View Toggle, Filter, and Sort */}
-				<div className="mb-6 sm:mb-8 flex flex-col gap-4">
-					<div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+				<div className="mb-6 flex flex-col gap-4 sm:mb-8">
+					<div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 						{/* Sort Dropdown (only shown in list view) */}
 						<div className="w-full sm:w-40">
 							{view === "list" && <SortSelect currentSort={sortOrder} />}
 						</div>
 
 						{/* View Toggle */}
-						<div className="flex items-center gap-2 w-full sm:w-auto">
+						<div className="flex w-full items-center gap-2 sm:w-auto">
 							<Link
 								href={`/sessions?view=calendar&month=${selectedMonth}&year=${selectedYear}`}
 								className="flex-1 sm:flex-none"
@@ -229,10 +232,10 @@ export default async function Sessions({
 								<Button
 									variant={view === "calendar" ? "default" : "outline"}
 									size="sm"
-									className={`h-9 gap-2 text-sm w-full cursor-pointer ${
+									className={`h-9 w-full cursor-pointer gap-2 text-sm ${
 										view === "calendar"
 											? "bg-[#a60202] text-white hover:bg-[#8a0101]"
-											: "border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a]"
+											: "border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a] hover:bg-[#f9fafb]"
 									}`}
 								>
 									<CalendarIcon className="h-4 w-4" />
@@ -246,10 +249,10 @@ export default async function Sessions({
 								<Button
 									variant={view === "list" ? "default" : "outline"}
 									size="sm"
-									className={`h-9 gap-2 text-sm w-full cursor-pointer ${
+									className={`h-9 w-full cursor-pointer gap-2 text-sm ${
 										view === "list"
 											? "bg-[#a60202] text-white hover:bg-[#8a0101]"
-											: "border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a]"
+											: "border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a] hover:bg-[#f9fafb]"
 									}`}
 								>
 									<ListIcon className="h-4 w-4" />
