@@ -1,11 +1,5 @@
 "use client";
 
-import {
-	getSessionStatusBadgeClass,
-	getSessionStatusLabel,
-	getSessionTypeBadgeClass,
-	getSessionTypeLabel,
-} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -14,39 +8,36 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@repo/ui/components/popover";
+import { useSessionFilters } from "@repo/ui/hooks";
 import { FilterIcon, XIcon } from "@repo/ui/lib/lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import {
+	getSessionStatusBadgeClass,
+	getSessionStatusLabel,
+	getSessionTypeBadgeClass,
+	getSessionTypeLabel,
+	SESSION_STATUSES,
+	SESSION_TYPES,
+} from "@/lib/session-ui";
 
 interface SessionFiltersProps {
 	sortOrder: string;
 }
 
 export function SessionFilters({ sortOrder }: SessionFiltersProps) {
-	const router = useRouter();
-	const searchParams = useSearchParams();
+	const { filters, updateFilters, resetFilters, getFilterCount } =
+		useSessionFilters();
 
-	// Get current filters from URL
-	const currentTypes =
-		searchParams.get("types")?.split(",").filter(Boolean) || [];
-	const currentStatuses =
-		searchParams.get("statuses")?.split(",").filter(Boolean) || [];
-	const currentDateFrom = searchParams.get("dateFrom") || "";
-	const currentDateTo = searchParams.get("dateTo") || "";
-
-	// Local state for filter selections
-	const [selectedTypes, setSelectedTypes] = useState<string[]>(currentTypes);
-	const [selectedStatuses, setSelectedStatuses] =
-		useState<string[]>(currentStatuses);
-	const [dateFrom, setDateFrom] = useState(currentDateFrom);
-	const [dateTo, setDateTo] = useState(currentDateTo);
+	// Local state for popover and form fields
+	const [selectedTypes, setSelectedTypes] = useState<string[]>(filters.types);
+	const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
+		filters.statuses,
+	);
+	const [dateFrom, setDateFrom] = useState(filters.dateFrom || "");
+	const [dateTo, setDateTo] = useState(filters.dateTo || "");
 	const [open, setOpen] = useState(false);
 
-	const hasActiveFilters =
-		currentTypes.length > 0 ||
-		currentStatuses.length > 0 ||
-		currentDateFrom ||
-		currentDateTo;
+	const hasActiveFilters = getFilterCount() > 0;
 
 	// Validate date range
 	const isDateRangeInvalid = Boolean(
@@ -69,30 +60,13 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		// Don't apply if date range is invalid
 		if (isDateRangeInvalid) return;
 
-		const params = new URLSearchParams();
-		params.set("view", "list");
-		params.set("page", "1");
-		params.set("sort", sortOrder);
-
-		// Add multiple type filters as comma-separated
-		if (selectedTypes.length > 0) {
-			params.set("types", selectedTypes.join(","));
-		}
-
-		// Add multiple status filters as comma-separated
-		if (selectedStatuses.length > 0) {
-			params.set("statuses", selectedStatuses.join(","));
-		}
-
-		if (dateFrom) {
-			params.set("dateFrom", dateFrom);
-		}
-
-		if (dateTo) {
-			params.set("dateTo", dateTo);
-		}
-
-		router.push(`/sessions?${params.toString()}`);
+		updateFilters({
+			types: selectedTypes,
+			statuses: selectedStatuses,
+			dateFrom: dateFrom || null,
+			dateTo: dateTo || null,
+			sortOrder: sortOrder as "asc" | "desc",
+		});
 		setOpen(false);
 	};
 
@@ -101,7 +75,7 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		setSelectedStatuses([]);
 		setDateFrom("");
 		setDateTo("");
-		router.push(`/sessions?view=list&page=1&sort=${sortOrder}`);
+		resetFilters();
 		setOpen(false);
 	};
 
@@ -109,52 +83,21 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		filterType: "type" | "status" | "dateFrom" | "dateTo",
 		value: string,
 	) => {
-		const params = new URLSearchParams();
-		params.set("view", searchParams.get("view") || "list");
-		params.set("page", "1");
-		params.set("sort", searchParams.get("sort") || "desc");
-
 		if (filterType === "type") {
-			const types = currentTypes.filter((t) => t !== value);
-			if (types.length > 0) {
-				params.set("types", types.join(","));
-			}
-			if (currentStatuses.length > 0) {
-				params.set("statuses", currentStatuses.join(","));
-			}
-			// Update local state to reflect the change
+			const types = filters.types.filter((t) => t !== value);
+			updateFilters({ types });
 			setSelectedTypes(types);
 		} else if (filterType === "status") {
-			const statuses = currentStatuses.filter((s) => s !== value);
-			if (currentTypes.length > 0) {
-				params.set("types", currentTypes.join(","));
-			}
-			if (statuses.length > 0) {
-				params.set("statuses", statuses.join(","));
-			}
-			// Update local state to reflect the change
+			const statuses = filters.statuses.filter((s) => s !== value);
+			updateFilters({ statuses });
 			setSelectedStatuses(statuses);
-		} else {
-			if (currentTypes.length > 0) {
-				params.set("types", currentTypes.join(","));
-			}
-			if (currentStatuses.length > 0) {
-				params.set("statuses", currentStatuses.join(","));
-			}
-		}
-
-		if (filterType !== "dateFrom" && currentDateFrom) {
-			params.set("dateFrom", currentDateFrom);
 		} else if (filterType === "dateFrom") {
+			updateFilters({ dateFrom: null });
 			setDateFrom("");
-		}
-		if (filterType !== "dateTo" && currentDateTo) {
-			params.set("dateTo", currentDateTo);
 		} else if (filterType === "dateTo") {
+			updateFilters({ dateTo: null });
 			setDateTo("");
 		}
-
-		router.push(`/sessions?${params.toString()}`);
 	};
 
 	const formatDateLabel = (date: string) => {
@@ -180,10 +123,7 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 							Filter
 							{hasActiveFilters && (
 								<Badge className="ml-1 h-5 w-5 rounded-full bg-[#a60202] p-0 text-[10px] text-white hover:bg-[#a60202]">
-									{currentTypes.length +
-										currentStatuses.length +
-										(currentDateFrom ? 1 : 0) +
-										(currentDateTo ? 1 : 0)}
+									{getFilterCount()}
 								</Badge>
 							)}
 						</Button>
@@ -195,28 +135,20 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 									Session Type
 								</h3>
 								<div className="space-y-2">
-									<label className="flex items-center gap-2 cursor-pointer">
-										<Checkbox
-											checked={selectedTypes.includes("regular")}
-											onCheckedChange={(checked) =>
-												handleTypeChange("regular", checked as boolean)
-											}
-										/>
-										<span className="text-sm text-[#4a5565]">
-											Regular Session
-										</span>
-									</label>
-									<label className="flex items-center gap-2 cursor-pointer">
-										<Checkbox
-											checked={selectedTypes.includes("special")}
-											onCheckedChange={(checked) =>
-												handleTypeChange("special", checked as boolean)
-											}
-										/>
-										<span className="text-sm text-[#4a5565]">
-											Special Session
-										</span>
-									</label>
+									{SESSION_TYPES.map(({ value, label }) => (
+										<label
+											key={value}
+											className="flex cursor-pointer items-center gap-2"
+										>
+											<Checkbox
+												checked={selectedTypes.includes(value)}
+												onCheckedChange={(checked) =>
+													handleTypeChange(value, checked as boolean)
+												}
+											/>
+											<span className="text-sm text-[#4a5565]">{label}</span>
+										</label>
+									))}
 								</div>
 							</div>
 
@@ -225,24 +157,20 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 									Status
 								</h3>
 								<div className="space-y-2">
-									<label className="flex items-center gap-2 cursor-pointer">
-										<Checkbox
-											checked={selectedStatuses.includes("completed")}
-											onCheckedChange={(checked) =>
-												handleStatusChange("completed", checked as boolean)
-											}
-										/>
-										<span className="text-sm text-[#4a5565]">Completed</span>
-									</label>
-									<label className="flex items-center gap-2 cursor-pointer">
-										<Checkbox
-											checked={selectedStatuses.includes("scheduled")}
-											onCheckedChange={(checked) =>
-												handleStatusChange("scheduled", checked as boolean)
-											}
-										/>
-										<span className="text-sm text-[#4a5565]">Scheduled</span>
-									</label>
+									{SESSION_STATUSES.map(({ value, label }) => (
+										<label
+											key={value}
+											className="flex cursor-pointer items-center gap-2"
+										>
+											<Checkbox
+												checked={selectedStatuses.includes(value)}
+												onCheckedChange={(checked) =>
+													handleStatusChange(value, checked as boolean)
+												}
+											/>
+											<span className="text-sm text-[#4a5565]">{label}</span>
+										</label>
+									))}
 								</div>
 							</div>
 
@@ -281,26 +209,26 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 								</div>
 							)}
 
-							<div className="border-t border-[rgba(0,0,0,0.1)] pt-4 flex gap-2">
+							<div className="flex gap-2 border-t border-[rgba(0,0,0,0.1)] pt-4">
 								<Button
 									onClick={applyFilters}
 									size="sm"
-									className="flex-1 h-9 bg-[#a60202] text-white hover:bg-[#8a0101] cursor-pointer"
+									className="h-9 flex-1 cursor-pointer bg-[#a60202] text-white hover:bg-[#8a0101]"
 									disabled={isDateRangeInvalid}
 								>
 									Apply Filters
 								</Button>
 								<Button
 									onClick={() => {
-										setSelectedTypes(currentTypes);
-										setSelectedStatuses(currentStatuses);
-										setDateFrom(currentDateFrom);
-										setDateTo(currentDateTo);
+										setSelectedTypes(filters.types);
+										setSelectedStatuses(filters.statuses);
+										setDateFrom(filters.dateFrom || "");
+										setDateTo(filters.dateTo || "");
 										setOpen(false);
 									}}
 									variant="outline"
 									size="sm"
-									className="h-9 border-[rgba(0,0,0,0.1)] cursor-pointer"
+									className="h-9 cursor-pointer border-[rgba(0,0,0,0.1)]"
 								>
 									Cancel
 								</Button>
@@ -325,7 +253,7 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 			{hasActiveFilters && (
 				<div className="flex flex-wrap items-center gap-2">
 					<span className="text-xs text-[#6b7280]">Active filters:</span>
-					{currentTypes.map((type) => (
+					{filters.types.map((type) => (
 						<Badge
 							key={type}
 							className={`h-6 gap-1 rounded-md px-2 text-xs text-white ${getSessionTypeBadgeClass(
@@ -336,13 +264,13 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 							<button
 								type="button"
 								onClick={() => removeFilter("type", type)}
-								className="ml-1 hover:opacity-70 cursor-pointer"
+								className="ml-1 cursor-pointer hover:opacity-70"
 							>
 								<XIcon className="h-3 w-3" />
 							</button>
 						</Badge>
 					))}
-					{currentStatuses.map((status) => (
+					{filters.statuses.map((status) => (
 						<Badge
 							key={status}
 							className={`h-6 gap-1 rounded-md px-2 text-xs text-white ${getSessionStatusBadgeClass(
@@ -353,15 +281,15 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 							<button
 								type="button"
 								onClick={() => removeFilter("status", status)}
-								className="ml-1 hover:opacity-70 cursor-pointer"
+								className="ml-1 cursor-pointer hover:opacity-70"
 							>
 								<XIcon className="h-3 w-3" />
 							</button>
 						</Badge>
 					))}
-					{currentDateFrom && (
+					{filters.dateFrom && (
 						<Badge className="h-6 gap-1 rounded-md bg-[#6b7280] px-2 text-xs text-white hover:bg-[#6b7280]">
-							From: {formatDateLabel(currentDateFrom)}
+							From: {formatDateLabel(filters.dateFrom)}
 							<button
 								type="button"
 								onClick={() => removeFilter("dateFrom", "")}
@@ -371,9 +299,9 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 							</button>
 						</Badge>
 					)}
-					{currentDateTo && (
+					{filters.dateTo && (
 						<Badge className="h-6 gap-1 rounded-md bg-[#6b7280] px-2 text-xs text-white hover:bg-[#6b7280]">
-							To: {formatDateLabel(currentDateTo)}
+							To: {formatDateLabel(filters.dateTo)}
 							<button
 								type="button"
 								onClick={() => removeFilter("dateTo", "")}

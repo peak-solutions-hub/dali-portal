@@ -1,8 +1,15 @@
+import { formatSessionDate, formatSessionTime } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+	getSessionStatusBadgeClass,
+	getSessionStatusLabel,
+	getSessionTypeBadgeClass,
+	getSessionTypeLabel,
+} from "@/lib/session-ui";
 
 interface AgendaItem {
 	number: string;
@@ -18,9 +25,8 @@ interface SessionData {
 	id: string;
 	type: string;
 	status: string;
-	date: string;
-	time: string;
-	sessionNumber: string;
+	scheduleDate: Date;
+	sessionNumber: number;
 	agendaItems: AgendaItem[];
 }
 
@@ -34,11 +40,10 @@ const getSessionData = (id: string): SessionData | null => {
 
 	return {
 		id,
-		type: "Regular Session",
-		status: "Completed",
-		date: "Wednesday, September 17, 2025",
-		time: "10:00 AM",
-		sessionNumber: "120",
+		type: "regular",
+		status: "completed",
+		scheduleDate: new Date("2025-11-12T10:00:00"),
+		sessionNumber: 120,
 		agendaItems: [
 			{
 				number: "01",
@@ -150,30 +155,33 @@ export default async function SessionDetailPage({
 						<div className="flex gap-3">
 							<Badge
 								variant="default"
-								className="bg-primary text-white"
-								aria-label={`Session type: ${session.type}`}
+								className={`font-medium text-white ${getSessionTypeBadgeClass(session.type)}`}
+								aria-label={`Session type: ${getSessionTypeLabel(session.type)}`}
 							>
-								{session.type}
+								{getSessionTypeLabel(session.type)}
 							</Badge>
 							<Badge
 								variant="default"
-								className="bg-green-600 text-white font-medium"
-								aria-label={`Session status: ${session.status}`}
+								className={`font-medium text-white ${getSessionStatusBadgeClass(session.status)}`}
+								aria-label={`Session status: ${getSessionStatusLabel(session.status)}`}
 							>
-								{session.status}
+								{getSessionStatusLabel(session.status)}
 							</Badge>
+							<span className="text-sm text-[#4a5565]">
+								Session #{session.sessionNumber}
+							</span>
 						</div>
 
 						{/* Date */}
 						<h1 className="font-serif text-3xl font-normal text-primary">
-							{session.date}
+							{formatSessionDate(session.scheduleDate)}
 						</h1>
 
 						{/* Time - WCAG AA compliant contrast */}
 						<div className="flex items-center gap-2">
 							<span className="text-lg font-medium text-gray-900">Time:</span>
-							<time dateTime="10:00" className="text-lg text-gray-900">
-								{session.time}
+							<time className="text-lg text-gray-900">
+								{formatSessionTime(session.scheduleDate)}
 							</time>
 						</div>
 

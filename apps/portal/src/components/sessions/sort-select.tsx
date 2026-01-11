@@ -27,7 +27,7 @@ export function SortSelect({ currentSort }: SortSelectProps) {
 	return (
 		<div className="flex items-center gap-2">
 			<Select value={currentSort} onValueChange={handleSortChange}>
-				<SelectTrigger className="h-8 sm:h-9 w-full border-[rgba(0,0,0,0.1)] bg-white text-xs sm:text-sm cursor-pointer">
+				<SelectTrigger className="h-8 w-full cursor-pointer border-[rgba(0,0,0,0.1)] bg-white text-xs sm:h-9 sm:text-sm">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent
