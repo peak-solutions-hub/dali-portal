@@ -1,5 +1,7 @@
 "use client";
 
+import type { Role } from "@repo/shared";
+import { formatRoleDisplay } from "@repo/shared";
 import { Card } from "@repo/ui/components/card";
 import { Input } from "@repo/ui/components/input";
 import {
@@ -14,9 +16,9 @@ import { Filter, Search } from "lucide-react";
 interface Props {
 	searchQuery: string;
 	onSearchChange: (value: string) => void;
-	roleFilter: string;
-	onRoleChange: (value: string) => void;
-	roles: string[];
+	roleFilter: Role["name"] | "all";
+	onRoleChange: (value: Role["name"] | "all") => void;
+	roles: Role[];
 	resultCount: number;
 	totalCount: number;
 }
@@ -39,12 +41,12 @@ export function SearchFilters({
 						placeholder="Search by name or email..."
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
-						className="pl-10 bg-[#f3f3f5] border-transparent"
+						className="pl-10 bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
 					/>
 				</div>
 
 				<Select value={roleFilter} onValueChange={onRoleChange}>
-					<SelectTrigger className="w-64 bg-[#f3f3f5] border-transparent">
+					<SelectTrigger className="w-64 bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]">
 						<Filter className="size-4" />
 						<SelectValue placeholder="All Roles" />
 					</SelectTrigger>
@@ -60,13 +62,13 @@ export function SearchFilters({
 						>
 							All Roles
 						</SelectItem>
-						{roles.map((role) => (
+						{roles.map((role: Role) => (
 							<SelectItem
-								key={role}
-								value={role}
+								key={role.name}
+								value={role.name}
 								className="hover:bg-gray-100 cursor-pointer"
 							>
-								{role}
+								{formatRoleDisplay(role.name)}
 							</SelectItem>
 						))}
 					</SelectContent>

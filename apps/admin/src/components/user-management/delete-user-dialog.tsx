@@ -1,5 +1,7 @@
 "use client";
 
+import type { UserWithRole } from "@repo/shared";
+import { formatRoleDisplay, getRoleBadgeStyles } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -10,21 +12,15 @@ import {
 	DialogTitle,
 } from "@repo/ui/components/dialog";
 import { AlertTriangle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-
-interface User {
-	id: string;
-	fullName: string;
-	email: string;
-	role: string;
-	status: "active" | "invited";
-}
+import { api } from "@/lib/api.client";
 
 interface DeleteUserDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	user: User;
+	user: UserWithRole | null;
 }
 
 export function DeleteUserDialog({
@@ -32,32 +28,38 @@ export function DeleteUserDialog({
 	onOpenChange,
 	user,
 }: DeleteUserDialogProps) {
-	const [isDeleting, setIsDeleting] = useState(false);
+	const [isDeactivating, setIsDeactivating] = useState(false);
+	const router = useRouter();
 
-	const handleDelete = async () => {
-		setIsDeleting(true);
+	const handleUserDeactivation = async () => {
+		if (!user) return;
 
-		// Simulate API call
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-
-		// TODO: Implement actual delete logic
-		console.log("Deactivating user:", user.id);
+		setIsDeactivating(true);
 
 		try {
-			toast.success(`${user.fullName} has been deactivated`, {
-				description: "User account has been successfully deactivated",
-				duration: 3000,
-			});
-			onOpenChange(false);
+			const data = await api.users.deactivate({ id: user.id });
+
+			if (data) {
+				toast.success(`${user.fullName} has been deactivated`, {
+					description: "User account has been successfully deactivated",
+					duration: 3000,
+				});
+				onOpenChange(false);
+
+				router.refresh();
+			}
 		} catch (error) {
 			console.error("Error deactivating user:", error);
 			toast.error("Failed to deactivate user", {
-				description: "Please try again later",
+				description:
+					error instanceof Error ? error.message : "Please try again later",
 			});
 		} finally {
-			setIsDeleting(false);
+			setIsDeactivating(false);
 		}
 	};
+
+	if (!user) return null;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,8 +74,8 @@ export function DeleteUserDialog({
 						</div>
 					</div>
 					<DialogDescription className="pt-3">
-						Are you sure you want to deactivate this user account? This action
-						will:
+						Are you sure you want to deactivate this user account? This will set
+						their status to "Deactivated" and:
 					</DialogDescription>
 				</DialogHeader>
 
@@ -97,7 +99,11 @@ export function DeleteUserDialog({
 								<span className="text-sm font-medium text-[#364153]">
 									Role:
 								</span>
-								<span className="text-sm text-[#101828]">{user.role}</span>
+								<span
+									className={`text-xs px-2 py-0.5 rounded-md ${getRoleBadgeStyles()}`}
+								>
+									{formatRoleDisplay(user.role.name)}
+								</span>
 							</div>
 						</div>
 					</div>
@@ -106,11 +112,7 @@ export function DeleteUserDialog({
 					<ul className="space-y-2 text-sm text-[#4a5565]">
 						<li className="flex items-start gap-2">
 							<span className="text-[#a60202] mt-0.5">•</span>
-							<span>Revoke the user's access to the system immediately</span>
-						</li>
-						<li className="flex items-start gap-2">
-							<span className="text-[#a60202] mt-0.5">•</span>
-							<span>Remove them from Supabase authentication</span>
+							<span>Mark the user account as deactivated in the system</span>
 						</li>
 						<li className="flex items-start gap-2">
 							<span className="text-[#a60202] mt-0.5">•</span>
@@ -118,11 +120,18 @@ export function DeleteUserDialog({
 								Prevent them from logging in or accessing any resources
 							</span>
 						</li>
+						<li className="flex items-start gap-2">
+							<span className="text-[#a60202] mt-0.5">•</span>
+							<span>
+								The user data will remain in the database for audit purposes
+							</span>
+						</li>
 					</ul>
 
 					<p className="mt-4 text-sm font-medium text-[#101828]">
-						This action cannot be undone. The user will need to be re-invited if
-						you want to restore their access.
+						The user will appear at the bottom of the user list with a
+						"Deactivated" status. An IT Administrator can reactivate the account
+						if needed.
 					</p>
 				</div>
 
@@ -131,17 +140,17 @@ export function DeleteUserDialog({
 						type="button"
 						variant="outline"
 						onClick={() => onOpenChange(false)}
-						disabled={isDeleting}
+						disabled={isDeactivating}
 					>
 						Cancel
 					</Button>
 					<Button
 						type="button"
-						onClick={handleDelete}
-						disabled={isDeleting}
+						onClick={handleUserDeactivation}
+						disabled={isDeactivating}
 						className="bg-[#a60202] hover:bg-[#8a0101] text-white"
 					>
-						{isDeleting ? "Deactivating..." : "Deactivate User"}
+						{isDeactivating ? "Deactivating..." : "Deactivate User"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

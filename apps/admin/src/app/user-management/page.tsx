@@ -1,194 +1,70 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
+import type { Role, UserWithRole } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
-import { UserPlus } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, Loader2, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { UsersTable } from "@/components/user-management";
 import { InviteUserDialog, SearchFilters } from "@/components/user-management/";
+import { api } from "@/lib/api.client";
 
 export default function UserManagementPage() {
 	const [searchQuery, setSearchQuery] = useState("");
-	const [roleFilter, setRoleFilter] = useState("all");
+	const [roleFilter, setRoleFilter] = useState<Role["name"] | "all">("all");
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+	const [users, setUsers] = useState<UserWithRole[]>([]);
+	const [roles, setRoles] = useState<Role[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
-	// Mock data - will be replaced with API calls
-	const users = [
-		{
-			id: "1",
-			fullName: "Che Cruz",
-			email: "che@iloilo.gov.ph",
-			role: "Administrative Office Clerk",
-			status: "active" as const,
-		},
-		{
-			id: "2",
-			fullName: "Ruth Santos",
-			email: "ruth@iloilo.gov.ph",
-			role: "Administrative Office Clerk",
-			status: "active" as const,
-		},
-		{
-			id: "3",
-			fullName: "Hon. Sheen Marie Mabilog",
-			email: "councilor.mabilog@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "4",
-			fullName: "Hon. Love Baronda",
-			email: "vice.mayor@iloilo.gov.ph",
-			role: "Vice Mayor",
-			status: "active" as const,
-		},
-		{
-			id: "5",
-			fullName: "Hon. Rex Marcus Sarabia",
-			email: "councilor.sarabia@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "6",
-			fullName: "Joan Reyes",
-			email: "joan@iloilo.gov.ph",
-			role: "Information Systems Analyst",
-			status: "active" as const,
-		},
-		{
-			id: "7",
-			fullName: "System Administrator",
-			email: "admin@iloilo.gov.ph",
-			role: "Administrator",
-			status: "active" as const,
-		},
-		{
-			id: "8",
-			fullName: "Rem Garcia",
-			email: "rem@iloilo.gov.ph",
-			role: "Administrative Office Department Head",
-			status: "active" as const,
-		},
-		{
-			id: "9",
-			fullName: "Carlos VM Staff",
-			email: "vm.staff@iloilo.gov.ph",
-			role: "Vice Mayor Office Staff",
-			status: "active" as const,
-		},
-		{
-			id: "10",
-			fullName: "Hon. Nene Dela Llana",
-			email: "councilor.delallana@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "11",
-			fullName: "Hon. Romel Duron",
-			email: "councilor.duron@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "12",
-			fullName: "Maria Santos",
-			email: "secretariat@iloilo.gov.ph",
-			role: "Secretariat",
-			status: "active" as const,
-		},
-		{
-			id: "13",
-			fullName: "Hon. Rudolph Jeffrey Ganzon",
-			email: "councilor.ganzon@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "14",
-			fullName: "Hon. Frances Grace Parcon-Torres",
-			email: "councilor.torres@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "15",
-			fullName: "Hon. Sedfrey Cabaluna",
-			email: "councilor.cabaluna@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "16",
-			fullName: "Hon. Miguel Trenas",
-			email: "councilor.trenas@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "17",
-			fullName: "Hon. Mandrie Malabor",
-			email: "councilor.malabor@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "18",
-			fullName: "Hon. Alan Zaldivar",
-			email: "councilor.zaldivar@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "19",
-			fullName: "Hon. Irene Ong",
-			email: "liga.president@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "20",
-			fullName: "Hon. Lyndon Acap",
-			email: "councilor.acap@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "21",
-			fullName: "Hon. Johnny Young",
-			email: "councilor.young@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "active" as const,
-		},
-		{
-			id: "22",
-			fullName: "Hon. Jelma Crystel Implica",
-			email: "sk.president@iloilo.gov.ph",
-			role: "City Councilor",
-			status: "invited" as const,
-		},
-	];
+	// Fetch users and roles from backend
+	useEffect(() => {
+		async function fetchData() {
+			try {
+				setIsLoading(true);
 
-	// Filter users based on search query and role
+				// Fetch users
+				const usersResult = await api.users.list({
+					limit: 100,
+					search: searchQuery || undefined,
+					roleType:
+						roleFilter !== "all" ? (roleFilter as Role["name"]) : undefined,
+				});
+
+				if (usersResult.users) {
+					setUsers(usersResult.users as unknown as UserWithRole[]);
+				}
+
+				// Fetch roles
+				const rolesResult = await api.roles.list();
+
+				if (rolesResult.roles) {
+					setRoles(rolesResult.roles as unknown as Role[]);
+				}
+
+				setError(null);
+			} catch (e) {
+				console.error("Fetch error:", e);
+				setError(
+					`Failed to load data: ${e instanceof Error ? e.message : String(e)}`,
+				);
+			} finally {
+				setIsLoading(false);
+			}
+		}
+
+		fetchData();
+	}, [searchQuery, roleFilter]);
+
 	const filteredUsers = users.filter((user) => {
 		const matchesSearch =
 			user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			user.email.toLowerCase().includes(searchQuery.toLowerCase());
-		const matchesRole = roleFilter === "all" || user.role === roleFilter;
+		const matchesRole = roleFilter === "all" || user.role.name === roleFilter;
 		return matchesSearch && matchesRole;
 	});
-
-	const roles = [
-		"Administrator",
-		"Administrative Office Clerk",
-		"Administrative Office Department Head",
-		"City Councilor",
-		"Information Systems Analyst",
-		"Secretariat",
-		"Vice Mayor",
-		"Vice Mayor Office Staff",
-	];
 
 	return (
 		<div className="flex flex-col gap-6 p-6">
@@ -205,25 +81,59 @@ export default function UserManagementPage() {
 				<Button
 					onClick={() => setInviteDialogOpen(true)}
 					className="bg-[#a60202] hover:bg-[#8a0101] text-white gap-2"
+					disabled={isLoading}
 				>
 					<UserPlus className="size-4" />
 					Invite New User
 				</Button>
 			</div>
 
-			<SearchFilters
-				searchQuery={searchQuery}
-				onSearchChange={(v) => setSearchQuery(v)}
-				roleFilter={roleFilter}
-				onRoleChange={(v) => setRoleFilter(v)}
-				roles={roles}
-				resultCount={filteredUsers.length}
-				totalCount={users.length}
-			/>
+			{/* Error State */}
+			{error && (
+				<Card className="p-4 border-red-200 bg-red-50">
+					<div className="flex items-center gap-2 text-red-800">
+						<AlertTriangle className="size-4" />
+						<p>{error}</p>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => window.location.reload()}
+							className="ml-auto text-red-600 border-red-200"
+						>
+							Retry
+						</Button>
+					</div>
+				</Card>
+			)}
 
-			<Card className="p-0 overflow-hidden">
-				<UsersTable users={filteredUsers} />
-			</Card>
+			{/* Loading State */}
+			{isLoading && (
+				<Card className="p-8 text-center">
+					<div className="flex items-center justify-center gap-2 text-[#4a5565]">
+						<Loader2 className="size-4 animate-spin" />
+						<p>Loading users...</p>
+					</div>
+				</Card>
+			)}
+
+			{/* Content */}
+			{!isLoading && !error && (
+				<>
+					<SearchFilters
+						searchQuery={searchQuery}
+						onSearchChange={(v) => setSearchQuery(v)}
+						roleFilter={roleFilter}
+						onRoleChange={(v) => setRoleFilter(v)}
+						roles={roles}
+						resultCount={filteredUsers.length}
+						totalCount={users.length}
+					/>
+
+					<Card className="p-0 overflow-hidden">
+						<UsersTable users={filteredUsers} roles={roles} />
+					</Card>
+				</>
+			)}
 
 			<InviteUserDialog
 				open={inviteDialogOpen}

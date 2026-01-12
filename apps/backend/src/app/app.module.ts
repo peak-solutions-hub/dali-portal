@@ -6,6 +6,8 @@ import { AppController } from "@/app/app.controller";
 import { DbModule } from "@/app/db/db.module";
 import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module";
 import { LegislativeDocumentsModule } from "@/app/legislative-documents/legislative-documents.module";
+import { RolesModule } from "@/app/roles/roles.module";
+import { UsersModule } from "@/app/users/users.module";
 import { LibModule } from "@/lib/lib.module";
 import { AppService } from "./app.service";
 
@@ -15,6 +17,8 @@ import { AppService } from "./app.service";
 		DbModule,
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
+		RolesModule,
+		UsersModule,
 		// orpc
 		ORPCModule.forRootAsync({
 			inject: [REQUEST],

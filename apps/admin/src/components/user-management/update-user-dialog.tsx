@@ -1,5 +1,7 @@
 "use client";
 
+import type { Role, UserWithRole } from "@repo/shared";
+import { formatRoleDisplay, getRoleBadgeStyles } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -20,68 +22,61 @@ import {
 } from "@repo/ui/components/select";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
-interface User {
-	id: string;
-	fullName: string;
-	email: string;
-	role: string;
-	status: "active" | "invited";
-}
+import { api } from "@/lib/api.client";
 
 interface UpdateUserDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	user: User;
+	user: UserWithRole | null;
+	roles: Role[];
 }
 
 export function UpdateUserDialog({
 	open,
 	onOpenChange,
 	user,
+	roles,
 }: UpdateUserDialogProps) {
-	const [fullName, setFullName] = useState(user.fullName);
-	const [role, setRole] = useState(user.role);
+	const [fullName, setFullName] = useState(user?.fullName || "");
+	const [roleId, setRoleId] = useState(user?.roleId || "");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	// Update local state when user prop changes
 	useEffect(() => {
-		setFullName(user.fullName);
-		setRole(user.role);
+		if (user) {
+			setFullName(user.fullName);
+			setRoleId(user.roleId);
+		}
 	}, [user]);
-
-	const roles = [
-		"Administrator",
-		"Administrative Office Clerk",
-		"Administrative Office Department Head",
-		"City Councilor",
-		"Information Systems Analyst",
-		"Secretariat",
-		"Vice Mayor",
-		"Vice Mayor Office Staff",
-	];
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!user) return;
+
 		setIsSubmitting(true);
 
-		// Simulate API call
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-
-		// TODO: Implement actual update logic
-		console.log("Updating user:", { id: user.id, fullName, role });
-
 		try {
-			// Success toast
-			toast.success(`${fullName} updated successfully`, {
-				description: "User details have been saved",
-				duration: 3000,
+			const data = await api.users.update({
+				id: user.id,
+				fullName: fullName.trim(),
+				roleId: roleId,
 			});
-			onOpenChange(false);
+
+			if (data) {
+				toast.success(`${fullName} updated successfully`, {
+					description: "User details have been saved",
+					duration: 3000,
+				});
+				onOpenChange(false);
+
+				// Refresh the page to show updated data
+				window.location.reload();
+			}
 		} catch (error) {
 			console.error("Error updating user:", error);
 			toast.error("Failed to update user", {
-				description: "Please try again later",
+				description:
+					error instanceof Error ? error.message : "Please try again later",
 			});
 		} finally {
 			setIsSubmitting(false);
@@ -89,11 +84,14 @@ export function UpdateUserDialog({
 	};
 
 	const handleCancel = () => {
-		// Reset to original values
-		setFullName(user.fullName);
-		setRole(user.role);
+		if (user) {
+			setFullName(user.fullName);
+			setRoleId(user.roleId);
+		}
 		onOpenChange(false);
 	};
+
+	if (!user) return null;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -117,6 +115,7 @@ export function UpdateUserDialog({
 								value={fullName}
 								onChange={(e) => setFullName(e.target.value)}
 								required
+								className="bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
 							/>
 						</div>
 
@@ -128,7 +127,7 @@ export function UpdateUserDialog({
 								type="email"
 								value={user.email}
 								disabled
-								className="bg-[#f3f3f5] cursor-not-allowed"
+								className="bg-[#f3f3f5] cursor-not-allowed border-[#d0d5dd]"
 							/>
 							<p className="text-xs text-[#4a5565]">
 								Email cannot be changed after account creation
@@ -138,8 +137,11 @@ export function UpdateUserDialog({
 						{/* Role Select */}
 						<div className="flex flex-col gap-2">
 							<Label htmlFor="role">Role</Label>
-							<Select value={role} onValueChange={setRole} required>
-								<SelectTrigger id="role">
+							<Select value={roleId} onValueChange={setRoleId} required>
+								<SelectTrigger
+									id="role"
+									className="bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
+								>
 									<SelectValue placeholder="Select a role" />
 								</SelectTrigger>
 								<SelectContent
@@ -148,13 +150,17 @@ export function UpdateUserDialog({
 									align="start"
 									sideOffset={4}
 								>
-									{roles.map((roleName) => (
+									{roles.map((role) => (
 										<SelectItem
-											key={roleName}
-											value={roleName}
+											key={role.id}
+											value={role.id}
 											className="hover:bg-gray-100 cursor-pointer"
 										>
-											{roleName}
+											<span
+												className={`inline-block px-2 py-0.5 text-xs rounded-md ${getRoleBadgeStyles()}`}
+											>
+												{formatRoleDisplay(role.name)}
+											</span>
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -173,7 +179,7 @@ export function UpdateUserDialog({
 						</Button>
 						<Button
 							type="submit"
-							disabled={isSubmitting || !fullName || !role}
+							disabled={isSubmitting || !fullName || !roleId}
 							className="bg-[#a60202] hover:bg-[#8a0101] text-white"
 						>
 							{isSubmitting ? "Saving..." : "Save Changes"}

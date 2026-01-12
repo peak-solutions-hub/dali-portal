@@ -10,6 +10,8 @@ const apiUrl =
 		? "http://localhost:8080"
 		: undefined);
 
+console.log("API URL:", apiUrl);
+
 if (!apiUrl) {
 	throw new Error(
 		"Missing NEXT_PUBLIC_API_URL — set this environment variable for production deployments",

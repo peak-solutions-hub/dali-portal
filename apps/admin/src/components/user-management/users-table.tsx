@@ -1,5 +1,11 @@
 "use client";
 
+import type { Role, UserWithRole } from "@repo/shared";
+import {
+	formatRoleDisplay,
+	getRoleBadgeStyles,
+	getStatusBadgeStyles,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -15,20 +21,13 @@ import { useEffect, useRef, useState } from "react";
 import { DeleteUserDialog } from "./delete-user-dialog";
 import { UpdateUserDialog } from "./update-user-dialog";
 
-interface User {
-	id: string;
-	fullName: string;
-	email: string;
-	role: string;
-	status: "active" | "invited";
-}
-
 interface UsersTableProps {
-	users: User[];
+	users: UserWithRole[];
+	roles: Role[];
 }
 
-export function UsersTable({ users }: UsersTableProps) {
-	const [selectedUser, setSelectedUser] = useState<User | null>(null);
+export function UsersTable({ users, roles }: UsersTableProps) {
+	const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
 	const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -47,20 +46,9 @@ export function UsersTable({ users }: UsersTableProps) {
 		return () => document.removeEventListener("click", onDocClick);
 	}, [menuOpenUserId]);
 
-	const handleActionClick = (user: User) => {
+	const handleActionClick = (user: UserWithRole) => {
 		setSelectedUser(user);
 		setMenuOpenUserId((prev) => (prev === user.id ? null : user.id));
-	};
-
-	const getRoleBadgeStyles = (role: string) => {
-		return "bg-[rgba(166,2,2,0.05)] border-[rgba(166,2,2,0.2)] text-[#a60202]";
-	};
-
-	const getStatusBadgeStyles = (status: string) => {
-		if (status === "active") {
-			return "bg-[#dcfce7] border-[#b9f8cf] text-[#016630]";
-		}
-		return "bg-[#dbeafe] border-[#bedbff] text-[#193cb8]";
 	};
 
 	return (
@@ -101,16 +89,22 @@ export function UsersTable({ users }: UsersTableProps) {
 							</TableCell>
 							<TableCell className="px-6 py-5">
 								<Badge
-									className={`text-xs px-2 py-0.5 rounded-md ${getRoleBadgeStyles(user.role)}`}
+									className={`text-xs px-2 py-0.5 rounded-md ${getRoleBadgeStyles()}`}
 								>
-									{user.role}
+									{formatRoleDisplay(user.role.name)}
 								</Badge>
 							</TableCell>
 							<TableCell className="px-6 py-5">
 								<Badge
 									className={`text-xs px-2 py-0.5 rounded-md ${getStatusBadgeStyles(user.status)}`}
 								>
-									{user.status === "active" ? "Active" : "Invited"}
+									{user.status === "active"
+										? "Active"
+										: user.status === "invited"
+											? "Invited"
+											: user.status === "deactivated"
+												? "Deactivated"
+												: "Inactive"}
 								</Badge>
 							</TableCell>
 							<TableCell className="px-6 py-5 text-right relative">
@@ -168,6 +162,7 @@ export function UsersTable({ users }: UsersTableProps) {
 					open={updateDialogOpen}
 					onOpenChange={setUpdateDialogOpen}
 					user={selectedUser}
+					roles={roles}
 				/>
 			)}
 

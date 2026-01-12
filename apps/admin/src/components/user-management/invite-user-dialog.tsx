@@ -101,6 +101,7 @@ export function InviteUserDialog({
 								value={fullName}
 								onChange={(e) => setFullName(e.target.value)}
 								required
+								className="bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
 							/>
 						</div>
 
@@ -114,6 +115,7 @@ export function InviteUserDialog({
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 								required
+								className="bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
 							/>
 						</div>
 
