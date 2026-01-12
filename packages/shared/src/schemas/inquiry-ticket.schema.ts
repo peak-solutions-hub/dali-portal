@@ -72,7 +72,7 @@ export const InquiryMessageSchema = z.object({
 	ticketId: z.uuid(),
 	senderName: z.string().min(1).max(TEXT_LIMITS.XS),
 	content: z.string().min(1).max(TEXT_LIMITS.LG),
-	attachmentPaths: z.url().array().optional(), // file paths stored in supabase storage, use signed URLs to access
+	attachmentPaths: z.string().array().optional(), // file paths stored in supabase storage, use signed URLs to access
 	senderType: InquiryMessageSenderTypeEnum,
 	createdAt: z.coerce.date(),
 });

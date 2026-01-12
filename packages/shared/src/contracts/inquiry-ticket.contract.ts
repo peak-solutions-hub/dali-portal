@@ -80,7 +80,7 @@ export const getInquiryTicketWithMessages = oc
 		path: "/inquiries/{id}/messages",
 		summary: "Get inquiry details with messages",
 		description:
-			"Citizens and staff retrieves full inquiry details with messages.",
+			"Citizens and staff retrieve full inquiry details with messages.",
 		tags: ["Inquiry", "Public", "Admin"],
 	})
 	.errors({

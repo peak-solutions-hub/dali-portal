@@ -1,12 +1,19 @@
 import { Controller } from "@nestjs/common";
-import { Impl, Implement, implement, ORPCError } from "@orpc/nest";
+import { Implement, implement, ORPCError } from "@orpc/nest";
 import { contract } from "@repo/shared";
+import { InquiryMessageService } from "./inquiry-message.service";
 import { InquiryTicketService } from "./inquiry-ticket.service";
 
 @Controller()
 export class InquiryTicketController {
-	constructor(private readonly inquiryService: InquiryTicketService) {}
+	constructor(
+		private readonly inquiryService: InquiryTicketService,
+		private readonly messageService: InquiryMessageService,
+	) {}
 
+	// TODO: add captcha token validation
+
+	// TODO: add rate limiting
 	@Implement(contract.inquiries.create)
 	create() {
 		return implement(contract.inquiries.create).handler(async ({ input }) => {
@@ -14,6 +21,7 @@ export class InquiryTicketController {
 		});
 	}
 
+	// TODO: add rate limiting
 	@Implement(contract.inquiries.track)
 	track() {
 		return implement(contract.inquiries.track).handler(async ({ input }) => {
@@ -26,6 +34,16 @@ export class InquiryTicketController {
 		return implement(contract.inquiries.getWithMessages).handler(
 			async ({ input }) => {
 				return await this.inquiryService.getWithMessages(input);
+			},
+		);
+	}
+
+	// TODO: add rate limiting
+	@Implement(contract.inquiries.sendMessage)
+	sendMessage() {
+		return implement(contract.inquiries.sendMessage).handler(
+			async ({ input }) => {
+				return await this.messageService.send(input);
 			},
 		);
 	}
