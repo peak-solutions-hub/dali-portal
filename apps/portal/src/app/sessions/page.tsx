@@ -4,10 +4,13 @@ import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { SessionFilters } from "@/components/sessions/session-filters";
 import { SessionListView } from "@/components/sessions/session-list-view";
+import { SessionListViewSkeleton } from "@/components/sessions/session-list-view-skeleton";
 import { SessionPagination } from "@/components/sessions/session-pagination";
 import { SessionsCalendar } from "@/components/sessions/sessions-calendar";
+import { SessionsCalendarSkeleton } from "@/components/sessions/sessions-calendar-skeleton";
 import { SortSelect } from "@/components/sessions/sort-select";
 import { api } from "@/lib/api.client";
 
@@ -17,43 +20,34 @@ type PublicSessionStatus = "scheduled" | "completed";
 // Items per page for session listing
 const SESSION_ITEMS_PER_PAGE = 10;
 
-export default async function Sessions({
-	searchParams,
+// Async component that fetches and displays session content
+async function SessionsContent({
+	currentPage,
+	view,
+	sortOrder,
+	filterTypes,
+	filterStatuses,
+	filterDateFrom,
+	filterDateTo,
+	selectedYear,
+	selectedMonth,
 }: {
-	searchParams: Promise<{
-		page?: string;
-		view?: string;
-		month?: string;
-		year?: string;
-		sort?: string;
-		types?: string;
-		statuses?: string;
-		dateFrom?: string;
-		dateTo?: string;
-	}>;
+	currentPage: number;
+	view: "list" | "calendar";
+	sortOrder: "asc" | "desc";
+	filterTypes: string[];
+	filterStatuses: string[];
+	filterDateFrom: string;
+	filterDateTo: string;
+	selectedYear: number;
+	selectedMonth: number;
 }) {
-	const params = await searchParams;
-	const currentPage = Number(params.page) || 1;
-	const view = (params.view || "list") as "list" | "calendar";
-	const sortOrder = (params.sort || "desc") as "asc" | "desc";
-
-	// Get filter parameters
-	const filterTypes = params.types ? params.types.split(",") : [];
-	const filterStatuses = params.statuses ? params.statuses.split(",") : [];
-	const filterDateFrom = params.dateFrom || "";
-	const filterDateTo = params.dateTo || "";
-
 	// Check if any filters are active
 	const hasActiveFilters =
 		filterTypes.length > 0 ||
 		filterStatuses.length > 0 ||
 		!!filterDateFrom ||
 		!!filterDateTo;
-
-	// Calendar state
-	const now = new Date();
-	const selectedYear = params.year ? Number(params.year) : now.getFullYear();
-	const selectedMonth = params.month ? Number(params.month) : now.getMonth();
 
 	// Build API input for list view (with pagination)
 	const listApiInput = {
@@ -93,18 +87,9 @@ export default async function Sessions({
 			: "Failed to load sessions";
 
 		return (
-			<div className="min-h-screen bg-[#f9fafb]">
-				<div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-19.5">
-					<div className="mb-6 space-y-2 sm:mb-8">
-						<h1 className="font-serif text-2xl font-normal leading-tight text-[#a60202] sm:text-3xl sm:leading-10 md:text-4xl">
-							Council Sessions
-						</h1>
-					</div>
-					<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-12">
-						<p className="text-center text-base text-red-600">{errorMessage}</p>
-					</Card>
-				</div>
-			</div>
+			<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-12">
+				<p className="text-center text-base text-red-600">{errorMessage}</p>
+			</Card>
 		);
 	}
 
@@ -122,6 +107,70 @@ export default async function Sessions({
 	// For page-based pagination simulation: fetch all needed pages worth and slice
 	// This is a temporary solution until proper cursor-based pagination is implemented
 	const paginatedSessions = sessions;
+
+	return (
+		<>
+			{/* List View */}
+			{view === "list" && (
+				<>
+					<SessionListView
+						sessions={paginatedSessions}
+						hasActiveFilters={hasActiveFilters}
+					/>
+					<SessionPagination
+						currentPage={currentPage}
+						totalPages={totalPages}
+						sortOrder={sortOrder}
+						filterTypes={filterTypes}
+						filterStatuses={filterStatuses}
+						filterDateFrom={filterDateFrom}
+						filterDateTo={filterDateTo}
+					/>
+				</>
+			)}
+
+			{/* Calendar View */}
+			{view === "calendar" && (
+				<SessionsCalendar
+					year={selectedYear}
+					month={selectedMonth}
+					sessions={sessions}
+				/>
+			)}
+		</>
+	);
+}
+
+export default async function Sessions({
+	searchParams,
+}: {
+	searchParams: Promise<{
+		page?: string;
+		view?: string;
+		month?: string;
+		year?: string;
+		sort?: string;
+		types?: string;
+		statuses?: string;
+		dateFrom?: string;
+		dateTo?: string;
+	}>;
+}) {
+	const params = await searchParams;
+	const currentPage = Number(params.page) || 1;
+	const view = (params.view || "list") as "list" | "calendar";
+	const sortOrder = (params.sort || "desc") as "asc" | "desc";
+
+	// Get filter parameters
+	const filterTypes = params.types ? params.types.split(",") : [];
+	const filterStatuses = params.statuses ? params.statuses.split(",") : [];
+	const filterDateFrom = params.dateFrom || "";
+	const filterDateTo = params.dateTo || "";
+
+	// Calendar state
+	const now = new Date();
+	const selectedYear = params.year ? Number(params.year) : now.getFullYear();
+	const selectedMonth = params.month ? Number(params.month) : now.getMonth();
 
 	return (
 		<div className="min-h-screen bg-[#f9fafb]">
@@ -187,33 +236,28 @@ export default async function Sessions({
 					{view === "list" && <SessionFilters sortOrder={sortOrder} />}
 				</div>
 
-				{/* List View */}
-				{view === "list" && (
-					<>
-						<SessionListView
-							sessions={paginatedSessions}
-							hasActiveFilters={hasActiveFilters}
-						/>
-						<SessionPagination
-							currentPage={currentPage}
-							totalPages={totalPages}
-							sortOrder={sortOrder}
-							filterTypes={filterTypes}
-							filterStatuses={filterStatuses}
-							filterDateFrom={filterDateFrom}
-							filterDateTo={filterDateTo}
-						/>
-					</>
-				)}
-
-				{/* Calendar View */}
-				{view === "calendar" && (
-					<SessionsCalendar
-						year={selectedYear}
-						month={selectedMonth}
-						sessions={sessions}
+				{/* Session Content with Suspense */}
+				<Suspense
+					fallback={
+						view === "list" ? (
+							<SessionListViewSkeleton count={SESSION_ITEMS_PER_PAGE} />
+						) : (
+							<SessionsCalendarSkeleton />
+						)
+					}
+				>
+					<SessionsContent
+						currentPage={currentPage}
+						view={view}
+						sortOrder={sortOrder}
+						filterTypes={filterTypes}
+						filterStatuses={filterStatuses}
+						filterDateFrom={filterDateFrom}
+						filterDateTo={filterDateTo}
+						selectedYear={selectedYear}
+						selectedMonth={selectedMonth}
 					/>
-				)}
+				</Suspense>
 			</div>
 		</div>
 	);
