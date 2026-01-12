@@ -22,7 +22,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor1@iloilocity.gov.ph",
 			phone: "(033) 337-1234",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-acap.png",
 		},
 		{
 			id: "2",
@@ -30,7 +30,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor2@iloilocity.gov.ph",
 			phone: "(033) 337-1235",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-cabaluna.png",
 		},
 		{
 			id: "3",
@@ -38,7 +38,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor3@iloilocity.gov.ph",
 			phone: "(033) 337-1236",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-duron.png",
 		},
 		{
 			id: "4",
@@ -46,7 +46,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor4@iloilocity.gov.ph",
 			phone: "(033) 337-1237",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-ganzon.png",
 		},
 		{
 			id: "5",
@@ -54,7 +54,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor5@iloilocity.gov.ph",
 			phone: "(033) 337-1238",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-delallana.png",
 		},
 		{
 			id: "6",
@@ -62,7 +62,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor6@iloilocity.gov.ph",
 			phone: "(033) 337-1239",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-mabilog.png",
 		},
 		{
 			id: "7",
@@ -70,7 +70,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor7@iloilocity.gov.ph",
 			phone: "(033) 337-1240",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-malabor.png",
 		},
 		{
 			id: "8",
@@ -78,7 +78,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor8@iloilocity.gov.ph",
 			phone: "(033) 337-1241",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-parcon.png",
 		},
 		{
 			id: "9",
@@ -86,7 +86,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor9@iloilocity.gov.ph",
 			phone: "(033) 337-1242",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-sarabia.png",
 		},
 		{
 			id: "10",
@@ -94,7 +94,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor10@iloilocity.gov.ph",
 			phone: "(033) 337-1243",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-trenas.png",
 		},
 		{
 			id: "11",
@@ -102,7 +102,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor11@iloilocity.gov.ph",
 			phone: "(033) 337-1244",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-young.png",
 		},
 		{
 			id: "12",
@@ -110,7 +110,7 @@ export default function CouncilMembers() {
 			position: "City Councilor",
 			email: "councilor12@iloilocity.gov.ph",
 			phone: "(033) 337-1245",
-			imageUrl: "/cat.png",
+			imageUrl: "/Councilors/hon-zaldivar.png",
 		},
 	];
 
