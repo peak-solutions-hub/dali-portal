@@ -24,7 +24,7 @@ import {
 } from "@repo/ui/lib/lucide-react";
 import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { api } from "@/lib/api.client";
 
 interface InquiryDetailsProps {
@@ -39,20 +39,11 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 	const [isSending, setIsSending] = useState(false);
 	const [files, setFiles] = useState<File[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	// Sort messages by date (oldest first for chat flow)
 	const sortedMessages = [...ticket.inquiryMessages].sort(
 		(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
 	);
-
-	const scrollToBottom = () => {
-		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	};
-
-	useEffect(() => {
-		scrollToBottom();
-	}, [sortedMessages]);
 
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files) {
@@ -317,7 +308,6 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 									</div>
 								);
 							})}
-							<div ref={messagesEndRef} />
 						</CardContent>
 
 						{/* Reply Box */}

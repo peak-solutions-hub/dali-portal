@@ -17,7 +17,6 @@ export default async function InquiryPage({ params }: PageProps) {
 			notFound();
 		}
 
-		// Generic error page or message
 		return (
 			<div className="min-h-screen bg-gray-50 pt-32 pb-12">
 				<div className="container mx-auto px-6 max-w-7xl">
@@ -41,8 +40,10 @@ export default async function InquiryPage({ params }: PageProps) {
 	if (!data) return notFound();
 
 	return (
-		<div className="min-h-screen bg-gray-50 pt-32 pb-12">
-			<InquiryDetails data={data} />
+		<div className="min-h-screen bg-gray-50/50 pb-24">
+			<div className="pt-8">
+				<InquiryDetails data={data} />
+			</div>
 		</div>
 	);
 }

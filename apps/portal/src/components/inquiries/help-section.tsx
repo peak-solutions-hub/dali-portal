@@ -4,7 +4,7 @@ import { HelpCircle, Mail, Phone } from "@repo/ui/lib/lucide-react";
 
 export function HelpSection() {
 	return (
-		<div className="bg-gradient-to-r from-red-50 to-amber-50 border border-red-100 rounded-xl p-6 flex items-start gap-4 shadow-sm">
+		<div className="bg-linear-to-r from-red-50 to-amber-50 border border-red-100 rounded-xl p-6 flex items-start gap-4 shadow-sm">
 			<div className="bg-[#a60202] rounded-full p-2.5 shrink-0 shadow-md">
 				<HelpCircle className="w-5 h-5 text-white" />
 			</div>
