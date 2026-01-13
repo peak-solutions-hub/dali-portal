@@ -11,6 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
 	"/inquiry-tickets": "Inquiry Tickets",
 	"/visitor-and-beneficiary-hub": "Visitor & Beneficiary Hub",
 	"/conference-room": "Conference Room",
+	"/user-management": "User Management",
 };
 
 export function LayoutContent({ children }: { children: React.ReactNode }) {
