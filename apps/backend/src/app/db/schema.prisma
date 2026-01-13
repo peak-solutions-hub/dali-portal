@@ -150,7 +150,7 @@ model InquiryTicket {
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   category        InquiryCategory
   status          InquiryStatus
-  inquiryMessages  InquiryMessage[]
+  inquiryMessages InquiryMessage[]
   user            User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
 
   @@map("inquiry_ticket")
@@ -399,6 +399,10 @@ enum ClassificationType {
   veterans_retirees_elderly_and_disabled_person
   women_and_family_relations
   youth_and_sports_development
+  disaster_relief_disaster_management
+  tourism_culture_and_historical_affairs
+  disaster_relief_or_disaster_management
+  agriculture_fisheries_aquatic_and_natural_resources
 
   @@map("classification_type")
 }
@@ -481,6 +485,7 @@ enum SessionStatus {
 enum UserStatus {
   active
   invited
+  deactivated
 
   @@map("user_status")
 }

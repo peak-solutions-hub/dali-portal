@@ -5,6 +5,7 @@ import {
 	GetInquiryTicketByIdSchema,
 	GetInquiryTicketListSchema,
 	InquiryMessageSchema,
+	InquiryTicketListResponseSchema,
 	InquiryTicketListSchema,
 	InquiryTicketSchema,
 	InquiryTicketWithMessagesSchema,
@@ -13,8 +14,6 @@ import {
 	TrackInquiryTicketSchema,
 	UpdateInquiryTicketStatusSchema,
 } from "../schemas/inquiry-ticket.schema";
-
-// sample for now
 
 export const createInquiryTicket = oc
 	.route({
@@ -56,7 +55,7 @@ export const trackInquiryTicket = oc
 export const sendInquiryMessage = oc
 	.route({
 		method: "POST",
-		path: "/inquiries/{id}/messages",
+		path: "/inquiries/{ticketId}/messages",
 		summary: "Send message on inquiry",
 		description: "Citizens and staff can send messages on an inquiry.",
 		tags: ["Inquiry", "Public", "Admin"],
