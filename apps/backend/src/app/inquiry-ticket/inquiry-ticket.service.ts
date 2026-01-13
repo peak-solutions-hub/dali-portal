@@ -9,6 +9,7 @@ import {
 	TrackInquiryTicketInput,
 	TrackInquiryTicketResponse,
 } from "@repo/shared";
+import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
 
 @Injectable()
@@ -18,7 +19,9 @@ export class InquiryTicketService {
 	async create(
 		input: CreateInquiryTicketInput,
 	): Promise<CreateInquiryTicketResponse> {
-		const referenceNumber = this.generateReferenceNumber();
+		const currentYear = new Date().getFullYear();
+
+		const referenceNumber = this.generateReferenceNumber(currentYear);
 
 		// create inquiry ticket
 		await this.db.inquiryTicket.create({
@@ -89,7 +92,12 @@ export class InquiryTicketService {
 		return inquiryTicket;
 	}
 
-	private generateReferenceNumber(): string {
-		return `test`;
+	private generateReferenceNumber(year: number): string {
+		// Use uppercase alphanumeric (no ambiguous chars like O/0, I/1)
+		const nanoid = customAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 8);
+		const shortYear = year.toString().slice(-2); // "26"
+		const uniqueId = nanoid();
+		// IC26-<uniqueId>
+		return `IC${shortYear}-${uniqueId}`;
 	}
 }
