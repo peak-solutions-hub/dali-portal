@@ -4,7 +4,6 @@ export default () => ({
 		url: process.env.DATABASE_URL,
 	},
 	// env looks like "http://localhost:3000,http://localhost:3001"
-	corsOrigins: process.env.CORS_ORIGINS?.split(",").map((origin) =>
-		origin.trim(),
-	) ?? ["http://localhost:3000", "http://localhost:3001"],
+	corsOrigins:
+		process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001",
 });
