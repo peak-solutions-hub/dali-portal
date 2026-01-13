@@ -8,7 +8,7 @@ import { Suspense } from "react";
 import { SessionFilters } from "@/components/sessions/session-filters";
 import { SessionListView } from "@/components/sessions/session-list-view";
 import { SessionListViewSkeleton } from "@/components/sessions/session-list-view-skeleton";
-import { SessionPagination } from "@/components/sessions/session-pagination";
+import { SessionPaginationControls } from "@/components/sessions/session-pagination-controls";
 import { SessionsCalendar } from "@/components/sessions/sessions-calendar";
 import { SessionsCalendarSkeleton } from "@/components/sessions/sessions-calendar-skeleton";
 import { SortSelect } from "@/components/sessions/sort-select";
@@ -61,10 +61,7 @@ async function SessionsContent({
 		sortBy: "date" as const,
 		sortDirection: sortOrder,
 		limit: SESSION_ITEMS_PER_PAGE,
-		// For page-based to cursor-based: we need to skip (page-1) * limit items
-		// Since the backend uses cursor-based pagination, we'll fetch with offset simulation
-		// For simplicity, we'll fetch enough items and slice client-side for now
-		// TODO: Implement proper cursor tracking via URL params for true cursor-based pagination
+		page: currentPage,
 	};
 
 	// For calendar view, fetch all sessions (higher limit, no pagination needed)
@@ -72,6 +69,7 @@ async function SessionsContent({
 		sortBy: "date" as const,
 		sortDirection: "desc" as const,
 		limit: 100, // Fetch up to 100 sessions for calendar
+		page: 1,
 	};
 
 	// Fetch sessions from API
@@ -100,31 +98,39 @@ async function SessionsContent({
 			scheduleDate: new Date(session.scheduleDate),
 		})) ?? [];
 
-	// For list view, calculate pagination from API response
-	const totalCount = data?.pagination.totalCount ?? 0;
-	const totalPages = Math.ceil(totalCount / SESSION_ITEMS_PER_PAGE);
+	// Get pagination info
+	const pagination = data?.pagination || {
+		currentPage: 1,
+		totalPages: 0,
+		totalCount: 0,
+		itemsPerPage: SESSION_ITEMS_PER_PAGE,
+		hasNextPage: false,
+		hasPreviousPage: false,
+	};
 
-	// For page-based pagination simulation: fetch all needed pages worth and slice
-	// This is a temporary solution until proper cursor-based pagination is implemented
-	const paginatedSessions = sessions;
+	// Build current filters for pagination
+	const currentFilters = {
+		types: filterTypes.join(",") || undefined,
+		statuses: filterStatuses.join(",") || undefined,
+		dateFrom: filterDateFrom || undefined,
+		dateTo: filterDateTo || undefined,
+		sort: sortOrder,
+	};
 
 	return (
 		<>
 			{/* List View */}
 			{view === "list" && (
 				<>
+					{sessions.length > 0 && (
+						<SessionPaginationControls
+							pagination={pagination}
+							currentFilters={currentFilters}
+						/>
+					)}
 					<SessionListView
-						sessions={paginatedSessions}
+						sessions={sessions}
 						hasActiveFilters={hasActiveFilters}
-					/>
-					<SessionPagination
-						currentPage={currentPage}
-						totalPages={totalPages}
-						sortOrder={sortOrder}
-						filterTypes={filterTypes}
-						filterStatuses={filterStatuses}
-						filterDateFrom={filterDateFrom}
-						filterDateTo={filterDateTo}
 					/>
 				</>
 			)}
@@ -173,14 +179,14 @@ export default async function Sessions({
 	const selectedMonth = params.month ? Number(params.month) : now.getMonth();
 
 	return (
-		<div className="min-h-screen bg-[#f9fafb]">
-			<div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-19.5">
+		<div className="min-h-screen bg-gray-50">
+			<div className="container mx-auto px-6 py-8 max-w-7xl">
 				{/* Page Header */}
-				<div className="mb-6 space-y-2 sm:mb-8">
-					<h1 className="font-serif text-2xl font-normal leading-tight text-[#a60202] sm:text-3xl sm:leading-10 md:text-4xl">
+				<div className="mb-6">
+					<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
 						Council Sessions
 					</h1>
-					<p className="text-sm leading-6 text-[#4a5565] sm:text-base">
+					<p className="text-gray-600 text-sm">
 						Regular sessions are held every Wednesday at 10:00 AM
 					</p>
 				</div>

@@ -16,7 +16,7 @@ export class SessionService {
 	constructor(private readonly db: DbService) {}
 
 	/**
-	 * List sessions with filtering, sorting, and cursor-based pagination
+	 * List sessions with filtering, sorting, and offset pagination
 	 */
 	async findAll(input: GetSessionListInput): Promise<SessionListResponse> {
 		const {
@@ -27,7 +27,7 @@ export class SessionService {
 			sortBy,
 			sortDirection,
 			limit,
-			cursor,
+			page,
 		} = input;
 
 		// Validate date range
@@ -36,6 +36,9 @@ export class SessionService {
 				message: "dateFrom must be before or equal to dateTo",
 			});
 		}
+
+		// Calculate offset
+		const skip = (page - 1) * limit;
 
 		// Build where clause with filters
 		const where: Prisma.SessionWhereInput = {
@@ -55,8 +58,6 @@ export class SessionService {
 				// Filter by date range
 				dateFrom ? { scheduleDate: { gte: dateFrom } } : {},
 				dateTo ? { scheduleDate: { lte: dateTo } } : {},
-				// Cursor-based pagination: only get sessions after cursor
-				cursor ? { id: { lt: cursor } } : {},
 			],
 		};
 
@@ -66,30 +67,20 @@ export class SessionService {
 				? { scheduleDate: sortDirection }
 				: { scheduleDate: "desc" };
 
-		// Fetch limit + 1 to determine if there's a next page
+		// Get total count for pagination calculations
+		const totalCount = await this.db.session.count({ where });
+		const totalPages = Math.ceil(totalCount / limit);
+
+		// Fetch sessions with offset and limit
 		const sessions = await this.db.session.findMany({
 			where,
 			orderBy,
-			take: limit + 1,
+			skip,
+			take: limit,
 		});
 
-		// Check if there's a next page
-		const hasNextPage = sessions.length > limit;
-
-		// Remove the extra item if we have more than limit
-		const sessionList = hasNextPage ? sessions.slice(0, limit) : sessions;
-
-		// Get total count for pagination info
-		const totalCount = await this.db.session.count({ where });
-
-		// Get next cursor (ID of last item in current page)
-		const nextCursor =
-			hasNextPage && sessionList.length > 0
-				? sessionList[sessionList.length - 1].id
-				: null;
-
 		// Transform Prisma BigInt/Decimal to number for API
-		const transformedSessions = sessionList.map((session) => ({
+		const transformedSessions = sessions.map((session) => ({
 			...session,
 			sessionNumber: Number(session.sessionNumber),
 		}));
@@ -97,9 +88,12 @@ export class SessionService {
 		return {
 			sessions: transformedSessions,
 			pagination: {
-				hasNextPage,
-				nextCursor,
+				currentPage: page,
+				totalPages,
 				totalCount,
+				itemsPerPage: limit,
+				hasNextPage: page < totalPages,
+				hasPreviousPage: page > 1,
 			},
 		};
 	}

@@ -93,7 +93,7 @@ export const GetSessionListSchema = z.object({
 	sortBy: z.enum(["date"]).default("date"),
 	sortDirection: SortDirectionEnum.default("desc"),
 	limit: z.coerce.number().int().min(1).max(100).default(10),
-	cursor: z.string().uuid().optional(), // UUID cursor for pagination
+	page: z.coerce.number().int().min(1).default(1), // Page number for offset pagination
 });
 
 /**
@@ -109,7 +109,7 @@ export const GetSessionListAdminSchema = z.object({
 	sortBy: z.enum(["date"]).default("date"),
 	sortDirection: SortDirectionEnum.default("desc"),
 	limit: z.coerce.number().int().min(1).max(100).default(10),
-	cursor: z.string().uuid().optional(), // UUID cursor for pagination
+	page: z.coerce.number().int().min(1).default(1), // Page number for offset pagination
 });
 
 /**
@@ -120,12 +120,15 @@ export const GetSessionByIdSchema = z.object({
 });
 
 /**
- * Pagination info for cursor-based pagination
+ * Pagination info for offset pagination
  */
 export const SessionPaginationInfoSchema = z.object({
-	hasNextPage: z.boolean(),
-	nextCursor: z.string().uuid().nullable(),
+	currentPage: z.number().int().min(1),
+	totalPages: z.number().int().min(0),
 	totalCount: z.number().int().min(0),
+	itemsPerPage: z.number().int().min(1),
+	hasNextPage: z.boolean(),
+	hasPreviousPage: z.boolean(),
 });
 
 /**

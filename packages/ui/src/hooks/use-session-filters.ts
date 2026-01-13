@@ -28,8 +28,8 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 
 	// Parse current filters from URL
 	const filters: SessionFilterValues = {
-		types: searchParams.get("type")?.split(",").filter(Boolean) || [],
-		statuses: searchParams.get("status")?.split(",").filter(Boolean) || [],
+		types: searchParams.get("types")?.split(",").filter(Boolean) || [],
+		statuses: searchParams.get("statuses")?.split(",").filter(Boolean) || [],
 		dateFrom: searchParams.get("dateFrom") || null,
 		dateTo: searchParams.get("dateTo") || null,
 		sortOrder: (searchParams.get("sort") as "asc" | "desc") || "desc",
@@ -45,18 +45,18 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 			// Update types
 			if (updates.types !== undefined) {
 				if (updates.types.length > 0) {
-					params.set("type", updates.types.join(","));
+					params.set("types", updates.types.join(","));
 				} else {
-					params.delete("type");
+					params.delete("types");
 				}
 			}
 
 			// Update statuses
 			if (updates.statuses !== undefined) {
 				if (updates.statuses.length > 0) {
-					params.set("status", updates.statuses.join(","));
+					params.set("statuses", updates.statuses.join(","));
 				} else {
-					params.delete("status");
+					params.delete("statuses");
 				}
 			}
 
@@ -82,7 +82,11 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 				params.set("sort", updates.sortOrder);
 			}
 
-			router.push(`?${params.toString()}`, { scroll: false });
+			// Always set view to list and reset to page 1 when filters change
+			params.set("view", "list");
+			params.set("page", "1");
+
+			router.push(`/sessions?${params.toString()}`, { scroll: false });
 		},
 		[router, searchParams],
 	);
@@ -91,7 +95,7 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 	 * Reset all filters to defaults
 	 */
 	const resetFilters = useCallback(() => {
-		router.push("?sort=desc", { scroll: false });
+		router.push("/sessions?view=list&page=1&sort=desc", { scroll: false });
 	}, [router]);
 
 	/**
