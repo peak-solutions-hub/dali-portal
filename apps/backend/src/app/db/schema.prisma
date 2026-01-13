@@ -1,8 +1,8 @@
 generator client {
   provider        = "prisma-client"
   output          = "../../../generated/prisma"
-  moduleFormat    = "cjs"
   previewFeatures = ["fullTextSearchPostgres"]
+  moduleFormat    = "cjs"
 }
 
 datasource db {
@@ -126,12 +126,12 @@ model Household {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model InquiryMessage {
   id              String                   @id(map: "inquiry_messages_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ticketId        String                   @map("ticket_id")
   senderName      String                   @map("sender_name")
   content         String
   attachmentPaths String[]                 @map("attachment_paths")
   createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   senderType      InquiryMessageSenderType @map("sender_type")
+  ticketId        String                   @map("ticket_id")
   inquiryTicket   InquiryTicket            @relation(fields: [ticketId], references: [referenceNumber], map: "inquiry_messages_ticket_id_fkey")
 
   @@map("inquiry_message")
@@ -371,32 +371,36 @@ enum SourceType {
 }
 
 enum ClassificationType {
+  agriculture_fisheries_aquatic_and_natural_resources
+  animal_welfare
   appropriations
   barangay_affairs_and_community_development
   communication_and_public_information
-  cooperative_and_livelihood
-  disaster_relief
+  cooperatives_and_livelihood
+  disaster_relief_or_disaster_management
   domestic_and_international_relations
   education_science_and_technology
-  electric_gas_and_utilities
+  energy_and_public_utilities
   engineering_construction_and_public_works
-  ethics_and_rules_of_professional_sports
-  fire_sanitation_and_hospital_services
+  games_amusement_and_professional_sports
+  good_government_and_public_accountability_blue_ribbon_committee
+  health_sanitation_and_hospital_services
   information_technology_and_computerization
-  labor_employment_manpower_development_and_personnel
-  market_and_slaughterhouse
-  peace_and_order
-  public_safety_good_government_and_public_accountability
-  public_fire_penology_public_safety_order_and_security
+  labor_employment_manpower_development_and_placement
+  local_accreditation
+  markets_and_slaughterhouse
+  moral_recovery
+  police_fire_penology_ps_os_ddr
   public_services_environmental_protection_and_ecology
-  public_utilities_energy_style_justice_and_legal_matters
-  real_estate
-  social_welfare_and_historical_affairs
-  tourism_culture_and_industry
+  rules_ordinances_resolutions_style_justice_and_legal_affairs
+  social_services
+  tourism_culture_and_historical_affairs
   trade_commerce_and_industry
-  transportation_housing_and_land_development_zoning
+  transportation
+  urban_planning_housing_ld_zoning_expropriation_aala
   urban_poor_human_rights_and_minority_groups
   veterans_retirees_elderly_and_disabled_person
+  ways_and_means
   women_and_family_relations
   youth_and_sports_development
 
@@ -481,6 +485,7 @@ enum SessionStatus {
 enum UserStatus {
   active
   invited
+  deactivated
 
   @@map("user_status")
 }
