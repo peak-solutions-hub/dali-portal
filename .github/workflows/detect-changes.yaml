@@ -45,6 +45,8 @@ jobs:
             deployment_url: https://dali-portal.josearron.dev
             build_args: |
               NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+              NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+              NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           - app: admin
             enabled: ${{ needs.detect-changes.outputs.admin == 'true' }}
             dockerfile: apps/admin/Dockerfile
@@ -52,6 +54,8 @@ jobs:
             deployment_url: https://admin-dali-portal.josearron.dev
             build_args: |
               NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+              NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+              NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           - app: backend
             enabled: ${{ needs.detect-changes.outputs.backend == 'true' }}
             dockerfile: apps/backend/Dockerfile

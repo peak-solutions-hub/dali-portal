@@ -7,6 +7,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * @param path - File path within the bucket
  * @param expiresIn - Expiration time in seconds (default: 3600 = 1 hour)
  * @returns Signed URL or undefined if error
+ *
+ * @example
+ * ```typescript
+ * const supabase = createSupabaseBrowserClient();
+ * const url = await getSignedUrl(supabase, "documents", "2024/file.pdf");
+ * ```
  */
 export async function getSignedUrl(
 	supabase: SupabaseClient,
@@ -32,6 +38,12 @@ export async function getSignedUrl(
  * @param paths - Array of file paths
  * @param expiresIn - Expiration time in seconds (default: 3600 = 1 hour)
  * @returns Array of signed URLs
+ *
+ * @example
+ * ```typescript
+ * const supabase = createSupabaseBrowserClient();
+ * const results = await getSignedUrls(supabase, "documents", ["file1.pdf", "file2.pdf"]);
+ * ```
  */
 export async function getSignedUrls(
 	supabase: SupabaseClient,
@@ -55,6 +67,12 @@ export async function getSignedUrls(
  * @param bucket - Storage bucket name
  * @param path - File path within the bucket
  * @returns Public URL
+ *
+ * @example
+ * ```typescript
+ * const supabase = createSupabaseBrowserClient();
+ * const url = getPublicUrl(supabase, "public-files", "logo.png");
+ * ```
  */
 export function getPublicUrl(
 	supabase: SupabaseClient,

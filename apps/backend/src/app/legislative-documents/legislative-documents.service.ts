@@ -198,10 +198,17 @@ export class LegislativeDocumentsService {
 		const results = await this.db.$queryRaw<{ id: bigint }[]>`
 			SELECT DISTINCT ld.id
 			FROM legislative_document ld
+			LEFT JOIN document d ON ld.document_id = d.id
 			WHERE (
 				to_tsvector('english', array_to_string(ld.author_names, ' ')) @@ plainto_tsquery('english', ${sanitized})
 				OR
 				to_tsvector('english', array_to_string(ld.sponsor_names, ' ')) @@ plainto_tsquery('english', ${sanitized})
+				OR
+				to_tsvector('english', COALESCE(d.classification::text, '')) @@ plainto_tsquery('english', ${sanitized})
+				OR
+				to_tsvector('english', COALESCE(ld.series_year::text, '')) @@ plainto_tsquery('english', ${sanitized})
+				OR
+				to_tsvector('english', COALESCE(ld.type, '')) @@ plainto_tsquery('english', ${sanitized})
 			)
 		`;
 

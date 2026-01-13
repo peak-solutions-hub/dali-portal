@@ -5,22 +5,22 @@ import {
 	getClassificationLabel,
 	getDocumentFilename,
 	getDocumentNumber,
-	getDocumentPdfUrl,
 	getDocumentTitle,
 	getDocumentTypeLabel,
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
+import { getDocumentPdfUrl } from "@repo/ui/lib/documents";
 import {
 	Calendar,
 	Download,
 	FileText,
 	Loader2,
 } from "@repo/ui/lib/lucide-react";
+import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { downloadFile } from "@/utils/download-utils";
 
 interface DocumentCardProps {

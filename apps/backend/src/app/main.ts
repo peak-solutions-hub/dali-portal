@@ -13,6 +13,13 @@ async function bootstrap() {
 	});
 
 	const configService = app.get(ConfigService);
+
+	// Enable CORS
+	app.enableCors({
+		origin: configService.getOrThrow("corsOrigins").split(","),
+		credentials: true,
+	});
+
 	const port = configService.getOrThrow("port");
 
 	const openAPIGenerator = new OpenAPIGenerator({
