@@ -11,13 +11,14 @@ import {
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
-import { createSupabaseBrowserClient, getDocumentPdfUrl } from "@repo/ui/lib";
+import { getDocumentPdfUrl } from "@repo/ui/lib/documents";
 import {
 	Calendar,
 	Download,
 	FileText,
 	Loader2,
 } from "@repo/ui/lib/lucide-react";
+import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { downloadFile } from "@/utils/download-utils";

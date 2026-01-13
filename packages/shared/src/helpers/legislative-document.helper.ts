@@ -32,29 +32,65 @@ export const LEGISLATIVE_DOCUMENT_TYPES = [
 ] as const;
 
 /**
- * Helper function to convert snake_case to Title Case
+ * Classification type display labels (manually curated for proper formatting)
  */
-function toTitleCase(snakeCase: string): string {
-	return snakeCase
-		.split("_")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-		.join(" ")
-		.replace(/\bAnd\b/g, "&")
-		.replace(/\bOf\b/g, "of");
-}
-
-/**
- * Classification type display labels (auto-generated from enum)
- */
-export const CLASSIFICATION_TYPE_LABELS: Record<string, string> = Object.values(
-	ClassificationType,
-).reduce(
-	(acc, value) => {
-		acc[value] = toTitleCase(value);
-		return acc;
-	},
-	{} as Record<string, string>,
-);
+export const CLASSIFICATION_TYPE_LABELS: Record<string, string> = {
+	[ClassificationType.AGRICULTURE_FISHERIES_AQUATIC_AND_NATURAL_RESOURCES]:
+		"Agriculture, Fisheries, Aquatic and Natural Resources",
+	[ClassificationType.ANIMAL_WELFARE]: "Animal Welfare",
+	[ClassificationType.APPROPRIATIONS]: "Appropriations",
+	[ClassificationType.BARANGAY_AFFAIRS_AND_COMMUNITY_DEVELOPMENT]:
+		"Barangay Affairs and Community Development",
+	[ClassificationType.COMMUNICATION_AND_PUBLIC_INFORMATION]:
+		"Communication and Public Information",
+	[ClassificationType.COOPERATIVES_AND_LIVELIHOOD]:
+		"Cooperatives and Livelihood",
+	[ClassificationType.DISASTER_RELIEF_OR_DISASTER_MANAGEMENT]:
+		"Disaster Relief/ Disaster Management",
+	[ClassificationType.DOMESTIC_AND_INTERNATIONAL_RELATIONS]:
+		"Domestic and International Relations",
+	[ClassificationType.EDUCATION_SCIENCE_AND_TECHNOLOGY]:
+		"Education, Science and Technology",
+	[ClassificationType.ENERGY_AND_PUBLIC_UTILITIES]:
+		"Energy and Public Utilities",
+	[ClassificationType.ENGINEERING_CONSTRUCTION_AND_PUBLIC_WORKS]:
+		"Engineering, Construction and Public Works",
+	[ClassificationType.GAMES_AMUSEMENT_AND_PROFESSIONAL_SPORTS]:
+		"Games, Amusement and Professional Sports",
+	[ClassificationType.GOOD_GOVERNMENT_AND_PUBLIC_ACCOUNTABILITY_BLUE_RIBBON_COMMITTEE]:
+		"Good Government and Public Accountability (Blue Ribbon Committee)",
+	[ClassificationType.HEALTH_SANITATION_AND_HOSPITAL_SERVICES]:
+		"Health, Sanitation, and Hospital Services",
+	[ClassificationType.INFORMATION_TECHNOLOGY_AND_COMPUTERIZATION]:
+		"Information Technology and Computerization",
+	[ClassificationType.LABOR_EMPLOYMENT_MANPOWER_DEVELOPMENT_AND_PLACEMENT]:
+		"Labor, Employment, Manpower Development and Placement",
+	[ClassificationType.LOCAL_ACCREDITATION]: "Local Accreditation",
+	[ClassificationType.MARKETS_AND_SLAUGHTERHOUSE]: "Markets & Slaughterhouse",
+	[ClassificationType.MORAL_RECOVERY]: "Moral Recovery",
+	[ClassificationType.POLICE_FIRE_PENOLOGY_PS_OS_DDR]:
+		"Police, Fire, Penology, Public Safety, Order & Security, Dangerous Drugs and Rehabilitation",
+	[ClassificationType.PUBLIC_SERVICES_ENVIRONMENTAL_PROTECTION_AND_ECOLOGY]:
+		"Public Services, Environmental Protection and Ecology",
+	[ClassificationType.RULES_ORDINANCES_RESOLUTIONS_STYLE_JUSTICE_AND_LEGAL_AFFAIRS]:
+		"Rules, Ordinances, Resolutions, and Style; Justice and Legal Affairs",
+	[ClassificationType.SOCIAL_SERVICES]: "Social Services",
+	[ClassificationType.TOURISM_CULTURE_AND_HISTORICAL_AFFAIRS]:
+		"Tourism, Culture and Historical Affairs",
+	[ClassificationType.TRADE_COMMERCE_AND_INDUSTRY]:
+		"Trade, Commerce & Industry",
+	[ClassificationType.TRANSPORTATION]: "Transportation",
+	[ClassificationType.URBAN_PLANNING_HOUSING_LD_ZONING_EXPROPRIATION_AALA]:
+		"Urban, Planning, Housing, Land Development, Zoning, Expropriation, Assessment and Land Acquisition",
+	[ClassificationType.URBAN_POOR_HUMAN_RIGHTS_AND_MINORITY_GROUPS]:
+		"Urban Poor, Human Rights and Minority Groups",
+	[ClassificationType.VETERANS_RETIREES_ELDERLY_AND_DISABLED_PERSON]:
+		"Veterans, Retirees, Elderly and Disabled Person",
+	[ClassificationType.WAYS_AND_MEANS]: "Ways and Means",
+	[ClassificationType.WOMEN_AND_FAMILY_RELATIONS]: "Women and Family Relations",
+	[ClassificationType.YOUTH_AND_SPORTS_DEVELOPMENT]:
+		"Youth and Sports Development",
+};
 
 /**
  * Classification types for filtering (used in UI)
