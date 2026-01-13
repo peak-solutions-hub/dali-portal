@@ -6,4 +6,10 @@ export default () => ({
 	// env looks like "http://localhost:3000,http://localhost:3001"
 	corsOrigins:
 		process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001",
+	// Rate limiting configuration
+	throttle: {
+		// default rate limit: 100 requests per min
+		ttl: process.env.THROTTLE_TTL ?? 60000,
+		limit: process.env.THROTTLE_LIMIT ?? 100,
+	},
 });
