@@ -16,12 +16,14 @@ interface SuccessDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	referenceNumber: string;
+	citizenEmail: string;
 }
 
 export function SuccessDialog({
 	open,
 	onOpenChange,
 	referenceNumber,
+	citizenEmail,
 }: SuccessDialogProps) {
 	const [copied, setCopied] = useState(false);
 	const printRef = useRef<HTMLDivElement>(null);
@@ -152,8 +154,9 @@ export function SuccessDialog({
 						Inquiry Submitted!
 					</DialogTitle>
 					<DialogDescription className="text-base">
-						We have received your inquiry. Please save this reference number to
-						track the status of your request.
+						We have received your inquiry. A confirmation email with your
+						reference number has been sent to{" "}
+						<span className="font-medium text-gray-700">{citizenEmail}</span>.
 					</DialogDescription>
 				</DialogHeader>
 

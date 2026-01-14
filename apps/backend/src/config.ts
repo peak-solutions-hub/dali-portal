@@ -13,4 +13,5 @@ export default () => ({
 		limit: process.env.THROTTLE_LIMIT ?? 100,
 	},
 	turnstile_secret_key: process.env.TURNSTILE_SECRET_KEY,
+	resend: { apiKey: process.env.RESEND_API_KEY },
 });

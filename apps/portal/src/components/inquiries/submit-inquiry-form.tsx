@@ -28,6 +28,7 @@ export function SubmitInquiryForm() {
 	const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 	const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 	const [referenceNumber, setReferenceNumber] = useState("");
+	const [citizenEmail, setCitizenEmail] = useState("");
 	const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
 	const form = useForm<SubmitInquiryFormValues>({
@@ -119,6 +120,7 @@ export function SubmitInquiryForm() {
 			}
 
 			if (response?.referenceNumber) {
+				setCitizenEmail(data.citizenEmail);
 				form.reset();
 				setUploadedFiles([]);
 				setReferenceNumber(response.referenceNumber);
@@ -178,6 +180,7 @@ export function SubmitInquiryForm() {
 				open={successDialogOpen}
 				onOpenChange={setSuccessDialogOpen}
 				referenceNumber={referenceNumber}
+				citizenEmail={citizenEmail}
 			/>
 		</>
 	);

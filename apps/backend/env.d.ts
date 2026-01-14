@@ -10,5 +10,8 @@ declare namespace NodeJS {
 
 		// turnstile
 		TURNSTILE_SECRET_KEY: string;
+
+		// resend
+		RESEND_API_KEY: string;
 	}
 }

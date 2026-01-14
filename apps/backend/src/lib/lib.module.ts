@@ -7,6 +7,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import config from "@/config";
 import { ConfigService } from "./config.service";
+import { ResendService } from "./resend.service";
 
 @Global()
 @Module({
@@ -27,11 +28,12 @@ import { ConfigService } from "./config.service";
 	],
 	providers: [
 		ConfigService,
+		ResendService,
 		{
 			provide: APP_GUARD,
 			useClass: ThrottlerGuard,
 		},
 	],
-	exports: [ConfigService],
+	exports: [ConfigService, ResendService],
 })
 export class LibModule {}

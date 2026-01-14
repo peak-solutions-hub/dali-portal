@@ -11,10 +11,18 @@ import {
 } from "@repo/shared";
 import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
+import {
+	generateInquiryConfirmationEmail,
+	generateInquiryConfirmationText,
+} from "@/lib/email-templates/inquiry-confirmation.template";
+import { ResendService } from "@/lib/resend.service";
 
 @Injectable()
 export class InquiryTicketService {
-	constructor(private readonly db: DbService) {}
+	constructor(
+		private readonly db: DbService,
+		private readonly resend: ResendService,
+	) {}
 
 	async create(
 		input: CreateInquiryTicketInput,
@@ -67,7 +75,21 @@ export class InquiryTicketService {
 			});
 		}
 
-		// TODO: send reference number and citizen email to user email
+		// send confirmation email to citizen
+		const emailData = {
+			citizenName: input.citizenName,
+			referenceNumber,
+			subject: input.subject,
+			category: input.category,
+		};
+
+		this.resend.send({
+			to: input.citizenEmail,
+			subject: `Inquiry Received: ${referenceNumber}`,
+			html: generateInquiryConfirmationEmail(emailData),
+			text: generateInquiryConfirmationText(emailData),
+			from: "DALI Portal <noreply@dali-portal.josearron.dev>",
+		});
 
 		return { referenceNumber };
 	}
