@@ -26,7 +26,7 @@ export function SessionListView({
 				sessions.map((session) => (
 					<Card
 						key={session.id}
-						className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6"
+						className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6 transition-shadow hover:shadow-lg"
 					>
 						<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
 							<div className="w-full flex-1 space-y-2">
