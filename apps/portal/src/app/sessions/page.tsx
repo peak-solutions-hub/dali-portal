@@ -129,16 +129,27 @@ export default async function Sessions({
 				</div>
 
 				{/* Desktop: Sticky Group (Filters + Sort + Pagination) */}
-				<div className="hidden lg:block lg:sticky lg:top-0 lg:z-30 lg:bg-gray-50 lg:pb-4 lg:pt-4">
-					<div className="flex flex-col gap-4 ">
-						<div className="flex items-center justify-between">
-							{/* Sort Dropdown (Left) */}
-							<div className="w-40">
-								{view === "list" && <SortSelect currentSort={sortOrder} />}
+				<div className="hidden lg:block lg:sticky lg:top-0 lg:z-30 lg:pb-4">
+					<div className="flex flex-col gap-4 lg:bg-gray-50 lg:pt-4">
+						<div className="flex items-start justify-between gap-4">
+							{/* Left Group: Sort & Filters */}
+							<div className="flex items-start gap-4 flex-1">
+								{/* Sort Dropdown */}
+								<div className="w-40 shrink-0">
+									{view === "list" && <SortSelect currentSort={sortOrder} />}
+								</div>
+								{/* Filters */}
+								{view === "list" && (
+									<div className="flex-1">
+										<SessionFilters sortOrder={sortOrder} />
+									</div>
+								)}
 							</div>
 
 							{/* View Toggle (Right) */}
-							<div className="flex gap-2">
+							<div
+								className={`flex gap-2 shrink-0 ${view === "calendar" ? "pb-4" : ""}`}
+							>
 								<Link
 									href={`/sessions?view=calendar&month=${selectedMonth}&year=${selectedYear}`}
 								>
@@ -171,9 +182,6 @@ export default async function Sessions({
 								</Link>
 							</div>
 						</div>
-
-						{/* Filters */}
-						{view === "list" && <SessionFilters sortOrder={sortOrder} />}
 
 						{/* Pagination (Below Filters) */}
 						{view === "list" && sessions.length > 0 && (
