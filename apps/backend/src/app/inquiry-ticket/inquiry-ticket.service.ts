@@ -46,6 +46,27 @@ export class InquiryTicketService {
 			},
 		});
 
+		// verify turnstile token
+		const turnstileResponse = await fetch(
+			"https://challenges.cloudflare.com/turnstile/v0/siteverify",
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: new URLSearchParams({
+					secret: process.env.TURNSTILE_SECRET_KEY!,
+					// TODO: add turnstile token to input schema
+					response: input.captchaToken || "",
+				}),
+			},
+		);
+
+		const turnstileResult = await turnstileResponse.json();
+		if (!turnstileResult.success) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Security verification failed",
+			});
+		}
+
 		// TODO: send reference number and citizen email to user email
 
 		return { referenceNumber };

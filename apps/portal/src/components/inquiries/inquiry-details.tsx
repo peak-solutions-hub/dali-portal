@@ -203,7 +203,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 				{/* Main Chat Area */}
 				<div className="md:col-span-2 space-y-6">
-					<Card className="flex flex-col h-[700px] border-none shadow-md overflow-hidden bg-white border-l-4 border-l-[#a60202]">
+					<Card className="flex flex-col h-175 border-none shadow-md overflow-hidden bg-white border-l-4 border-l-[#a60202]">
 						<CardHeader className="bg-[#a60202] text-white py-5 px-6 shrink-0 shadow-sm relative z-10">
 							<div className="flex items-center justify-between">
 								<div>
@@ -325,7 +325,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 												key={i}
 												className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md text-xs border border-gray-200"
 											>
-												<span className="truncate max-w-[150px]">{f.name}</span>
+												<span className="truncate max-w-37.5">{f.name}</span>
 												<button
 													onClick={() => removeFile(i)}
 													className="text-gray-400 hover:text-red-500"
@@ -357,7 +357,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 										value={newMessage}
 										onChange={(e) => setNewMessage(e.target.value)}
 										placeholder="Type your reply here..."
-										className="min-h-[50px] max-h-[150px] bg-gray-50 border-gray-200 focus:bg-white resize-y"
+										className="min-h-12.5 max-h-37.5 bg-gray-50 border-gray-200 focus:bg-white resize-y"
 										onKeyDown={(e) => {
 											if (e.key === "Enter" && !e.shiftKey) {
 												e.preventDefault();

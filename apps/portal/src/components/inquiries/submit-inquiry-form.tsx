@@ -28,6 +28,7 @@ export function SubmitInquiryForm() {
 	const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 	const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 	const [referenceNumber, setReferenceNumber] = useState("");
+	const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
 	const form = useForm<SubmitInquiryFormValues>({
 		resolver: zodResolver(SubmitInquiryFormSchema),
@@ -37,6 +38,7 @@ export function SubmitInquiryForm() {
 			subject: "",
 			message: "",
 			category: "general_inquiry",
+			captchaToken: null,
 		},
 	});
 
@@ -63,7 +65,30 @@ export function SubmitInquiryForm() {
 		return paths;
 	};
 
+	const handleTurnstileVerify = (token: string) => {
+		setTurnstileToken(token);
+		form.setValue("captchaToken", token);
+		setError(null);
+	};
+
+	const handleTurnstileError = () => {
+		setTurnstileToken(null);
+		form.setValue("captchaToken", null);
+		setError("Security verification failed. Please try again.");
+	};
+
+	const handleTurnstileExpire = () => {
+		setTurnstileToken(null);
+		form.setValue("captchaToken", null);
+	};
+
 	const onSubmit = async (data: SubmitInquiryFormValues) => {
+		// Check Turnstile token before submitting
+		if (!turnstileToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+			setError("Please complete the security verification.");
+			return;
+		}
+
 		setIsSubmitting(true);
 		setError(null);
 
@@ -74,13 +99,9 @@ export function SubmitInquiryForm() {
 				attachmentPaths = await uploadFiles(uploadedFiles);
 			}
 
-			// 2. Prepare payload
-			const { ...apiData } = data;
-
-			// 3. Call API
+			// 2. Call API (captchaToken is already in form data)
 			const [err, response] = await api.inquiries.create({
-				...apiData,
-				message: apiData.message,
+				...data,
 				attachmentPaths:
 					attachmentPaths.length > 0 ? attachmentPaths : undefined,
 			});
@@ -139,7 +160,11 @@ export function SubmitInquiryForm() {
 								uploadedFiles={uploadedFiles}
 								setUploadedFiles={setUploadedFiles}
 							/>
-							<InquirySecurityCheck />
+							<InquirySecurityCheck
+								onVerify={handleTurnstileVerify}
+								onError={handleTurnstileError}
+								onExpire={handleTurnstileExpire}
+							/>
 
 							<Separator className="bg-gray-100" />
 

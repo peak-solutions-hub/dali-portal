@@ -7,5 +7,8 @@ declare namespace NodeJS {
 		// rate limiting config
 		THROTTLE_TTL?: string;
 		THROTTLE_LIMIT?: string;
+
+		// turnstile
+		TURNSTILE_SECRET_KEY: string;
 	}
 }

@@ -12,4 +12,5 @@ export default () => ({
 		ttl: process.env.THROTTLE_TTL ?? 60000,
 		limit: process.env.THROTTLE_LIMIT ?? 100,
 	},
+	turnstile_secret_key: process.env.TURNSTILE_SECRET_KEY,
 });
