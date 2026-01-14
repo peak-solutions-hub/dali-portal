@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { api } from "@/lib/api.client";
+import { InquiryFormHeader } from "./form/inquiry-form-header";
 
 export function TrackInquiryForm() {
 	const router = useRouter();
@@ -70,11 +71,9 @@ export function TrackInquiryForm() {
 
 	return (
 		<Card className="border-none shadow-lg bg-white rounded-2xl rounded-t-none overflow-hidden mt-0 p-0">
-			<div className="bg-[#a60202] py-3 px-6 sm:px-8">
-				<p className="text-white/90 text-sm font-medium">
-					Enter your ticket details to view progress and updates.
-				</p>
-			</div>
+			<InquiryFormHeader>
+				Enter your ticket details to view progress and updates.
+			</InquiryFormHeader>
 
 			<CardContent className="p-8 sm:p-10">
 				<Form {...form}>
