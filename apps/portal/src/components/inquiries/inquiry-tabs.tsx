@@ -9,9 +9,13 @@ import {
 import { SubmitInquiryForm } from "@/components/inquiries/submit-inquiry-form";
 import { TrackInquiryForm } from "@/components/inquiries/track-inquiry-form";
 
-export function InquiryTabs() {
+interface InquiryTabsProps {
+	activeTab?: string;
+}
+
+export function InquiryTabs({ activeTab = "submit" }: InquiryTabsProps) {
 	return (
-		<Tabs defaultValue="submit" className="w-full relative">
+		<Tabs defaultValue={activeTab} className="w-full relative">
 			<div className="sticky top-0 z-30 bg-gray-50/95 backdrop-blur-sm py-4 -mx-6 px-6 sm:mx-0 sm:px-0 transition-all">
 				<TabsList className="sticky grid w-full grid-cols-2 p-1 bg-white rounded-xl shadow-sm border border-gray-200 h-14">
 					<TabsTrigger

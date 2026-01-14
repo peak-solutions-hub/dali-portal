@@ -1,6 +1,13 @@
 import { InquiryTabs } from "@/components/inquiries/inquiry-tabs";
 
-export default function InquiriesPage() {
+type PageProps = {
+	searchParams: Promise<{
+		tab?: string;
+	}>;
+};
+
+export default async function InquiriesPage({ searchParams }: PageProps) {
+	const params = await searchParams;
 	return (
 		<div className="min-h-screen bg-gray-50/50 pb-24">
 			<div className="container mx-auto px-6 py-8 max-w-7xl">
@@ -16,10 +23,9 @@ export default function InquiriesPage() {
 							existing request, we&apos;re here to help.
 						</p>
 					</div>
-
 					{/* Tabs & Form Section */}
 					<div className="relative">
-						<InquiryTabs />
+						<InquiryTabs activeTab={params.tab} />
 					</div>
 				</div>
 			</div>
