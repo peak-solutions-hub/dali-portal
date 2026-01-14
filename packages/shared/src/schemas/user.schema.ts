@@ -45,11 +45,23 @@ export const DeleteUserSchema = z.object({
 	id: z.uuid(),
 });
 
+export const InviteUserSchema = z.object({
+	email: z.email(),
+	fullName: z.string().min(1).max(255),
+	roleId: z.uuid(),
+});
+
 // Response schemas
 export const UserListResponseSchema = z.object({
 	users: z.array(UserWithRoleSchema),
 	hasMore: z.boolean(),
 	nextCursor: z.string().uuid().optional(),
+});
+
+export const InviteUserResponseSchema = z.object({
+	success: z.boolean(),
+	message: z.string(),
+	userId: z.string().optional(),
 });
 
 // Types
@@ -59,4 +71,6 @@ export type GetUserListInput = z.infer<typeof GetUserListSchema>;
 export type GetUserByIdInput = z.infer<typeof GetUserByIdSchema>;
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 export type DeleteUserInput = z.infer<typeof DeleteUserSchema>;
+export type InviteUserInput = z.infer<typeof InviteUserSchema>;
 export type UserListResponse = z.infer<typeof UserListResponseSchema>;
+export type InviteUserResponse = z.infer<typeof InviteUserResponseSchema>;

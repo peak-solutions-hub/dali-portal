@@ -2,16 +2,24 @@ import { Injectable } from "@nestjs/common";
 import { ORPCError } from "@orpc/nest";
 import type {
 	GetUserListInput,
+	InviteUserInput,
+	InviteUserResponse,
 	UpdateUserInput,
 	UserListResponse,
 	UserWithRole,
 } from "@repo/shared";
 import { Prisma } from "generated/prisma/client";
 import { DbService } from "@/app/db/db.service";
+import { SupabaseAdminService } from "@/app/util/supabase/supabase-admin.service";
+import { ConfigService } from "@/lib/config.service";
 
 @Injectable()
 export class UsersService {
-	constructor(private readonly db: DbService) {}
+	constructor(
+		private readonly db: DbService,
+		private readonly supabaseAdmin: SupabaseAdminService,
+		private readonly configService: ConfigService,
+	) {}
 
 	async getUsers(input: GetUserListInput): Promise<UserListResponse> {
 		const { limit, cursor, roleType, status, search } = input;
@@ -177,5 +185,100 @@ export class UsersService {
 		}
 
 		return existingUser as UserWithRole;
+	}
+
+	async inviteUser(input: InviteUserInput): Promise<InviteUserResponse> {
+		const { email, fullName, roleId } = input;
+
+		const role = await this.db.role.findUnique({
+			where: { id: roleId },
+		});
+
+		if (!role) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Invalid role specified",
+			});
+		}
+
+		const existingUser = await this.db.user.findFirst({
+			where: { email },
+		});
+
+		if (existingUser) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "User with this email already exists",
+			});
+		}
+
+		const adminUrl = this.configService.get("adminUrl") as string;
+		const redirectTo = `${adminUrl}/auth/set-password`;
+		const supabase = this.supabaseAdmin.getClient();
+
+		const { data: authData, error: authError } =
+			await supabase.auth.admin.inviteUserByEmail(email, {
+				redirectTo,
+				data: {
+					full_name: fullName,
+					role_id: roleId,
+				},
+			});
+
+		// console.log("Supabase Auth Response:", { authData, authError });
+
+		if (authError) {
+			console.error("Supabase Auth Error:", authError);
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: `Failed to create user in Supabase: ${authError.message}`,
+			});
+		}
+
+		if (!authData.user) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "No user returned from Supabase Auth",
+			});
+		}
+
+		console.log("✓ User created in Supabase Auth:", authData.user.id);
+
+		try {
+			const newUser = await this.db.user.create({
+				data: {
+					id: authData.user.id,
+					roleId: roleId,
+					fullName: fullName,
+					email: email,
+					status: "invited",
+				},
+				include: {
+					role: true,
+				},
+			});
+
+			console.log("✓ User created in database:", newUser.id);
+		} catch (dbError) {
+			console.error("Database Error:", dbError);
+			await supabase.auth.admin.deleteUser(authData.user.id);
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Failed to create user in database",
+			});
+		}
+
+		const emailSent = authData.user.invited_at !== null;
+		// const confirmationSent = authData.user.confirmation_sent_at !== null;
+
+		// console.log("Email Status:", {
+		// 	invited_at: authData.user.invited_at,
+		// 	confirmation_sent_at: authData.user.confirmation_sent_at,
+		// 	emailSent,
+		// 	confirmationSent,
+		// });
+
+		return {
+			success: true,
+			message: emailSent
+				? "User invited successfully. Invitation email sent."
+				: "User created but email NOT sent. Check Supabase email settings.",
+			userId: authData.user.id,
+		};
 	}
 }

@@ -3,6 +3,8 @@ import {
 	DeleteUserSchema,
 	GetUserByIdSchema,
 	GetUserListSchema,
+	InviteUserResponseSchema,
+	InviteUserSchema,
 	UpdateUserSchema,
 	UserListResponseSchema,
 	UserWithRoleSchema,
@@ -95,10 +97,35 @@ export const updateUserContract = oc
 		},
 	});
 
+// Invite user
+export const inviteUserContract = oc
+	.route({
+		method: "POST",
+		path: "/users/invite",
+		summary: "Invite user",
+		description:
+			"Invite a new user by email and send a set-password link (Admin only, requires Service Role Key)",
+		tags: ["Users", "Admin"],
+	})
+	.input(InviteUserSchema)
+	.output(InviteUserResponseSchema)
+	.errors({
+		UNAUTHORIZED: {
+			message: "User not authorized to invite users",
+		},
+		BAD_REQUEST: {
+			message: "Invalid invite data or email already exists",
+		},
+		INTERNAL_SERVER_ERROR: {
+			message: "Failed to send invitation email",
+		},
+	});
+
 // Export user contract
 export const userContract = {
 	list: getUserListContract,
 	deactivate: deactivateUserContract,
 	getById: getUserByIdContract,
 	update: updateUserContract,
+	invite: inviteUserContract,
 };

@@ -1,5 +1,7 @@
 "use client";
 
+import type { Role } from "@repo/shared";
+import { formatRoleDisplay, getRoleBadgeStyles } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -18,8 +20,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { api } from "@/lib/api.client";
 
 interface InviteUserDialogProps {
 	open: boolean;
@@ -32,40 +36,63 @@ export function InviteUserDialog({
 }: InviteUserDialogProps) {
 	const [fullName, setFullName] = useState("");
 	const [email, setEmail] = useState("");
-	const [role, setRole] = useState("");
+	const [roleId, setRoleId] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [roles, setRoles] = useState<Role[]>([]);
+	const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+	const router = useRouter();
 
-	const roles = [
-		"Administrator",
-		"Administrative Office Clerk",
-		"Administrative Office Department Head",
-		"City Councilor",
-		"Information Systems Analyst",
-		"Secretariat",
-		"Vice Mayor",
-		"Vice Mayor Office Staff",
-	];
+	// Fetch roles from backend
+	useEffect(() => {
+		async function fetchRoles() {
+			try {
+				const result = await api.roles.list();
+				if (result.roles) {
+					setRoles(result.roles as unknown as Role[]);
+				}
+			} catch (error) {
+				console.error("Failed to load roles:", error);
+				toast.error("Failed to load roles");
+			} finally {
+				setIsLoadingRoles(false);
+			}
+		}
+		if (open) {
+			fetchRoles();
+		}
+	}, [open]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsSubmitting(true);
 
-		// Simulate API call
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-
-		// TODO: Implement actual API call
-		console.log("Inviting user:", { fullName, email, role });
-
 		try {
-			toast.success(`Invitation sent to ${fullName}`, {
-				description: `An email invitation has been sent to ${email}`,
-				duration: 4000,
+			const data = await api.users.invite({
+				email,
+				fullName,
+				roleId,
 			});
-			handleCancel();
+
+			if (data) {
+				toast.success(`Invitation sent to ${fullName}`, {
+					description:
+						data.message || `An email invitation has been sent to ${email}`,
+					duration: 5000,
+				});
+
+				// Close dialog first
+				handleCancel();
+
+				// Then refresh to show the new user (with small delay to ensure dialog closes)
+				setTimeout(() => {
+					router.refresh();
+				}, 100);
+			}
 		} catch (error) {
 			console.error("Error sending invitation:", error);
 			toast.error("Failed to send invitation", {
-				description: "Please try again later",
+				description:
+					error instanceof Error ? error.message : "Please try again later",
 			});
 		} finally {
 			setIsSubmitting(false);
@@ -75,7 +102,7 @@ export function InviteUserDialog({
 	const handleCancel = () => {
 		setFullName("");
 		setEmail("");
-		setRole("");
+		setRoleId("");
 		onOpenChange(false);
 	};
 
@@ -122,9 +149,13 @@ export function InviteUserDialog({
 						{/* Role Select */}
 						<div className="flex flex-col gap-2">
 							<Label htmlFor="role">Role</Label>
-							<Select value={role} onValueChange={setRole} required>
+							<Select value={roleId} onValueChange={setRoleId} required>
 								<SelectTrigger id="role">
-									<SelectValue placeholder="Select a role" />
+									<SelectValue
+										placeholder={
+											isLoadingRoles ? "Loading roles..." : "Select a role"
+										}
+									/>
 								</SelectTrigger>
 								<SelectContent
 									position="popper"
@@ -132,13 +163,17 @@ export function InviteUserDialog({
 									align="start"
 									sideOffset={4}
 								>
-									{roles.map((roleName) => (
+									{roles.map((role) => (
 										<SelectItem
-											key={roleName}
-											value={roleName}
+											key={role.id}
+											value={role.id}
 											className="hover:bg-gray-100 cursor-pointer"
 										>
-											{roleName}
+											<span
+												className={`inline-block px-2 py-0.5 text-xs rounded-md ${getRoleBadgeStyles()}`}
+											>
+												{formatRoleDisplay(role.name)}
+											</span>
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -157,7 +192,9 @@ export function InviteUserDialog({
 						</Button>
 						<Button
 							type="submit"
-							disabled={isSubmitting || !fullName || !email || !role}
+							disabled={
+								isSubmitting || !fullName || !email || !roleId || isLoadingRoles
+							}
 							className="bg-[#a60202] hover:bg-[#8a0101] text-white"
 						>
 							{isSubmitting ? "Sending..." : "Send Invitation"}

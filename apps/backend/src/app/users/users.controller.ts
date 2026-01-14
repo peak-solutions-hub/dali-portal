@@ -34,4 +34,11 @@ export class UsersController {
 			return await this.usersService.updateUser(input);
 		});
 	}
+
+	@Implement(contract.users.invite)
+	inviteUser() {
+		return implement(contract.users.invite).handler(async ({ input }) => {
+			return await this.usersService.inviteUser(input);
+		});
+	}
 }
