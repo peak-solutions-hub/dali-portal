@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { RoleTypeSchema } from "../enums/role";
-import { USER_STATUS_VALUES, UserStatus } from "../enums/user";
+import { USER_STATUS_VALUES } from "../enums/user";
 
 // Base User schema matching Prisma model
 export const UserSchema = z.object({
@@ -23,8 +23,6 @@ export const UserWithRoleSchema = UserSchema.extend({
 
 // Input schemas for operations
 export const GetUserListSchema = z.object({
-	limit: z.coerce.number().int().min(1).max(100).default(20),
-	cursor: z.string().uuid().optional(),
 	roleType: RoleTypeSchema.optional(),
 	status: z.enum(USER_STATUS_VALUES).optional(),
 	search: z.string().optional(),
@@ -54,8 +52,6 @@ export const InviteUserSchema = z.object({
 // Response schemas
 export const UserListResponseSchema = z.object({
 	users: z.array(UserWithRoleSchema),
-	hasMore: z.boolean(),
-	nextCursor: z.string().uuid().optional(),
 });
 
 export const InviteUserResponseSchema = z.object({

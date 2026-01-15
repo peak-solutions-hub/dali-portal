@@ -1,6 +1,5 @@
 "use client";
 
-import { isDefinedError } from "@orpc/client";
 import type { Role, UserWithRole } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -19,19 +18,14 @@ export default function UserManagementPage() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	// Fetch users and roles from backend
+	// Fetch all users and roles once on mount
 	useEffect(() => {
 		async function fetchData() {
 			try {
 				setIsLoading(true);
 
-				// Fetch users
-				const usersResult = await api.users.list({
-					limit: 100,
-					search: searchQuery || undefined,
-					roleType:
-						roleFilter !== "all" ? (roleFilter as Role["name"]) : undefined,
-				});
+				// Fetch all users (no search or pagination)
+				const usersResult = await api.users.list({});
 
 				if (usersResult.users) {
 					setUsers(usersResult.users as unknown as UserWithRole[]);
@@ -56,7 +50,7 @@ export default function UserManagementPage() {
 		}
 
 		fetchData();
-	}, [searchQuery, roleFilter]);
+	}, []);
 
 	const filteredUsers = users.filter((user) => {
 		const matchesSearch =
@@ -129,9 +123,20 @@ export default function UserManagementPage() {
 						totalCount={users.length}
 					/>
 
-					<Card className="p-0 overflow-hidden">
-						<UsersTable users={filteredUsers} roles={roles} />
-					</Card>
+					{filteredUsers.length === 0 ? (
+						<Card className="p-8 text-center">
+							<div className="flex flex-col items-center gap-2 text-[#4a5565]">
+								<p className="text-lg font-medium">No users found</p>
+								<p className="text-sm">
+									Try adjusting your search or filter criteria
+								</p>
+							</div>
+						</Card>
+					) : (
+						<Card className="p-0 overflow-hidden">
+							<UsersTable users={filteredUsers} roles={roles} />
+						</Card>
+					)}
 				</>
 			)}
 

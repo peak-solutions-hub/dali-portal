@@ -96,7 +96,8 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 							</TableCell>
 							<TableCell className="px-6 py-5">
 								<Badge
-									className={`text-xs px-2 py-0.5 rounded-md ${getStatusBadgeStyles(user.status)}`}
+									variant="outline"
+									className={`text-xs px-2 py-0.5 rounded-md border ${getStatusBadgeStyles(user.status)}`}
 								>
 									{user.status === "active"
 										? "Active"

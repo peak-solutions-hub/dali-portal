@@ -22,7 +22,7 @@ export class UsersService {
 	) {}
 
 	async getUsers(input: GetUserListInput): Promise<UserListResponse> {
-		const { limit, cursor, roleType, status, search } = input;
+		const { roleType, status, search } = input;
 
 		// Build where clause
 		const where: Prisma.UserWhereInput = {};
@@ -54,19 +54,11 @@ export class UsersService {
 			];
 		}
 
-		// Add cursor-based pagination
-		if (cursor) {
-			where.id = {
-				gt: cursor,
-			};
-		}
-
 		const users = await this.db.user.findMany({
 			where,
 			include: {
 				role: true,
 			},
-			take: limit + 1, // Fetch one extra to check if there are more
 		});
 
 		// Sort users by status priority, then by role enum order
@@ -95,14 +87,8 @@ export class UsersService {
 			return roleA - roleB;
 		});
 
-		const hasMore = sortedUsers.length > limit;
-		const userList = hasMore ? sortedUsers.slice(0, -1) : sortedUsers;
-		const nextCursor = hasMore ? userList[userList.length - 1]?.id : undefined;
-
 		return {
-			users: userList as UserWithRole[],
-			hasMore,
-			nextCursor,
+			users: sortedUsers as UserWithRole[],
 		};
 	}
 
@@ -158,7 +144,6 @@ export class UsersService {
 	}
 
 	async deactivateUser(id: string): Promise<UserWithRole> {
-		// Check if user exists
 		const existingUser = await this.db.user.findUnique({
 			where: { id },
 			include: {
@@ -223,8 +208,6 @@ export class UsersService {
 				},
 			});
 
-		// console.log("Supabase Auth Response:", { authData, authError });
-
 		if (authError) {
 			console.error("Supabase Auth Error:", authError);
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -237,8 +220,6 @@ export class UsersService {
 				message: "No user returned from Supabase Auth",
 			});
 		}
-
-		console.log("✓ User created in Supabase Auth:", authData.user.id);
 
 		try {
 			const newUser = await this.db.user.create({
@@ -264,14 +245,6 @@ export class UsersService {
 		}
 
 		const emailSent = authData.user.invited_at !== null;
-		// const confirmationSent = authData.user.confirmation_sent_at !== null;
-
-		// console.log("Email Status:", {
-		// 	invited_at: authData.user.invited_at,
-		// 	confirmation_sent_at: authData.user.confirmation_sent_at,
-		// 	emailSent,
-		// 	confirmationSent,
-		// });
 
 		return {
 			success: true,

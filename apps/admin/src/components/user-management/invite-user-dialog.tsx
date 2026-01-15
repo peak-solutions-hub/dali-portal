@@ -86,7 +86,7 @@ export function InviteUserDialog({
 				// Then refresh to show the new user (with small delay to ensure dialog closes)
 				setTimeout(() => {
 					router.refresh();
-				}, 100);
+				}, 1000);
 			}
 		} catch (error) {
 			console.error("Error sending invitation:", error);

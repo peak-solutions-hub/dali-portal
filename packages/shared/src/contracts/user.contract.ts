@@ -17,7 +17,7 @@ export const getUserListContract = oc
 		path: "/users",
 		summary: "List users with filtering",
 		description:
-			"Retrieve a paginated list of users with optional filtering by role, status, and search query",
+			"Retrieve a list of users with optional filtering by role, status, and search query",
 		tags: ["Users", "Admin"],
 	})
 	.input(GetUserListSchema)

@@ -44,40 +44,47 @@ export function SearchFilters({
 						className="pl-10 bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
 					/>
 				</div>
-
-				<Select value={roleFilter} onValueChange={onRoleChange}>
-					<SelectTrigger className="w-64 bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]">
-						<Filter className="size-4" />
-						<SelectValue placeholder="All Roles" />
-					</SelectTrigger>
-					<SelectContent
-						position="popper"
-						side="bottom"
-						align="start"
-						sideOffset={4}
-					>
-						<SelectItem
-							value="all"
-							className="hover:bg-gray-100 cursor-pointer"
+				<div className="flex flex-col gap-2">
+					<Select value={roleFilter} onValueChange={onRoleChange}>
+						<SelectTrigger className="w-64 bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]">
+							<Filter className="size-4" />
+							<SelectValue placeholder="All Roles" />
+						</SelectTrigger>
+						<SelectContent
+							position="popper"
+							side="bottom"
+							align="start"
+							sideOffset={4}
 						>
-							All Roles
-						</SelectItem>
-						{roles.map((role: Role) => (
 							<SelectItem
-								key={role.name}
-								value={role.name}
+								value="all"
 								className="hover:bg-gray-100 cursor-pointer"
 							>
-								{formatRoleDisplay(role.name)}
+								All Roles
 							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+							{roles.map((role: Role) => (
+								<SelectItem
+									key={role.name}
+									value={role.name}
+									className="hover:bg-gray-100 cursor-pointer"
+								>
+									{formatRoleDisplay(role.name)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>{" "}
 			</div>
 
-			<p className="text-sm text-[#4a5565]">
-				Showing {resultCount} of {totalCount} users
-			</p>
+			{resultCount === 0 && (searchQuery || roleFilter !== "all") ? (
+				<p className="text-sm text-[#4a5565]">
+					There are no users with this filter
+				</p>
+			) : (
+				<p className="text-sm text-[#4a5565]">
+					Showing {resultCount} of {totalCount} users
+				</p>
+			)}
 		</Card>
 	);
 }
