@@ -9,7 +9,6 @@ import {
 	ClipboardList,
 	FileSearch,
 	LayoutDashboard,
-	LogOut,
 	Ticket,
 	UserCog,
 	Users,
@@ -45,11 +44,6 @@ const navigationItems: NavigationItem[] = [
 
 export function Sidebar() {
 	const pathname = usePathname();
-
-	const handleLogout = () => {
-		// TODO: Implement logout functionality
-		console.log("Logout clicked");
-	};
 
 	return (
 		<aside className="w-64 bg-white border-r border-[#e5e7eb] flex flex-col h-screen overflow-hidden">
@@ -115,18 +109,6 @@ export function Sidebar() {
 					);
 				})}
 			</nav>
-
-			{/* Footer / Logout */}
-			<div className="p-4 border-t border-[rgba(0,0,0,0.1)]">
-				<Button
-					variant="ghost"
-					className="w-full justify-start gap-3 px-3 text-[#e7000b] hover:text-[#dc2626] hover:bg-red-50 font-medium"
-					onClick={handleLogout}
-				>
-					<LogOut className="size-4.5" />
-					<span>Logout</span>
-				</Button>
-			</div>
 		</aside>
 	);
 }
