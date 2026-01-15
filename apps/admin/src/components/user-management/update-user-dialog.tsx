@@ -53,6 +53,16 @@ export function UpdateUserDialog({
 		e.preventDefault();
 		if (!user) return;
 
+		// Check if there are any changes
+		const hasChanges =
+			fullName.trim() !== user.fullName || roleId !== user.roleId;
+
+		if (!hasChanges) {
+			// No changes detected, just close the modal
+			onOpenChange(false);
+			return;
+		}
+
 		setIsSubmitting(true);
 
 		try {

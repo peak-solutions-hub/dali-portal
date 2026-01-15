@@ -1,11 +1,7 @@
 "use client";
 
 import type { Role, UserWithRole } from "@repo/shared";
-import {
-	formatRoleDisplay,
-	getRoleBadgeStyles,
-	getStatusBadgeStyles,
-} from "@repo/shared";
+import { formatRoleDisplay, getRoleBadgeStyles } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -18,6 +14,7 @@ import {
 } from "@repo/ui/components/table";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { getStatusBadgeStyles } from "@/utils/badge-helpers";
 import { DeleteUserDialog } from "./delete-user-dialog";
 import { UpdateUserDialog } from "./update-user-dialog";
 

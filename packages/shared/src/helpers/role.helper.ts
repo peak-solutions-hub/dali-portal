@@ -22,16 +22,3 @@ export function formatRoleDisplay(roleType: RoleType): string {
 export function getRoleBadgeStyles(): string {
 	return "bg-[rgba(166,2,2,0.08)] border border-[rgba(166,2,2,0.25)] text-[#a60202] font-medium";
 }
-
-export function getStatusBadgeStyles(status: string): string {
-	if (status === "active") {
-		return "bg-[#dcfce7] border-[#b9f8cf] text-[#016630]";
-	}
-	if (status === "invited") {
-		return "bg-[#dbeafe] border-[#bedbff] text-[#193cb8]";
-	}
-	if (status === "deactivated") {
-		return "bg-[#f3f4f6] border-[#d1d5db] text-[#6b7280]";
-	}
-	return "bg-[#f3f4f6] border-[#d1d5db] text-[#6b7280]";
-}
