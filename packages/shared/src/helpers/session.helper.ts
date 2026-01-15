@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { SESSION_ITEMS_PER_PAGE } from "../constants/session-rules";
 import { SessionStatus } from "../enums/session";
 import type {
 	GetSessionListInput,
@@ -41,11 +42,6 @@ export const ADMIN_SESSION_STATUSES: SessionStatus[] = [
 // =============================================================================
 // PAGINATION CONSTANTS
 // =============================================================================
-
-/**
- * Default items per page for session list pagination
- */
-export const SESSION_ITEMS_PER_PAGE = 10;
 
 // =============================================================================
 // DATE & TIME FORMATTING
