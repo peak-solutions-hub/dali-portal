@@ -14,11 +14,13 @@ import {
 interface SessionListViewProps {
 	sessions: Session[];
 	hasActiveFilters: boolean;
+	queryString?: string;
 }
 
 export function SessionListView({
 	sessions,
 	hasActiveFilters,
+	queryString,
 }: SessionListViewProps) {
 	return (
 		<div className="space-y-3 sm:space-y-4">
@@ -57,7 +59,7 @@ export function SessionListView({
 								</p>
 							</div>
 							<Link
-								href={`/sessions/${session.id}`}
+								href={`/sessions/${session.id}?${queryString || "view=list"}`}
 								className="w-full sm:w-auto"
 							>
 								<Button

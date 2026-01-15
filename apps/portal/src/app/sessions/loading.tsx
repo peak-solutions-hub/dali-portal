@@ -1,13 +1,20 @@
+"use client";
+
 import { Skeleton } from "@repo/ui/components/skeleton";
+import { useSearchParams } from "next/navigation";
 import {
 	SessionListViewSkeleton,
 	SessionPaginationSkeleton,
+	SessionsCalendarSkeleton,
 } from "@/components/sessions";
 
 export default function LoadingPage() {
+	const searchParams = useSearchParams();
+	const view = (searchParams.get("view") || "list") as "list" | "calendar";
+
 	return (
 		<div className="min-h-screen bg-gray-50">
-			<div className="container mx-auto px-6 py-8 max-w-7xl">
+			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4">
 				{/* Page Header Skeleton */}
 				<div className="mb-6">
 					<Skeleton className="h-9 w-80 mb-2" />
@@ -19,11 +26,12 @@ export default function LoadingPage() {
 					<div className="flex flex-col gap-4 lg:bg-gray-50 lg:pt-4">
 						<div className="flex items-start justify-between gap-4">
 							{/* Left Group: Sort & Filters */}
-							<div className="flex items-start gap-4 flex-1">
-								<Skeleton className="h-9 w-40" /> {/* Sort */}
-								<Skeleton className="h-9 w-24" /> {/* Filter Button */}
-							</div>
-
+							{view !== "calendar" && (
+								<div className="flex items-start gap-4 flex-1">
+									<Skeleton className="h-9 w-40" /> {/* Sort */}
+									<Skeleton className="h-9 w-24" /> {/* Filter Button */}
+								</div>
+							)}
 							{/* Right Group: View Toggle */}
 							<div className="flex gap-2 shrink-0">
 								<Skeleton className="h-9 w-28" /> {/* Calendar Toggle */}
@@ -32,7 +40,7 @@ export default function LoadingPage() {
 						</div>
 
 						{/* Pagination */}
-						<SessionPaginationSkeleton />
+						{view !== "calendar" && <SessionPaginationSkeleton />}
 					</div>
 				</div>
 
@@ -50,20 +58,28 @@ export default function LoadingPage() {
 								</div>
 							</div>
 							{/* Filters */}
-							<Skeleton className="h-9 w-24" /> {/* Filter Button */}
+							{view !== "calendar" && <Skeleton className="h-9 w-24" />}{" "}
+							{/* Filter Button */}
 						</div>
 					</div>
 				</div>
 
-				{/* Session List Skeleton */}
-				<div className="pb-24 lg:pb-0">
-					<SessionListViewSkeleton count={10} />
-				</div>
+				{/* Conditional Skeleton Based on View */}
+				{view === "calendar" ? (
+					<SessionsCalendarSkeleton />
+				) : (
+					<>
+						{/* Session List Skeleton */}
+						<div className="pb-24 lg:pb-0">
+							<SessionListViewSkeleton count={10} />
+						</div>
 
-				{/* Mobile Pagination - Sticky bottom */}
-				<div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
-					<SessionPaginationSkeleton />
-				</div>
+						{/* Mobile Pagination - Sticky bottom */}
+						<div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
+							<SessionPaginationSkeleton />
+						</div>
+					</>
+				)}
 			</div>
 		</div>
 	);

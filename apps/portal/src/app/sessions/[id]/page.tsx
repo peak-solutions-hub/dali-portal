@@ -1,9 +1,5 @@
 import { isDefinedError } from "@orpc/client";
-import {
-	formatSessionDate,
-	formatSessionTime,
-	type SessionWithAgenda,
-} from "@repo/shared";
+import { formatSessionDate, formatSessionTime } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
@@ -21,7 +17,13 @@ import {
 } from "@/lib/session-ui";
 
 // Async component that fetches and displays session detail
-async function SessionDetailContent({ id }: { id: string }) {
+async function SessionDetailContent({
+	id,
+	searchParams,
+}: {
+	id: string;
+	searchParams: { [key: string]: string | string[] | undefined };
+}) {
 	// Fetch session from API
 	const [error, session] = await api.sessions.getById({ id });
 
@@ -41,55 +43,74 @@ async function SessionDetailContent({ id }: { id: string }) {
 	// Ensure scheduleDate is a Date object
 	const scheduleDate = new Date(session.scheduleDate);
 
+	// Build back URL preserving view state and filters
+	const params = new URLSearchParams();
+	Object.entries(searchParams).forEach(([key, value]) => {
+		if (value) {
+			if (Array.isArray(value)) {
+				value.map((v) => params.append(key, v));
+			} else {
+				params.append(key, value as string);
+			}
+		}
+	});
+
+	// If no params, default to sessions root, otherwise append query string
+	const queryString = params.toString();
+	const backUrl = queryString ? `/sessions?${queryString}` : "/sessions";
+
 	return (
 		<>
 			{/* Back Button */}
-			<Link href="/sessions" className="mb-8 inline-block">
-				<Button
-					variant="outline"
-					size="sm"
-					aria-label="Back to Sessions list"
-					className="cursor-pointer"
-				>
-					<ChevronLeft className="size-4" />
-					Back to Sessions
-				</Button>
-			</Link>
-
+			<div className="sticky top-0 z-30 bg-gray-50 pt-4">
+				<Link href={backUrl} className="pb-4 inline-block">
+					<Button
+						variant="outline"
+						size="sm"
+						aria-label="Back to Sessions"
+						className="cursor-pointer"
+					>
+						<ChevronLeft className="size-4" />
+						Back to Sessions
+					</Button>
+				</Link>
+			</div>
 			{/* Main Card */}
-			<div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+			<div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 md:p-8 shadow-sm">
 				{/* Session Header */}
-				<div className="mb-12 space-y-4">
+				<div className="mb-8 md:mb-12 space-y-4">
 					{/* Badges */}
-					<div className="flex gap-3">
+					<div className="flex flex-wrap items-center gap-2 sm:gap-3">
 						<Badge
 							variant="default"
-							className={`font-medium text-white ${getSessionTypeBadgeClass(session.type)}`}
+							className={`font-medium text-white text-xs sm:text-sm ${getSessionTypeBadgeClass(session.type)}`}
 							aria-label={`Session type: ${getSessionTypeLabel(session.type)}`}
 						>
 							{getSessionTypeLabel(session.type)}
 						</Badge>
 						<Badge
 							variant="default"
-							className={`font-medium text-white ${getSessionStatusBadgeClass(session.status)}`}
+							className={`font-medium text-white text-xs sm:text-sm ${getSessionStatusBadgeClass(session.status)}`}
 							aria-label={`Session status: ${getSessionStatusLabel(session.status)}`}
 						>
 							{getSessionStatusLabel(session.status)}
 						</Badge>
-						<span className="text-sm text-[#4a5565]">
+						<span className="text-xs sm:text-sm text-[#4a5565]">
 							Session #{session.sessionNumber}
 						</span>
 					</div>
 
 					{/* Date */}
-					<h1 className="font-serif text-3xl font-normal text-primary">
+					<h1 className="font-serif text-2xl sm:text-3xl font-normal text-primary">
 						{formatSessionDate(scheduleDate)}
 					</h1>
 
 					{/* Time - WCAG AA compliant contrast */}
 					<div className="flex items-center gap-2">
-						<span className="text-lg font-medium text-gray-900">Time:</span>
-						<time className="text-lg text-gray-900">
+						<span className="text-base sm:text-lg font-medium text-gray-900">
+							Time:
+						</span>
+						<time className="text-base sm:text-lg text-gray-900">
 							{formatSessionTime(scheduleDate)}
 						</time>
 					</div>
@@ -97,7 +118,7 @@ async function SessionDetailContent({ id }: { id: string }) {
 
 				{/* Session Agenda */}
 				<div className="border-t border-gray-200 pt-8">
-					<h2 className="mb-6 font-serif text-2xl text-primary">
+					<h2 className="mb-6 font-serif text-xl sm:text-2xl text-primary">
 						Session Agenda
 					</h2>
 
@@ -106,30 +127,30 @@ async function SessionDetailContent({ id }: { id: string }) {
 							{session.agendaItems.map((item, index) => (
 								<div
 									key={item.id}
-									className="border-l-4 border-primary pl-7 py-2"
+									className="border-l-4 border-primary pl-4 sm:pl-7 py-2"
 								>
-									<h3 className="text-base font-semibold text-primary">
+									<h3 className="text-sm sm:text-base font-semibold text-primary">
 										{String(index + 1).padStart(2, "0")}.{" "}
 										{getSectionLabel(item.section)}
 									</h3>
 									{item.contentText && (
-										<p className="mt-3 text-base text-gray-600">
+										<p className="mt-2 sm:mt-3 text-sm sm:text-base text-gray-600">
 											{item.contentText}
 										</p>
 									)}
 									{item.linkedDocument && (
-										<div className="mt-3">
+										<div className="mt-2 sm:mt-3">
 											<Link
 												href={`/legislative-documents/${item.linkedDocument}`}
-												className="text-base text-primary hover:underline"
+												className="text-sm sm:text-base text-primary hover:underline"
 											>
 												View linked document
 											</Link>
 										</div>
 									)}
 									{item.attachmentPath && item.attachmentName && (
-										<div className="mt-3">
-											<span className="text-sm text-gray-500">
+										<div className="mt-2 sm:mt-3">
+											<span className="text-xs sm:text-sm text-gray-500">
 												Attachment: {item.attachmentName}
 											</span>
 										</div>
@@ -138,7 +159,7 @@ async function SessionDetailContent({ id }: { id: string }) {
 							))}
 						</div>
 					) : (
-						<p className="text-base text-gray-600">
+						<p className="text-sm sm:text-base text-gray-600">
 							No agenda items available for this session.
 						</p>
 					)}
@@ -150,10 +171,13 @@ async function SessionDetailContent({ id }: { id: string }) {
 
 export default async function SessionDetailPage({
 	params,
+	searchParams,
 }: {
 	params: Promise<{ id: string }>;
+	searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
 	const { id } = await params;
+	const urlParams = await searchParams;
 
 	// Validate UUID format before making API call
 	const uuidRegex =
@@ -166,7 +190,7 @@ export default async function SessionDetailPage({
 		<div className="min-h-screen bg-[#f9fafb]">
 			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
 				<Suspense fallback={<SessionDetailSkeleton />}>
-					<SessionDetailContent id={id} />
+					<SessionDetailContent id={id} searchParams={urlParams} />
 				</Suspense>
 			</div>
 		</div>

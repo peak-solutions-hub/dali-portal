@@ -82,9 +82,18 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 				params.set("sort", updates.sortOrder);
 			}
 
-			// Always set view to list and reset to page 1 when filters change
-			params.set("view", "list");
+			// Reset to page 1 when filters change, but keep current view
 			params.set("page", "1");
+
+			// Ensure view parameter is preserved from current URL or defaults to list
+			if (!params.has("view")) {
+				const currentView = searchParams.get("view");
+				if (currentView) {
+					params.set("view", currentView);
+				} else {
+					params.set("view", "list");
+				}
+			}
 
 			router.push(`/sessions?${params.toString()}`, { scroll: false });
 		},

@@ -4,14 +4,11 @@ import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
-import { Suspense } from "react";
 import {
 	SessionFilters,
 	SessionListView,
-	SessionListViewSkeleton,
 	SessionPaginationControls,
 	SessionsCalendar,
-	SessionsCalendarSkeleton,
 	SortSelect,
 } from "@/components/sessions";
 import { api } from "@/lib/api.client";
@@ -61,14 +58,20 @@ export default async function Sessions({
 		!!filterDateTo;
 
 	// Build API input for list view (with pagination)
+	const parsedDateFrom = filterDateFrom ? new Date(filterDateFrom) : undefined;
+	const parsedDateTo = filterDateTo ? new Date(filterDateTo) : undefined;
+	const isValidDateFrom =
+		parsedDateFrom && !Number.isNaN(parsedDateFrom.getTime());
+	const isValidDateTo = parsedDateTo && !Number.isNaN(parsedDateTo.getTime());
+
 	const listApiInput = {
 		type: filterTypes.length > 0 ? (filterTypes as SessionType[]) : undefined,
 		status:
 			filterStatuses.length > 0
 				? (filterStatuses as PublicSessionStatus[])
 				: undefined,
-		dateFrom: filterDateFrom ? new Date(filterDateFrom) : undefined,
-		dateTo: filterDateTo ? new Date(filterDateTo) : undefined,
+		dateFrom: isValidDateFrom ? parsedDateFrom : undefined,
+		dateTo: isValidDateTo ? parsedDateTo : undefined,
 		sortBy: "date" as const,
 		sortDirection: sortOrder,
 		limit: SESSION_ITEMS_PER_PAGE,
@@ -115,9 +118,28 @@ export default async function Sessions({
 		sort: sortOrder,
 	};
 
+	// Construct base filter query string (excluding view-specific params like page/month/year)
+	const filterParams = new URLSearchParams();
+	if (filterTypes.length > 0) filterParams.set("types", filterTypes.join(","));
+	if (filterStatuses.length > 0)
+		filterParams.set("statuses", filterStatuses.join(","));
+	if (filterDateFrom) filterParams.set("dateFrom", filterDateFrom);
+	if (filterDateTo) filterParams.set("dateTo", filterDateTo);
+	if (params.sort) filterParams.set("sort", params.sort);
+
+	const filterQueryString = filterParams.toString();
+	const calendarHref = `/sessions?view=calendar&month=${selectedMonth}&year=${selectedYear}${filterQueryString ? `&${filterQueryString}` : ""}`;
+	const listHref = `/sessions?view=list&page=1${filterQueryString ? `&${filterQueryString}` : ""}`;
+
+	// Params for list items (preserving page and filters)
+	const listItemParams = new URLSearchParams(filterParams);
+	listItemParams.set("view", "list");
+	if (currentPage > 1) listItemParams.set("page", currentPage.toString());
+	const listItemQueryString = listItemParams.toString();
+
 	return (
 		<div className="min-h-screen bg-gray-50">
-			<div className="container mx-auto px-6 py-8 max-w-7xl">
+			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4">
 				{/* Page Header */}
 				<div className="mb-6">
 					<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
@@ -129,7 +151,9 @@ export default async function Sessions({
 				</div>
 
 				{/* Desktop: Sticky Group (Filters + Sort + Pagination) */}
-				<div className="hidden lg:block lg:sticky lg:top-0 lg:z-30 lg:pb-4">
+				<div
+					className={`hidden lg:block lg:sticky lg:top-0 lg:z-30 ${view !== "calendar" ? "lg:pb-4" : ""}`}
+				>
 					<div className="flex flex-col gap-4 lg:bg-gray-50 lg:pt-4">
 						<div className="flex items-start justify-between gap-4">
 							{/* Left Group: Sort & Filters */}
@@ -150,9 +174,7 @@ export default async function Sessions({
 							<div
 								className={`flex gap-2 shrink-0 ${view === "calendar" ? "pb-4" : ""}`}
 							>
-								<Link
-									href={`/sessions?view=calendar&month=${selectedMonth}&year=${selectedYear}`}
-								>
+								<Link href={calendarHref}>
 									<Button
 										variant={view === "calendar" ? "default" : "outline"}
 										size="sm"
@@ -166,7 +188,7 @@ export default async function Sessions({
 										Calendar
 									</Button>
 								</Link>
-								<Link href={`/sessions?view=list&page=1&sort=${sortOrder}`}>
+								<Link href={listHref}>
 									<Button
 										variant={view === "list" ? "default" : "outline"}
 										size="sm"
@@ -205,9 +227,7 @@ export default async function Sessions({
 									{view === "list" && <SortSelect currentSort={sortOrder} />}
 								</div>
 								<div className="flex shrink-0 gap-2">
-									<Link
-										href={`/sessions?view=calendar&month=${selectedMonth}&year=${selectedYear}`}
-									>
+									<Link href={calendarHref}>
 										<Button
 											variant={view === "calendar" ? "default" : "outline"}
 											size="sm"
@@ -221,7 +241,7 @@ export default async function Sessions({
 											<span className="hidden sm:inline ml-2">Calendar</span>
 										</Button>
 									</Link>
-									<Link href={`/sessions?view=list&page=1&sort=${sortOrder}`}>
+									<Link href={listHref}>
 										<Button
 											variant={view === "list" ? "default" : "outline"}
 											size="sm"
@@ -261,6 +281,7 @@ export default async function Sessions({
 								<SessionListView
 									sessions={sessions}
 									hasActiveFilters={hasActiveFilters}
+									queryString={listItemQueryString}
 								/>
 
 								{/* Mobile Pagination - Sticky bottom */}

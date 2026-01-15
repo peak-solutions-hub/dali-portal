@@ -14,7 +14,7 @@ import {
 } from "@repo/ui/components/select";
 import { ChevronLeftIcon, ChevronRightIcon } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import {
 	getSessionStatusLabel,
@@ -43,6 +43,7 @@ export function SessionsCalendar({
 	month,
 }: SessionsCalendarProps) {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const monthNames = [
 		"January",
 		"February",
@@ -65,11 +66,15 @@ export function SessionsCalendar({
 
 	const handleMonthChange = (newMonth: string) => {
 		const monthIndex = Number.parseInt(newMonth);
-		router.push(`/sessions?view=calendar&month=${monthIndex}&year=${year}`);
+		router.push(
+			`/sessions?view=calendar&month=${monthIndex}&year=${year}${filterSuffix}`,
+		);
 	};
 
 	const handleYearChange = (newYear: string) => {
-		router.push(`/sessions?view=calendar&month=${month}&year=${newYear}`);
+		router.push(
+			`/sessions?view=calendar&month=${month}&year=${newYear}${filterSuffix}`,
+		);
 	};
 
 	// Calculate year range from session data
@@ -147,6 +152,19 @@ export function SessionsCalendar({
 	const nextMonth = month === 11 ? 0 : month + 1;
 	const nextYear = month === 11 ? year + 1 : year;
 
+	// Helper to preserve filters (excluding view/month/year/page)
+	const getFilterQueryString = React.useCallback(() => {
+		const params = new URLSearchParams(searchParams.toString());
+		params.delete("view");
+		params.delete("month");
+		params.delete("year");
+		params.delete("page");
+		return params.toString();
+	}, [searchParams]);
+
+	const filterQuery = getFilterQueryString();
+	const filterSuffix = filterQuery ? `&${filterQuery}` : "";
+
 	return (
 		<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6">
 			{/* Calendar Header */}
@@ -193,7 +211,7 @@ export function SessionsCalendar({
 				</div>
 				<div className="flex gap-2">
 					<Link
-						href={`/sessions?view=calendar&month=${today.getMonth()}&year=${today.getFullYear()}`}
+						href={`/sessions?view=calendar&month=${today.getMonth()}&year=${today.getFullYear()}${filterSuffix}`}
 					>
 						<Button
 							size="sm"
@@ -204,7 +222,7 @@ export function SessionsCalendar({
 						</Button>
 					</Link>
 					<Link
-						href={`/sessions?view=calendar&month=${prevMonth}&year=${prevYear}`}
+						href={`/sessions?view=calendar&month=${prevMonth}&year=${prevYear}${filterSuffix}`}
 					>
 						<Button
 							size="sm"
@@ -215,7 +233,7 @@ export function SessionsCalendar({
 						</Button>
 					</Link>
 					<Link
-						href={`/sessions?view=calendar&month=${nextMonth}&year=${nextYear}`}
+						href={`/sessions?view=calendar&month=${nextMonth}&year=${nextYear}${filterSuffix}`}
 					>
 						<Button
 							size="sm"
@@ -334,7 +352,10 @@ export function SessionsCalendar({
 						);
 
 						return hasSessions && firstSession ? (
-							<Link key={index} href={`/sessions/${firstSession.id}`}>
+							<Link
+								key={index}
+								href={`/sessions/${firstSession.id}?view=calendar&month=${month}&year=${year}`}
+							>
 								{cellContent}
 							</Link>
 						) : (
