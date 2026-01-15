@@ -62,8 +62,8 @@ async function SessionDetailContent({
 	return (
 		<>
 			{/* Back Button */}
-			<div className="sticky top-0 z-30 bg-gray-50 pt-4">
-				<Link href={backUrl} className="pb-4 inline-block">
+			<div className="sticky top-0 z-30 bg-gray-50 pt-4 pb-4 ">
+				<Link href={backUrl} className="inline-block">
 					<Button
 						variant="outline"
 						size="sm"

@@ -7,8 +7,8 @@ export function SessionDetailSkeleton() {
 		<>
 			{/* Back Button skeleton */}
 			<div className="sticky top-0 z-30 bg-gray-50 pt-4">
-				<div className="pb-4 inline-block">
-					<Skeleton className="h-8 w-28 sm:h-9 sm:w-32" />
+				<div className="pb-2 inline-block">
+					<Skeleton className="h-8 sm:h-9 w-40" />
 				</div>
 			</div>
 

@@ -17,8 +17,8 @@ export default function LoadingPage() {
 			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4">
 				{/* Page Header Skeleton */}
 				<div className="mb-6">
-					<Skeleton className="h-9 w-80 mb-2" />
-					<Skeleton className="h-5 w-96" />
+					<Skeleton className="h-9 w-70 sm:w-80 mb-2" />
+					<Skeleton className="h-5 w-86 sm:w-96" />
 				</div>
 
 				{/* Desktop: Sticky Group (Filters + Sort + Pagination) */}
@@ -26,12 +26,13 @@ export default function LoadingPage() {
 					<div className="flex flex-col gap-4 lg:bg-gray-50 lg:pt-4">
 						<div className="flex items-start justify-between gap-4">
 							{/* Left Group: Sort & Filters */}
-							{view !== "calendar" && (
-								<div className="flex items-start gap-4 flex-1">
-									<Skeleton className="h-9 w-40" /> {/* Sort */}
-									<Skeleton className="h-9 w-24" /> {/* Filter Button */}
-								</div>
-							)}
+							<div className="flex items-start gap-4 flex-1">
+								{view !== "calendar" && <Skeleton className="h-9 w-40" />}{" "}
+								{/* Sort */}
+								{view !== "calendar" && <Skeleton className="h-9 w-24" />}{" "}
+								{/* Filter Button */}
+							</div>
+
 							{/* Right Group: View Toggle */}
 							<div className="flex gap-2 shrink-0">
 								<Skeleton className="h-9 w-28" /> {/* Calendar Toggle */}
@@ -50,7 +51,10 @@ export default function LoadingPage() {
 						<div className="flex flex-col gap-3">
 							{/* Sort and Toggle Row */}
 							<div className="flex justify-between gap-3">
-								<Skeleton className="h-9 w-full" /> {/* Sort */}
+								<Skeleton
+									className={`${view !== "calendar" ? "h-9 w-full" : "bg-transparent"}`}
+								/>{" "}
+								{/* Sort */}
 								<div className="flex shrink-0 gap-2">
 									<Skeleton className="h-9 w-10 sm:w-28" />{" "}
 									{/* Calendar Toggle */}
@@ -58,7 +62,7 @@ export default function LoadingPage() {
 								</div>
 							</div>
 							{/* Filters */}
-							{view !== "calendar" && <Skeleton className="h-9 w-24" />}{" "}
+							{view !== "calendar" && <Skeleton className="h-9 w-24" />}
 							{/* Filter Button */}
 						</div>
 					</div>
