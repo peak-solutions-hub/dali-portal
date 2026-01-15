@@ -1,9 +1,17 @@
 import { isDefinedError } from "@orpc/client";
 import type { Session, SessionType } from "@repo/shared";
+import {
+	buildSessionQueryString,
+	toSessionApiFilters,
+	transformSessionListDates,
+	validateSessionSearchParams,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
 	SessionFilters,
 	SessionListView,
@@ -13,11 +21,24 @@ import {
 } from "@/components/sessions";
 import { api } from "@/lib/api.client";
 
-// Public session statuses (only scheduled and completed allowed)
-type PublicSessionStatus = "scheduled" | "completed";
-
-// Items per page for session listing
-const SESSION_ITEMS_PER_PAGE = 10;
+export const metadata: Metadata = {
+	title: "Council Sessions — Iloilo City",
+	description:
+		"Browse Iloilo City Council sessions. Regular sessions are held every Wednesday at 10:00 AM. View schedules, agendas, and session details.",
+	openGraph: {
+		title: "Council Sessions — Iloilo City",
+		description:
+			"Browse Iloilo City Council sessions with schedules, agendas, and detailed information about regular and special sessions.",
+		type: "website",
+		url: "/sessions",
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Council Sessions — Iloilo City",
+		description:
+			"Browse Iloilo City Council sessions. Regular sessions held every Wednesday at 10:00 AM.",
+	},
+};
 
 export default async function Sessions({
 	searchParams,
@@ -35,20 +56,36 @@ export default async function Sessions({
 	}>;
 }) {
 	const params = await searchParams;
-	const currentPage = Number(params.page) || 1;
-	const view = (params.view || "list") as "list" | "calendar";
-	const sortOrder = (params.sort || "desc") as "asc" | "desc";
 
-	// Get filter parameters
-	const filterTypes = params.types ? params.types.split(",") : [];
-	const filterStatuses = params.statuses ? params.statuses.split(",") : [];
-	const filterDateFrom = params.dateFrom || "";
-	const filterDateTo = params.dateTo || "";
+	// Validate search parameters with Zod
+	const validationResult = validateSessionSearchParams(params);
+
+	// If validation fails, redirect to valid default params
+	if (!validationResult.success) {
+		const queryString = buildSessionQueryString({
+			view: "list",
+			page: "1",
+			sort: "desc",
+		});
+		redirect(`/sessions?${queryString}`);
+	}
+
+	const validatedParams = validationResult.data;
+
+	const currentPage = validatedParams.page;
+	const view = validatedParams.view;
+	const sortOrder = validatedParams.sort;
+
+	// Get filter parameters from validated params
+	const filterTypes = validatedParams.types || [];
+	const filterStatuses = validatedParams.statuses || [];
+	const filterDateFrom = validatedParams.dateFrom;
+	const filterDateTo = validatedParams.dateTo;
 
 	// Calendar state
 	const now = new Date();
-	const selectedYear = params.year ? Number(params.year) : now.getFullYear();
-	const selectedMonth = params.month ? Number(params.month) : now.getMonth();
+	const selectedYear = validatedParams.year ?? now.getFullYear();
+	const selectedMonth = validatedParams.month ?? now.getMonth();
 
 	// Check if any filters are active
 	const hasActiveFilters =
@@ -57,26 +94,8 @@ export default async function Sessions({
 		!!filterDateFrom ||
 		!!filterDateTo;
 
-	// Build API input for list view (with pagination)
-	const parsedDateFrom = filterDateFrom ? new Date(filterDateFrom) : undefined;
-	const parsedDateTo = filterDateTo ? new Date(filterDateTo) : undefined;
-	const isValidDateFrom =
-		parsedDateFrom && !Number.isNaN(parsedDateFrom.getTime());
-	const isValidDateTo = parsedDateTo && !Number.isNaN(parsedDateTo.getTime());
-
-	const listApiInput = {
-		type: filterTypes.length > 0 ? (filterTypes as SessionType[]) : undefined,
-		status:
-			filterStatuses.length > 0
-				? (filterStatuses as PublicSessionStatus[])
-				: undefined,
-		dateFrom: isValidDateFrom ? parsedDateFrom : undefined,
-		dateTo: isValidDateTo ? parsedDateTo : undefined,
-		sortBy: "date" as const,
-		sortDirection: sortOrder,
-		limit: SESSION_ITEMS_PER_PAGE,
-		page: currentPage,
-	};
+	// Convert to API input format
+	const listApiInput = toSessionApiFilters(validatedParams);
 
 	// For calendar view, fetch all sessions (higher limit, no pagination needed)
 	const calendarApiInput = {
@@ -92,50 +111,86 @@ export default async function Sessions({
 			? await api.sessions.list(listApiInput)
 			: await api.sessions.list(calendarApiInput);
 
+	// Handle API errors with user-visible message
+	if (error) {
+		console.error("API error fetching sessions:", error);
+
+		let errorMessage = "An unexpected error occurred";
+		if (isDefinedError(error)) {
+			errorMessage = error.message || errorMessage;
+		}
+
+		return (
+			<div className="min-h-screen bg-gray-50">
+				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4">
+					<div className="mb-6">
+						<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
+							Council Sessions
+						</h1>
+						<p className="text-gray-600 text-sm">
+							Regular sessions are held every Wednesday at 10:00 AM
+						</p>
+					</div>
+					<Card className="p-12 border-red-200 bg-red-50">
+						<div className="text-center">
+							<p className="text-lg mb-2 text-red-800 font-semibold">
+								Unable to Load Sessions
+							</p>
+							<p className="text-sm text-red-700 mb-4">
+								We're experiencing technical difficulties loading the sessions.
+								Please try refreshing the page.
+							</p>
+							<p className="text-xs text-red-600">Error: {errorMessage}</p>
+						</div>
+					</Card>
+				</div>
+			</div>
+		);
+	}
+
 	// Transform API response - ensure dates are Date objects
-	const sessions: Session[] =
-		data?.sessions.map((session) => ({
-			...session,
-			scheduleDate: new Date(session.scheduleDate),
-		})) ?? [];
+	const sessions: Session[] = data?.sessions
+		? transformSessionListDates(data.sessions)
+		: [];
 
 	// Get pagination info
 	const pagination = data?.pagination || {
 		currentPage: 1,
 		totalPages: 0,
 		totalCount: 0,
-		itemsPerPage: SESSION_ITEMS_PER_PAGE,
+		itemsPerPage: validatedParams.limit,
 		hasNextPage: false,
 		hasPreviousPage: false,
 	};
 
 	// Build current filters for pagination
 	const currentFilters = {
-		types: filterTypes.join(",") || undefined,
-		statuses: filterStatuses.join(",") || undefined,
-		dateFrom: filterDateFrom || undefined,
-		dateTo: filterDateTo || undefined,
+		types: filterTypes.length > 0 ? filterTypes.join(",") : undefined,
+		statuses: filterStatuses.length > 0 ? filterStatuses.join(",") : undefined,
+		dateFrom: filterDateFrom
+			? filterDateFrom.toISOString().split("T")[0]
+			: undefined,
+		dateTo: filterDateTo ? filterDateTo.toISOString().split("T")[0] : undefined,
 		sort: sortOrder,
 	};
 
 	// Construct base filter query string (excluding view-specific params like page/month/year)
-	const filterParams = new URLSearchParams();
-	if (filterTypes.length > 0) filterParams.set("types", filterTypes.join(","));
-	if (filterStatuses.length > 0)
-		filterParams.set("statuses", filterStatuses.join(","));
-	if (filterDateFrom) filterParams.set("dateFrom", filterDateFrom);
-	if (filterDateTo) filterParams.set("dateTo", filterDateTo);
-	if (params.sort) filterParams.set("sort", params.sort);
-
-	const filterQueryString = filterParams.toString();
+	const filterQueryString = buildSessionQueryString({
+		types: currentFilters.types,
+		statuses: currentFilters.statuses,
+		dateFrom: currentFilters.dateFrom,
+		dateTo: currentFilters.dateTo,
+		sort: sortOrder,
+	});
 	const calendarHref = `/sessions?view=calendar&month=${selectedMonth}&year=${selectedYear}${filterQueryString ? `&${filterQueryString}` : ""}`;
 	const listHref = `/sessions?view=list&page=1${filterQueryString ? `&${filterQueryString}` : ""}`;
 
 	// Params for list items (preserving page and filters)
-	const listItemParams = new URLSearchParams(filterParams);
-	listItemParams.set("view", "list");
-	if (currentPage > 1) listItemParams.set("page", currentPage.toString());
-	const listItemQueryString = listItemParams.toString();
+	const listItemQueryString = buildSessionQueryString({
+		view: "list",
+		page: currentPage > 1 ? currentPage : undefined,
+		...currentFilters,
+	});
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -264,16 +319,8 @@ export default async function Sessions({
 					</div>
 				</div>
 
-				{/* Error Handling */}
-				{error ? (
-					<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-12">
-						<p className="text-center text-base text-red-600">
-							{isDefinedError(error)
-								? error.message
-								: "Failed to load sessions"}
-						</p>
-					</Card>
-				) : (
+				{/* List View and Calendar View */}
+				{sessions.length > 0 || hasActiveFilters ? (
 					<>
 						{/* List View */}
 						{view === "list" && (
@@ -305,6 +352,15 @@ export default async function Sessions({
 							/>
 						)}
 					</>
+				) : (
+					<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-12">
+						<div className="text-center">
+							<p className="text-lg mb-2 text-gray-800">No sessions found</p>
+							<p className="text-sm text-gray-600">
+								There are no sessions available at this time.
+							</p>
+						</div>
+					</Card>
 				)}
 			</div>
 		</div>

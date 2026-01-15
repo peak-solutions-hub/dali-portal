@@ -1,8 +1,13 @@
 import { isDefinedError } from "@orpc/client";
-import { formatSessionDate, formatSessionTime } from "@repo/shared";
+import {
+	formatSessionDate,
+	formatSessionTime,
+	transformSessionWithAgendaDates,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -16,6 +21,65 @@ import {
 	getSessionTypeLabel,
 } from "@/lib/session-ui";
 
+interface PageProps {
+	params: Promise<{ id: string }>;
+	searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export async function generateMetadata({
+	params,
+}: PageProps): Promise<Metadata> {
+	const { id } = await params;
+
+	// Validate UUID format
+	const uuidRegex =
+		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	if (!uuidRegex.test(id)) {
+		return {
+			title: "Invalid Session",
+			description: "Invalid session ID.",
+		};
+	}
+
+	const [error, sessionData] = await api.sessions.getById({ id });
+
+	if (error || !sessionData) {
+		return {
+			title: "Session Not Found",
+			description: "The requested council session could not be found.",
+		};
+	}
+
+	const session = transformSessionWithAgendaDates(sessionData);
+
+	const scheduleDate = new Date(session.scheduleDate);
+	const formattedDate = formatSessionDate(scheduleDate);
+	const formattedTime = formatSessionTime(scheduleDate);
+	const sessionType = getSessionTypeLabel(session.type);
+	const sessionStatus = getSessionStatusLabel(session.status);
+	const agendaCount = session.agendaItems?.length || 0;
+
+	const title = `Session #${session.sessionNumber} - ${formattedDate}`;
+	const description = `${sessionType} on ${formattedDate} at ${formattedTime}. ${agendaCount} agenda ${agendaCount === 1 ? "item" : "items"}. Status: ${sessionStatus}.`;
+
+	return {
+		title,
+		description: description.substring(0, 160), // Limit to 160 chars for SEO
+		openGraph: {
+			title,
+			description,
+			type: "article",
+			publishedTime: scheduleDate.toISOString(),
+			url: `/sessions/${id}`,
+		},
+		twitter: {
+			card: "summary_large_image",
+			title,
+			description: description.substring(0, 160),
+		},
+	};
+}
+
 // Async component that fetches and displays session detail
 async function SessionDetailContent({
 	id,
@@ -25,7 +89,7 @@ async function SessionDetailContent({
 	searchParams: { [key: string]: string | string[] | undefined };
 }) {
 	// Fetch session from API
-	const [error, session] = await api.sessions.getById({ id });
+	const [error, sessionData] = await api.sessions.getById({ id });
 
 	// Handle errors - use generic error to prevent enumeration
 	if (error) {
@@ -36,9 +100,12 @@ async function SessionDetailContent({
 		notFound();
 	}
 
-	if (!session) {
+	if (!sessionData) {
 		notFound();
 	}
+
+	// Transform date strings to Date objects
+	const session = transformSessionWithAgendaDates(sessionData);
 
 	// Ensure scheduleDate is a Date object
 	const scheduleDate = new Date(session.scheduleDate);
@@ -172,10 +239,7 @@ async function SessionDetailContent({
 export default async function SessionDetailPage({
 	params,
 	searchParams,
-}: {
-	params: Promise<{ id: string }>;
-	searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
+}: PageProps) {
 	const { id } = await params;
 	const urlParams = await searchParams;
 

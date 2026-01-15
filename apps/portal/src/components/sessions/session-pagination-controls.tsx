@@ -1,6 +1,9 @@
 "use client";
 
-import type { SessionPaginationInfo } from "@repo/shared";
+import {
+	buildSessionQueryString,
+	type SessionPaginationInfo,
+} from "@repo/shared";
 import {
 	Pagination,
 	PaginationContent,
@@ -30,16 +33,12 @@ export function SessionPaginationControls({
 	const router = useRouter();
 
 	const handlePageChange = (newPage: number) => {
-		const params = new URLSearchParams({
+		const queryString = buildSessionQueryString({
 			view: "list",
-			page: newPage.toString(),
-			...(currentFilters.sort && { sort: currentFilters.sort }),
-			...(currentFilters.types && { types: currentFilters.types }),
-			...(currentFilters.statuses && { statuses: currentFilters.statuses }),
-			...(currentFilters.dateFrom && { dateFrom: currentFilters.dateFrom }),
-			...(currentFilters.dateTo && { dateTo: currentFilters.dateTo }),
+			page: newPage,
+			...currentFilters,
 		});
-		router.push(`/sessions?${params.toString()}`);
+		router.push(`/sessions?${queryString}`);
 	};
 
 	const {

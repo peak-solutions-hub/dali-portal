@@ -1,7 +1,12 @@
 "use client";
 
 import type { Session } from "@repo/shared";
-import { formatSessionTime, isSameDay } from "@repo/shared";
+import {
+	buildSessionQueryString,
+	formatSessionTime,
+	isSameDay,
+	validateSessionSearchParams,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -64,17 +69,63 @@ export function SessionsCalendar({
 	const firstDay = getFirstDayOfMonth(year, month);
 	const today = new Date();
 
+	// Helper to get current filters as object
+	const getCurrentFilters = React.useCallback(() => {
+		// Convert searchParams to object for validation
+		const paramsObj: Record<string, string> = {};
+		searchParams.forEach((value, key) => {
+			paramsObj[key] = value;
+		});
+
+		// Validate params to avoid using invalid values
+		const validationResult = validateSessionSearchParams(paramsObj);
+
+		const filters: Record<string, string | number | undefined> = {
+			view: "calendar",
+			month,
+			year,
+		};
+
+		// If validation failed, just return base filters without additional params
+		if (!validationResult.success) {
+			return filters;
+		}
+
+		const validatedParams = validationResult.data;
+
+		// Add validated filters
+		if (validatedParams.types && validatedParams.types.length > 0) {
+			filters.types = validatedParams.types.join(",");
+		}
+		if (validatedParams.statuses && validatedParams.statuses.length > 0) {
+			filters.statuses = validatedParams.statuses.join(",");
+		}
+		if (validatedParams.dateFrom) {
+			filters.dateFrom = validatedParams.dateFrom.toISOString().split("T")[0];
+		}
+		if (validatedParams.dateTo) {
+			filters.dateTo = validatedParams.dateTo.toISOString().split("T")[0];
+		}
+		if (validatedParams.sort) {
+			filters.sort = validatedParams.sort;
+		}
+
+		return filters;
+	}, [month, year, searchParams]);
+
 	const handleMonthChange = (newMonth: string) => {
 		const monthIndex = Number.parseInt(newMonth);
-		router.push(
-			`/sessions?view=calendar&month=${monthIndex}&year=${year}${filterSuffix}`,
-		);
+		const filters = getCurrentFilters();
+		filters.month = monthIndex;
+		const queryString = buildSessionQueryString(filters);
+		router.push(`/sessions?${queryString}`);
 	};
 
 	const handleYearChange = (newYear: string) => {
-		router.push(
-			`/sessions?view=calendar&month=${month}&year=${newYear}${filterSuffix}`,
-		);
+		const filters = getCurrentFilters();
+		filters.year = Number.parseInt(newYear);
+		const queryString = buildSessionQueryString(filters);
+		router.push(`/sessions?${queryString}`);
 	};
 
 	// Calculate year range from session data
@@ -152,18 +203,16 @@ export function SessionsCalendar({
 	const nextMonth = month === 11 ? 0 : month + 1;
 	const nextYear = month === 11 ? year + 1 : year;
 
-	// Helper to preserve filters (excluding view/month/year/page)
-	const getFilterQueryString = React.useCallback(() => {
-		const params = new URLSearchParams(searchParams.toString());
-		params.delete("view");
-		params.delete("month");
-		params.delete("year");
-		params.delete("page");
-		return params.toString();
-	}, [searchParams]);
-
-	const filterQuery = getFilterQueryString();
-	const filterSuffix = filterQuery ? `&${filterQuery}` : "";
+	// Helper to build nav URLs with filters
+	const buildNavUrl = React.useCallback(
+		(targetMonth: number, targetYear: number) => {
+			const filters = getCurrentFilters();
+			filters.month = targetMonth;
+			filters.year = targetYear;
+			return buildSessionQueryString(filters);
+		},
+		[getCurrentFilters],
+	);
 
 	return (
 		<Card className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6">
@@ -211,7 +260,7 @@ export function SessionsCalendar({
 				</div>
 				<div className="flex gap-2">
 					<Link
-						href={`/sessions?view=calendar&month=${today.getMonth()}&year=${today.getFullYear()}${filterSuffix}`}
+						href={`/sessions?${buildNavUrl(today.getMonth(), today.getFullYear())}`}
 					>
 						<Button
 							size="sm"
@@ -221,9 +270,7 @@ export function SessionsCalendar({
 							Today
 						</Button>
 					</Link>
-					<Link
-						href={`/sessions?view=calendar&month=${prevMonth}&year=${prevYear}${filterSuffix}`}
-					>
+					<Link href={`/sessions?${buildNavUrl(prevMonth, prevYear)}`}>
 						<Button
 							size="sm"
 							variant="outline"
@@ -232,9 +279,7 @@ export function SessionsCalendar({
 							<ChevronLeftIcon className="h-4 w-4" />
 						</Button>
 					</Link>
-					<Link
-						href={`/sessions?view=calendar&month=${nextMonth}&year=${nextYear}${filterSuffix}`}
-					>
+					<Link href={`/sessions?${buildNavUrl(nextMonth, nextYear)}`}>
 						<Button
 							size="sm"
 							variant="outline"

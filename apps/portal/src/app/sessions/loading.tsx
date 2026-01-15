@@ -1,5 +1,6 @@
 "use client";
 
+import { validateSessionSearchParams } from "@repo/shared";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { useSearchParams } from "next/navigation";
 import {
@@ -10,7 +11,20 @@ import {
 
 export default function LoadingPage() {
 	const searchParams = useSearchParams();
-	const view = (searchParams.get("view") || "list") as "list" | "calendar";
+
+	// Convert searchParams to object for validation
+	const paramsObj: Record<string, string> = {};
+	searchParams.forEach((value, key) => {
+		paramsObj[key] = value;
+	});
+
+	// Validate search parameters (client-side, use safe defaults on failure)
+	const validationResult = validateSessionSearchParams(paramsObj);
+	const validatedParams = validationResult.success
+		? validationResult.data
+		: { view: "list" as const, page: 1, sort: "asc" as const, limit: 10 };
+
+	const view = validatedParams.view;
 
 	return (
 		<div className="min-h-screen bg-gray-50">

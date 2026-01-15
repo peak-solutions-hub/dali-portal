@@ -1,6 +1,10 @@
 "use client";
 
 import {
+	buildSessionQueryString,
+	validateSessionSearchParams,
+} from "@repo/shared";
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -18,10 +22,50 @@ export function SortSelect({ currentSort }: SortSelectProps) {
 	const searchParams = useSearchParams();
 
 	const handleSortChange = (value: string) => {
-		const params = new URLSearchParams(searchParams.toString());
-		params.set("sort", value);
-		params.set("page", "1"); // Reset to first page when sorting changes
-		router.push(`/sessions?${params.toString()}`);
+		// Convert searchParams to object
+		const paramsObj: Record<string, string> = {};
+		searchParams.forEach((paramValue, key) => {
+			paramsObj[key] = paramValue;
+		});
+
+		// Validate current params to avoid perpetuating invalid values
+		const validationResult = validateSessionSearchParams(paramsObj);
+
+		if (!validationResult.success) {
+			// If validation fails, just use minimal valid params
+			const queryString = buildSessionQueryString({
+				view: "list",
+				page: 1,
+				sort: value,
+			});
+			router.push(`/sessions?${queryString}`);
+			return;
+		}
+
+		// Build query with validated params and new sort
+		const validatedParams = validationResult.data;
+		const queryString = buildSessionQueryString({
+			view: validatedParams.view,
+			page: 1, // Reset to first page when sorting changes
+			sort: value,
+			types:
+				validatedParams.types && validatedParams.types.length > 0
+					? validatedParams.types.join(",")
+					: undefined,
+			statuses:
+				validatedParams.statuses && validatedParams.statuses.length > 0
+					? validatedParams.statuses.join(",")
+					: undefined,
+			dateFrom: validatedParams.dateFrom
+				? validatedParams.dateFrom.toISOString().split("T")[0]
+				: undefined,
+			dateTo: validatedParams.dateTo
+				? validatedParams.dateTo.toISOString().split("T")[0]
+				: undefined,
+			month: validatedParams.month,
+			year: validatedParams.year,
+		});
+		router.push(`/sessions?${queryString}`);
 	};
 
 	return (

@@ -4,8 +4,18 @@
  * UI-specific constants should be defined in the respective app (portal/admin)
  */
 
+import { z } from "zod";
 import { SessionStatus } from "../enums/session";
-import type { Session } from "../schemas/session.schema";
+import type {
+	GetSessionListInput,
+	Session,
+	SessionWithAgenda,
+} from "../schemas/session.schema";
+import {
+	PublicSessionStatusEnum,
+	SessionTypeEnum,
+	SortDirectionEnum,
+} from "../schemas/session.schema";
 
 // =============================================================================
 // ROLE-BASED ACCESS CONSTANTS
@@ -27,6 +37,15 @@ export const ADMIN_SESSION_STATUSES: SessionStatus[] = [
 	SessionStatus.SCHEDULED,
 	SessionStatus.COMPLETED,
 ];
+
+// =============================================================================
+// PAGINATION CONSTANTS
+// =============================================================================
+
+/**
+ * Default items per page for session list pagination
+ */
+export const SESSION_ITEMS_PER_PAGE = 10;
 
 // =============================================================================
 // DATE & TIME FORMATTING
@@ -231,4 +250,166 @@ export function isSameDay(date1: Date, date2: Date): boolean {
 		date1.getMonth() === date2.getMonth() &&
 		date1.getDate() === date2.getDate()
 	);
+}
+
+// =============================================================================
+// QUERY STRING UTILITIES
+// =============================================================================
+
+/**
+ * Build a query string from filters
+ */
+export function buildSessionQueryString(
+	filters: Record<string, string | number | undefined>,
+): string {
+	const params = new URLSearchParams();
+
+	for (const [key, value] of Object.entries(filters)) {
+		if (value !== undefined && value !== "" && value !== "all") {
+			params.set(key, String(value));
+		}
+	}
+
+	return params.toString();
+}
+
+// =============================================================================
+// SEARCH PARAMS VALIDATION
+// =============================================================================
+
+/**
+ * Zod schema for validating URL search parameters
+ * Aligns with backend GetSessionListSchema but handles array values
+ */
+export const sessionSearchParamsSchema = z.object({
+	types: z
+		.string()
+		.optional()
+		.default("")
+		.transform((val) => {
+			if (!val) return undefined;
+			return val.split(",").filter((v) => SessionTypeEnum.safeParse(v).success);
+		}),
+	statuses: z
+		.string()
+		.optional()
+		.default("")
+		.transform((val) => {
+			if (!val) return undefined;
+			return val
+				.split(",")
+				.filter((v) => PublicSessionStatusEnum.safeParse(v).success);
+		}),
+	dateFrom: z
+		.string()
+		.optional()
+		.default("")
+		.transform((val) => {
+			if (!val) return undefined;
+			const date = new Date(val);
+			return Number.isNaN(date.getTime()) ? undefined : date;
+		}),
+	dateTo: z
+		.string()
+		.optional()
+		.default("")
+		.transform((val) => {
+			if (!val) return undefined;
+			const date = new Date(val);
+			return Number.isNaN(date.getTime()) ? undefined : date;
+		}),
+	sort: SortDirectionEnum.optional().default("desc"),
+	page: z.coerce.number().int().min(1).optional().default(1),
+	limit: z.coerce
+		.number()
+		.int()
+		.min(1)
+		.max(100)
+		.optional()
+		.default(SESSION_ITEMS_PER_PAGE),
+	view: z.enum(["list", "calendar"]).optional().default("list"),
+	month: z.coerce.number().int().min(0).max(11).optional(),
+	year: z.coerce.number().int().min(1950).max(2100).optional(),
+});
+
+export type SessionSearchParams = z.infer<typeof sessionSearchParamsSchema>;
+
+/**
+ * Validate session search parameters using Zod schema
+ */
+export function validateSessionSearchParams(
+	params: Record<string, string | undefined>,
+) {
+	return sessionSearchParamsSchema.safeParse(params);
+}
+
+/**
+ * Convert validated search params to API input format
+ */
+export function toSessionApiFilters(
+	params: SessionSearchParams,
+): GetSessionListInput {
+	return {
+		type: params.types as ("regular" | "special")[] | undefined,
+		status: params.statuses as ("scheduled" | "completed")[] | undefined,
+		dateFrom: params.dateFrom,
+		dateTo: params.dateTo,
+		sortBy: "date",
+		sortDirection: params.sort,
+		limit: params.limit,
+		page: params.page,
+	};
+}
+
+// =============================================================================
+// DATE TRANSFORMATION
+// =============================================================================
+
+/**
+ * Type for API response where dates are ISO strings (before transformation)
+ */
+export type SessionAPIResponse = Omit<Session, "scheduleDate"> & {
+	scheduleDate: string;
+};
+
+/**
+ * Type for SessionWithAgenda API response
+ */
+export type SessionWithAgendaAPIResponse = Omit<
+	SessionWithAgenda,
+	"scheduleDate"
+> & {
+	scheduleDate: string;
+};
+
+/**
+ * Convert ISO date strings from API response to Date objects
+ * oRPC/HTTP serializes Date objects as ISO strings, so we need to convert them back
+ */
+export function transformSessionDates(session: SessionAPIResponse): Session {
+	return {
+		...session,
+		scheduleDate: new Date(session.scheduleDate),
+	};
+}
+
+/**
+ * Transform SessionWithAgenda date strings to Date objects
+ */
+export function transformSessionWithAgendaDates(
+	session: SessionWithAgendaAPIResponse,
+): SessionWithAgenda {
+	return {
+		...session,
+		scheduleDate: new Date(session.scheduleDate),
+	};
+}
+
+/**
+ * Transform multiple sessions' date strings to Date objects
+ */
+export function transformSessionListDates(
+	sessions: SessionAPIResponse[],
+): Session[] {
+	return sessions.map(transformSessionDates);
 }
