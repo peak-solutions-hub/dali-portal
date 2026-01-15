@@ -126,13 +126,13 @@ model Household {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model InquiryMessage {
   id              String                   @id(map: "inquiry_messages_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId        String                   @map("ticket_id") @db.Uuid
   senderName      String                   @map("sender_name")
   content         String
   attachmentPaths String[]                 @map("attachment_paths")
   createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   senderType      InquiryMessageSenderType @map("sender_type")
-  ticketId        String                   @map("ticket_id")
-  inquiryTicket   InquiryTicket            @relation(fields: [ticketId], references: [referenceNumber], map: "inquiry_messages_ticket_id_fkey")
+  inquiryTicket   InquiryTicket            @relation(fields: [ticketId], references: [id], map: "inquiry_messages_ticket_id_fkey")
 
   @@map("inquiry_message")
 }
@@ -150,7 +150,7 @@ model InquiryTicket {
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   category        InquiryCategory
   status          InquiryStatus
-  inquiryMessage  InquiryMessage[]
+  inquiryMessages InquiryMessage[]
   user            User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
 
   @@map("inquiry_ticket")
@@ -403,6 +403,7 @@ enum ClassificationType {
   ways_and_means
   women_and_family_relations
   youth_and_sports_development
+  disaster_relief_disaster_management
 
   @@map("classification_type")
 }
