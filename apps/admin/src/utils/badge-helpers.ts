@@ -12,7 +12,7 @@ export function getStatusBadgeStyles(status: string): string {
 		return "bg-blue-100 border-blue-300 text-blue-800";
 	}
 	if (status === "deactivated") {
-		return "bg-gray-100 border-gray-300 text-gray-600";
+		return "bg-red-100 border-red-300 text-red-600";
 	}
 	return "bg-gray-100 border-gray-300 text-gray-600";
 }

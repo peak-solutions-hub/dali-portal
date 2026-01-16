@@ -18,17 +18,17 @@ import { toast } from "sonner";
 import { api } from "@/lib/api.client";
 import truncateEmail from "@/utils/email-helper";
 
-interface DeleteUserDialogProps {
+interface DeactivateUserDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	user: UserWithRole | null;
 }
 
-export function DeleteUserDialog({
+export function DeactivateUserDialog({
 	open,
 	onOpenChange,
 	user,
-}: DeleteUserDialogProps) {
+}: DeactivateUserDialogProps) {
 	const [isDeactivating, setIsDeactivating] = useState(false);
 	const router = useRouter();
 
@@ -38,16 +38,18 @@ export function DeleteUserDialog({
 		setIsDeactivating(true);
 
 		try {
-			const data = await api.users.deactivate({ id: user.id });
+			// API returns the updated user or throws; rely on try/catch for errors
+			const result = await api.users.deactivate({ id: user.id });
 
-			if (data) {
+			if (result) {
 				toast.success(`${user.fullName} has been deactivated`, {
 					description: "User account has been successfully deactivated",
 					duration: 3000,
 				});
 				onOpenChange(false);
-
-				router.refresh();
+				setTimeout(() => {
+					router.refresh();
+				}, 1000);
 			}
 		} catch (error) {
 			console.error("Error deactivating user:", error);

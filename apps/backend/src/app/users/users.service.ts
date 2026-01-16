@@ -155,7 +155,7 @@ export class UsersService {
 			throw new ORPCError("NOT_FOUND", { message: "User not found" });
 		}
 
-		if (existingUser.status === "active") {
+		if (existingUser.status === "active" || existingUser.status === "invited") {
 			const deactivatedUser = await this.db.user.update({
 				where: { id },
 				data: {

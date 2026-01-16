@@ -16,7 +16,7 @@ import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { getStatusBadgeStyles } from "@/utils/badge-helpers";
 import truncateEmail from "@/utils/email-helper";
-import { DeleteUserDialog } from "./delete-user-dialog";
+import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { UpdateUserDialog } from "./update-user-dialog";
 
 interface UsersTableProps {
@@ -175,7 +175,7 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 
 			{/* Delete User Dialog */}
 			{selectedUser && (
-				<DeleteUserDialog
+				<DeactivateUserDialog
 					open={deleteDialogOpen}
 					onOpenChange={setDeleteDialogOpen}
 					user={selectedUser}
