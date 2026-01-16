@@ -1,4 +1,5 @@
 export * from "./document-rules";
+export * from "./session-rules";
 
 export const TEXT_LIMITS = {
 	XS: 50, // names, etc
