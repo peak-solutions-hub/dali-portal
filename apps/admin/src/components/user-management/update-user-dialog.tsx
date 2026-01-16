@@ -20,6 +20,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
@@ -40,6 +41,7 @@ export function UpdateUserDialog({
 	const [fullName, setFullName] = useState(user?.fullName || "");
 	const [roleId, setRoleId] = useState(user?.roleId || "");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const router = useRouter();
 
 	// Update local state when user prop changes
 	useEffect(() => {
@@ -80,7 +82,9 @@ export function UpdateUserDialog({
 				onOpenChange(false);
 
 				// Refresh the page to show updated data
-				window.location.reload();
+				setTimeout(() => {
+					router.refresh();
+				}, 1000);
 			}
 		} catch (error) {
 			console.error("Error updating user:", error);
@@ -118,15 +122,39 @@ export function UpdateUserDialog({
 					<div className="flex flex-col gap-4 py-4">
 						{/* Full Name Input */}
 						<div className="flex flex-col gap-2">
-							<Label htmlFor="fullName">Full Name</Label>
+							<Label htmlFor="fullName">
+								Full Name <span className="text-red-500">*</span>
+							</Label>
 							<Input
 								id="fullName"
-								placeholder="Enter full name"
+								placeholder="Enter full name (min 10, max 50 chars)"
 								value={fullName}
-								onChange={(e) => setFullName(e.target.value)}
+								onChange={(e) => {
+									const value = e.target.value.slice(0, 75);
+									setFullName(value);
+								}}
+								maxLength={75}
 								required
-								className="bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
+								className={`bg-white focus:ring-[#a60202] ${
+									fullName.length > 50
+										? "border-red-500 focus:border-red-500"
+										: "border-[#d0d5dd] focus:border-[#a60202]"
+								}`}
 							/>
+							{fullName.length > 50 ? (
+								<p className="text-xs text-red-600 font-medium">
+									Name exceeds 50 characters! Please shorten it.
+								</p>
+							) : null}
+							<p
+								className={`text-xs ${
+									fullName.length > 50
+										? "text-red-600 font-medium"
+										: "text-[#6b7280]"
+								}`}
+							>
+								{fullName.length}/50 characters
+							</p>
 						</div>
 
 						{/* Email (Read-only) */}
@@ -146,7 +174,9 @@ export function UpdateUserDialog({
 
 						{/* Role Select */}
 						<div className="flex flex-col gap-2">
-							<Label htmlFor="role">Role</Label>
+							<Label htmlFor="role">
+								Role <span className="text-red-500">*</span>
+							</Label>
 							<Select value={roleId} onValueChange={setRoleId} required>
 								<SelectTrigger
 									id="role"
@@ -189,7 +219,13 @@ export function UpdateUserDialog({
 						</Button>
 						<Button
 							type="submit"
-							disabled={isSubmitting || !fullName || !roleId}
+							disabled={
+								isSubmitting ||
+								!fullName ||
+								!roleId ||
+								fullName.length < 5 ||
+								fullName.length > 50
+							}
 							className="bg-[#a60202] hover:bg-[#8a0101] text-white"
 						>
 							{isSubmitting ? "Saving..." : "Save Changes"}

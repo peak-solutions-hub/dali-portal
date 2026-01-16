@@ -42,7 +42,6 @@ export function InviteUserDialog({
 	const [isLoadingRoles, setIsLoadingRoles] = useState(true);
 	const router = useRouter();
 
-	// Fetch roles from backend
 	useEffect(() => {
 		async function fetchRoles() {
 			try {
@@ -121,34 +120,84 @@ export function InviteUserDialog({
 					<div className="flex flex-col gap-4 py-4">
 						{/* Full Name Input */}
 						<div className="flex flex-col gap-2">
-							<Label htmlFor="fullName">Full Name</Label>
+							<Label htmlFor="fullName">
+								Full Name <span className="text-red-500">*</span>
+							</Label>
 							<Input
 								id="fullName"
-								placeholder="Enter full name"
+								placeholder="Enter full name (min 10, max 50 chars)"
 								value={fullName}
-								onChange={(e) => setFullName(e.target.value)}
+								onChange={(e) => {
+									const value = e.target.value.slice(0, 75);
+									setFullName(value);
+								}}
+								maxLength={75}
 								required
-								className="bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
+								className={`bg-white focus:ring-[#a60202] ${
+									fullName.length > 50
+										? "border-red-500 focus:border-red-500"
+										: "border-[#d0d5dd] focus:border-[#a60202]"
+								}`}
 							/>
+							{fullName.length > 50 ? (
+								<p className="text-xs text-red-600 font-medium">
+									Name exceeds 50 characters! Please shorten it.
+								</p>
+							) : null}
+							<p
+								className={`text-xs ${
+									fullName.length > 50
+										? "text-red-600 font-medium"
+										: "text-[#6b7280]"
+								}`}
+							>
+								{fullName.length}/50 characters
+							</p>
 						</div>
 
 						{/* Email Input */}
 						<div className="flex flex-col gap-2">
-							<Label htmlFor="email">Email Address</Label>
+							<Label htmlFor="email">
+								Email Address <span className="text-red-500">*</span>
+							</Label>
 							<Input
 								id="email"
 								type="email"
-								placeholder="user@iloilo.gov.ph"
+								placeholder="user@iloilo.gov.ph (max 255 chars)"
 								value={email}
-								onChange={(e) => setEmail(e.target.value)}
+								onChange={(e) => {
+									const value = e.target.value.slice(0, 255);
+									setEmail(value);
+								}}
+								maxLength={275}
 								required
-								className="bg-white border-[#d0d5dd] focus:border-[#a60202] focus:ring-[#a60202]"
+								className={`bg-white focus:ring-[#a60202] ${
+									email.length > 255
+										? "border-red-500 focus:border-red-500"
+										: "border-[#d0d5dd] focus:border-[#a60202]"
+								}`}
 							/>
+							{email.length > 255 ? (
+								<p className="text-xs text-red-600 font-medium">
+									Email exceeds 255 characters! Please shorten it.
+								</p>
+							) : null}
+							<p
+								className={`text-xs ${
+									email.length > 255
+										? "text-red-600 font-medium"
+										: "text-[#6b7280]"
+								}`}
+							>
+								{email.length}/255 characters
+							</p>
 						</div>
 
 						{/* Role Select */}
 						<div className="flex flex-col gap-2">
-							<Label htmlFor="role">Role</Label>
+							<Label htmlFor="role">
+								Role <span className="text-red-500">*</span>
+							</Label>
 							<Select value={roleId} onValueChange={setRoleId} required>
 								<SelectTrigger id="role">
 									<SelectValue
@@ -193,7 +242,14 @@ export function InviteUserDialog({
 						<Button
 							type="submit"
 							disabled={
-								isSubmitting || !fullName || !email || !roleId || isLoadingRoles
+								isSubmitting ||
+								!fullName ||
+								!email ||
+								!roleId ||
+								isLoadingRoles ||
+								fullName.length < 10 ||
+								fullName.length > 50 ||
+								email.length > 255
 							}
 							className="bg-[#a60202] hover:bg-[#8a0101] text-white"
 						>

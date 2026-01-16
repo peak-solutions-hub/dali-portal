@@ -77,12 +77,20 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 							className="border-b border-[#e5e7eb] hover:bg-transparent"
 						>
 							<TableCell className="px-6 py-5">
-								<div className="text-base font-medium text-[#101828]">
+								<div
+									className="text-base font-medium text-[#101828] truncate max-w-72"
+									title={user.fullName}
+								>
 									{user.fullName}
 								</div>
 							</TableCell>
 							<TableCell className="px-6 py-5">
-								<div className="text-base text-[#4a5565]">{user.email}</div>
+								<div
+									className="text-base text-[#4a5565] truncate max-w-62.5"
+									title={user.email}
+								>
+									{user.email}
+								</div>
 							</TableCell>
 							<TableCell className="px-6 py-5">
 								<Badge

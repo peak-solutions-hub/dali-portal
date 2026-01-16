@@ -6,8 +6,11 @@ import { USER_STATUS_VALUES } from "../enums/user";
 export const UserSchema = z.object({
 	id: z.uuid(),
 	roleId: z.uuid(),
-	fullName: z.string().min(1).max(255),
-	email: z.email(),
+	fullName: z
+		.string()
+		.min(5, "Name must be at least 5 characters")
+		.max(50, "Name must not exceed 50 characters"),
+	email: z.email().max(255, "Email must not exceed 255 characters"),
 	createdAt: z.date(),
 	status: z.enum(USER_STATUS_VALUES),
 });
@@ -34,7 +37,11 @@ export const GetUserByIdSchema = z.object({
 
 export const UpdateUserSchema = z.object({
 	id: z.uuid(),
-	fullName: z.string().min(1).max(255).optional(),
+	fullName: z
+		.string()
+		.min(5, "Name must be at least 10 characters")
+		.max(50, "Name must not exceed 50 characters")
+		.optional(),
 	roleId: z.uuid().optional(),
 	status: z.enum(USER_STATUS_VALUES).optional(),
 });
@@ -44,8 +51,11 @@ export const DeleteUserSchema = z.object({
 });
 
 export const InviteUserSchema = z.object({
-	email: z.email(),
-	fullName: z.string().min(1).max(255),
+	email: z.email().max(255, "Email must not exceed 255 characters"),
+	fullName: z
+		.string()
+		.min(5, "Name must be at least 5 characters")
+		.max(50, "Name must not exceed 50 characters"),
 	roleId: z.uuid(),
 });
 
