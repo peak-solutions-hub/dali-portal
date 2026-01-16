@@ -253,9 +253,7 @@ export default async function SessionDetailPage({
 	return (
 		<div className="min-h-screen bg-[#f9fafb]">
 			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
-				<Suspense fallback={<SessionDetailSkeleton />}>
-					<SessionDetailContent id={id} searchParams={urlParams} />
-				</Suspense>
+				<SessionDetailContent id={id} searchParams={urlParams} />
 			</div>
 		</div>
 	);

@@ -1,5 +1,5 @@
 import { isDefinedError } from "@orpc/client";
-import type { Session, SessionType } from "@repo/shared";
+import type { Session } from "@repo/shared";
 import {
 	buildSessionQueryString,
 	toSessionApiFilters,
