@@ -1,5 +1,5 @@
 import { isDefinedError } from "@orpc/client";
-import type { Session } from "@repo/shared";
+import type { Session, SessionSearchParams } from "@repo/shared";
 import {
 	buildSessionQueryString,
 	toSessionApiFilters,
@@ -12,6 +12,7 @@ import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import {
 	SessionFilters,
 	SessionListView,
@@ -20,6 +21,7 @@ import {
 	SortSelect,
 } from "@/components/sessions";
 import { api } from "@/lib/api.client";
+import SessionLoading from "./loading";
 
 export const metadata: Metadata = {
 	title: "Council Sessions — Iloilo City",
@@ -71,7 +73,20 @@ export default async function Sessions({
 	}
 
 	const validatedParams = validationResult.data;
+	const view = validatedParams.view;
 
+	return (
+		<Suspense fallback={<SessionLoading view={view} />}>
+			<SessionContent params={validatedParams} />
+		</Suspense>
+	);
+}
+
+async function SessionContent({
+	params: validatedParams,
+}: {
+	params: SessionSearchParams;
+}) {
 	const currentPage = validatedParams.page;
 	const view = validatedParams.view;
 	const sortOrder = validatedParams.sort;

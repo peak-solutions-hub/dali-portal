@@ -1,31 +1,19 @@
-"use client";
-
-import { validateSessionSearchParams } from "@repo/shared";
 import { Skeleton } from "@repo/ui/components/skeleton";
-import { useSearchParams } from "next/navigation";
 import {
 	SessionListViewSkeleton,
 	SessionPaginationSkeleton,
 	SessionsCalendarSkeleton,
 } from "@/components/sessions";
 
-export default function LoadingPage() {
-	const searchParams = useSearchParams();
+interface LoadingPageProps {
+	view: "list" | "calendar";
+}
 
-	// Convert searchParams to object for validation
-	const paramsObj: Record<string, string> = {};
-	searchParams.forEach((value, key) => {
-		paramsObj[key] = value;
-	});
-
-	// Validate search parameters (client-side, use safe defaults on failure)
-	const validationResult = validateSessionSearchParams(paramsObj);
-	const validatedParams = validationResult.success
-		? validationResult.data
-		: { view: "list" as const, page: 1, sort: "asc" as const, limit: 10 };
-
-	const view = validatedParams.view;
-
+/**
+ * View-specific loading skeleton.
+ * Server-rendered with zero client JS.
+ */
+export default function LoadingPage({ view }: LoadingPageProps) {
 	return (
 		<div className="min-h-screen bg-gray-50">
 			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4">
