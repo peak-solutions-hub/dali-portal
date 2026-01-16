@@ -15,6 +15,7 @@ import {
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { getStatusBadgeStyles } from "@/utils/badge-helpers";
+import truncateEmail from "@/utils/email-helper";
 import { DeleteUserDialog } from "./delete-user-dialog";
 import { UpdateUserDialog } from "./update-user-dialog";
 
@@ -89,7 +90,7 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 									className="text-base text-[#4a5565] truncate max-w-62.5"
 									title={user.email}
 								>
-									{user.email}
+									{truncateEmail(user.email, 15)}
 								</div>
 							</TableCell>
 							<TableCell className="px-6 py-5">

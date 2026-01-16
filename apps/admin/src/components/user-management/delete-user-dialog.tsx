@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
+import truncateEmail from "@/utils/email-helper";
 
 interface DeleteUserDialogProps {
 	open: boolean;
@@ -63,7 +64,7 @@ export function DeleteUserDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-125">
+			<DialogContent className="sm:max-w-125 max-h-[80vh] overflow-auto">
 				<DialogHeader>
 					<div className="flex items-center gap-3">
 						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
@@ -81,21 +82,31 @@ export function DeleteUserDialog({
 
 				<div className="py-4">
 					{/* User Info */}
-					<div className="rounded-lg border border-[#e6e6e8] bg-[#f9f9fb] p-4 mb-4">
-						<div className="flex flex-col gap-2">
-							<div className="flex items-center justify-between">
+					<div className="rounded-lg border border-[#e6e6e8] bg-[#f9f9fb] p-4 mb-4 wrap-word-break">
+						<div className="flex flex-col gap-2 text-wrap">
+							<div className="grid grid-cols-2 gap-4 items-start">
 								<span className="text-sm font-medium text-[#364153]">
 									Full Name:
 								</span>
-								<span className="text-sm text-[#101828]">{user.fullName}</span>
+								<span
+									className="text-sm text-[#101828] wrap-word-break max-w-full"
+									title={user.fullName}
+								>
+									{user.fullName}
+								</span>
 							</div>
-							<div className="flex items-center justify-between">
+							<div className="grid grid-cols-2 gap-4 items-start">
 								<span className="text-sm font-medium text-[#364153]">
 									Email:
 								</span>
-								<span className="text-sm text-[#101828]">{user.email}</span>
+								<span
+									className="text-sm text-[#101828] wrap-word-break max-w-full"
+									title={user.email}
+								>
+									{truncateEmail(user.email, 15)}
+								</span>
 							</div>
-							<div className="flex items-center justify-between">
+							<div className="grid grid-cols-2 gap-4 items-start">
 								<span className="text-sm font-medium text-[#364153]">
 									Role:
 								</span>
