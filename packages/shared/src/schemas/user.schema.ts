@@ -1,0 +1,82 @@
+import { z } from "zod";
+import { RoleTypeSchema } from "../enums/role";
+import { USER_STATUS_VALUES } from "../enums/user";
+
+// Base User schema matching Prisma model
+export const UserSchema = z.object({
+	id: z.uuid(),
+	roleId: z.uuid(),
+	fullName: z
+		.string()
+		.min(5, "Name must be at least 5 characters")
+		.max(50, "Name must not exceed 50 characters"),
+	email: z.email().max(255, "Email must not exceed 255 characters"),
+	createdAt: z.date(),
+	status: z.enum(USER_STATUS_VALUES),
+});
+
+// Extended User schema with role relationship
+export const UserWithRoleSchema = UserSchema.extend({
+	role: z.object({
+		id: z.uuid(),
+		name: RoleTypeSchema,
+		createdAt: z.date(),
+	}),
+});
+
+// Input schemas for operations
+export const GetUserListSchema = z.object({
+	roleType: RoleTypeSchema.optional(),
+	status: z.enum(USER_STATUS_VALUES).optional(),
+	search: z.string().optional(),
+});
+
+export const GetUserByIdSchema = z.object({
+	id: z.uuid(),
+});
+
+export const UpdateUserSchema = z.object({
+	id: z.uuid(),
+	fullName: z
+		.string()
+		.min(5, "Name must be at least 10 characters")
+		.max(50, "Name must not exceed 50 characters")
+		.optional(),
+	roleId: z.uuid().optional(),
+	status: z.enum(USER_STATUS_VALUES).optional(),
+});
+
+export const DeleteUserSchema = z.object({
+	id: z.uuid(),
+});
+
+export const InviteUserSchema = z.object({
+	email: z.email().max(255, "Email must not exceed 255 characters"),
+	fullName: z
+		.string()
+		.min(5, "Name must be at least 5 characters")
+		.max(50, "Name must not exceed 50 characters"),
+	roleId: z.uuid(),
+});
+
+// Response schemas
+export const UserListResponseSchema = z.object({
+	users: z.array(UserWithRoleSchema),
+});
+
+export const InviteUserResponseSchema = z.object({
+	success: z.boolean(),
+	message: z.string(),
+	userId: z.string().optional(),
+});
+
+// Types
+export type User = z.infer<typeof UserSchema>;
+export type UserWithRole = z.infer<typeof UserWithRoleSchema>;
+export type GetUserListInput = z.infer<typeof GetUserListSchema>;
+export type GetUserByIdInput = z.infer<typeof GetUserByIdSchema>;
+export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
+export type DeleteUserInput = z.infer<typeof DeleteUserSchema>;
+export type InviteUserInput = z.infer<typeof InviteUserSchema>;
+export type UserListResponse = z.infer<typeof UserListResponseSchema>;
+export type InviteUserResponse = z.infer<typeof InviteUserResponseSchema>;
