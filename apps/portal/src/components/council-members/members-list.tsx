@@ -131,8 +131,21 @@ export function CouncilMembersList({ members }: CouncilMembersListProps) {
 											transform: "rotateY(180deg)",
 										}}
 									>
-										<div className="flex items-center justify-center h-full">
-											<p className="text-gray-500 text-center">Back of card</p>
+										<div className="flex flex-col h-full">
+											<h3 className="text-xl font-bold text-gray-900 mb-4 font-playfair-display">
+												{member.name}
+											</h3>
+											<div className="border-t-2 border-red-700 mb-4"></div>
+											<h4 className="text-lg font-semibold text-red-700 mb-3">
+												Chairmanship:
+											</h4>
+											<div className="space-y-2 text-gray-700 flex-1">
+												<p>Insert chairmanship</p>
+												<p>Insert chairmanship</p>
+												<p>Insert chairmanship</p>
+												<p>Insert chairmanship</p>
+												<p>Insert chairmanship</p>
+											</div>
 										</div>
 									</div>
 								</div>
