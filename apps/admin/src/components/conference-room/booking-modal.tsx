@@ -25,6 +25,7 @@ export function BookingModal({
 	const [startTime, setStartTime] = useState("");
 	const [endTime, setEndTime] = useState("");
 	const [purpose, setPurpose] = useState("");
+	const [attachment, setAttachment] = useState<File | null>(null);
 	const [equipment, setEquipment] = useState({
 		projector: false,
 		soundSystem: false,
@@ -57,6 +58,7 @@ export function BookingModal({
 			startTime,
 			endTime,
 			purpose,
+			attachment: attachment?.name,
 			equipment,
 		});
 		onClose();
@@ -64,6 +66,13 @@ export function BookingModal({
 
 	const handleCheckboxChange = (key: keyof typeof equipment) => {
 		setEquipment((prev) => ({ ...prev, [key]: !prev[key] }));
+	};
+
+	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			setAttachment(file);
+		}
 	};
 
 	if (!isOpen) return null;
@@ -262,6 +271,31 @@ export function BookingModal({
 								</label>
 							</div>
 						</div>
+					</div>
+
+					{/* Attachment */}
+					<div>
+						<label
+							htmlFor="attachment"
+							className="block text-sm font-semibold text-gray-900 mb-2"
+						>
+							Attach Letter (Optional)
+						</label>
+						<input
+							id="attachment"
+							type="file"
+							accept=".jpg,.jpeg,.pdf"
+							onChange={handleFileChange}
+							className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+						/>
+						{attachment && (
+							<p className="text-sm text-gray-600 mt-2">
+								Selected: {attachment.name}
+							</p>
+						)}
+						<p className="text-xs text-gray-500 mt-1">
+							Accepted formats: JPG, PDF
+						</p>
 					</div>
 
 					{/* Buttons */}
