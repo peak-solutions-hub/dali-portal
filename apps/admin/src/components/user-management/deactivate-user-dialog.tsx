@@ -38,8 +38,11 @@ export function DeactivateUserDialog({
 		setIsDeactivating(true);
 
 		try {
-			// API returns the updated user or throws; rely on try/catch for errors
-			const result = await api.users.deactivate({ id: user.id });
+			const [error, result] = await api.users.deactivate({ id: user.id });
+
+			if (error) {
+				throw error;
+			}
 
 			if (result) {
 				toast.success(`${user.fullName} has been deactivated`, {

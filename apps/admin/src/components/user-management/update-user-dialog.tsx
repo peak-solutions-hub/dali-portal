@@ -68,11 +68,15 @@ export function UpdateUserDialog({
 		setIsSubmitting(true);
 
 		try {
-			const data = await api.users.update({
+			const [error, data] = await api.users.update({
 				id: user.id,
 				fullName: fullName.trim(),
 				roleId: roleId,
 			});
+
+			if (error) {
+				throw error;
+			}
 
 			if (data) {
 				toast.success(`${fullName} updated successfully`, {

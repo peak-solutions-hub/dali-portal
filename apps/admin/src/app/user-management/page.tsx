@@ -25,16 +25,24 @@ export default function UserManagementPage() {
 				setIsLoading(true);
 
 				// Fetch all users (no search or pagination)
-				const usersResult = await api.users.list({});
+				const [usersError, usersResult] = await api.users.list({});
 
-				if (usersResult.users) {
+				if (usersError) {
+					throw usersError;
+				}
+
+				if (usersResult?.users) {
 					setUsers(usersResult.users as unknown as UserWithRole[]);
 				}
 
 				// Fetch roles
-				const rolesResult = await api.roles.list();
+				const [rolesError, rolesResult] = await api.roles.list();
 
-				if (rolesResult.roles) {
+				if (rolesError) {
+					throw rolesError;
+				}
+
+				if (rolesResult?.roles) {
 					setRoles(rolesResult.roles as unknown as Role[]);
 				}
 

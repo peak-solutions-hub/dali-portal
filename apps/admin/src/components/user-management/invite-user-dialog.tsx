@@ -45,8 +45,11 @@ export function InviteUserDialog({
 	useEffect(() => {
 		async function fetchRoles() {
 			try {
-				const result = await api.roles.list();
-				if (result.roles) {
+				const [error, result] = await api.roles.list();
+				if (error) {
+					throw error;
+				}
+				if (result?.roles) {
 					setRoles(result.roles as unknown as Role[]);
 				}
 			} catch (error) {
@@ -66,11 +69,15 @@ export function InviteUserDialog({
 		setIsSubmitting(true);
 
 		try {
-			const data = await api.users.invite({
+			const [error, data] = await api.users.invite({
 				email,
 				fullName,
 				roleId,
 			});
+
+			if (error) {
+				throw error;
+			}
 
 			if (data) {
 				toast.success(`Invitation sent to ${fullName}`, {
