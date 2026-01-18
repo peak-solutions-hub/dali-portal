@@ -49,3 +49,18 @@ export const getCalendarDays = (currentDate: Date) => {
 	for (let day = 1; day <= daysInMonth; day++) days.push(day);
 	return days;
 };
+
+/**
+ * Converts a display date string (e.g., "January 18, 2026") to MM/DD/YYYY format
+ */
+export const parseDisplayDateToInput = (displayDate: string): string => {
+	try {
+		const date = new Date(displayDate);
+		const month = String(date.getMonth() + 1).padStart(2, "0");
+		const day = String(date.getDate()).padStart(2, "0");
+		const year = date.getFullYear();
+		return `${month}/${day}/${year}`;
+	} catch {
+		return displayDate;
+	}
+};
