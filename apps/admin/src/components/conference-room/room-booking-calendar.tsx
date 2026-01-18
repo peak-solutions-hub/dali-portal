@@ -62,6 +62,11 @@ export function RoomBookingCalendar() {
 			day,
 		);
 		setSelectedDate(newDate);
+		// Open modal when clicking from month view
+		if (viewMode === "month") {
+			setSelectedTimeSlot("");
+			setIsModalOpen(true);
+		}
 	};
 
 	const handleToday = () => {
@@ -391,7 +396,6 @@ export function RoomBookingCalendar() {
 										onClick={() => {
 											if (day) {
 												handleDateClick(day);
-												setViewMode("day");
 											}
 										}}
 										className={`bg-white p-2 flex flex-col transition-colors relative group
