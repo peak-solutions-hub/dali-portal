@@ -43,6 +43,8 @@ export function PaginationControls({
 
 	// Calculate showing range (handle empty state)
 	const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+	const endItem =
+		totalItems === 0 ? 0 : Math.min(currentPage * itemsPerPage, totalItems);
 
 	if (totalPages <= 1) {
 		return null; // Don't show pagination if only one page or no items
@@ -84,7 +86,8 @@ export function PaginationControls({
 		<div className="sticky top-38.5 z-20 bg-white py-3 px-4 mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-gray-200 shadow-sm">
 			<div className="container mx-auto px-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between w-full">
 				<span className="text-sm text-gray-700" aria-live="polite">
-					Showing <span className="font-semibold">{startItem}</span> of{" "}
+					Showing <span className="font-semibold">{startItem}</span>-
+					<span className="font-semibold">{endItem}</span> of{" "}
 					<span className="font-semibold">{totalItems}</span> results
 				</span>
 
