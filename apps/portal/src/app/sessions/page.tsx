@@ -347,7 +347,7 @@ async function SessionContent({
 								/>
 
 								{/* Mobile Pagination - Sticky bottom */}
-								{sessions.length > 0 && (
+								{sessions.length > 0 && pagination.totalPages > 1 && (
 									<div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
 										<SessionPaginationControls
 											pagination={pagination}
