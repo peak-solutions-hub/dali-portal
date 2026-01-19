@@ -10,8 +10,6 @@ import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
-import { SessionDetailSkeleton } from "@/components/sessions/session-detail-skeleton";
 import { api } from "@/lib/api.client";
 import {
 	getSectionLabel,
