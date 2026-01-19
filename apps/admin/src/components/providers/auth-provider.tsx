@@ -1,6 +1,6 @@
 "use client";
 
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		if (initializedRef.current) return;
 		initializedRef.current = true;
 
-		const supabase = createSupabaseBrowserClient();
+		const supabase = createBrowserClient();
 
 		// Initialize auth state
 		initialize();

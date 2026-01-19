@@ -1,7 +1,7 @@
 "use client";
 
-import type { RoleType } from "@repo/shared";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
+import { type RoleType } from "@repo/shared";
+import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
 import type { Session } from "@supabase/supabase-js";
 import { create } from "zustand";
 import { api, setAuthToken } from "@/lib/api.client";
@@ -136,7 +136,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
 	logout: async () => {
 		try {
-			const supabase = createSupabaseBrowserClient();
+			const supabase = createBrowserClient();
 			await supabase.auth.signOut();
 
 			// Clear the auth token
@@ -169,7 +169,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 		try {
 			set({ isLoading: true, error: null });
 
-			const supabase = createSupabaseBrowserClient();
+			const supabase = createBrowserClient();
 			const {
 				data: { session },
 				error,

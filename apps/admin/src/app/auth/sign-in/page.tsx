@@ -1,101 +1,58 @@
 "use client";
 
+import { Alert, AlertDescription } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
+import { Card } from "@repo/ui/components/card";
+import { AlertCircle, ArrowLeft } from "@repo/ui/lib/lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@repo/ui/components/card";
-import { Input } from "@repo/ui/components/input";
-import { Label } from "@repo/ui/components/label";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+	AuthBackground,
+	AuthHeader,
+	ForgotPasswordModal,
+	LoginForm,
+} from "@/components/auth";
 
 export default function SignInPage() {
-	const router = useRouter();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [error, setError] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
+	const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+	const searchParams = useSearchParams();
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setError(null);
-		setIsLoading(true);
+	useEffect(() => {
+		// Check for error messages from redirects
+		const error = searchParams.get("error");
+		const message = searchParams.get("message");
 
-		try {
-			const supabase = createSupabaseBrowserClient();
-			const { error: signInError } = await supabase.auth.signInWithPassword({
-				email,
-				password,
-			});
-
-			if (signInError) {
-				setError(signInError.message);
-				return;
-			}
-
-			// Redirect to dashboard on successful sign in
-			router.push("/dashboard");
-		} catch (err) {
-			setError("An unexpected error occurred");
-			console.error("Sign in error:", err);
-		} finally {
-			setIsLoading(false);
+		if ((error === "invalid_link" || error === "auth_code_error") && message) {
+			setErrorMessage(message);
 		}
-	};
+	}, [searchParams]);
 
 	return (
-		<div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-			<Card className="w-full max-w-md">
-				<CardHeader className="space-y-1">
-					<CardTitle className="text-2xl font-bold text-center">
-						DALI Portal
-					</CardTitle>
-					<CardDescription className="text-center">
-						Sign in to the Internal Management System
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<form onSubmit={handleSubmit} className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="email">Email</Label>
-							<Input
-								id="email"
-								type="email"
-								placeholder="Enter your email"
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-								required
-								disabled={isLoading}
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="password">Password</Label>
-							<Input
-								id="password"
-								type="password"
-								placeholder="Enter your password"
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-								required
-								disabled={isLoading}
-							/>
-						</div>
-						{error && (
-							<div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
-								{error}
-							</div>
-						)}
-						<Button type="submit" className="w-full" disabled={isLoading}>
-							{isLoading ? "Signing in..." : "Sign In"}
-						</Button>
-					</form>
-				</CardContent>
+		<div className="h-screen w-screen relative flex items-center justify-center overflow-hidden">
+			{/* Background */}
+			<AuthBackground />
+
+			{/* Content Card */}
+			<Card className="w-full max-w-md mx-4 p-6 sm:p-8 relative z-10 shadow-2xl bg-white/95 backdrop-blur-sm border-[#FFC107]/20">
+				<AuthHeader />
+
+				{/* Error Alert */}
+				{errorMessage && (
+					<Alert variant="destructive" className="mb-4">
+						<AlertCircle className="h-4 w-4" />
+						<AlertDescription>{errorMessage}</AlertDescription>
+					</Alert>
+				)}
+
+				<LoginForm onForgotPassword={() => setShowForgotPasswordModal(true)} />
 			</Card>
+
+			{/* Forgot Password Modal */}
+			<ForgotPasswordModal
+				open={showForgotPasswordModal}
+				onOpenChange={setShowForgotPasswordModal}
+			/>
 		</div>
 	);
 }

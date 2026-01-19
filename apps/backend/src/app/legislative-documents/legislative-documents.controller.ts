@@ -4,14 +4,14 @@ import { contract } from "@repo/shared";
 import { Public } from "@/app/auth";
 import { LegislativeDocumentsService } from "./legislative-documents.service";
 
-// All legislative document routes are public (citizen-facing portal)
-@Public()
 @Controller()
 export class LegislativeDocumentsController {
 	constructor(
 		private readonly legislativeDocumentsService: LegislativeDocumentsService,
 	) {}
 
+	// Public endpoint - citizens can view legislative documents
+	@Public()
 	@Implement(contract.legislativeDocuments.list)
 	list() {
 		return implement(contract.legislativeDocuments.list).handler(
@@ -21,6 +21,8 @@ export class LegislativeDocumentsController {
 		);
 	}
 
+	// Public endpoint - citizens can view statistics
+	@Public()
 	@Implement(contract.legislativeDocuments.statistics)
 	statistics() {
 		return implement(contract.legislativeDocuments.statistics).handler(
@@ -30,6 +32,8 @@ export class LegislativeDocumentsController {
 		);
 	}
 
+	// Public endpoint - citizens can view latest documents
+	@Public()
 	@Implement(contract.legislativeDocuments.latest)
 	latest() {
 		return implement(contract.legislativeDocuments.latest).handler(
@@ -41,6 +45,8 @@ export class LegislativeDocumentsController {
 		);
 	}
 
+	// Public endpoint - citizens can view document details
+	@Public()
 	@Implement(contract.legislativeDocuments.getById)
 	getById() {
 		return implement(contract.legislativeDocuments.getById).handler(

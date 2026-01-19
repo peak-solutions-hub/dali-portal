@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ORPCError } from "@orpc/nest";
 import type {
+	ActivateUserInput,
 	GetUserListInput,
 	InviteUserInput,
 	InviteUserResponse,
@@ -172,6 +173,40 @@ export class UsersService {
 		return existingUser as UserWithRole;
 	}
 
+	async activateUser(input: ActivateUserInput): Promise<UserWithRole> {
+		const { id } = input;
+
+		const existingUser = await this.db.user.findUnique({
+			where: { id },
+			include: {
+				role: true,
+			},
+		});
+
+		if (!existingUser) {
+			throw new ORPCError("NOT_FOUND", { message: "User not found" });
+		}
+
+		// Only activate if status is 'invited'
+		if (existingUser.status !== "invited") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "User is not in invited status",
+			});
+		}
+
+		const activatedUser = await this.db.user.update({
+			where: { id },
+			data: {
+				status: "active",
+			},
+			include: {
+				role: true,
+			},
+		});
+
+		return activatedUser as UserWithRole;
+	}
+
 	async inviteUser(input: InviteUserInput): Promise<InviteUserResponse> {
 		const { email, fullName, roleId } = input;
 
@@ -196,7 +231,9 @@ export class UsersService {
 		}
 
 		const adminUrl = this.configService.get("adminUrl") as string;
-		const redirectTo = `${adminUrl}/auth/set-password`;
+		// CRITICAL: Use callback route to properly exchange code for session
+		// The 'next' param tells the callback where to redirect after session is set
+		const redirectTo = `${adminUrl}/auth/callback?next=/auth/set-password`;
 		const supabase = this.supabaseAdmin.getClient();
 
 		const { data: authData, error: authError } =

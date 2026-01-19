@@ -12,37 +12,23 @@ import {
 	UserCog,
 	Users,
 } from "@repo/ui/lib/lucide-react";
+import { ROLE_DISPLAY_NAMES } from "@repo/shared";
+import { Building2, ChevronRight } from "@repo/ui/lib/lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-interface NavigationItem {
-	name: string;
-	href: string;
-	icon: React.ElementType;
-}
-
-const navigationItems: NavigationItem[] = [
-	{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-	{ name: "Document Tracker", href: "/document-tracker", icon: FileSearch },
-	{ name: "Caller's Slips", href: "/caller-slips", icon: ClipboardList },
-	{
-		name: "Session Management",
-		href: "/session-management",
-		icon: CalendarDays,
-	},
-	{ name: "Inquiry Tickets", href: "/inquiry-tickets", icon: Ticket },
-	{
-		name: "Visitor & Beneficiary Hub",
-		href: "/visitor-and-beneficiary-hub",
-		icon: Users,
-	},
-	{ name: "Conference Room", href: "/conference-room", icon: BookUser },
-	{ name: "User Management", href: "/user-management", icon: UserCog },
-];
+import { useMemo } from "react";
+import { getFilteredNavItems } from "@/config/nav-items";
+import { useAuthStore } from "@/stores";
 
 export function Sidebar() {
 	const pathname = usePathname();
+	const { userProfile } = useAuthStore();
+
+	// Filter navigation items based on user role
+	const filteredNavItems = useMemo(() => {
+		return getFilteredNavItems(userProfile?.role?.name);
+	}, [userProfile?.role?.name]);
 
 	return (
 		<aside className="w-64 bg-white border-r border-[#e5e7eb] flex flex-col h-screen overflow-hidden">
@@ -68,11 +54,13 @@ export function Sidebar() {
 				<div className="bg-[#f9fafb] rounded-lg p-4">
 					<div className="flex flex-col min-w-0">
 						<span className="text-[14px] font-medium text-[#0a0a0a] truncate">
-							UserName
+							{userProfile?.fullName ?? "Loading..."}
 						</span>
 						<div className="inline-flex mt-1">
 							<span className="bg-[#eceef2] text-[#030213] text-[10px] font-medium px-2 py-0.5 rounded-md uppercase tracking-wider">
-								User-bla-bla-bla
+								{userProfile?.role?.name
+									? ROLE_DISPLAY_NAMES[userProfile.role.name]
+									: "—"}
 							</span>
 						</div>
 					</div>
@@ -81,7 +69,7 @@ export function Sidebar() {
 
 			{/* Navigation */}
 			<nav className="flex-1 px-4 space-y-1 overflow-y-auto pt-2">
-				{navigationItems.map((item) => {
+				{filteredNavItems.map((item) => {
 					const isActive = pathname.startsWith(item.href);
 					return (
 						<Link

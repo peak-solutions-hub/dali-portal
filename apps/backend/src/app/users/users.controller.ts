@@ -1,6 +1,6 @@
 import { Controller } from "@nestjs/common";
 import { Implement, implement } from "@orpc/nest";
-import { contract, RoleType } from "@repo/shared";
+import { contract, ROLE_PERMISSIONS } from "@repo/shared";
 import { Roles } from "@/app/auth";
 import type { ORPCContext } from "@/app/types";
 import { UsersService } from "./users.service";
@@ -25,8 +25,8 @@ export class UsersController {
 		});
 	}
 
-	// User management routes require IT_ADMIN or HEAD_ADMIN role
-	@Roles(RoleType.IT_ADMIN, RoleType.HEAD_ADMIN)
+	// User management routes require IT_ADMIN role
+	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.list)
 	getUsers() {
 		return implement(contract.users.list).handler(async ({ input }) => {
@@ -34,7 +34,7 @@ export class UsersController {
 		});
 	}
 
-	@Roles(RoleType.IT_ADMIN, RoleType.HEAD_ADMIN)
+	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.deactivate)
 	deactivateUser() {
 		return implement(contract.users.deactivate).handler(async ({ input }) => {
@@ -42,7 +42,14 @@ export class UsersController {
 		});
 	}
 
-	@Roles(RoleType.IT_ADMIN, RoleType.HEAD_ADMIN)
+	@Implement(contract.users.activate)
+	activateUser() {
+		return implement(contract.users.activate).handler(async ({ input }) => {
+			return await this.usersService.activateUser(input);
+		});
+	}
+
+	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.getById)
 	getUserById() {
 		return implement(contract.users.getById).handler(async ({ input }) => {
@@ -50,7 +57,7 @@ export class UsersController {
 		});
 	}
 
-	@Roles(RoleType.IT_ADMIN, RoleType.HEAD_ADMIN)
+	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.update)
 	updateUser() {
 		return implement(contract.users.update).handler(async ({ input }) => {
@@ -58,7 +65,7 @@ export class UsersController {
 		});
 	}
 
-	@Roles(RoleType.IT_ADMIN, RoleType.HEAD_ADMIN)
+	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.invite)
 	inviteUser() {
 		return implement(contract.users.invite).handler(async ({ input }) => {

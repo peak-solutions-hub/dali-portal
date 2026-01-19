@@ -1,7 +1,11 @@
 "use client";
 
 import type { UserWithRole } from "@repo/shared";
-import { formatRoleDisplay, getRoleBadgeStyles } from "@repo/shared";
+import {
+	formatRoleDisplay,
+	getRoleBadgeStyles,
+	truncateEmail,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -16,7 +20,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
-import truncateEmail from "@/utils/email-helper";
 
 interface DeactivateUserDialogProps {
 	open: boolean;

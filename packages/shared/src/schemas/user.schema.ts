@@ -50,6 +50,10 @@ export const DeleteUserSchema = z.object({
 	id: z.uuid(),
 });
 
+export const ActivateUserSchema = z.object({
+	id: z.uuid(),
+});
+
 export const InviteUserSchema = z.object({
 	email: z.email().max(255, "Email must not exceed 255 characters"),
 	fullName: z
@@ -77,6 +81,7 @@ export type GetUserListInput = z.infer<typeof GetUserListSchema>;
 export type GetUserByIdInput = z.infer<typeof GetUserByIdSchema>;
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 export type DeleteUserInput = z.infer<typeof DeleteUserSchema>;
+export type ActivateUserInput = z.infer<typeof ActivateUserSchema>;
 export type InviteUserInput = z.infer<typeof InviteUserSchema>;
 export type UserListResponse = z.infer<typeof UserListResponseSchema>;
 export type InviteUserResponse = z.infer<typeof InviteUserResponseSchema>;

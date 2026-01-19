@@ -1,0 +1,83 @@
+"use client";
+
+import { ROLE_PERMISSIONS, type RoleType } from "@repo/shared";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useAuthStore } from "@/stores";
+
+/**
+ * Route to feature mapping for role-based access control
+ */
+const ROUTE_FEATURE_MAP: Record<string, keyof typeof ROLE_PERMISSIONS> = {
+	"/dashboard": "DASHBOARD",
+	"/document-tracker": "DOCUMENT_TRACKER",
+	"/caller-slips": "CALLER_SLIPS",
+	"/session-management": "SESSION_MANAGEMENT",
+	"/inquiry-tickets": "INQUIRY_TICKETS",
+	"/visitor-and-beneficiary-hub": "VISITOR_BENEFICIARY_HUB",
+	"/conference-room": "CONFERENCE_ROOM",
+	"/user-management": "USER_MANAGEMENT",
+};
+
+/**
+ * Check if a user has permission to access a route
+ */
+function hasRoutePermission(
+	pathname: string,
+	userRole: RoleType | undefined,
+): boolean {
+	if (!userRole) return false;
+
+	// Find matching route (check if pathname starts with any protected route)
+	const matchedRoute = Object.keys(ROUTE_FEATURE_MAP).find((route) =>
+		pathname.startsWith(route),
+	);
+
+	if (!matchedRoute) return true; // Allow access to non-protected routes
+
+	const feature = ROUTE_FEATURE_MAP[matchedRoute];
+	if (!feature) return true; // No feature mapping, allow access
+
+	return ROLE_PERMISSIONS[feature].includes(userRole);
+}
+
+/**
+ * Hook to protect routes based on user role
+ * Redirects to sign-in if user doesn't have permission
+ */
+export function useRoleProtection() {
+	const router = useRouter();
+	const pathname = usePathname();
+	const { userProfile, isLoading, isAuthenticated } = useAuthStore();
+
+	useEffect(() => {
+		// Skip protection for auth routes
+		if (pathname.startsWith("/auth")) {
+			return;
+		}
+
+		// Wait for auth state to be determined
+		if (isLoading) {
+			return;
+		}
+
+		// Redirect to sign-in if not authenticated
+		if (!isAuthenticated) {
+			router.push(`/auth/sign-in?redirect=${encodeURIComponent(pathname)}`);
+			return;
+		}
+
+		// Check role permission
+		const hasPermission = hasRoutePermission(pathname, userProfile?.role?.name);
+
+		if (!hasPermission) {
+			// Redirect to unauthorized page or sign-in
+			router.push("/auth/sign-in");
+		}
+	}, [pathname, userProfile, isLoading, isAuthenticated, router]);
+
+	return {
+		isLoading,
+		hasPermission: hasRoutePermission(pathname, userProfile?.role?.name),
+	};
+}
