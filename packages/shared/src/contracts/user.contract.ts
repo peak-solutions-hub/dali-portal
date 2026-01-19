@@ -10,6 +10,26 @@ import {
 	UserWithRoleSchema,
 } from "../schemas/user.schema";
 
+// Get current user profile (authenticated user)
+export const getCurrentUserContract = oc
+	.route({
+		method: "GET",
+		path: "/users/me",
+		summary: "Get current user profile",
+		description:
+			"Retrieve the authenticated user's profile including their role information",
+		tags: ["Users", "Auth"],
+	})
+	.output(UserWithRoleSchema)
+	.errors({
+		UNAUTHORIZED: {
+			message: "User not authenticated",
+		},
+		NOT_FOUND: {
+			message: "User profile not found",
+		},
+	});
+
 // Get users list
 export const getUserListContract = oc
 	.route({
@@ -123,6 +143,7 @@ export const inviteUserContract = oc
 
 // Export user contract
 export const userContract = {
+	me: getCurrentUserContract,
 	list: getUserListContract,
 	deactivate: deactivateUserContract,
 	getById: getUserByIdContract,

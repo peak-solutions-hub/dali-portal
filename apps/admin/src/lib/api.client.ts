@@ -16,9 +16,39 @@ if (!apiUrl) {
 	);
 }
 
+/**
+ * Store for the current auth token
+ * This is set by the auth store when a session is established
+ */
+let authToken: string | null = null;
+
+/**
+ * Set the auth token for API requests
+ * @param token - JWT token from Supabase session, or null to clear
+ */
+export function setAuthToken(token: string | null) {
+	authToken = token;
+}
+
+/**
+ * Get the current auth token
+ * @returns The current JWT token or null
+ */
+export function getAuthToken(): string | null {
+	return authToken;
+}
+
 const link = new OpenAPILink(contract, {
 	url: apiUrl,
-	headers: () => ({}),
+	headers: () => {
+		const headers: Record<string, string> = {};
+
+		if (authToken) {
+			headers.Authorization = `Bearer ${authToken}`;
+		}
+
+		return headers;
+	},
 });
 
 const jsonApi: JsonifiedClient<ContractRouterClient<Contract>> =
