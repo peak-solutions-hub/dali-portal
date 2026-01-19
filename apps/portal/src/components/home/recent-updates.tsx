@@ -1,6 +1,7 @@
 import { Card } from "@repo/ui/components/card";
 import { Calendar, FileText } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
+import { getSessionTypeBadgeClass } from "@/lib/session-ui";
 
 interface Document {
 	id: string;
@@ -108,7 +109,7 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 								</div>
 							</div>
 
-							<div className="space-y-3">
+							<div className="space-y-6">
 								{sessions.length > 0 ? (
 									sessions.map((session) => (
 										<Link
@@ -129,9 +130,19 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 													</div>
 												</div>
 												<div className="flex-1 min-w-0">
-													<p className="text-sm font-semibold text-gray-900 mb-1">
-														{session.type} Session #{session.sessionNumber}
-													</p>
+													<div className="flex items-center gap-2 mb-1">
+														<span
+															className={`inline-flex h-6 items-center rounded-md px-2 text-xs font-medium text-white ${getSessionTypeBadgeClass((session.type || "").toLowerCase())}`}
+														>
+															{String(session.type || "")
+																.charAt(0)
+																.toUpperCase() +
+																String(session.type || "").slice(1)}
+														</span>
+														<p className="text-sm font-semibold text-gray-900">
+															Session #{session.sessionNumber}
+														</p>
+													</div>
 													<p className="text-sm text-gray-600 mb-1">
 														{session.fullDate}
 													</p>
