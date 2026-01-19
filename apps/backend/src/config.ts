@@ -14,4 +14,9 @@ export default () => ({
 	},
 	turnstile_secret_key: process.env.TURNSTILE_SECRET_KEY,
 	resend: { apiKey: process.env.RESEND_API_KEY },
+	supabase: {
+		url: process.env.SUPABASE_URL,
+		serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+	},
+	adminUrl: process.env.ADMIN_URL ?? "http://localhost:3001",
 });

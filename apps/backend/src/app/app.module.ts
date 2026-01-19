@@ -6,6 +6,10 @@ import { AppController } from "@/app/app.controller";
 import { DbModule } from "@/app/db/db.module";
 import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module";
 import { LegislativeDocumentsModule } from "@/app/legislative-documents/legislative-documents.module";
+import { RolesModule } from "@/app/roles/roles.module";
+import { SessionModule } from "@/app/session/session.module";
+import { UsersModule } from "@/app/users/users.module";
+import { SupabaseModule } from "@/app/util/supabase/supabase.module";
 import { LibModule } from "@/lib/lib.module";
 import { AppService } from "./app.service";
 
@@ -13,8 +17,12 @@ import { AppService } from "./app.service";
 	imports: [
 		LibModule,
 		DbModule,
+		SupabaseModule,
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
+		RolesModule,
+		UsersModule,
+		SessionModule,
 		// orpc
 		ORPCModule.forRootAsync({
 			inject: [REQUEST],

@@ -1,4 +1,4 @@
-import { MapPin } from "@repo/ui/lib/lucide-react";
+import { HeartHandshake, MapPin } from "@repo/ui/lib/lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -125,8 +125,17 @@ export function PublicFooter() {
 					{/* Copyright */}
 					<div className="border-t border-[#c10007] pt-6 sm:pt-8">
 						<p className="text-[#ffe2e2] text-xs sm:text-sm text-center leading-5">
-							&copy; {new Date().getFullYear()} Sangguniang Panlungsod ng
-							Iloilo. All rights reserved.
+							Made with love{" "}
+							<HeartHandshake className="inline w-4 h-4 text-[#ffe2e2] mb-0.5" />{" "}
+							by
+							<Image
+								src="/peak-solutions-logo.webp"
+								alt="Peak Solutions Logo"
+								width={60}
+								height={20}
+								className="object-contain inline  mb-0.5 cursor-pointer hover:opacity-80"
+							/>
+							. All rights reserved.
 						</p>
 					</div>
 				</div>

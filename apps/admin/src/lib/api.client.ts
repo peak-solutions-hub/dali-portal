@@ -1,4 +1,4 @@
-import { createORPCClient } from "@orpc/client";
+import { createORPCClient, createSafeClient } from "@orpc/client";
 import type { ContractRouterClient } from "@orpc/contract";
 import type { JsonifiedClient } from "@orpc/openapi-client";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
@@ -21,5 +21,7 @@ const link = new OpenAPILink(contract, {
 	headers: () => ({}),
 });
 
-export const api: JsonifiedClient<ContractRouterClient<Contract>> =
+const jsonApi: JsonifiedClient<ContractRouterClient<Contract>> =
 	createORPCClient(link);
+
+export const api = createSafeClient(jsonApi);
