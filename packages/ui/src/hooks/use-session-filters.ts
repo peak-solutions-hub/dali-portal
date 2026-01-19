@@ -75,7 +75,7 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 			newParams.dateTo = updates.dateTo ?? filters.dateTo ?? undefined;
 
 			const queryString = buildSessionQueryString(newParams);
-			router.push(`/sessions?${queryString}`, { scroll: false });
+			router.push(`/sessions?${queryString}`);
 		},
 		[router, searchParams, filters],
 	);
@@ -89,7 +89,7 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 			page: 1,
 			sort: "desc",
 		});
-		router.push(`/sessions?${queryString}`, { scroll: false });
+		router.push(`/sessions?${queryString}`);
 	}, [router]);
 
 	/**
