@@ -37,7 +37,7 @@
 		"typescript": "5.9.3"
 	},
 	"dependencies": {
-		"@orpc/contract": "^1.13.1",
+		"@orpc/contract": "1.13.4",
 		"@supabase/supabase-js": "^2.90.0",
 		"zod": "^4.2.1"
 	}
