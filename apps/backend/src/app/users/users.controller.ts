@@ -1,8 +1,11 @@
 import { Controller } from "@nestjs/common";
 import { Implement, implement } from "@orpc/nest";
-import { contract } from "@repo/shared";
+import { contract, RoleType } from "@repo/shared";
+import { Roles } from "@/app/auth";
 import { UsersService } from "./users.service";
 
+// All user management routes require IT_ADMIN or HEAD_ADMIN role
+@Roles(RoleType.IT_ADMIN, RoleType.HEAD_ADMIN)
 @Controller()
 export class UsersController {
 	constructor(private readonly usersService: UsersService) {}

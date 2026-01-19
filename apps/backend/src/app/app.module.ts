@@ -1,8 +1,9 @@
 import { Module } from "@nestjs/common";
-import { REQUEST } from "@nestjs/core";
+import { APP_GUARD, REQUEST } from "@nestjs/core";
 import { ORPCModule, onError } from "@orpc/nest";
 import type { Request } from "express";
 import { AppController } from "@/app/app.controller";
+import { AuthModule, JwtAuthGuard, RolesGuard } from "@/app/auth";
 import { DbModule } from "@/app/db/db.module";
 import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module";
 import { LegislativeDocumentsModule } from "@/app/legislative-documents/legislative-documents.module";
@@ -17,6 +18,7 @@ import { AppService } from "./app.service";
 	imports: [
 		LibModule,
 		DbModule,
+		AuthModule,
 		SupabaseModule,
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
@@ -48,6 +50,19 @@ import { AppService } from "./app.service";
 		}),
 	],
 	controllers: [AppController],
-	providers: [AppService],
+	providers: [
+		AppService,
+		// Global guards - applied to all routes
+		// JwtAuthGuard runs first, then RolesGuard
+		// Use @Public() decorator to skip authentication for specific routes
+		{
+			provide: APP_GUARD,
+			useClass: JwtAuthGuard,
+		},
+		{
+			provide: APP_GUARD,
+			useClass: RolesGuard,
+		},
+	],
 })
 export class AppModule {}

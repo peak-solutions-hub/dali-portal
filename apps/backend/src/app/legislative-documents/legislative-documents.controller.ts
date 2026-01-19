@@ -1,8 +1,11 @@
 import { Controller } from "@nestjs/common";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
+import { Public } from "@/app/auth";
 import { LegislativeDocumentsService } from "./legislative-documents.service";
 
+// All legislative document routes are public (citizen-facing portal)
+@Public()
 @Controller()
 export class LegislativeDocumentsController {
 	constructor(
