@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
 	dayNames,
@@ -11,7 +11,11 @@ import {
 	isSameDay,
 	monthNames,
 } from "@/utils/date-utils";
-import { generateTimeSlots } from "@/utils/time-utils";
+import {
+	generateTimeSlots,
+	isTimeSlotBooked,
+	parseTimeToHour,
+} from "@/utils/time-utils";
 import { BookingModal } from "./booking-modal";
 
 export function RoomBookingCalendar() {
@@ -26,6 +30,47 @@ export function RoomBookingCalendar() {
 	const [dragStartIndex, setDragStartIndex] = useState<number | null>(null);
 	const [dragEndIndex, setDragEndIndex] = useState<number | null>(null);
 	const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
+
+	// Mock bookings data
+	const mockBookings = useMemo(
+		() => [
+			{
+				id: "1",
+				date: new Date(2026, 0, 21), // January 21, 2026
+				startTime: "9:00 AM",
+				endTime: "11:00 AM",
+				room: "Conference Room A",
+				purpose: "Team Planning Meeting",
+				attendees: 15,
+				status: "confirmed" as const,
+			},
+			{
+				id: "2",
+				date: new Date(2026, 0, 21), // January 21, 2026
+				startTime: "2:00 PM",
+				endTime: "4:00 PM",
+				room: "Conference Room A",
+				purpose: "Budget Review Session",
+				attendees: 8,
+				status: "pending" as const,
+			},
+		],
+		[],
+	);
+
+	// Check if selected date has bookings
+	const hasBookingsForSelectedDate = useMemo(() => {
+		return mockBookings.some((booking) =>
+			isSameDay(booking.date, selectedDate),
+		);
+	}, [mockBookings, selectedDate]);
+
+	// Get bookings for selected date
+	const bookingsForSelectedDate = useMemo(() => {
+		return mockBookings.filter((booking) =>
+			isSameDay(booking.date, selectedDate),
+		);
+	}, [mockBookings, selectedDate]);
 
 	// Update time for the red indicator line
 	useEffect(() => {
@@ -84,6 +129,9 @@ export function RoomBookingCalendar() {
 	};
 
 	const handleMouseDown = (index: number) => {
+		// Prevent selecting booked slots
+		if (isSlotBooked(index)) return;
+
 		setIsDragging(true);
 		setDragStartIndex(index);
 		setDragEndIndex(index);
@@ -92,9 +140,16 @@ export function RoomBookingCalendar() {
 
 	const handleMouseEnter = (index: number) => {
 		if (isDragging && dragStartIndex !== null) {
+			// Don't allow dragging over booked slots
+			if (isSlotBooked(index)) return;
+
 			setDragEndIndex(index);
 			const start = Math.min(dragStartIndex, index);
 			const end = Math.max(dragStartIndex, index);
+
+			// Check if any slot in the range is booked
+			if (isRangeBooked(start, end)) return;
+
 			const slots = [];
 			for (let i = start; i <= end; i++) {
 				slots.push(i);
@@ -137,6 +192,26 @@ export function RoomBookingCalendar() {
 
 	const isSlotSelected = (index: number) => {
 		return selectedSlots.includes(index);
+	};
+
+	// Check if a time slot is already booked
+	const isSlotBooked = (index: number): boolean => {
+		const slot = timeSlots[index];
+		if (!slot?.time) return false;
+
+		const slotHour = slot.hour;
+
+		return bookingsForSelectedDate.some((booking) => {
+			return isTimeSlotBooked(slotHour, booking.startTime, booking.endTime);
+		});
+	};
+
+	// Check if any slot in a range is booked
+	const isRangeBooked = (startIndex: number, endIndex: number): boolean => {
+		for (let i = startIndex; i <= endIndex; i++) {
+			if (isSlotBooked(i)) return true;
+		}
+		return false;
 	};
 
 	return (
@@ -208,12 +283,15 @@ export function RoomBookingCalendar() {
 									);
 									const isCurrentToday = isSameDay(dateAtSlot, today);
 									const isCurrentSelected = isSameDay(dateAtSlot, selectedDate);
+									const hasBooking = mockBookings.some((booking) =>
+										isSameDay(booking.date, dateAtSlot),
+									);
 
 									return (
 										<button
 											key={day}
 											onClick={() => handleDateClick(day)}
-											className={`aspect-square flex items-center justify-center text-sm rounded-lg transition-all
+											className={`aspect-square flex items-center justify-center text-sm rounded-lg transition-all relative
                         ${
 													isCurrentToday
 														? "bg-red-600 text-white font-bold"
@@ -223,6 +301,9 @@ export function RoomBookingCalendar() {
 												}`}
 										>
 											{day}
+											{hasBooking && !isCurrentToday && !isCurrentSelected && (
+												<div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full" />
+											)}
 										</button>
 									);
 								})}
@@ -239,6 +320,60 @@ export function RoomBookingCalendar() {
 									<span className="text-sm text-gray-700">Pending</span>
 								</div>
 							</div>
+
+							{/* Bookings for Selected Date */}
+							{hasBookingsForSelectedDate ? (
+								<div className="mt-6 pt-4 border-t border-gray-200">
+									<h4 className="text-sm font-semibold text-gray-900 mb-3">
+										Bookings for {formatFullDate(selectedDate)}
+									</h4>
+									<div className="space-y-3">
+										{bookingsForSelectedDate.map((booking) => (
+											<div
+												key={booking.id}
+												className={`p-3 rounded-lg border ${
+													booking.status === "confirmed"
+														? "bg-blue-50 border-blue-200"
+														: "bg-yellow-50 border-yellow-200"
+												}`}
+											>
+												<div className="flex items-start justify-between mb-2">
+													<p className="text-sm font-semibold text-gray-900">
+														{booking.startTime} - {booking.endTime}
+													</p>
+													<span
+														className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+															booking.status === "confirmed"
+																? "bg-blue-100 text-blue-700"
+																: "bg-yellow-100 text-yellow-700"
+														}`}
+													>
+														{booking.status}
+													</span>
+												</div>
+												<p className="text-xs text-gray-600 mb-1">
+													{booking.purpose}
+												</p>
+												<p className="text-xs text-gray-500">
+													{booking.attendees} attendees
+												</p>
+											</div>
+										))}
+									</div>
+								</div>
+							) : (
+								<div className="mt-6 pt-4 border-t border-gray-200">
+									<div className="flex flex-col items-center justify-center py-6 text-center">
+										<Calendar className="w-10 h-10 text-gray-300 mb-3" />
+										<p className="text-sm text-gray-500 font-medium">
+											No bookings for this date
+										</p>
+										<p className="text-xs text-gray-400 mt-1">
+											{formatFullDate(selectedDate)}
+										</p>
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 
@@ -304,24 +439,78 @@ export function RoomBookingCalendar() {
 									</div>
 								)}
 
-								{timeSlots.map((slot, index) => (
-									<button
-										key={`${slot.time}-${index}`}
-										onMouseDown={() => handleMouseDown(index)}
-										onMouseEnter={() => handleMouseEnter(index)}
-										onMouseUp={handleMouseUp}
-										className={`group flex items-start p-0 w-full text-left h-20 border-b border-gray-50 transition-colors ${
-											isSlotSelected(index)
-												? "bg-blue-100 border-l-4 border-l-blue-600"
-												: "hover:bg-gray-50/50"
-										}`}
-									>
-										<div className="w-24 px-6 pt-1 text-[11px] font-black text-gray-300 group-hover:text-blue-500">
-											{slot.time}
-										</div>
-										<div className="flex-1 h-full border-l border-gray-100" />
-									</button>
-								))}
+								{timeSlots.map((slot, index) => {
+									const slotIsBooked = isSlotBooked(index);
+									const booking = slotIsBooked
+										? bookingsForSelectedDate.find((b) => {
+												return isTimeSlotBooked(
+													slot.hour,
+													b.startTime,
+													b.endTime,
+												);
+											})
+										: null;
+
+									return (
+										<button
+											key={`${slot.time}-${index}`}
+											onMouseDown={() => handleMouseDown(index)}
+											onMouseEnter={() => handleMouseEnter(index)}
+											onMouseUp={handleMouseUp}
+											disabled={slotIsBooked}
+											className={`group flex items-start p-0 w-full text-left h-20 border-b border-gray-50 transition-colors relative ${
+												slotIsBooked
+													? booking?.status === "confirmed"
+														? "bg-blue-50 border-l-4 border-l-blue-600 cursor-not-allowed"
+														: "bg-yellow-50 border-l-4 border-l-yellow-500 cursor-not-allowed"
+													: isSlotSelected(index)
+														? "bg-blue-100 border-l-4 border-l-blue-600"
+														: "hover:bg-gray-50/50 cursor-pointer"
+											}`}
+										>
+											<div
+												className={`w-24 px-6 pt-1 text-[11px] font-black ${
+													slotIsBooked
+														? booking?.status === "confirmed"
+															? "text-blue-600"
+															: "text-yellow-600"
+														: "text-gray-300 group-hover:text-blue-500"
+												}`}
+											>
+												{slot.time}
+											</div>
+											<div className="flex-1 h-full border-l border-gray-100 px-4 pt-1">
+												{slotIsBooked && booking && (
+													<div className="flex flex-col gap-1">
+														<div className="flex items-center gap-2">
+															<span
+																className={`text-xs font-semibold ${
+																	booking.status === "confirmed"
+																		? "text-blue-700"
+																		: "text-yellow-700"
+																}`}
+															>
+																{booking.purpose}
+															</span>
+															<span
+																className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${
+																	booking.status === "confirmed"
+																		? "bg-blue-100 text-blue-700"
+																		: "bg-yellow-100 text-yellow-700"
+																}`}
+															>
+																{booking.status}
+															</span>
+														</div>
+														<span className="text-[10px] text-gray-500">
+															{booking.startTime} - {booking.endTime}
+														</span>
+													</div>
+												)}
+											</div>
+										</button>
+									);
+								})}
 							</div>
 						</div>
 					</div>
@@ -390,6 +579,13 @@ export function RoomBookingCalendar() {
 									? isSameDay(dateAtSlot, today)
 									: false;
 
+								// Get bookings for this date
+								const dayBookings = dateAtSlot
+									? mockBookings.filter((booking) =>
+											isSameDay(booking.date, dateAtSlot),
+										)
+									: [];
+
 								return (
 									<div
 										key={index}
@@ -402,14 +598,32 @@ export function RoomBookingCalendar() {
                       ${day ? "hover:bg-gray-50 cursor-pointer" : "bg-gray-50/50"}`}
 									>
 										{day && (
-											<div className="flex justify-center mb-1">
-												<span
-													className={`text-xs font-bold w-7 h-7 flex items-center justify-center rounded-full
+											<>
+												<div className="flex justify-center mb-1">
+													<span
+														className={`text-xs font-bold w-7 h-7 flex items-center justify-center rounded-full
                           ${isCurrentToday ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-700"}`}
-												>
-													{day}
-												</span>
-											</div>
+													>
+														{day}
+													</span>
+												</div>
+												{/* Bookings for this day */}
+												<div className="space-y-1 mt-1 overflow-hidden">
+													{dayBookings.map((booking) => (
+														<div
+															key={booking.id}
+															className={`text-[9px] px-1.5 py-0.5 rounded truncate ${
+																booking.status === "confirmed"
+																	? "bg-blue-600 text-white"
+																	: "bg-yellow-500 text-white"
+															}`}
+															title={booking.purpose}
+														>
+															{booking.purpose}
+														</div>
+													))}
+												</div>
+											</>
 										)}
 									</div>
 								);

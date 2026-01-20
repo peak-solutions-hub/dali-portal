@@ -46,3 +46,38 @@ export function formatTimeToInput(time: string): string {
 	}
 	return time;
 }
+
+/**
+ * Parse time string to hour in 24-hour format
+ * @param timeStr - Time string like "9:00 AM" or "2:00 PM"
+ * @returns Hour in 24-hour format (0-23)
+ */
+export function parseTimeToHour(timeStr: string): number {
+	const parts = timeStr.split(" ");
+	const time = parts[0];
+	const period = parts[1];
+
+	if (!time || !period) return 0;
+
+	let hour = parseInt(time.split(":")[0] || time);
+	if (period === "PM" && hour !== 12) hour += 12;
+	if (period === "AM" && hour === 12) hour = 0;
+	return hour;
+}
+
+/**
+ * Check if a time slot hour falls within a booking time range
+ * @param slotHour - Hour of the time slot (0-23)
+ * @param startTime - Booking start time string (e.g., "9:00 AM")
+ * @param endTime - Booking end time string (e.g., "11:00 AM")
+ * @returns true if the slot overlaps with the booking
+ */
+export function isTimeSlotBooked(
+	slotHour: number,
+	startTime: string,
+	endTime: string,
+): boolean {
+	const bookingStartHour = parseTimeToHour(startTime);
+	const bookingEndHour = parseTimeToHour(endTime);
+	return slotHour >= bookingStartHour && slotHour < bookingEndHour;
+}
