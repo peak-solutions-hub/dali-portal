@@ -1,6 +1,7 @@
 "use client";
 
-import { Mail, Phone } from "lucide-react";
+import { ArrowRightLeft, Mail, Phone } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 
 interface CouncilMember {
@@ -10,6 +11,7 @@ interface CouncilMember {
 	email: string;
 	phone: string;
 	imageUrl?: string;
+	chairmanships?: string[];
 }
 
 interface CouncilMembersListProps {
@@ -53,7 +55,7 @@ export function CouncilMembersList({ members }: CouncilMembersListProps) {
 						return (
 							<div
 								key={member.id}
-								className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+								className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-2xl group"
 								onClick={() => toggleFlip(member.id)}
 								style={{ perspective: "1000px" }}
 							>
@@ -66,7 +68,7 @@ export function CouncilMembersList({ members }: CouncilMembersListProps) {
 								>
 									{/* Front Side */}
 									<div
-										className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300"
+										className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 relative"
 										style={{
 											backfaceVisibility: "hidden",
 											WebkitBackfaceVisibility: "hidden",
@@ -75,10 +77,14 @@ export function CouncilMembersList({ members }: CouncilMembersListProps) {
 										{/* Member Photo */}
 										<div className="aspect-3/4 bg-gray-200 relative">
 											{member.imageUrl ? (
-												<img
+												<Image
 													src={member.imageUrl}
 													alt={member.name}
-													className="w-full h-full object-cover"
+													fill
+													sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+													className="object-cover md:group-hover:blur-sm transition-all duration-300"
+													loading="lazy"
+													quality={85}
 												/>
 											) : (
 												<div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -88,13 +94,29 @@ export function CouncilMembersList({ members }: CouncilMembersListProps) {
 													</div>
 												</div>
 											)}
+
+											{/* Hover Overlay - Desktop Only */}
+											<div className="hidden md:flex absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 items-center justify-center">
+												<div className="text-center px-4">
+													<p className="text-white font-semibold text-lg mb-2">
+														Click to see
+													</p>
+													<p className="text-white font-semibold text-lg mb-2">
+														chairmanships
+													</p>
+												</div>
+											</div>
 										</div>
 
 										{/* Member Info */}
 										<div className="p-4">
-											<h3 className="text-lg font-bold text-gray-900 mb-1 font-playfair-display">
-												{member.name}
-											</h3>
+											<div className="flex items-center justify-between mb-1">
+												<h3 className="text-lg font-bold text-gray-900 font-playfair-display">
+													{member.name}
+												</h3>
+												{/* Mobile Flip Icon */}
+												<ArrowRightLeft className="w-5 h-5 text-red-700 md:hidden shrink-0 ml-2" />
+											</div>
 											<p className="text-sm text-red-700 font-semibold mb-2">
 												{member.position}
 											</p>
@@ -137,14 +159,23 @@ export function CouncilMembersList({ members }: CouncilMembersListProps) {
 											</h3>
 											<div className="border-t-2 border-red-700 mb-4"></div>
 											<h4 className="text-lg font-semibold text-red-700 mb-3">
-												Chairmanship:
+												{member.chairmanships && member.chairmanships.length > 1
+													? "Chairmanships:"
+													: "Chairmanship:"}
 											</h4>
 											<div className="space-y-2 text-gray-700 flex-1">
-												<p>Insert chairmanship</p>
-												<p>Insert chairmanship</p>
-												<p>Insert chairmanship</p>
-												<p>Insert chairmanship</p>
-												<p>Insert chairmanship</p>
+												{member.chairmanships &&
+												member.chairmanships.length > 0 ? (
+													member.chairmanships.map((chairmanship, index) => (
+														<p key={index} className="text-sm">
+															• {chairmanship}
+														</p>
+													))
+												) : (
+													<p className="text-sm text-gray-500">
+														No chairmanship assigned
+													</p>
+												)}
 											</div>
 										</div>
 									</div>

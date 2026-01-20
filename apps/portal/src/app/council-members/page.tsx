@@ -5,7 +5,6 @@ import {
 } from "@/components/council-members";
 
 export default function CouncilMembers() {
-	// TODO: Replace with actual data from Supabase
 	const viceMayorData = {
 		name: "Hon. Lady Julie Grace (Love-Love) Baronda",
 		position: "Vice Mayor / Presiding Officer",
@@ -14,7 +13,6 @@ export default function CouncilMembers() {
 		imageUrl: "/vm-love.png",
 	};
 
-	// TODO: Replace with actual data from Supabase
 	const councilMembers = [
 		{
 			id: "1",
@@ -23,6 +21,10 @@ export default function CouncilMembers() {
 			email: "councilor1@iloilocity.gov.ph",
 			phone: "(033) 337-1234",
 			imageUrl: "/Councilors/hon-acap.png",
+			chairmanships: [
+				"Veterans, Retirees, Elderly and Disabled Person",
+				"Games, Amusement and Professional Sports",
+			],
 		},
 		{
 			id: "2",
@@ -31,6 +33,11 @@ export default function CouncilMembers() {
 			email: "councilor2@iloilocity.gov.ph",
 			phone: "(033) 337-1235",
 			imageUrl: "/Councilors/hon-cabaluna.png",
+			chairmanships: [
+				"Police, Fire, Penology, Public Safety, Order & Security, Dangerous Drugs and Rehabilitation",
+				"Transportation",
+				"Communication and Public Information",
+			],
 		},
 		{
 			id: "3",
@@ -39,6 +46,10 @@ export default function CouncilMembers() {
 			email: "councilor3@iloilocity.gov.ph",
 			phone: "(033) 337-1236",
 			imageUrl: "/Councilors/hon-duron.png",
+			chairmanships: [
+				"Energy and Public Utilities",
+				"Public Services, Environmental Protection and Ecology",
+			],
 		},
 		{
 			id: "4",
@@ -47,6 +58,11 @@ export default function CouncilMembers() {
 			email: "councilor4@iloilocity.gov.ph",
 			phone: "(033) 337-1237",
 			imageUrl: "/Councilors/hon-ganzon.png",
+			chairmanships: [
+				"Trade, Commerce & Industry",
+				"Domestic and International Relations",
+				"Education, Science and Technology",
+			],
 		},
 		{
 			id: "5",
@@ -55,6 +71,10 @@ export default function CouncilMembers() {
 			email: "councilor5@iloilocity.gov.ph",
 			phone: "(033) 337-1238",
 			imageUrl: "/Councilors/hon-delallana.png",
+			chairmanships: [
+				"Information Technology and Computerization",
+				"Social Services",
+			],
 		},
 		{
 			id: "6",
@@ -71,6 +91,11 @@ export default function CouncilMembers() {
 			email: "councilor7@iloilocity.gov.ph",
 			phone: "(033) 337-1240",
 			imageUrl: "/Councilors/hon-malabor.png",
+			chairmanships: [
+				"Markets & Slaughterhouse",
+				"Urban Poor, Human Rights and Minority Groups",
+				"Moral Recovery",
+			],
 		},
 		{
 			id: "8",
@@ -79,6 +104,10 @@ export default function CouncilMembers() {
 			email: "councilor8@iloilocity.gov.ph",
 			phone: "(033) 337-1241",
 			imageUrl: "/Councilors/hon-parcon.png",
+			chairmanships: [
+				"Agriculture, Fisheries, Aquatic and Natural Resources",
+				"Women and Family Relations",
+			],
 		},
 		{
 			id: "9",
@@ -87,6 +116,11 @@ export default function CouncilMembers() {
 			email: "councilor9@iloilocity.gov.ph",
 			phone: "(033) 337-1242",
 			imageUrl: "/Councilors/hon-sarabia.png",
+			chairmanships: [
+				"Rules, Ordinances, Resolutions, and Style; Justice and Legal Affairs",
+				"Good Government and Public Accountability (Blue Ribbon Committee)",
+				"Appropriations",
+			],
 		},
 		{
 			id: "10",
@@ -95,6 +129,11 @@ export default function CouncilMembers() {
 			email: "councilor10@iloilocity.gov.ph",
 			phone: "(033) 337-1243",
 			imageUrl: "/Councilors/hon-trenas.png",
+			chairmanships: [
+				"Tourism, Culture and Historical Affairs",
+				"Urban, Planning, Housing, Land Development, Zoning, Expropriation, Assessment and Land Tax",
+				"Local Accreditation",
+			],
 		},
 		{
 			id: "11",
@@ -103,6 +142,11 @@ export default function CouncilMembers() {
 			email: "councilor11@iloilocity.gov.ph",
 			phone: "(033) 337-1244",
 			imageUrl: "/Councilors/hon-young.png",
+			chairmanships: [
+				"Engineering, Construction and Public Works",
+				"Disaster Relief/Disaster Management",
+				"Animal Welfare",
+			],
 		},
 		{
 			id: "12",
@@ -111,6 +155,11 @@ export default function CouncilMembers() {
 			email: "councilor12@iloilocity.gov.ph",
 			phone: "(033) 337-1245",
 			imageUrl: "/Councilors/hon-zaldivar.png",
+			chairmanships: [
+				"Health, Sanitation, and Hospital Services",
+				"Cooperatives and Livelihood",
+				"Labor, Employment Manpower Development and Placement",
+			],
 		},
 	];
 
