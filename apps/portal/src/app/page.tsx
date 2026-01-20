@@ -4,7 +4,12 @@ import {
 	transformDocumentListDates,
 	transformSessionListDates,
 } from "@repo/shared";
-import { HeroSection, QuickActions, RecentUpdates } from "@/components/home";
+import {
+	AboutSection,
+	HeroSection,
+	QuickActions,
+	RecentUpdates,
+} from "@/components/home";
 import { api } from "@/lib/api.client";
 
 export default async function HomePage() {
@@ -87,6 +92,7 @@ export default async function HomePage() {
 				approvedResolutions={approvedResolutions}
 			/>
 			<QuickActions />
+			<AboutSection councilorCount={12} />
 			<RecentUpdates documents={latestDocuments} sessions={upcomingSessions} />
 		</div>
 	);
