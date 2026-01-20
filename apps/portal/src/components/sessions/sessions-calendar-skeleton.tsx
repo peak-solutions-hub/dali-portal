@@ -1,7 +1,7 @@
-"use client";
-
 import { Card } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
+
+// Server-safe skeleton for calendar view (rendered during SSR without client JS)
 
 export function SessionsCalendarSkeleton() {
 	const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
