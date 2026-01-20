@@ -28,8 +28,30 @@ export function BookingModal({
 	// Parse selected time and date when modal opens
 	useEffect(() => {
 		if (isOpen) {
-			const parsedDate = parseDisplayDateToInput(selectedDate);
-			setDate(parsedDate);
+			// If selected date is provided (from calendar), use it; otherwise default to today
+			if (selectedDate) {
+				// Convert display date to YYYY-MM-DD format for date input
+				const displayDate = parseDisplayDateToInput(selectedDate);
+				// Parse MM/DD/YYYY to YYYY-MM-DD
+				const [month, day, year] = displayDate.split("/");
+				if (month && day && year) {
+					setDate(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`);
+				} else {
+					// Fallback to today if parsing fails
+					const today = new Date();
+					const y = today.getFullYear();
+					const m = String(today.getMonth() + 1).padStart(2, "0");
+					const d = String(today.getDate()).padStart(2, "0");
+					setDate(`${y}-${m}-${d}`);
+				}
+			} else {
+				// Set to current date in YYYY-MM-DD format for date input
+				const today = new Date();
+				const year = today.getFullYear();
+				const month = String(today.getMonth() + 1).padStart(2, "0");
+				const day = String(today.getDate()).padStart(2, "0");
+				setDate(`${year}-${month}-${day}`);
+			}
 
 			if (selectedTime.includes(" - ")) {
 				const [start, end] = selectedTime.split(" - ");
@@ -83,25 +105,22 @@ export function BookingModal({
 				</div>
 
 				<form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
-					{/* Date and Expected Attendees */}
-					<div className="grid grid-cols-2 gap-4">
-						<div>
-							<label
-								htmlFor="date"
-								className="block text-sm font-semibold text-gray-900 mb-2"
-							>
-								Date <span className="text-red-500">*</span>
-							</label>
-							<input
-								id="date"
-								type="text"
-								value={date}
-								onChange={(e) => setDate(e.target.value)}
-								className="w-full px-4 py-3 border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-								placeholder="MM/DD/YYYY"
-								required
-							/>
-						</div>
+					{/* Date */}
+					<div>
+						<label
+							htmlFor="date"
+							className="block text-sm font-semibold text-gray-900 mb-2"
+						>
+							Date <span className="text-red-500">*</span>
+						</label>
+						<input
+							id="date"
+							type="date"
+							value={date}
+							onChange={(e) => setDate(e.target.value)}
+							className="w-full px-4 py-3 border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+							required
+						/>
 					</div>
 
 					{/* Start Time and End Time */}

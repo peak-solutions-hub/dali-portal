@@ -225,16 +225,6 @@ export function RoomBookingCalendar() {
 					{/* Left Side - Sidebar Calendar */}
 					<div className="w-96 shrink-0">
 						<div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-							{/* Header */}
-							<div className="mb-6">
-								<h2 className="text-2xl font-bold text-gray-900 mb-1">
-									Conference Room Booking
-								</h2>
-								<p className="text-sm text-gray-500">
-									View bookings and create new reservations
-								</p>
-							</div>
-
 							{/* Calendar Navigation */}
 							<div className="flex items-center justify-between mb-4">
 								<h3 className="text-lg font-semibold text-gray-900">

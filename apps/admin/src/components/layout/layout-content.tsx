@@ -10,7 +10,7 @@ const PAGE_TITLES: Record<string, string> = {
 	"/session-management": "Session Management",
 	"/inquiry-tickets": "Inquiry Tickets",
 	"/visitor-and-beneficiary-hub": "Visitor & Beneficiary Hub",
-	"/conference-room": "Conference Room",
+	"/conference-room": "Conference Room Booking",
 	"/user-management": "User Management",
 };
 
