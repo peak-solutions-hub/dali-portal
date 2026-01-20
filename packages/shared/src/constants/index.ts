@@ -19,5 +19,5 @@ export const FILE_COUNT_LIMITS = {
 	XS: 1, // 1 file
 	SM: 3, // 3 files
 	MD: 5, // 5 files
-	LG: 8,
-};
+	LG: 8, // 8 files
+} as const;

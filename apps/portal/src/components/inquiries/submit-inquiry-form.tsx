@@ -1,16 +1,18 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isDefinedError } from "@orpc/client";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Form } from "@repo/ui/components/form";
 import { Separator } from "@repo/ui/components/separator";
 import { AlertCircle } from "@repo/ui/lib/lucide-react";
 import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+
 import { SuccessDialog } from "@/components/inquiries/success-dialog";
+import type { TurnstileWidgetRef } from "@/components/turnstile";
 import { api } from "@/lib/api.client";
+
 import { InquiryFormAttachments } from "./form/inquiry-form-attachments";
 import { InquiryFormDetails } from "./form/inquiry-form-details";
 import { InquiryFormHeader } from "./form/inquiry-form-header";
@@ -29,7 +31,7 @@ export function SubmitInquiryForm() {
 	const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 	const [referenceNumber, setReferenceNumber] = useState("");
 	const [citizenEmail, setCitizenEmail] = useState("");
-	const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+	const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
 	const form = useForm<SubmitInquiryFormValues>({
 		resolver: zodResolver(SubmitInquiryFormSchema),
@@ -67,25 +69,25 @@ export function SubmitInquiryForm() {
 	};
 
 	const handleTurnstileVerify = (token: string) => {
-		setTurnstileToken(token);
 		form.setValue("captchaToken", token);
 		setError(null);
 	};
 
 	const handleTurnstileError = () => {
-		setTurnstileToken(null);
 		form.setValue("captchaToken", null);
 		setError("Security verification failed. Please try again.");
 	};
 
 	const handleTurnstileExpire = () => {
-		setTurnstileToken(null);
 		form.setValue("captchaToken", null);
 	};
 
 	const onSubmit = async (data: SubmitInquiryFormValues) => {
+		// Get token from ref (more reliable than state)
+		const captchaToken = turnstileRef.current?.getToken();
+
 		// Check Turnstile token before submitting
-		if (!turnstileToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+		if (!captchaToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
 			setError("Please complete the security verification.");
 			return;
 		}
@@ -100,20 +102,27 @@ export function SubmitInquiryForm() {
 				attachmentPaths = await uploadFiles(uploadedFiles);
 			}
 
-			// 2. Call API (captchaToken is already in form data)
+			// 2. Call API with captcha token from ref
 			const [err, response] = await api.inquiries.create({
 				...data,
+				captchaToken: captchaToken ?? "",
 				attachmentPaths:
 					attachmentPaths.length > 0 ? attachmentPaths : undefined,
 			});
 
 			if (err) {
-				let errorMessage = "Failed to submit inquiry. Please try again.";
-				if (isDefinedError(err)) {
-					errorMessage = (err as { message: string }).message;
-				} else if (err instanceof Error) {
-					errorMessage = (err as Error).message;
-				}
+				// Reset captcha on error so user can retry
+				turnstileRef.current?.reset();
+
+				// Extract error message
+				const error = err as unknown;
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: typeof error === "object" && error !== null && "message" in error
+							? String((error as { message: unknown }).message)
+							: "Failed to submit inquiry. Please try again.";
+
 				setError(errorMessage);
 				setIsSubmitting(false);
 				return;
@@ -123,11 +132,13 @@ export function SubmitInquiryForm() {
 				setCitizenEmail(data.citizenEmail);
 				form.reset();
 				setUploadedFiles([]);
+				turnstileRef.current?.reset();
 				setReferenceNumber(response.referenceNumber);
 				setSuccessDialogOpen(true);
 			}
 		} catch (e) {
 			console.error(e);
+			turnstileRef.current?.reset();
 			setError("An unexpected error occurred during submission.");
 		} finally {
 			setIsSubmitting(false);
@@ -163,6 +174,7 @@ export function SubmitInquiryForm() {
 								setUploadedFiles={setUploadedFiles}
 							/>
 							<InquirySecurityCheck
+								ref={turnstileRef}
 								onVerify={handleTurnstileVerify}
 								onError={handleTurnstileError}
 								onExpire={handleTurnstileExpire}

@@ -1,117 +1,131 @@
 "use client";
 
-import Script from "next/script";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 
-declare global {
-	interface Window {
-		turnstile?: {
-			render: (
-				container: string | HTMLElement,
-				options: TurnstileOptions,
-			) => string;
-			reset: (widgetId: string) => void;
-			remove: (widgetId: string) => void;
-			getResponse: (widgetId: string) => string | undefined;
-			isExpired: (widgetId: string) => boolean;
-		};
-	}
+export interface TurnstileWidgetRef {
+	/** Get the current token, or undefined if not verified */
+	getToken: () => string | undefined;
+	/** Reset the widget to get a new token */
+	reset: () => void;
+	/** Check if a valid token exists */
+	isVerified: () => boolean;
 }
 
-interface TurnstileOptions {
-	sitekey: string;
-	callback?: (token: string) => void;
-	"error-callback"?: () => void;
-	"expired-callback"?: () => void;
-	theme?: "light" | "dark" | "auto";
-	size?: "normal" | "flexible" | "compact";
-	action?: string;
-}
-
-interface TurnstileWidgetProps {
-	siteKey: string;
-	onVerify: (token: string) => void;
-	onError?: () => void;
+export interface TurnstileWidgetProps {
+	/** Turnstile site key from environment */
+	siteKey?: string;
+	/** Called when verification succeeds with the token */
+	onVerify?: (token: string) => void;
+	/** Called when verification expires */
 	onExpire?: () => void;
+	/** Called on error */
+	onError?: () => void;
+	/** Theme preference */
 	theme?: "light" | "dark" | "auto";
+	/** Widget size */
 	size?: "normal" | "flexible" | "compact";
+	/** Optional action for analytics */
 	action?: string;
+	/** Additional CSS class */
 	className?: string;
 }
 
-export function TurnstileWidget({
-	siteKey,
-	onVerify,
-	onError,
-	onExpire,
-	theme = "auto",
-	size = "normal",
-	action,
-	className,
-}: TurnstileWidgetProps) {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const widgetIdRef = useRef<string | null>(null);
-	const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+/**
+ * Turnstile captcha widget using @marsidev/react-turnstile.
+ *
+ * @example
+ * ```tsx
+ * const turnstileRef = useRef<TurnstileWidgetRef>(null);
+ *
+ * const handleSubmit = async () => {
+ *   const token = turnstileRef.current?.getToken();
+ *   if (!token) {
+ *     alert("Please complete the captcha");
+ *     return;
+ *   }
+ *
+ *   const result = await api.submit({ captchaToken: token, ...data });
+ *
+ *   if (result.error) {
+ *     turnstileRef.current?.reset(); // Get fresh token for retry
+ *   }
+ * };
+ *
+ * return (
+ *   <form onSubmit={handleSubmit}>
+ *     <TurnstileWidget ref={turnstileRef} />
+ *     <button type="submit">Submit</button>
+ *   </form>
+ * );
+ * ```
+ */
+export const TurnstileWidget = forwardRef<
+	TurnstileWidgetRef,
+	TurnstileWidgetProps
+>(function TurnstileWidget(
+	{
+		siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+		onVerify,
+		onExpire,
+		onError,
+		theme = "auto",
+		size = "normal",
+		action,
+		className,
+	},
+	ref,
+) {
+	const turnstileRef = useRef<TurnstileInstance>(null);
+	const [token, setToken] = useState<string | undefined>(undefined);
 
-	const renderWidget = useCallback(() => {
-		if (!window.turnstile || !containerRef.current || widgetIdRef.current) {
-			return;
-		}
+	useImperativeHandle(ref, () => ({
+		getToken: () => token,
+		reset: () => {
+			turnstileRef.current?.reset();
+			setToken(undefined);
+		},
+		isVerified: () => !!token,
+	}));
 
-		// Clear container before rendering
-		containerRef.current.innerHTML = "";
+	const handleVerify = (newToken: string) => {
+		setToken(newToken);
+		onVerify?.(newToken);
+	};
 
-		widgetIdRef.current = window.turnstile.render(containerRef.current, {
-			sitekey: siteKey,
-			callback: onVerify,
-			"error-callback": onError,
-			"expired-callback": onExpire,
-			theme,
-			size,
-			action,
-		});
-	}, [siteKey, onVerify, onError, onExpire, theme, size, action]);
+	const handleExpire = () => {
+		setToken(undefined);
+		onExpire?.();
+	};
 
-	// Render widget when script loads
-	useEffect(() => {
-		if (isScriptLoaded) {
-			renderWidget();
-		}
-	}, [isScriptLoaded, renderWidget]);
+	const handleError = () => {
+		setToken(undefined);
+		onError?.();
+	};
 
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
-			if (widgetIdRef.current && window.turnstile) {
-				window.turnstile.remove(widgetIdRef.current);
-				widgetIdRef.current = null;
-			}
-		};
-	}, []);
+	if (!siteKey) {
+		console.error(
+			"TurnstileWidget: Missing NEXT_PUBLIC_TURNSTILE_SITE_KEY env variable",
+		);
+		return null;
+	}
 
 	return (
-		<>
-			{/* Load Turnstile script with explicit rendering mode */}
-			<Script
-				src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-				strategy="lazyOnload"
-				onLoad={() => setIsScriptLoaded(true)}
+		<div className={className}>
+			<Turnstile
+				ref={turnstileRef}
+				siteKey={siteKey}
+				onSuccess={handleVerify}
+				onExpire={handleExpire}
+				onError={handleError}
+				options={{
+					theme,
+					size,
+					action,
+				}}
 			/>
-
-			{/* Widget container */}
-			<div ref={containerRef} className={className} />
-		</>
+		</div>
 	);
-}
+});
 
-/**
- * Hook to reset the Turnstile widget programmatically.
- * Useful when form submission fails and you need a fresh token.
- */
-export function useTurnstileReset() {
-	return useCallback((widgetId: string) => {
-		if (window.turnstile) {
-			window.turnstile.reset(widgetId);
-		}
-	}, []);
-}
+export default TurnstileWidget;

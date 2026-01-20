@@ -79,6 +79,7 @@ export const CreateInquiryTicketSchema = z.object({
 	message: z.string().min(1).max(TEXT_LIMITS.LG),
 	// optional because attachments may not be included with the initial message
 	attachmentPaths: z.array(z.string()).optional(),
+	// captcha token
 	captchaToken: z.string().nullable(),
 });
 

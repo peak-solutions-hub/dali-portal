@@ -1,18 +1,22 @@
 "use client";
 
-import { TurnstileWidget } from "@/components/turnstile/turnstile-widget";
+import { forwardRef } from "react";
+
+import {
+	TurnstileWidget,
+	type TurnstileWidgetRef,
+} from "@/components/turnstile/turnstile-widget";
 
 interface InquirySecurityCheckProps {
-	onVerify: (token: string) => void;
+	onVerify?: (token: string) => void;
 	onError?: () => void;
 	onExpire?: () => void;
 }
 
-export function InquirySecurityCheck({
-	onVerify,
-	onError,
-	onExpire,
-}: InquirySecurityCheckProps) {
+export const InquirySecurityCheck = forwardRef<
+	TurnstileWidgetRef,
+	InquirySecurityCheckProps
+>(function InquirySecurityCheck({ onVerify, onError, onExpire }, ref) {
 	const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 	// Show placeholder in development if no site key configured
@@ -32,6 +36,7 @@ export function InquirySecurityCheck({
 	return (
 		<div className="flex flex-col items-center justify-center py-2">
 			<TurnstileWidget
+				ref={ref}
 				siteKey={siteKey}
 				onVerify={onVerify}
 				onError={onError}
@@ -42,4 +47,4 @@ export function InquirySecurityCheck({
 			/>
 		</div>
 	);
-}
+});

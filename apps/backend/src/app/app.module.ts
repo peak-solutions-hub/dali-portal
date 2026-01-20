@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { REQUEST } from "@nestjs/core";
-import { ORPCModule, onError } from "@orpc/nest";
-import type { Request } from "express";
+import { ORPCError, ORPCModule, onError } from "@orpc/nest";
+import { experimental_RethrowHandlerPlugin as RethrowHandlerPlugin } from "@orpc/server/plugins";
+import { Request } from "express";
 import { AppController } from "@/app/app.controller";
 import { DbModule } from "@/app/db/db.module";
 import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module";
@@ -12,6 +13,16 @@ import { UsersModule } from "@/app/users/users.module";
 import { SupabaseModule } from "@/app/util/supabase/supabase.module";
 import { LibModule } from "@/lib/lib.module";
 import { AppService } from "./app.service";
+
+// https://orpc.dev/docs/openapi/integrations/implement-contract-in-nest#configuration
+declare module "@orpc/nest" {
+	/**
+	 * Extend oRPC global context to make it type-safe inside your handlers/middlewares
+	 */
+	interface ORPCGlobalContext {
+		request: Request;
+	}
+}
 
 @Module({
 	imports: [
@@ -34,16 +45,13 @@ import { AppService } from "./app.service";
 					}),
 				],
 				customJsonSerializers: [],
-				// commented for now
-				// plugins: [
-				// 	new RethrowHandlerPlugin({
-				// 		filter: (error) => {
-				// 			// Rethrow all non-ORPCError errors
-				// 			// This allows unhandled exceptions to bubble up to NestJS global exception filters
-				// 			return !(error instanceof ORPCError);
-				// 		},
-				// 	}),
-				// ],
+				plugins: [
+					new RethrowHandlerPlugin({
+						filter: (error) => {
+							return !(error instanceof ORPCError);
+						},
+					}),
+				],
 			}),
 		}),
 	],

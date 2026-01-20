@@ -11,10 +11,6 @@ import {
 } from "@repo/shared";
 import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
-import {
-	generateInquiryConfirmationEmail,
-	generateInquiryConfirmationText,
-} from "@/lib/email-templates/inquiry-confirmation.template";
 import { ResendService } from "@/lib/resend.service";
 
 @Injectable()
@@ -32,7 +28,7 @@ export class InquiryTicketService {
 		const referenceNumber = this.generateReferenceNumber(currentYear);
 
 		// create inquiry ticket
-		await this.db.inquiryTicket.create({
+		const response = await this.db.inquiryTicket.create({
 			data: {
 				referenceNumber,
 				citizenEmail: input.citizenEmail,
@@ -54,41 +50,19 @@ export class InquiryTicketService {
 			},
 		});
 
-		// verify turnstile token
-		const turnstileResponse = await fetch(
-			"https://challenges.cloudflare.com/turnstile/v0/siteverify",
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/x-www-form-urlencoded" },
-				body: new URLSearchParams({
-					secret: process.env.TURNSTILE_SECRET_KEY!,
-					// TODO: add turnstile token to input schema
-					response: input.captchaToken || "",
-				}),
-			},
-		);
-
-		const turnstileResult = await turnstileResponse.json();
-		if (!turnstileResult.success) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Security verification failed",
-			});
-		}
-
-		// send confirmation email to citizen
-		const emailData = {
-			citizenName: input.citizenName,
-			referenceNumber,
-			subject: input.subject,
-			category: input.category,
-		};
-
 		this.resend.send({
-			to: input.citizenEmail,
-			subject: `Inquiry Received: ${referenceNumber}`,
-			html: generateInquiryConfirmationEmail(emailData),
-			text: generateInquiryConfirmationText(emailData),
-			from: "DALI Portal <noreply@dali-portal.josearron.dev>",
+			to: response.citizenEmail,
+			template: {
+				id: "inquiry-confirmation",
+				variables: {
+					CITIZEN_NAME: response.citizenName,
+					REFERENCE_NUMBER: response.referenceNumber,
+					SUBJECT: response.subject,
+					CATEGORY: response.category,
+					YEAR: new Date().getFullYear(),
+					PORTAL_URL: "http://localhost:3000",
+				},
+			},
 		});
 
 		return { referenceNumber };

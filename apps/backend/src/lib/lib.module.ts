@@ -1,13 +1,10 @@
+import { HttpModule } from "@nestjs/axios";
 import { Global, Module } from "@nestjs/common";
-import {
-	ConfigModule as NestConfigModule,
-	ConfigService as NestConfigService,
-} from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ConfigModule as NestConfigModule } from "@nestjs/config";
 import config from "@/config";
-import { ConfigService } from "./config.service";
-import { ResendService } from "./resend.service";
+import { ConfigService } from "@/lib/config.service";
+import { ResendService } from "@/lib/resend.service";
+import { TurnstileService } from "@/lib/turnstile.service";
 
 @Global()
 @Module({
@@ -15,25 +12,9 @@ import { ResendService } from "./resend.service";
 		NestConfigModule.forRoot({
 			load: [config],
 		}),
-		ThrottlerModule.forRootAsync({
-			imports: [NestConfigModule],
-			inject: [ConfigService],
-			useFactory: (config: ConfigService) => [
-				{
-					ttl: config.get("throttle.ttl"),
-					limit: config.get("throttle.limit"),
-				},
-			],
-		}),
+		HttpModule,
 	],
-	providers: [
-		ConfigService,
-		ResendService,
-		{
-			provide: APP_GUARD,
-			useClass: ThrottlerGuard,
-		},
-	],
-	exports: [ConfigService, ResendService],
+	providers: [ConfigService, ResendService, TurnstileService],
+	exports: [ConfigService, ResendService, TurnstileService],
 })
 export class LibModule {}

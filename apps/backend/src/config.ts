@@ -12,8 +12,15 @@ export default () => ({
 		ttl: process.env.THROTTLE_TTL ?? 60000,
 		limit: process.env.THROTTLE_LIMIT ?? 100,
 	},
-	turnstile_secret_key: process.env.TURNSTILE_SECRET_KEY,
+	// captcha
+	turnstile: {
+		secretKey: process.env.TURNSTILE_SECRET_KEY,
+		timeout: 10000,
+		// abort request if it takes longer than 10s
+	},
+	// email service
 	resend: { apiKey: process.env.RESEND_API_KEY },
+	// supabase
 	supabase: {
 		url: process.env.SUPABASE_URL,
 		serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,

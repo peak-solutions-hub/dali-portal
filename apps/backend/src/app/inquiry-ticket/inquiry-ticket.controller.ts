@@ -1,9 +1,10 @@
 import { Controller } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { Implement, implement, ORPCError } from "@orpc/nest";
+import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
+import { Captcha } from "@/app/captcha/captcha.guard";
+import { InquiryTicketService } from "@/app/inquiry-ticket/inquiry-ticket.service";
 import { InquiryMessageService } from "./inquiry-message.service";
-import { InquiryTicketService } from "./inquiry-ticket.service";
 
 @Controller()
 export class InquiryTicketController {
@@ -12,15 +13,7 @@ export class InquiryTicketController {
 		private readonly messageService: InquiryMessageService,
 	) {}
 
-	// TODO: add captcha token validation
-
-	// 3 reqs per min
-	@Throttle({
-		default: {
-			limit: 3,
-			ttl: 60000,
-		},
-	})
+	@Captcha()
 	@Implement(contract.inquiries.create)
 	create() {
 		return implement(contract.inquiries.create).handler(async ({ input }) => {
