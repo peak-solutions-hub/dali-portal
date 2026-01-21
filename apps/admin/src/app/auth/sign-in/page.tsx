@@ -118,55 +118,44 @@ function LoginForm() {
 				return;
 			}
 
-			// Step 2: Update Zustand store with session
-			setSession(authData.session);
+			// Step 2: Wait for AuthContext to handle SIGNED_IN event
+			// The AuthContext will automatically fetch profile and update state
+			await new Promise((resolve) => setTimeout(resolve, 500));
 
-			// Step 3: Fetch user profile from NestJS backend
-			try {
+			// Step 3: Get profile from store (should be set by AuthContext)
+			let profile = useAuthStore.getState().userProfile;
+
+			if (!profile) {
+				// Profile not loaded yet by AuthContext, try fetching manually
+				console.log(
+					"[SignIn] Profile not loaded by AuthContext, fetching manually",
+				);
+				setSession(authData.session);
 				await fetchProfile();
+				profile = useAuthStore.getState().userProfile;
+			}
 
-				// Get the updated profile from store
-				const profile = useAuthStore.getState().userProfile;
-
-				if (!profile) {
-					toast.error("Failed to load user profile");
-					await supabase.auth.signOut();
-					setSession(null);
-					return;
-				}
-
-				// Step 4: Check if user is deactivated
-				if (profile.status === "deactivated") {
-					toast.error(
-						"Your account has been deactivated. Please contact an administrator.",
-					);
-					await supabase.auth.signOut();
-					setSession(null);
-					return;
-				}
-
-				// Step 5: Redirect based on role
-				const redirectPath = getRedirectPath(profile.role.name);
-				toast.success("Login successful");
-				router.push(redirectPath);
-			} catch (profileError: unknown) {
-				// Handle 403 Forbidden (account deactivated)
-				const error = profileError as { status?: number; message?: string };
-				if (error.status === 403) {
-					toast.error(
-						"Your account has been deactivated. Please contact an administrator.",
-					);
-					await supabase.auth.signOut();
-					setSession(null);
-					return;
-				}
-
-				// Handle other profile fetch errors
-				console.error("Profile fetch error:", profileError);
-				toast.error("Failed to load user profile. Please try again.");
+			if (!profile) {
+				toast.error("Failed to load user profile");
 				await supabase.auth.signOut();
 				setSession(null);
+				return;
 			}
+
+			// Step 4: Check if user is deactivated
+			if (profile.status === "deactivated") {
+				toast.error(
+					"Your account has been deactivated. Please contact an administrator.",
+				);
+				await supabase.auth.signOut();
+				setSession(null);
+				return;
+			}
+
+			// Step 5: Redirect based on role
+			const redirectPath = getRedirectPath(profile.role.name);
+			toast.success("Login successful");
+			router.push(redirectPath);
 		} catch (err) {
 			console.error("Login error:", err);
 			toast.error("An unexpected error occurred");

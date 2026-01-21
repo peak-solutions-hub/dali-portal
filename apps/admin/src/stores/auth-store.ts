@@ -32,12 +32,8 @@ interface AuthState {
 	session: Session | null;
 	/** User profile from public.users table with role information */
 	userProfile: UserProfile | null;
-	/** Loading state for initial auth check */
-	isLoading: boolean;
 	/** Whether the user is authenticated */
 	isAuthenticated: boolean;
-	/** Error message if authentication fails */
-	error: string | null;
 }
 
 /**
@@ -50,12 +46,6 @@ interface AuthActions {
 	fetchProfile: () => Promise<void>;
 	/** Clear auth state and sign out from Supabase */
 	logout: () => Promise<void>;
-	/** Set loading state */
-	setLoading: (isLoading: boolean) => void;
-	/** Set error state */
-	setError: (error: string | null) => void;
-	/** Initialize auth state from Supabase */
-	initialize: () => Promise<void>;
 }
 
 /**
@@ -81,9 +71,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 	// Initial state
 	session: null,
 	userProfile: null,
-	isLoading: true,
 	isAuthenticated: false,
-	error: null,
 
 	// Actions
 	setSession: (session) => {
@@ -106,99 +94,32 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 		const { session } = get();
 
 		if (!session) {
-			set({ userProfile: null, error: "No session available" });
+			set({ userProfile: null });
 			return;
 		}
 
-		try {
-			set({ error: null });
+		const [error, data] = await api.users.me({});
 
-			const [error, data] = await api.users.me({});
-
-			if (error) {
-				console.error("Failed to fetch user profile:", error);
-				set({
-					userProfile: null,
-					error: "Failed to fetch user profile",
-				});
-				return;
-			}
-
-			set({ userProfile: data });
-		} catch (err) {
-			console.error("Error fetching profile:", err);
-			set({
-				userProfile: null,
-				error: "An unexpected error occurred",
-			});
+		if (error) {
+			console.error("Failed to fetch user profile:", error);
+			set({ userProfile: null });
+			return;
 		}
+
+		set({ userProfile: data });
 	},
 
 	logout: async () => {
-		try {
-			const supabase = createBrowserClient();
-			await supabase.auth.signOut();
+		const supabase = createBrowserClient();
+		await supabase.auth.signOut();
 
-			// Clear the auth token
-			setAuthToken(null);
+		// Clear the auth token
+		setAuthToken(null);
 
-			set({
-				session: null,
-				userProfile: null,
-				isAuthenticated: false,
-				error: null,
-			});
-		} catch (err) {
-			console.error("Error during logout:", err);
-			// Still clear local state even if Supabase signout fails
-			setAuthToken(null);
-			set({
-				session: null,
-				userProfile: null,
-				isAuthenticated: false,
-				error: "Logout failed, but local session cleared",
-			});
-		}
-	},
-
-	setLoading: (isLoading) => set({ isLoading }),
-
-	setError: (error) => set({ error }),
-
-	initialize: async () => {
-		try {
-			set({ isLoading: true, error: null });
-
-			const supabase = createBrowserClient();
-			const {
-				data: { session },
-				error,
-			} = await supabase.auth.getSession();
-
-			if (error) {
-				console.error("Error getting session:", error);
-				set({
-					session: null,
-					userProfile: null,
-					isAuthenticated: false,
-					isLoading: false,
-					error: error.message,
-				});
-				return;
-			}
-
-			if (session) {
-				get().setSession(session);
-				await get().fetchProfile();
-			}
-
-			set({ isLoading: false });
-		} catch (err) {
-			console.error("Error initializing auth:", err);
-			set({
-				isLoading: false,
-				error: "Failed to initialize authentication",
-			});
-		}
+		set({
+			session: null,
+			userProfile: null,
+			isAuthenticated: false,
+		});
 	},
 }));

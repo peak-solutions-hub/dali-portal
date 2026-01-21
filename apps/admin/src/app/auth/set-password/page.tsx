@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { api } from "@/lib/api.client";
 import { useAuthStore } from "@/stores/auth-store";
 
 /**
@@ -167,7 +168,23 @@ function SetPasswordForm() {
 			// Step 3: Update the session in Zustand store
 			setSession(session);
 
-			// Step 4: Fetch user profile from NestJS backend
+			// Step 4: Activate user (change status from 'invited' to 'active')
+			try {
+				const supabaseUserId = updateData.user.id;
+				const [activateError] = await api.users.activate({
+					id: supabaseUserId,
+				});
+
+				if (activateError) {
+					console.error("Failed to activate user:", activateError);
+					// Continue anyway - user might already be active
+				}
+			} catch (activateErr) {
+				console.error("Activation error:", activateErr);
+				// Continue anyway
+			}
+
+			// Step 5: Fetch user profile from NestJS backend
 			try {
 				await fetchProfile();
 
@@ -181,7 +198,7 @@ function SetPasswordForm() {
 					return;
 				}
 
-				// Step 5: Check if user is deactivated
+				// Step 6: Check if user is deactivated
 				if (profile.status === "deactivated") {
 					toast.error(
 						"Your account has been deactivated. Please contact an administrator.",
@@ -191,7 +208,7 @@ function SetPasswordForm() {
 					return;
 				}
 
-				// Step 6: Redirect based on role
+				// Step 7: Redirect based on role
 				const redirectPath = getRedirectPath(profile.role.name);
 				toast.success("Password updated successfully! Welcome to DALI Portal.");
 				router.push(redirectPath);
@@ -308,27 +325,37 @@ function SetPasswordForm() {
 
 function SetPasswordContent() {
 	const router = useRouter();
-	const { session, isLoading } = useAuthStore();
+	const supabase = createBrowserClient();
+	const [hasSession, setHasSession] = useState<boolean | null>(null);
 	const [isChecking, setIsChecking] = useState(true);
 
 	useEffect(() => {
-		// Wait for auth store to finish loading
-		if (isLoading) {
-			return;
-		}
+		// Check for session directly from Supabase (not auth store)
+		// This is important because after invite/recovery link verification,
+		// the session exists in Supabase but may not be in auth store yet
+		const checkSession = async () => {
+			const {
+				data: { session },
+			} = await supabase.auth.getSession();
 
-		// If no session exists after auth provider has loaded,
-		// the invite/reset link was invalid or expired
-		if (!session) {
-			router.push("/auth/sign-in");
-			return;
-		}
+			if (session) {
+				console.log("[SetPassword] Session found, allowing password setup");
+				setHasSession(true);
+				setIsChecking(false);
+			} else {
+				console.log("[SetPassword] No session found, redirecting to sign-in");
+				setHasSession(false);
+				router.push(
+					"/auth/sign-in?error=session_expired&message=Your session has expired. Please request a new invite link.",
+				);
+			}
+		};
 
-		setIsChecking(false);
-	}, [session, isLoading, router]);
+		checkSession();
+	}, [router, supabase]);
 
 	// Show loading state while checking session
-	if (isLoading || isChecking) {
+	if (isChecking || hasSession === null) {
 		return (
 			<div className="h-screen w-screen relative flex items-center justify-center overflow-hidden">
 				<AuthBackground />

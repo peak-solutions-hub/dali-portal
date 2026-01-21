@@ -33,6 +33,8 @@ import {
 	createServerClient as createSupabaseServerClient,
 } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 /**
  * Cookie store interface compatible with Next.js cookies() API
@@ -175,4 +177,116 @@ export function createRouteHandlerClient(cookieStore: {
 			},
 		},
 	});
+}
+
+/**
+ * Create a Supabase client for server-side usage.
+ *
+ * This is a convenience function that creates a Supabase client
+ * using the cookies() API from Next.js.
+ *
+ * @example
+ * ```typescript
+ * const supabase = await createSupabaseClient();
+ * const { data: { user } } = await supabase.auth.getUser();
+ * ```
+ */
+export async function createSupabaseClient(): Promise<SupabaseClient> {
+	const cookieStore = await cookies();
+	const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
+
+	return createSupabaseServerClient(supabaseUrl, supabaseAnonKey, {
+		cookies: {
+			getAll() {
+				return cookieStore.getAll();
+			},
+			setAll(
+				cookiesToSet: { name: string; value: string; options: CookieOptions }[],
+			) {
+				try {
+					for (const { name, value, options } of cookiesToSet) {
+						cookieStore.set(name, value, options);
+					}
+				} catch {
+					// The `setAll` method was called from a Server Component.
+					// This can be ignored if you have middleware refreshing user sessions.
+				}
+			},
+		},
+	});
+}
+
+/**
+ * Get the current user from the server.
+ *
+ * @returns The current user or null if not authenticated
+ *
+ * @example
+ * ```typescript
+ * const user = await getUser();
+ * if (!user) {
+ *   redirect('/auth/sign-in');
+ * }
+ * ```
+ */
+export async function getUser() {
+	const supabase = await createSupabaseClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+	return user;
+}
+
+/**
+ * Check if a session exists and redirect to a specified path if it does.
+ * Use this in auth layouts to prevent authenticated users from accessing auth pages.
+ *
+ * @param redirectTo - The path to redirect to if session exists (default: '/dashboard')
+ *
+ * @example
+ * ```typescript
+ * // In auth layout
+ * export default async function AuthLayout({ children }) {
+ *   await sessionExists();
+ *   return <>{children}</>;
+ * }
+ * ```
+ */
+export async function sessionExists(redirectTo = "/dashboard"): Promise<void> {
+	const supabase = await createSupabaseClient();
+	const {
+		data: { session },
+	} = await supabase.auth.getSession();
+
+	if (session) {
+		redirect(redirectTo);
+	}
+}
+
+/**
+ * Protect a route by requiring authentication.
+ * Redirects to sign-in if no authenticated user is found.
+ *
+ * @param redirectTo - The path to redirect to if not authenticated (default: '/auth/sign-in')
+ *
+ * @example
+ * ```typescript
+ * // In a protected page or layout
+ * export default async function DashboardPage() {
+ *   await protectRoute();
+ *   // ... rest of the component
+ * }
+ * ```
+ */
+export async function protectRoute(
+	redirectTo = "/auth/sign-in",
+): Promise<void> {
+	const supabase = await createSupabaseClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) {
+		redirect(redirectTo);
+	}
 }

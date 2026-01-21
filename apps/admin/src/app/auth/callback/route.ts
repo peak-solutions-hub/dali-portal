@@ -20,7 +20,12 @@ export async function GET(request: NextRequest) {
 	// The 'code' is the authorization code from Supabase
 	const code = searchParams.get("code");
 	// The 'next' param tells us where to redirect after auth
-	const next = searchParams.get("next") ?? "/dashboard";
+	let next = searchParams.get("next") ?? "/dashboard";
+
+	// Validate next path to prevent open redirect
+	if (!next.startsWith("/")) {
+		next = "/dashboard";
+	}
 
 	if (code) {
 		const cookieStore = await cookies();
@@ -33,28 +38,34 @@ export async function GET(request: NextRequest) {
 		if (!error) {
 			console.log(`✓ Auth callback successful, redirecting to: ${next}`);
 
-			// Handle different deployment environments
+			// Handle load balancer scenarios
 			const forwardedHost = request.headers.get("x-forwarded-host");
-			const isLocal = process.env.NODE_ENV === "development";
+			const isLocalEnv = process.env.NODE_ENV === "development";
 
-			if (isLocal) {
-				// For localhost development
+			if (isLocalEnv) {
+				// In development, no load balancer in between
+				return NextResponse.redirect(`${origin}${next}`);
+			} else if (forwardedHost) {
+				// Behind a load balancer, use the forwarded host
+				return NextResponse.redirect(`https://${forwardedHost}${next}`);
+			} else {
 				return NextResponse.redirect(`${origin}${next}`);
 			}
-
-			if (forwardedHost) {
-				// For production behind load balancer/proxy
-				return NextResponse.redirect(`https://${forwardedHost}${next}`);
-			}
-
-			// Fallback to origin
-			return NextResponse.redirect(`${origin}${next}`);
 		}
 
 		console.error("Auth callback error:", error.message);
+
+		// Redirect to sign-in with specific error
+		const errorUrl = new URL("/auth/sign-in", origin);
+		errorUrl.searchParams.set("error", "auth_code_error");
+		errorUrl.searchParams.set(
+			"message",
+			`Authentication failed: ${error.message}`,
+		);
+		return NextResponse.redirect(errorUrl);
 	}
 
-	// Failure: Redirect to sign-in with error
+	// No code provided - failure
 	const errorUrl = new URL("/auth/sign-in", origin);
 	errorUrl.searchParams.set("error", "auth_code_error");
 	errorUrl.searchParams.set(

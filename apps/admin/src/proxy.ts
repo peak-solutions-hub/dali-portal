@@ -16,10 +16,19 @@ const publicRoutes = [
 
 /**
  * Next.js 16 proxy function for authentication routing
- * Simplified approach: check session, redirect if needed
+ * Handles automatic session refresh and authentication checks
  */
 export async function proxy(request: NextRequest) {
 	const pathname = request.nextUrl.pathname;
+
+	// Allow auth callback routes to process without interference
+	// These routes handle their own session establishment
+	if (
+		pathname.startsWith("/auth/callback") ||
+		pathname.startsWith("/auth/confirm")
+	) {
+		return NextResponse.next({ request });
+	}
 
 	let response = NextResponse.next({
 		request,
@@ -34,6 +43,7 @@ export async function proxy(request: NextRequest) {
 					return request.cookies.getAll();
 				},
 				setAll(cookiesToSet) {
+					// Set cookies on both request and response for proper propagation
 					for (const { name, value } of cookiesToSet) {
 						request.cookies.set(name, value);
 					}
@@ -48,29 +58,32 @@ export async function proxy(request: NextRequest) {
 		},
 	);
 
-	// Get user session
+	// Important: Use getUser() instead of getSession() for security
+	// getUser() validates the JWT with Supabase servers
+	// This also triggers automatic token refresh if needed
 	const {
 		data: { user },
+		error,
 	} = await supabase.auth.getUser();
 
 	// Allow public routes
 	if (publicRoutes.some((route) => pathname.startsWith(route))) {
-		// If authenticated and trying to access sign-in/forgot-password, redirect to dashboard
-		if (
-			user &&
-			(pathname === "/auth/sign-in" || pathname === "/auth/forgot-password")
-		) {
-			const url = request.nextUrl.clone();
-			url.pathname = "/dashboard";
-			return NextResponse.redirect(url);
-		}
 		return response;
 	}
 
 	// Protected routes - require authentication
-	if (!user) {
+	if (!user || error) {
+		console.log(
+			`[Proxy] No valid user for ${pathname}, redirecting to sign-in`,
+		);
 		const url = request.nextUrl.clone();
 		url.pathname = "/auth/sign-in";
+		if (error) {
+			url.searchParams.set(
+				"message",
+				"Your session has expired. Please sign in again.",
+			);
+		}
 		return NextResponse.redirect(url);
 	}
 
