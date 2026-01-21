@@ -1,20 +1,249 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import { getRedirectPath, type LoginInput, LoginSchema } from "@repo/shared";
 import { Alert, AlertDescription } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
-import { AlertCircle, ArrowLeft } from "@repo/ui/lib/lucide-react";
+import { Input } from "@repo/ui/components/input";
+import {
+	AlertCircle,
+	Key,
+	Loader2,
+	Lock,
+	Mail,
+	Shield,
+} from "@repo/ui/lib/lucide-react";
+import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import {
-	AuthBackground,
-	AuthHeader,
-	ForgotPasswordModal,
-	LoginForm,
-} from "@/components/auth";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { useAuthStore } from "@/stores/auth-store";
+
+/**
+ * Background component with gradient and decorative elements
+ */
+function AuthBackground() {
+	return (
+		<>
+			{/* Background Gradient */}
+			<div className="absolute inset-0 bg-linear-to-br from-red-600/95 via-[#a60202]/90 to-red-950/95" />
+
+			{/* Decorative Elements */}
+			<div className="absolute inset-0 overflow-hidden pointer-events-none">
+				<div className="absolute top-20 left-10 w-64 h-64 bg-[#FFC107]/10 rounded-full blur-3xl" />
+				<div className="absolute bottom-20 right-10 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
+			</div>
+		</>
+	);
+}
+
+/**
+ * Header component with city seal and branding
+ */
+function AuthHeader() {
+	return (
+		<div className="text-center mb-8">
+			<div className="mb-6 flex justify-center">
+				<div className="relative">
+					<img
+						src="/iloilo-city-seal.png"
+						alt="Iloilo City Council Seal"
+						className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
+					/>
+					<div className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full bg-[#a60202] flex items-center justify-center shadow-lg">
+						<Shield className="w-4 h-4 text-[#FFC107]" />
+					</div>
+				</div>
+			</div>
+
+			<h1
+				className="text-2xl sm:text-3xl text-[#a60202] mb-2"
+				style={{ fontFamily: "Playfair Display, serif" }}
+			>
+				Sangguniang Panlungsod
+			</h1>
+			<p className="text-gray-700 text-sm mb-1">ng Iloilo</p>
+			<div className="flex items-center justify-center gap-2 mt-3">
+				<div className="h-px w-12 bg-[#FFC107]" />
+				<Lock className="w-4 h-4 text-[#a60202]" />
+				<div className="h-px w-12 bg-[#FFC107]" />
+			</div>
+			<p className="text-xs text-gray-600 mt-3 font-medium">
+				Internal Management System
+			</p>
+		</div>
+	);
+}
+
+/**
+ * Login form component with inline auth logic
+ */
+function LoginForm() {
+	const router = useRouter();
+	const { setSession, fetchProfile } = useAuthStore();
+
+	const {
+		register,
+		handleSubmit,
+		formState: { errors, isSubmitting },
+	} = useForm<LoginInput>({
+		resolver: zodResolver(LoginSchema),
+		defaultValues: {
+			email: "",
+			password: "",
+		},
+	});
+
+	const onSubmit = async (data: LoginInput) => {
+		try {
+			const supabase = createBrowserClient();
+
+			// Step 1: Sign in with Supabase
+			const { data: authData, error: signInError } =
+				await supabase.auth.signInWithPassword({
+					email: data.email,
+					password: data.password,
+				});
+
+			if (signInError) {
+				toast.error(signInError.message);
+				return;
+			}
+
+			if (!authData.session) {
+				toast.error("Failed to establish session");
+				return;
+			}
+
+			// Step 2: Update Zustand store with session
+			setSession(authData.session);
+
+			// Step 3: Fetch user profile from NestJS backend
+			try {
+				await fetchProfile();
+
+				// Get the updated profile from store
+				const profile = useAuthStore.getState().userProfile;
+
+				if (!profile) {
+					toast.error("Failed to load user profile");
+					await supabase.auth.signOut();
+					setSession(null);
+					return;
+				}
+
+				// Step 4: Check if user is deactivated
+				if (profile.status === "deactivated") {
+					toast.error(
+						"Your account has been deactivated. Please contact an administrator.",
+					);
+					await supabase.auth.signOut();
+					setSession(null);
+					return;
+				}
+
+				// Step 5: Redirect based on role
+				const redirectPath = getRedirectPath(profile.role.name);
+				toast.success("Login successful");
+				router.push(redirectPath);
+			} catch (profileError: unknown) {
+				// Handle 403 Forbidden (account deactivated)
+				const error = profileError as { status?: number; message?: string };
+				if (error.status === 403) {
+					toast.error(
+						"Your account has been deactivated. Please contact an administrator.",
+					);
+					await supabase.auth.signOut();
+					setSession(null);
+					return;
+				}
+
+				// Handle other profile fetch errors
+				console.error("Profile fetch error:", profileError);
+				toast.error("Failed to load user profile. Please try again.");
+				await supabase.auth.signOut();
+				setSession(null);
+			}
+		} catch (err) {
+			console.error("Login error:", err);
+			toast.error("An unexpected error occurred");
+		}
+	};
+
+	return (
+		<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+			<div>
+				<label className="block mb-2 text-sm font-semibold text-gray-700">
+					Email Address
+				</label>
+				<div className="relative">
+					<Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+					<Input
+						type="email"
+						{...register("email")}
+						placeholder="your.email@iloilo.gov.ph"
+						className="h-12 pl-11 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
+						disabled={isSubmitting}
+					/>
+				</div>
+				{errors.email && (
+					<p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+				)}
+			</div>
+
+			<div>
+				<label className="block mb-2 text-sm font-semibold text-gray-700">
+					Password
+				</label>
+				<div className="relative">
+					<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+					<Input
+						type="password"
+						{...register("password")}
+						placeholder="••••••••"
+						className="h-12 pl-11 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
+						disabled={isSubmitting}
+					/>
+				</div>
+				{errors.password && (
+					<p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+				)}
+			</div>
+
+			<Button
+				type="submit"
+				disabled={isSubmitting}
+				className="w-full h-12 bg-[#a60202] hover:bg-[#8a0101] text-white shadow-lg shadow-[#a60202]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+			>
+				{isSubmitting ? (
+					<>
+						<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+						Signing in...
+					</>
+				) : (
+					<>
+						<Shield className="w-4 h-4 mr-2" />
+						Sign In
+					</>
+				)}
+			</Button>
+
+			<div className="text-center">
+				<Link
+					href="/auth/forgot-password"
+					className="text-sm text-[#a60202] hover:text-[#8a0101] hover:underline font-medium"
+				>
+					Forgot your password?
+				</Link>
+			</div>
+		</form>
+	);
+}
 
 function SignInContent() {
-	const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 	const searchParams = useSearchParams();
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -45,14 +274,8 @@ function SignInContent() {
 					</Alert>
 				)}
 
-				<LoginForm onForgotPassword={() => setShowForgotPasswordModal(true)} />
+				<LoginForm />
 			</Card>
-
-			{/* Forgot Password Modal */}
-			<ForgotPasswordModal
-				open={showForgotPasswordModal}
-				onOpenChange={setShowForgotPasswordModal}
-			/>
 		</div>
 	);
 }

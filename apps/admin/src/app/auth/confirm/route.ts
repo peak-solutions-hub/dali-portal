@@ -10,8 +10,8 @@ import { type NextRequest, NextResponse } from "next/server";
  * Supabase email links redirect here with token_hash and type parameters
  *
  * Flow:
- * - Invite email (type=invite) → /auth/set-password (new user sets password first time)
- * - Forgot password email (type=recovery) → /auth/set-password?mode=reset (existing user resets password)
+ * - Invite email (type=invite) → /auth/set-password (new user sets password)
+ * - Forgot password email (type=recovery) → /auth/set-password (user resets password)
  * - Signup confirmation (type=signup) → /auth/set-password
  * - Other types → /dashboard
  */
@@ -22,18 +22,13 @@ export async function GET(request: NextRequest) {
 
 	// Default redirect based on type
 	let next = searchParams.get("next");
-	let mode: string | null = null;
 
 	if (!next) {
 		// Default redirects for different email types
-		if (type === "invite" || type === "signup") {
-			// New user invitation - set password for the first time
+		if (type === "invite" || type === "signup" || type === "recovery") {
+			// All password-related flows go to /auth/set-password
+			// The page works for both invites and password resets
 			next = "/auth/set-password";
-			mode = "invite";
-		} else if (type === "recovery") {
-			// Forgot password - reset existing password
-			next = "/auth/set-password";
-			mode = "reset";
 		} else {
 			next = "/dashboard";
 		}
@@ -44,11 +39,6 @@ export async function GET(request: NextRequest) {
 	redirectTo.searchParams.delete("token_hash");
 	redirectTo.searchParams.delete("type");
 	redirectTo.searchParams.delete("next");
-
-	// Add mode parameter if applicable
-	if (mode) {
-		redirectTo.searchParams.set("mode", mode);
-	}
 
 	if (token_hash && type) {
 		const cookieStore = await cookies();
@@ -62,7 +52,7 @@ export async function GET(request: NextRequest) {
 		if (!error) {
 			// Successful verification - redirect to the appropriate page
 			console.log(
-				`✓ Email verification successful: type=${type}, redirect=${next}${mode ? ` (mode=${mode})` : ""}`,
+				`✓ Email verification successful: type=${type}, redirect=${next}`,
 			);
 			return NextResponse.redirect(redirectTo);
 		}
