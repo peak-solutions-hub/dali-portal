@@ -4,8 +4,9 @@ import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
 import type { Session, User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
-import { api, setAuthToken } from "@/lib/api.client";
+import { api, getAuthToken, setAuthToken } from "@/lib/api.client";
 import type { UserProfile } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
 
 type AuthContextType = {
 	user: User | null;
@@ -35,17 +36,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 	// Fetch user profile from backend
 	const fetchProfile = async (accessToken: string) => {
+		console.log("[AuthProvider] Setting auth token and fetching profile");
 		setAuthToken(accessToken);
+
+		// Verify token was set
+		const tokenCheck = getAuthToken();
+		if (!tokenCheck) {
+			console.error("[AuthProvider] Token was not set properly!");
+			setIsLoading(false);
+			return;
+		}
 
 		const [error, data] = await api.users.me({});
 
 		if (error) {
-			console.error("Failed to fetch user profile:", error);
+			console.error("[AuthProvider] Failed to fetch user profile:", error);
+			// Log more details about the error
+			if ("status" in error) {
+				console.error("[AuthProvider] Error status:", error.status);
+			}
+			if ("message" in error) {
+				console.error("[AuthProvider] Error message:", error.message);
+			}
 			setUserProfile(null);
+			setIsLoading(false);
 			return;
 		}
 
+		console.log("[AuthProvider] Profile fetched successfully:", data?.email);
 		setUserProfile(data);
+		setIsLoading(false);
 	};
 
 	useEffect(() => {
@@ -58,6 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 			setSession(session);
 			setUser(session?.user ?? null);
+
+			// Update Zustand store as well to keep in sync
+			useAuthStore.getState().setSession(session);
 
 			// INITIAL_SESSION: fired on app load with existing session
 			// SIGNED_IN: user just signed in
@@ -72,17 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 						await fetchProfile(session.access_token);
 					} catch (error) {
 						console.error("[AuthProvider] Failed to fetch profile:", error);
-						// Don't sign out on profile fetch error during INITIAL_SESSION
-						// User might have network issues but session is valid
-						if (event !== "INITIAL_SESSION") {
-							setUserProfile(null);
-						}
+						setUserProfile(null);
+						setIsLoading(false);
 					}
 				} else {
 					console.log("[AuthProvider] No session found");
 					setUserProfile(null);
+					setIsLoading(false);
 				}
-				setIsLoading(false);
 			}
 
 			// SIGNED_OUT: user signed out or session expired

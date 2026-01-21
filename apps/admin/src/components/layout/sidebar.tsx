@@ -19,11 +19,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { getFilteredNavItems } from "@/config/nav-items";
-import { useAuthStore } from "@/stores";
+import { useAuth } from "@/contexts/auth-context";
 
 export function Sidebar() {
 	const pathname = usePathname();
-	const { userProfile } = useAuthStore();
+	const { userProfile } = useAuth();
 
 	// Filter navigation items based on user role
 	const filteredNavItems = useMemo(() => {
