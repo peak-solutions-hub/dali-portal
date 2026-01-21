@@ -1,11 +1,12 @@
 import type { Request } from "express";
-import type { AuthenticatedUser } from "@/app/auth";
+import type { EnrichedUser } from "@/app/auth";
 
 /**
  * Extended Express Request with authenticated user
+ * The user object is enriched with DB fields after RolesGuard runs
  */
 export interface AuthenticatedRequest extends Request {
-	user?: AuthenticatedUser;
+	user?: EnrichedUser;
 }
 
 /**

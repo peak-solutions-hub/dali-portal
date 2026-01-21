@@ -30,7 +30,12 @@ function PasswordRequirement({ met, label }: { met: boolean; label: string }) {
 	);
 }
 
-export function SetPasswordForm() {
+interface SetPasswordFormProps {
+	/** Whether this is password reset mode (from forgot password) vs initial setup (from invite) */
+	isResetMode?: boolean;
+}
+
+export function SetPasswordForm({ isResetMode = false }: SetPasswordFormProps) {
 	const router = useRouter();
 	const { setSession, fetchProfile } = useAuthStore();
 
@@ -136,12 +141,14 @@ export function SetPasswordForm() {
 				{isSubmitting ? (
 					<>
 						<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-						Setting password...
+						{isResetMode ? "Resetting password..." : "Setting password..."}
 					</>
 				) : (
 					<>
 						<Shield className="w-4 h-4 mr-2" />
-						Set Password & Continue
+						{isResetMode
+							? "Reset Password & Sign In"
+							: "Set Password & Continue"}
 					</>
 				)}
 			</Button>

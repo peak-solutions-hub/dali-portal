@@ -60,9 +60,15 @@ export class UsersController {
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.update)
 	updateUser() {
-		return implement(contract.users.update).handler(async ({ input }) => {
-			return await this.usersService.updateUser(input);
-		});
+		return implement(contract.users.update).handler(
+			async ({ input, context }) => {
+				// Extract current user from context to prevent self-demotion
+				const { request } = context as ORPCContext;
+				const currentUserId = request.user?.id;
+
+				return await this.usersService.updateUser(input, currentUserId);
+			},
+		);
 	}
 
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)

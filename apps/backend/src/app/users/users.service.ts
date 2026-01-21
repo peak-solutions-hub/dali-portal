@@ -108,27 +108,44 @@ export class UsersService {
 		return user as UserWithRole;
 	}
 
-	async updateUser(input: UpdateUserInput): Promise<UserWithRole> {
+	async updateUser(
+		input: UpdateUserInput,
+		currentUserId?: string,
+	): Promise<UserWithRole> {
 		const { id, ...updateData } = input;
 
 		// Check if user exists
 		const existingUser = await this.db.user.findUnique({
 			where: { id },
+			include: { role: true },
 		});
 
 		if (!existingUser) {
 			throw new ORPCError("NOT_FOUND", { message: "User not found" });
 		}
 
-		// If updating roleId, validate role exists
+		// If updating roleId, validate role exists and check for self-demotion
 		if (updateData.roleId) {
-			const role = await this.db.role.findUnique({
+			const newRole = await this.db.role.findUnique({
 				where: { id: updateData.roleId },
 			});
 
-			if (!role) {
+			if (!newRole) {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "Invalid role specified",
+				});
+			}
+
+			// Prevent IT_ADMIN from demoting themselves
+			if (
+				currentUserId &&
+				currentUserId === id &&
+				existingUser.role.name === "it_admin" &&
+				newRole.name !== "it_admin"
+			) {
+				throw new ORPCError("FORBIDDEN", {
+					message:
+						"You cannot change your own IT Admin role. Ask another IT Admin to update your role.",
 				});
 			}
 		}
@@ -231,9 +248,10 @@ export class UsersService {
 		}
 
 		const adminUrl = this.configService.get("adminUrl") as string;
-		// CRITICAL: Use callback route to properly exchange code for session
-		// The 'next' param tells the callback where to redirect after session is set
-		const redirectTo = `${adminUrl}/auth/callback?next=/auth/set-password`;
+		// Use /auth/confirm for email OTP verification (invites, password resets)
+		// Supabase will redirect here with token_hash and type=invite parameters
+		// The confirm route will verify the OTP and redirect to set-password with mode=invite
+		const redirectTo = `${adminUrl}/auth/confirm`;
 		const supabase = this.supabaseAdmin.getClient();
 
 		const { data: authData, error: authError } =

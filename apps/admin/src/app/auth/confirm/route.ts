@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from "@repo/shared/lib/supabase";
+import { createRouteHandlerClient } from "@repo/ui/lib/supabase/server-client";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
@@ -8,6 +8,12 @@ import { type NextRequest, NextResponse } from "next/server";
  * Handles magic links, password resets, email confirmations, and user invitations
  *
  * Supabase email links redirect here with token_hash and type parameters
+ *
+ * Flow:
+ * - Invite email (type=invite) → /auth/set-password (new user sets password first time)
+ * - Forgot password email (type=recovery) → /auth/set-password?mode=reset (existing user resets password)
+ * - Signup confirmation (type=signup) → /auth/set-password
+ * - Other types → /dashboard
  */
 export async function GET(request: NextRequest) {
 	const { searchParams } = new URL(request.url);
@@ -16,12 +22,18 @@ export async function GET(request: NextRequest) {
 
 	// Default redirect based on type
 	let next = searchParams.get("next");
+	let mode: string | null = null;
+
 	if (!next) {
 		// Default redirects for different email types
 		if (type === "invite" || type === "signup") {
+			// New user invitation - set password for the first time
 			next = "/auth/set-password";
+			mode = "invite";
 		} else if (type === "recovery") {
-			next = "/auth/update-password";
+			// Forgot password - reset existing password
+			next = "/auth/set-password";
+			mode = "reset";
 		} else {
 			next = "/dashboard";
 		}
@@ -32,6 +44,11 @@ export async function GET(request: NextRequest) {
 	redirectTo.searchParams.delete("token_hash");
 	redirectTo.searchParams.delete("type");
 	redirectTo.searchParams.delete("next");
+
+	// Add mode parameter if applicable
+	if (mode) {
+		redirectTo.searchParams.set("mode", mode);
+	}
 
 	if (token_hash && type) {
 		const cookieStore = await cookies();
@@ -45,7 +62,7 @@ export async function GET(request: NextRequest) {
 		if (!error) {
 			// Successful verification - redirect to the appropriate page
 			console.log(
-				`✓ Email verification successful: type=${type}, redirect=${next}`,
+				`✓ Email verification successful: type=${type}, redirect=${next}${mode ? ` (mode=${mode})` : ""}`,
 			);
 			return NextResponse.redirect(redirectTo);
 		}

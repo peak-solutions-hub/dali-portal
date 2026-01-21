@@ -22,11 +22,11 @@ export const PUBLIC_AUTH_ROUTES = [
 
 /**
  * Password setup routes that require verification token
+ * - /auth/set-password - Handles both new user invite and password reset flows
+ *   - mode=invite: New user setting password for the first time
+ *   - mode=reset: Existing user resetting their password (forgot password flow)
  */
-export const PASSWORD_SETUP_ROUTES = [
-	"/auth/set-password",
-	"/auth/update-password",
-] as const;
+export const PASSWORD_SETUP_ROUTES = ["/auth/set-password"] as const;
 
 /**
  * Auth callback routes that handle email verification
@@ -43,4 +43,5 @@ export const ALLOWED_UNAUTHENTICATED_ROUTES = [
 	...AUTH_CALLBACK_ROUTES,
 	...PUBLIC_AUTH_ROUTES,
 	...PASSWORD_SETUP_ROUTES,
+	"/unauthorized",
 ] as const;

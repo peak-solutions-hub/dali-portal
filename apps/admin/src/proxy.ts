@@ -1,5 +1,4 @@
 import {
-	ALLOWED_UNAUTHENTICATED_ROUTES,
 	AUTH_CALLBACK_ROUTES,
 	PASSWORD_SETUP_ROUTES,
 	PROTECTED_ROUTES,
@@ -10,23 +9,11 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 /**
- * Next.js 16 proxy function for authentication
- * Renamed from middleware to proxy according to Next.js 16 conventions
- *
- * TEMPORARILY DISABLED: Route protection disabled to allow initial IT_ADMIN setup
- * TODO: Re-enable auth protection after creating first admin user
+ * Next.js 16 proxy function for authentication and route protection
+ * Handles session management and redirects based on authentication status
  */
-export function proxy(request: NextRequest) {
-	// TEMPORARY: Allow all routes for initial setup
-	// This bypasses all authentication checks
-	return NextResponse.next({ request });
-}
-
-/*
- * COMMENTED OUT: Re-enable this after creating first IT_ADMIN user
- *
 export async function proxy(request: NextRequest) {
-	const { pathname, searchParams } = request.nextUrl;
+	const { pathname } = request.nextUrl;
 
 	// Allow auth callback/confirm endpoints to process without interference
 	const isAuthCallback = AUTH_CALLBACK_ROUTES.some((route) =>
@@ -86,16 +73,11 @@ export async function proxy(request: NextRequest) {
 
 	return response;
 }
-*/
 
 export const config = {
 	matcher: [
 		/*
-		 * Match all request paths except:
-		 * - _next/static (static files)
-		 * - _next/image (image optimization files)
-		 * - favicon.ico (favicon file)
-		 * - public files (public folder)
+		 * Match all request paths except static files and images
 		 */
 		"/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
 	],

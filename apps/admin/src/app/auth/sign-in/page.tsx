@@ -5,7 +5,7 @@ import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { AlertCircle, ArrowLeft } from "@repo/ui/lib/lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
 	AuthBackground,
 	AuthHeader,
@@ -13,7 +13,7 @@ import {
 	LoginForm,
 } from "@/components/auth";
 
-export default function SignInPage() {
+function SignInContent() {
 	const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 	const searchParams = useSearchParams();
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -54,5 +54,19 @@ export default function SignInPage() {
 				onOpenChange={setShowForgotPasswordModal}
 			/>
 		</div>
+	);
+}
+
+export default function SignInPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="h-screen w-screen flex items-center justify-center">
+					Loading...
+				</div>
+			}
+		>
+			<SignInContent />
+		</Suspense>
 	);
 }

@@ -1,16 +1,20 @@
 import { createParamDecorator, type ExecutionContext } from "@nestjs/common";
-import type { AuthenticatedUser } from "../strategies/supabase-jwt.strategy";
+import type { EnrichedUser } from "../guards/roles.guard";
 
 /**
  * Parameter decorator to extract the current authenticated user from the request.
- * Must be used in routes protected by JwtAuthGuard.
+ * Must be used in routes protected by AuthGuard (and optionally RolesGuard).
+ *
+ * The user object contains:
+ * - Supabase Auth fields (id, email, app_metadata, user_metadata, etc.)
+ * - DB enriched fields (fullName, role, status) - available after RolesGuard runs
  *
  * @example
  * ```typescript
- * @UseGuards(JwtAuthGuard)
+ * @UseGuards(AuthGuard, RolesGuard)
  * @Get('profile')
- * getProfile(@CurrentUser() user: AuthenticatedUser) {
- *   return user;
+ * getProfile(@CurrentUser() user: EnrichedUser) {
+ *   return { id: user.id, role: user.role, fullName: user.fullName };
  * }
  *
  * // Or extract a specific property
@@ -21,9 +25,9 @@ import type { AuthenticatedUser } from "../strategies/supabase-jwt.strategy";
  * ```
  */
 export const CurrentUser = createParamDecorator(
-	(data: keyof AuthenticatedUser | undefined, ctx: ExecutionContext) => {
+	(data: keyof EnrichedUser | undefined, ctx: ExecutionContext) => {
 		const request = ctx.switchToHttp().getRequest();
-		const user = request.user as AuthenticatedUser;
+		const user = request.user as EnrichedUser;
 
 		if (!user) {
 			return null;

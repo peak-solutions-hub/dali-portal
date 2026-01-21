@@ -113,9 +113,11 @@ export async function handleResetPassword(
 ) {
 	try {
 		const supabase = createBrowserClient();
-		// Use callback route to properly exchange code for session
+		// Use /auth/confirm for email OTP verification
+		// Supabase will redirect with token_hash and type=recovery
+		// The confirm route will verify and redirect to /auth/set-password?mode=reset
 		const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-			redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
+			redirectTo: `${window.location.origin}/auth/confirm`,
 		});
 
 		if (error) {

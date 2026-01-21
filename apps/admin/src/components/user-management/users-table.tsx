@@ -33,7 +33,9 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	const [menuOpenUserId, setMenuOpenUserId] = useState<string | null>(null);
+	const [menuPosition, setMenuPosition] = useState<"bottom" | "top">("bottom");
 	const menuRef = useRef<HTMLDivElement | null>(null);
+	const buttonRef = useRef<HTMLButtonElement | null>(null);
 
 	useEffect(() => {
 		const onDocClick = (e: MouseEvent) => {
@@ -49,6 +51,22 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 
 	const handleActionClick = (user: UserWithRole) => {
 		setSelectedUser(user);
+
+		// Determine if we should show menu above or below
+		if (buttonRef.current) {
+			const rect = buttonRef.current.getBoundingClientRect();
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
+			const menuHeight = 100; // Approximate height of the menu
+
+			// If not enough space below but enough above, show menu on top
+			if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+				setMenuPosition("top");
+			} else {
+				setMenuPosition("bottom");
+			}
+		}
+
 		setMenuOpenUserId((prev) => (prev === user.id ? null : user.id));
 	};
 
@@ -120,6 +138,7 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 							<TableCell className="px-6 py-5 text-right relative">
 								<div className="inline-flex items-center justify-end relative">
 									<Button
+										ref={buttonRef}
 										variant="ghost"
 										size="icon-sm"
 										onClick={() => handleActionClick(user)}
@@ -133,7 +152,7 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 										<div
 											ref={menuRef}
 											role="menu"
-											className="absolute right-0 top-full mt-2 w-40 rounded-md border bg-white shadow-md z-50"
+											className={`absolute right-0 ${menuPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"} w-40 rounded-md border bg-white shadow-md z-50`}
 										>
 											<button
 												className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center"

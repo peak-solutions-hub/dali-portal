@@ -43,7 +43,10 @@ function hasRoutePermission(
 
 /**
  * Hook to protect routes based on user role
- * Redirects to sign-in if user doesn't have permission
+ * Redirects to /unauthorized if user doesn't have permission
+ *
+ * NOTE: This hook should only be used on protected pages/components.
+ * Auth pages handle their own routing logic.
  */
 export function useRoleProtection() {
 	const router = useRouter();
@@ -51,8 +54,9 @@ export function useRoleProtection() {
 	const { userProfile, isLoading, isAuthenticated } = useAuthStore();
 
 	useEffect(() => {
-		// Skip protection for auth routes
-		if (pathname.startsWith("/auth")) {
+		// Skip protection for auth routes and unauthorized page
+		// These routes handle their own logic
+		if (pathname.startsWith("/auth") || pathname === "/unauthorized") {
 			return;
 		}
 
@@ -62,6 +66,7 @@ export function useRoleProtection() {
 		}
 
 		// Redirect to sign-in if not authenticated
+		// The proxy middleware should handle this, but this is a fallback
 		if (!isAuthenticated) {
 			router.push(`/auth/sign-in?redirect=${encodeURIComponent(pathname)}`);
 			return;
@@ -71,8 +76,8 @@ export function useRoleProtection() {
 		const hasPermission = hasRoutePermission(pathname, userProfile?.role?.name);
 
 		if (!hasPermission) {
-			// Redirect to unauthorized page or sign-in
-			router.push("/auth/sign-in");
+			// Redirect to unauthorized page (401)
+			router.push("/unauthorized");
 		}
 	}, [pathname, userProfile, isLoading, isAuthenticated, router]);
 
