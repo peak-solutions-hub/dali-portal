@@ -8,84 +8,16 @@ import {
 	SetPasswordSchema,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { Card } from "@repo/ui/components/card";
 import { Input } from "@repo/ui/components/input";
-import {
-	Check,
-	Key,
-	KeyRound,
-	Loader2,
-	Shield,
-	X,
-} from "@repo/ui/lib/lucide-react";
+import { Check, Key, KeyRound, Loader2, X } from "@repo/ui/lib/lucide-react";
 import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { AuthBackground, AuthCard, AuthHeader } from "@/components/auth";
 import { api } from "@/lib/api.client";
 import { useAuthStore } from "@/stores/auth-store";
-
-/**
- * Background component with gradient and decorative elements
- */
-function AuthBackground() {
-	return (
-		<>
-			{/* Background Gradient */}
-			<div className="absolute inset-0 bg-linear-to-br from-red-600/95 via-[#a60202]/90 to-red-950/95" />
-
-			{/* Decorative Elements */}
-			<div className="absolute inset-0 overflow-hidden pointer-events-none">
-				<div className="absolute top-20 left-10 w-64 h-64 bg-[#FFC107]/10 rounded-full blur-3xl" />
-				<div className="absolute bottom-20 right-10 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-			</div>
-		</>
-	);
-}
-
-/**
- * Header component with city seal and branding
- */
-function SetPasswordHeader() {
-	return (
-		<div className="text-center mb-6">
-			<div className="mb-4 flex justify-center">
-				<div className="relative">
-					<img
-						src="/iloilo-city-seal.png"
-						alt="Iloilo City Council Seal"
-						className="w-16 h-16 sm:w-20 sm:h-20 object-contain"
-					/>
-					<div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#a60202] flex items-center justify-center shadow-lg">
-						<Shield className="w-4 h-4 text-[#FFC107]" />
-					</div>
-				</div>
-			</div>
-
-			<h1
-				className="text-xl sm:text-2xl text-[#a60202] mb-1"
-				style={{ fontFamily: "Playfair Display, serif" }}
-			>
-				Sangguniang Panlungsod
-			</h1>
-			<p className="text-gray-700 text-xs mb-3">ng Iloilo</p>
-
-			<div className="flex items-center justify-center gap-2 mt-2">
-				<div className="h-px w-8 bg-[#FFC107]" />
-				<KeyRound className="w-4 h-4 text-[#a60202]" />
-				<div className="h-px w-8 bg-[#FFC107]" />
-			</div>
-
-			<h2 className="text-lg font-semibold text-gray-900 mt-3">
-				Update Your Password
-			</h2>
-			<p className="text-xs text-gray-600 mt-1">
-				Create a secure password for your account
-			</p>
-		</div>
-	);
-}
 
 /**
  * Password requirement indicator component
@@ -314,7 +246,7 @@ function SetPasswordForm() {
 					</>
 				) : (
 					<>
-						<Shield className="w-4 h-4 mr-2" />
+						<Key className="w-4 h-4 mr-2" />
 						Update Password & Continue
 					</>
 				)}
@@ -357,29 +289,24 @@ function SetPasswordContent() {
 	// Show loading state while checking session
 	if (isChecking || hasSession === null) {
 		return (
-			<div className="h-screen w-screen relative flex items-center justify-center overflow-hidden">
-				<AuthBackground />
-				<Card className="w-full max-w-md mx-4 p-8 relative z-10 shadow-2xl bg-white/95 backdrop-blur-sm border-[#FFC107]/20">
-					<div className="flex flex-col items-center justify-center py-8">
-						<Loader2 className="w-8 h-8 animate-spin text-[#a60202] mb-4" />
-						<p className="text-gray-600 text-sm">Verifying your session...</p>
-					</div>
-				</Card>
-			</div>
+			<AuthCard>
+				<div className="flex flex-col items-center justify-center py-8">
+					<Loader2 className="w-8 h-8 animate-spin text-[#a60202] mb-4" />
+					<p className="text-gray-600 text-sm">Checking session...</p>
+				</div>
+			</AuthCard>
 		);
 	}
 
 	return (
-		<div className="h-screen w-screen relative flex items-center justify-center overflow-hidden">
-			{/* Background */}
-			<AuthBackground />
-
-			{/* Content Card */}
-			<Card className="w-full max-w-md mx-4 p-6 sm:p-8 relative z-10 shadow-2xl bg-white/95 backdrop-blur-sm border-[#FFC107]/20 max-h-[90vh] overflow-y-auto">
-				<SetPasswordHeader />
-				<SetPasswordForm />
-			</Card>
-		</div>
+		<AuthCard className="max-h-[90vh] overflow-y-auto">
+			<AuthHeader
+				title="Update Your Password"
+				subtitle="Create a secure password for your account"
+				icon={KeyRound}
+			/>
+			<SetPasswordForm />
+		</AuthCard>
 	);
 }
 
@@ -387,15 +314,12 @@ export default function SetPasswordPage() {
 	return (
 		<Suspense
 			fallback={
-				<div className="h-screen w-screen relative flex items-center justify-center overflow-hidden">
-					<AuthBackground />
-					<Card className="w-full max-w-md mx-4 p-8 relative z-10 shadow-2xl bg-white/95 backdrop-blur-sm border-[#FFC107]/20">
-						<div className="flex flex-col items-center justify-center py-8">
-							<Loader2 className="w-8 h-8 animate-spin text-[#a60202] mb-4" />
-							<p className="text-gray-600 text-sm">Loading...</p>
-						</div>
-					</Card>
-				</div>
+				<AuthCard>
+					<div className="flex flex-col items-center justify-center py-8">
+						<Loader2 className="w-8 h-8 animate-spin text-[#a60202] mb-4" />
+						<p className="text-gray-600 text-sm">Loading...</p>
+					</div>
+				</AuthCard>
 			}
 		>
 			<SetPasswordContent />

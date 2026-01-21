@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { getRedirectPath, type LoginInput, LoginSchema } from "@repo/shared";
 import { Alert, AlertDescription } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
-import { Card } from "@repo/ui/components/card";
 import { Input } from "@repo/ui/components/input";
 import {
 	AlertCircle,
@@ -20,63 +19,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { AuthCard, AuthHeader } from "@/components/auth";
 import { useAuthStore } from "@/stores/auth-store";
-
-/**
- * Background component with gradient and decorative elements
- */
-function AuthBackground() {
-	return (
-		<>
-			{/* Background Gradient */}
-			<div className="absolute inset-0 bg-linear-to-br from-red-600/95 via-[#a60202]/90 to-red-950/95" />
-
-			{/* Decorative Elements */}
-			<div className="absolute inset-0 overflow-hidden pointer-events-none">
-				<div className="absolute top-20 left-10 w-64 h-64 bg-[#FFC107]/10 rounded-full blur-3xl" />
-				<div className="absolute bottom-20 right-10 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-			</div>
-		</>
-	);
-}
-
-/**
- * Header component with city seal and branding
- */
-function AuthHeader() {
-	return (
-		<div className="text-center mb-8">
-			<div className="mb-6 flex justify-center">
-				<div className="relative">
-					<img
-						src="/iloilo-city-seal.png"
-						alt="Iloilo City Council Seal"
-						className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
-					/>
-					<div className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full bg-[#a60202] flex items-center justify-center shadow-lg">
-						<Shield className="w-4 h-4 text-[#FFC107]" />
-					</div>
-				</div>
-			</div>
-
-			<h1
-				className="text-2xl sm:text-3xl text-[#a60202] mb-2"
-				style={{ fontFamily: "Playfair Display, serif" }}
-			>
-				Sangguniang Panlungsod
-			</h1>
-			<p className="text-gray-700 text-sm mb-1">ng Iloilo</p>
-			<div className="flex items-center justify-center gap-2 mt-3">
-				<div className="h-px w-12 bg-[#FFC107]" />
-				<Lock className="w-4 h-4 text-[#a60202]" />
-				<div className="h-px w-12 bg-[#FFC107]" />
-			</div>
-			<p className="text-xs text-gray-600 mt-3 font-medium">
-				Internal Management System
-			</p>
-		</div>
-	);
-}
 
 /**
  * Login form component with inline auth logic
@@ -247,25 +191,23 @@ function SignInContent() {
 	}, [searchParams]);
 
 	return (
-		<div className="h-screen w-screen relative flex items-center justify-center overflow-hidden">
-			{/* Background */}
-			<AuthBackground />
+		<AuthCard>
+			<AuthHeader
+				title="Sangguniang Panlungsod"
+				subtitle="Internal Management System"
+				icon={Lock}
+			/>
 
-			{/* Content Card */}
-			<Card className="w-full max-w-md mx-4 p-6 sm:p-8 relative z-10 shadow-2xl bg-white/95 backdrop-blur-sm border-[#FFC107]/20">
-				<AuthHeader />
+			{/* Error Alert */}
+			{errorMessage && (
+				<Alert variant="destructive" className="mb-4">
+					<AlertCircle className="h-4 w-4" />
+					<AlertDescription>{errorMessage}</AlertDescription>
+				</Alert>
+			)}
 
-				{/* Error Alert */}
-				{errorMessage && (
-					<Alert variant="destructive" className="mb-4">
-						<AlertCircle className="h-4 w-4" />
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				)}
-
-				<LoginForm />
-			</Card>
-		</div>
+			<LoginForm />
+		</AuthCard>
 	);
 }
 

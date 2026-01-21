@@ -1,6 +1,5 @@
 /**
  * Get consistent badge styles for status badges in the admin interface
- * Uses complete Tailwind class names for proper JIT compilation
  * @param status - The user status ("active", "invited", or "deactivated")
  * @returns Tailwind CSS classes for status badge styling
  */

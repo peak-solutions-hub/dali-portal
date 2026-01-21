@@ -1,3 +1,3 @@
-// Auth components are now consolidated into their respective page files
-// This file is kept for future auth-related components
-
+export { AuthBackground } from "./auth-background";
+export { AuthCard } from "./auth-card";
+export { AuthHeader } from "./auth-header";

@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
-import { Card } from "@repo/ui/components/card";
 import {
 	AlertTriangle,
 	ArrowLeft,
@@ -9,25 +8,8 @@ import {
 	ShieldOff,
 } from "@repo/ui/lib/lucide-react";
 import { useRouter } from "next/navigation";
+import { AuthCard } from "@/components/auth";
 import { useAuthStore } from "@/stores/auth-store";
-
-/**
- * Background component with gradient and decorative elements
- */
-function AuthBackground() {
-	return (
-		<>
-			{/* Background Gradient */}
-			<div className="absolute inset-0 bg-linear-to-br from-red-600/95 via-[#a60202]/90 to-red-950/95" />
-
-			{/* Decorative Elements */}
-			<div className="absolute inset-0 overflow-hidden pointer-events-none">
-				<div className="absolute top-20 left-10 w-64 h-64 bg-[#FFC107]/10 rounded-full blur-3xl" />
-				<div className="absolute bottom-20 right-10 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-			</div>
-		</>
-	);
-}
 
 /**
  * Unauthorized page displayed when a user attempts to access
@@ -48,90 +30,84 @@ export default function UnauthorizedPage() {
 	};
 
 	return (
-		<div className="h-screen w-screen relative flex items-center justify-center overflow-hidden">
-			{/* Background */}
-			<AuthBackground />
-
-			{/* Content Card */}
-			<Card className="w-full max-w-md mx-4 p-6 sm:p-8 relative z-10 shadow-2xl bg-white/95 backdrop-blur-sm border-[#FFC107]/20">
-				{/* Icon */}
-				<div className="flex justify-center mb-6">
-					<div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
-						<ShieldOff className="w-10 h-10 text-[#a60202]" />
-					</div>
+		<AuthCard>
+			{/* Icon */}
+			<div className="flex justify-center mb-6">
+				<div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
+					<ShieldOff className="w-10 h-10 text-[#a60202]" />
 				</div>
+			</div>
 
-				{/* Title */}
-				<h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
-					Access Denied
-				</h1>
+			{/* Title */}
+			<h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
+				Access Denied
+			</h1>
 
-				{/* Description */}
-				<p className="text-center text-gray-600 mb-6">
-					You don&apos;t have permission to access this page.
-					{userProfile?.role?.name && (
-						<span className="block mt-1 text-sm">
-							Your current role:{" "}
-							<span className="font-semibold capitalize">
-								{userProfile.role.name.replace(/_/g, " ")}
-							</span>
+			{/* Description */}
+			<p className="text-center text-gray-600 mb-6">
+				You don&apos;t have permission to access this page.
+				{userProfile?.role?.name && (
+					<span className="block mt-1 text-sm">
+						Your current role:{" "}
+						<span className="font-semibold capitalize">
+							{userProfile.role.name.replace(/_/g, " ")}
 						</span>
-					)}
-				</p>
+					</span>
+				)}
+			</p>
 
-				{/* Alert */}
-				<div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-					<div className="flex items-start gap-3">
-						<AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-						<div className="text-sm text-amber-800">
-							<p className="font-medium mb-1">Why am I seeing this?</p>
-							<p className="text-amber-700">
-								This page requires elevated permissions. If you believe you
-								should have access, please contact your system administrator.
-							</p>
-						</div>
+			{/* Alert */}
+			<div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+				<div className="flex items-start gap-3">
+					<AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+					<div className="text-sm text-amber-800">
+						<p className="font-medium mb-1">Why am I seeing this?</p>
+						<p className="text-amber-700">
+							This page requires elevated permissions. If you believe you should
+							have access, please contact your system administrator.
+						</p>
 					</div>
 				</div>
+			</div>
 
-				{/* Actions */}
-				<div className="space-y-3">
-					<Button
-						onClick={() => router.back()}
-						variant="outline"
-						className="w-full h-11 border-gray-300 hover:bg-gray-50"
-					>
-						<ArrowLeft className="w-4 h-4 mr-2" />
-						Go Back
-					</Button>
+			{/* Actions */}
+			<div className="space-y-3">
+				<Button
+					onClick={() => router.back()}
+					variant="outline"
+					className="w-full h-11 border-gray-300 hover:bg-gray-50"
+				>
+					<ArrowLeft className="w-4 h-4 mr-2" />
+					Go Back
+				</Button>
 
-					<Button
-						onClick={() => router.push("/dashboard")}
-						className="w-full h-11 bg-[#a60202] hover:bg-[#8a0101] text-white"
-					>
-						Return to Dashboard
-					</Button>
+				<Button
+					onClick={() => router.push("/dashboard")}
+					className="w-full h-11 bg-[#a60202] hover:bg-[#8a0101] text-white"
+				>
+					Return to Dashboard
+				</Button>
 
-					<Button
-						onClick={handleSignOut}
-						variant="ghost"
-						className="w-full h-11 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-					>
-						<LogOut className="w-4 h-4 mr-2" />
-						Sign Out & Use Different Account
-					</Button>
-				</div>
+				<Button
+					onClick={handleSignOut}
+					variant="ghost"
+					className="w-full h-11 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+				>
+					<LogOut className="w-4 h-4 mr-2" />
+					Sign Out & Use Different Account
+				</Button>
+			</div>
 
-				{/* Help text */}
-				<p className="text-center text-xs text-gray-500 mt-6">
-					Need help? Contact IT support at{" "}
-					<a
-						href="mailto:support@iloilocity.gov.ph"
-						className="text-[#a60202] hover:underline"
-					>
-						support@iloilocity.gov.ph
-					</a>
-				</p>
-			</Card>
-		</div>
+			{/* Help text */}
+			<p className="text-center text-xs text-gray-500 mt-6">
+				Need help? Contact IT support at{" "}
+				<a
+					href="mailto:support@iloilocity.gov.ph"
+					className="text-[#a60202] hover:underline"
+				>
+					support@iloilocity.gov.ph
+				</a>
+			</p>
+		</AuthCard>
 	);
 }
