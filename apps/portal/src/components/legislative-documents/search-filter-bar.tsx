@@ -86,7 +86,7 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 
 	return (
 		<div
-			className="sticky top-19 z-20 bg-gray-50 pt-6 pb-4 mb-0 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between border-b border-gray-200"
+			className="sticky top-18 sm:top-20 z-20 bg-gray-50 pt-6 pb-4 mb-0 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between border-b border-gray-200"
 			role="search"
 			aria-label="Filter legislative documents"
 		>

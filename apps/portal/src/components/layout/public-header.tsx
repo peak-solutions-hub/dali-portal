@@ -12,7 +12,7 @@ import { Menu } from "@repo/ui/lib/lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 const navLinks = [
 	{ href: "/", label: "Home" },
@@ -25,40 +25,11 @@ const navLinks = [
 export function PublicHeader() {
 	const pathname = usePathname();
 	const [isOpen, setIsOpen] = useState(false);
-	const [visible, setVisible] = useState(true);
-	const lastScrollYRef = useRef(0);
-
-	useEffect(() => {
-		const handleScroll = () => {
-			const currentScrollY = window.scrollY;
-			const lastScrollY = lastScrollYRef.current;
-
-			// Show/hide header based on scroll direction
-			if (currentScrollY > lastScrollY && currentScrollY > 100) {
-				// Scrolling down
-				setVisible(false);
-			} else {
-				// Scrolling up
-				setVisible(true);
-			}
-
-			lastScrollYRef.current = currentScrollY;
-		};
-
-		window.addEventListener("scroll", handleScroll, { passive: true });
-		return () => window.removeEventListener("scroll", handleScroll);
-	}, []);
 
 	const isActive = (href: string) => pathname === href;
 
 	return (
-		<header
-			className={`
-        fixed top-0 left-0 right-0 z-50 transition-all duration-300
-        ${visible ? "translate-y-0" : "-translate-y-full"}
-        bg-[#a60202] shadow-lg
-      `}
-		>
+		<header className="fixed top-0 left-0 right-0 z-50 bg-[#a60202] shadow-lg">
 			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4">
 				<div className="flex items-center justify-between h-12 sm:h-14">
 					{/* Logo and Title */}
