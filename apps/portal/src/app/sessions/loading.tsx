@@ -76,13 +76,13 @@ export default function LoadingPage({ view }: LoadingPageProps) {
 				) : (
 					<>
 						{/* Session List Skeleton */}
-						<div className="pb-24 lg:pb-0">
+						<div className="flex flex-col gap-4 pb-24 lg:pb-0">
 							<SessionListViewSkeleton count={10} />
-						</div>
 
-						{/* Mobile Pagination - Sticky bottom */}
-						<div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
-							<SessionPaginationSkeleton />
+							{/* Mobile Pagination - Sticky bottom */}
+							<div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
+								<SessionPaginationSkeleton />
+							</div>
 						</div>
 					</>
 				)}
