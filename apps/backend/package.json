@@ -30,18 +30,22 @@
 		"test:e2e": "jest --config ./test/jest-e2e.json"
 	},
 	"dependencies": {
+		"@nestjs/axios": "^4.0.1",
 		"@nestjs/common": "^11.0.1",
 		"@nestjs/config": "^4.0.2",
 		"@nestjs/core": "^11.0.1",
 		"@nestjs/platform-express": "^11.0.1",
 		"@orpc/nest": "1.13.4",
 		"@orpc/zod": "1.13.4",
+		"@nestjs/throttler": "^6.5.0",
 		"@prisma/adapter-pg": "^7.2.0",
 		"@prisma/client": "^7.2.0",
 		"@repo/shared": "workspace:*",
 		"@scalar/nestjs-api-reference": "^1.0.13",
+		"nanoid": "^5.1.6",
 		"nestjs-zod": "^5.0.1",
 		"reflect-metadata": "^0.2.2",
+		"resend": "^6.8.0",
 		"rxjs": "^7.8.1"
 	},
 	"devDependencies": {
