@@ -18,14 +18,14 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { ChevronLeftIcon, ChevronRightIcon } from "@repo/ui/lib/lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import * as React from "react";
 import {
 	getSessionStatusLabel,
 	getSessionTypeBadgeClass,
 	getSessionTypeLabel,
-} from "@/lib/session-ui";
+} from "@repo/ui/lib/session-ui";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import * as React from "react";
 
 interface SessionsCalendarProps {
 	sessions: Session[];

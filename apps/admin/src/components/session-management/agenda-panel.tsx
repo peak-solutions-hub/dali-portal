@@ -2,6 +2,11 @@
 
 import { Button } from "@repo/ui/components/button";
 import { ChevronDown, Play } from "@repo/ui/lib/lucide-react";
+import {
+	getSessionStatusBadgeClass,
+	getSessionStatusLabel,
+	getSessionTypeLabel,
+} from "@repo/ui/lib/session-ui";
 import { useState } from "react";
 import type {
 	AgendaPanelProps,
@@ -34,11 +39,12 @@ export function AgendaPanel({
 		Record<string, AttachedDocument[]>
 	>({});
 
-	const statusStyles = {
-		draft: "bg-[#dc2626] text-white",
-		scheduled: "bg-blue-600 text-white",
-		completed: "bg-gray-600 text-white",
-	};
+	// Use shared status badge class for consistency across UI
+	// statusClasses combine background and text color if needed
+	// (fallback to a neutral style if one is not defined)
+	// NOTE: `getSessionStatusBadgeClass` returns only background color class
+	// we append `text-white` here to match existing visual style for badges.
+	// Draft/other states can be styled differently in the future if needed.
 
 	const handleAddDocument = (agendaItemId: string) => {
 		// This will be called when a document is dropped on an agenda item
@@ -113,11 +119,8 @@ export function AgendaPanel({
 							return (
 								<option key={session.id} value={session.id}>
 									Session #{session.sessionNumber} -{" "}
-									{session.type.charAt(0).toUpperCase() + session.type.slice(1)}{" "}
-									- {formattedDate} (
-									{session.status.charAt(0).toUpperCase() +
-										session.status.slice(1)}
-									)
+									{getSessionTypeLabel(session.type)} - {formattedDate} (
+									{getSessionStatusLabel(session.status)})
 								</option>
 							);
 						})}
@@ -136,19 +139,14 @@ export function AgendaPanel({
 									Session #{selectedSession.sessionNumber}
 								</h3>
 								<p className="text-sm text-gray-600 leading-5">
-									{selectedSession.type} Session - {selectedSession.date} at{" "}
-									{selectedSession.time}
+									{selectedSession.time} •{" "}
+									{getSessionTypeLabel(selectedSession.type)}
 								</p>
 							</div>
 							<span
-								className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
-									statusStyles[
-										selectedSession.status as keyof typeof statusStyles
-									] || statusStyles.draft
-								}`}
+								className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${getSessionStatusBadgeClass(selectedSession.status)} text-white`}
 							>
-								{selectedSession.status.charAt(0).toUpperCase() +
-									selectedSession.status.slice(1)}
+								{getSessionStatusLabel(selectedSession.status)}
 							</span>
 						</div>
 

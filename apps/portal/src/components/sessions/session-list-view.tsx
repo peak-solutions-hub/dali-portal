@@ -3,13 +3,13 @@ import { formatSessionDate, formatSessionTime } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
-import Link from "next/link";
 import {
 	getSessionStatusBadgeClass,
 	getSessionStatusLabel,
 	getSessionTypeBadgeClass,
 	getSessionTypeLabel,
-} from "@/lib/session-ui";
+} from "@repo/ui/lib/session-ui";
+import Link from "next/link";
 
 interface SessionListViewProps {
 	sessions: Session[];
