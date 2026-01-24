@@ -131,7 +131,7 @@ export default async function LegislativeDocumentsPage({
 
 	return (
 		<div className="min-h-screen bg-gray-50 flex flex-col">
-			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4 flex-grow">
+			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4 grow">
 				{/* Page Header */}
 				<div className="mb-6">
 					<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
@@ -142,25 +142,26 @@ export default async function LegislativeDocumentsPage({
 					</p>
 				</div>
 
-				{/* Desktop & Mobile Sticky Header: Search Bar & Top Pagination */}
-				<div className="sticky top-16 sm:top-20 z-30 bg-gray-50 pt-4 pb-4">
-					<div className="flex flex-col gap-4">
+				{/* Desktop: Sticky Header with Search & Pagination */}
+				<div className="hidden lg:block sticky top-20 z-30 bg-gray-50 pt-4 pb-2">
+					<div className="space-y-4">
 						<SearchFilterBar availableYears={availableYears} />
-
-						{/* Desktop Only Pagination (Top) */}
 						{documents.length > 0 && (
-							<div className="hidden lg:block">
-								<PaginationControls
-									pagination={pagination}
-									currentFilters={currentFilters}
-								/>
-							</div>
+							<PaginationControls
+								pagination={pagination}
+								currentFilters={currentFilters}
+							/>
 						)}
 					</div>
 				</div>
 
-				{/* Content Area */}
-				<div className="flex flex-col gap-4 pb-24 lg:pb-0">
+				{/* Mobile: Sticky Header with Search Only */}
+				<div className="lg:hidden sticky top-16 sm:top-20 z-30 bg-gray-50 pt-4 pb-2">
+					<SearchFilterBar availableYears={availableYears} />
+				</div>
+
+				{/* Content Area with bottom padding for mobile sticky pagination */}
+				<div className="pt-4 pb-24 lg:pb-4">
 					{documents.length > 0 ? (
 						<div className="space-y-3">
 							{documents.map((document) => (
@@ -177,17 +178,17 @@ export default async function LegislativeDocumentsPage({
 							</div>
 						</Card>
 					)}
-
-					{/* Mobile Sticky Pagination - Bottom */}
-					{documents.length > 0 && (
-						<div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
-							<PaginationControls
-								pagination={pagination}
-								currentFilters={currentFilters}
-							/>
-						</div>
-					)}
 				</div>
+
+				{/* Mobile Sticky Pagination - Bottom */}
+				{documents.length > 0 && pagination.totalPages > 1 && (
+					<div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
+						<PaginationControls
+							pagination={pagination}
+							currentFilters={currentFilters}
+						/>
+					</div>
+				)}
 			</div>
 		</div>
 	);
