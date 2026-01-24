@@ -1,7 +1,7 @@
 import { Card } from "@repo/ui/components/card";
 import { Calendar, FileText } from "@repo/ui/lib/lucide-react";
+import { getSessionTypeBadgeClass } from "@repo/ui/lib/session-ui";
 import Link from "next/link";
-import { getSessionTypeBadgeClass } from "@/lib/session-ui";
 
 interface Document {
 	id: string;

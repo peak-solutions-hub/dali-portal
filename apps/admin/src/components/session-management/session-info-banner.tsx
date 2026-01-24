@@ -2,14 +2,16 @@
 
 import { Card } from "@repo/ui/components/card";
 import { Calendar } from "@repo/ui/lib/lucide-react";
+import {
+	getSessionStatusBadgeClass,
+	getSessionStatusLabel,
+	getSessionTypeLabel,
+} from "@repo/ui/lib/session-ui";
 import type { SessionInfoBannerProps } from "@/types/session-management";
 
 export function SessionInfoBanner({ session }: SessionInfoBannerProps) {
-	const statusStyles = {
-		completed: "bg-green-100 text-green-700",
-		scheduled: "bg-blue-100 text-blue-700",
-		draft: "bg-gray-100 text-gray-700",
-	};
+	const statusClass = getSessionStatusBadgeClass(session.status);
+	const statusLabel = getSessionStatusLabel(session.status);
 
 	return (
 		<Card className="p-4 mb-6 bg-blue-50 border-blue-200">
@@ -28,15 +30,16 @@ export function SessionInfoBanner({ session }: SessionInfoBannerProps) {
 							})}
 						</h3>
 						<p className="text-sm text-gray-600">
-							{session.time} • {session.type} session
+							{session.time} • {getSessionTypeLabel(session.type)}
 						</p>
 					</div>
 				</div>
 				<div className="flex items-center gap-2">
 					<span
-						className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${statusStyles[session.status]}`}
+						className={`px-3 py-1 rounded-full text-sm font-medium ${statusClass} text-white`}
+						aria-label={`Session status: ${statusLabel}`}
 					>
-						{session.status}
+						{statusLabel}
 					</span>
 				</div>
 			</div>

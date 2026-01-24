@@ -88,15 +88,11 @@ function AgendaBuilderPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gray-50 p-6">
-			<div className="container mx-auto max-w-360">
+		<div className="h-full bg-gray-50 overflow-hidden border-b border-[#e5e7eb] px-6 py-4">
+			<div className="container mx-auto max-w-360 h-full flex flex-col">
 				{/* Header with Create Button */}
-				<div className="mb-6 flex items-center justify-between">
-					<div>
-						<h1 className="text-2xl font-bold text-gray-900 mb-1">
-							Session Management
-						</h1>
-					</div>
+				<div className="mb-2 flex items-center justify-between">
+					<div />
 					<Button
 						onClick={() => setShowCreateDialog(true)}
 						className="cursor-pointer"
@@ -107,14 +103,14 @@ function AgendaBuilderPage() {
 				</div>
 
 				{/* Two Column Layout */}
-				<div className="flex gap-6 h-[calc(100vh-12rem)]">
+				<div className="flex gap-4 flex-1 overflow-hidden">
 					{/* Left Panel - Documents (454px) */}
-					<div className="w-113.5 shrink-0">
+					<div className="w-113.5 shrink-0 overflow-y-auto">
 						<DocumentsPanel documents={availableDocuments} />
 					</div>
 
 					{/* Right Panel - Agenda */}
-					<div className="flex-1">
+					<div className="flex-1 overflow-y-auto">
 						<AgendaPanel
 							sessions={sessions}
 							selectedSession={selectedSessionData || null}

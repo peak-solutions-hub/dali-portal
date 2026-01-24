@@ -6,14 +6,22 @@ import { Bell, Search } from "lucide-react";
 
 interface HeaderProps {
 	title: string;
+	description?: string;
 }
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, description }: HeaderProps) {
 	return (
 		<header className="bg-white border-b border-[#e5e7eb] px-6 py-4">
 			<div className="flex items-center justify-between">
 				{/* Page Title */}
-				<h1 className="text-[20px] font-semibold text-[#0a0a0a]">{title}</h1>
+				<div>
+					<h1 className="text-[20px] font-semibold text-[#0a0a0a]">{title}</h1>
+					{description ? (
+						<p className="text-sm text-gray-600 mt-1 max-w-prose">
+							{description}
+						</p>
+					) : null}
+				</div>
 
 				{/* Right Section: Search + Notification */}
 				<div className="flex items-center gap-4">

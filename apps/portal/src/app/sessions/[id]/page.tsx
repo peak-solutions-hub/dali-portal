@@ -7,17 +7,17 @@ import {
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { api } from "@/lib/api.client";
 import {
 	getSectionLabel,
 	getSessionStatusBadgeClass,
 	getSessionStatusLabel,
 	getSessionTypeBadgeClass,
 	getSessionTypeLabel,
-} from "@/lib/session-ui";
+} from "@repo/ui/lib/session-ui";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { api } from "@/lib/api.client";
 
 interface PageProps {
 	params: Promise<{ id: string }>;

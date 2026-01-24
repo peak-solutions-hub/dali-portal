@@ -10,7 +10,6 @@ import {
 } from "@repo/ui/components/popover";
 import { useSessionFilters } from "@repo/ui/hooks";
 import { FilterIcon, XIcon } from "@repo/ui/lib/lucide-react";
-import { useState } from "react";
 import {
 	getSessionStatusBadgeClass,
 	getSessionStatusLabel,
@@ -18,7 +17,8 @@ import {
 	getSessionTypeLabel,
 	SESSION_STATUSES,
 	SESSION_TYPES,
-} from "@/lib/session-ui";
+} from "@repo/ui/lib/session-ui";
+import { useState } from "react";
 
 interface SessionFiltersProps {
 	sortOrder: string;
