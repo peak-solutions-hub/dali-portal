@@ -4,10 +4,13 @@ import {
 	type CreateInquiryTicketInput,
 	type CreateInquiryTicketResponse,
 	type GetInquiryTicketByIdInput,
-	type InquiryTicket,
-	InquiryTicketWithMessages,
+	type GetInquiryTicketListInput,
+	type InquiryTicketListResponse,
+	type InquiryTicketResponse,
+	type InquiryTicketWithMessagesResponse,
 	TrackInquiryTicketInput,
 	TrackInquiryTicketResponse,
+	type UpdateInquiryTicketStatusInput,
 } from "@repo/shared";
 import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
@@ -82,7 +85,7 @@ export class InquiryTicketService {
 
 	async getWithMessages(
 		input: GetInquiryTicketByIdInput,
-	): Promise<InquiryTicketWithMessages> {
+	): Promise<InquiryTicketWithMessagesResponse> {
 		const inquiryTicketWithMessages = await this.db.inquiryTicket.findFirst({
 			where: { id: input.id },
 			include: {
@@ -94,10 +97,19 @@ export class InquiryTicketService {
 			throw new ORPCError("NOT_FOUND");
 		}
 
-		return inquiryTicketWithMessages;
+		return {
+			...inquiryTicketWithMessages,
+			createdAt: inquiryTicketWithMessages.createdAt.toISOString(),
+			inquiryMessages: inquiryTicketWithMessages.inquiryMessages.map((msg) => ({
+				...msg,
+				createdAt: msg.createdAt.toISOString(),
+			})),
+		};
 	}
 
-	async getById(input: GetInquiryTicketByIdInput): Promise<InquiryTicket> {
+	async getById(
+		input: GetInquiryTicketByIdInput,
+	): Promise<InquiryTicketResponse> {
 		const inquiryTicket = await this.db.inquiryTicket.findFirst({
 			where: { id: input.id },
 		});
@@ -106,7 +118,61 @@ export class InquiryTicketService {
 			throw new ORPCError("NOT_FOUND");
 		}
 
-		return inquiryTicket;
+		return {
+			...inquiryTicket,
+			createdAt: inquiryTicket.createdAt.toISOString(),
+		};
+	}
+
+	async getList(
+		input: GetInquiryTicketListInput,
+	): Promise<InquiryTicketListResponse> {
+		const { status, category, limit, cursor } = input;
+
+		const inquiryTickets = await this.db.inquiryTicket.findMany({
+			where: {
+				...(status && { status }),
+				...(category && { category }),
+			},
+			take: limit,
+			...(cursor && {
+				skip: 1,
+				cursor: { id: cursor },
+			}),
+			orderBy: { createdAt: "desc" },
+		});
+
+		return inquiryTickets.map((ticket) => ({
+			...ticket,
+			createdAt: ticket.createdAt.toISOString(),
+		}));
+	}
+
+	async updateStatus(
+		input: UpdateInquiryTicketStatusInput,
+	): Promise<InquiryTicketResponse> {
+		const { id, status, closureRemarks } = input;
+
+		const inquiryTicket = await this.db.inquiryTicket.findFirst({
+			where: { id },
+		});
+
+		if (!inquiryTicket) {
+			throw new ORPCError("NOT_FOUND");
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id },
+			data: {
+				status,
+				...(closureRemarks && { closureRemarks }),
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
 	}
 
 	private generateReferenceNumber(year: number): string {

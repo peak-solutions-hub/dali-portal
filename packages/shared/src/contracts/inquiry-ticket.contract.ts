@@ -4,11 +4,10 @@ import {
 	CreateInquiryTicketSchema,
 	GetInquiryTicketByIdSchema,
 	GetInquiryTicketListSchema,
-	InquiryMessageSchema,
+	InquiryMessageResponseSchema,
 	InquiryTicketListResponseSchema,
-	InquiryTicketListSchema,
-	InquiryTicketSchema,
-	InquiryTicketWithMessagesSchema,
+	InquiryTicketResponseSchema,
+	InquiryTicketWithMessagesResponseSchema,
 	SendInquiryMessageSchema,
 	TrackInquiryTicketResponseSchema,
 	TrackInquiryTicketSchema,
@@ -71,7 +70,7 @@ export const sendInquiryMessage = oc
 		},
 	})
 	.input(SendInquiryMessageSchema)
-	.output(InquiryMessageSchema);
+	.output(InquiryMessageResponseSchema);
 
 export const getInquiryTicketWithMessages = oc
 	.route({
@@ -89,7 +88,7 @@ export const getInquiryTicketWithMessages = oc
 		},
 	})
 	.input(GetInquiryTicketByIdSchema)
-	.output(InquiryTicketWithMessagesSchema);
+	.output(InquiryTicketWithMessagesResponseSchema);
 
 export const getInquiryTicketList = oc
 	.route({
@@ -107,7 +106,7 @@ export const getInquiryTicketList = oc
 		},
 	})
 	.input(GetInquiryTicketListSchema)
-	.output(InquiryTicketListSchema);
+	.output(InquiryTicketListResponseSchema);
 
 export const getInquiryTicketById = oc
 	.route({
@@ -121,7 +120,7 @@ export const getInquiryTicketById = oc
 		// define possible errors here
 	})
 	.input(GetInquiryTicketByIdSchema)
-	.output(InquiryTicketSchema);
+	.output(InquiryTicketResponseSchema);
 
 export const updateInquiryTicketStatus = oc
 	.route({
@@ -133,7 +132,7 @@ export const updateInquiryTicketStatus = oc
 		tags: ["Inquiry", "Admin"],
 	})
 	.input(UpdateInquiryTicketStatusSchema)
-	.output(InquiryTicketSchema);
+	.output(InquiryTicketResponseSchema);
 
 export const inquiryTicketContract = {
 	sendMessage: sendInquiryMessage,

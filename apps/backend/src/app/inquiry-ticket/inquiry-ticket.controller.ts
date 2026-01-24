@@ -59,4 +59,27 @@ export class InquiryTicketController {
 			},
 		);
 	}
+
+	@Implement(contract.inquiries.getList)
+	getList() {
+		return implement(contract.inquiries.getList).handler(async ({ input }) => {
+			return await this.inquiryService.getList(input);
+		});
+	}
+
+	@Implement(contract.inquiries.getById)
+	getById() {
+		return implement(contract.inquiries.getById).handler(async ({ input }) => {
+			return await this.inquiryService.getById(input);
+		});
+	}
+
+	@Implement(contract.inquiries.updateStatus)
+	updateStatus() {
+		return implement(contract.inquiries.updateStatus).handler(
+			async ({ input }) => {
+				return await this.inquiryService.updateStatus(input);
+			},
+		);
+	}
 }
