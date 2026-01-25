@@ -453,7 +453,6 @@ enum SessionSection {
   national_anthem_and_pledge_of_allegiance
   roll_call
   reading_and_or_approval_of_minutes
-  agenda
   first_reading_and_references
   committee_report
   calendar_of_business
