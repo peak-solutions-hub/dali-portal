@@ -88,6 +88,27 @@ export function formatSessionTime(date: Date | string): string {
 	}
 }
 
+/**
+ * Format a concise public label for an agenda document.
+ *
+ * Example:
+ * formatAgendaDocumentPublicLabel(1, '25-06-0915', 'Proposed ordinance on ...')
+ * returns: 'f.01 DN: 25-06-0915: Proposed ordinance on ...'
+ *
+ * The index is 1-based and padded to two digits (f.01, f.02, ...).
+ */
+export function formatAgendaDocumentPublicLabel(
+	index: number,
+	docNumber?: string,
+	title?: string,
+): string {
+	const idx = String(index).padStart(2, "0");
+	const prefix = `f.${idx}`;
+	const dn = docNumber ? ` DN: ${docNumber}` : "";
+	const shortTitle = title ? `: ${title}` : ": Proposed document";
+	return `${prefix}${dn}${shortTitle}`;
+}
+
 // =============================================================================
 // ROLE-BASED FILTERING
 // =============================================================================
