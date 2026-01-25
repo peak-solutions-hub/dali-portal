@@ -34,8 +34,6 @@ export const SessionSchema = z.object({
 	sessionNumber: z.coerce.number().int(), // Decimal in DB, coerce to number for frontend
 	scheduleDate: z.coerce.date(),
 	agendaFilePath: z.string().nullable(),
-	minutesFilePath: z.string().nullable(),
-	journalFilePath: z.string().nullable(),
 	type: SessionTypeEnum,
 	status: SessionStatusEnum,
 });

@@ -253,8 +253,6 @@ model Session {
   sessionNumber     Decimal             @map("session_number") @db.Decimal
   scheduleDate      DateTime            @map("schedule_date") @db.Timestamptz(6)
   agendaFilePath    String?             @map("agenda_file_path")
-  minutesFilePath   String?             @map("minutes_file_path")
-  journalFilePath   String?             @map("journal_file_path")
   type              SessionType
   status            SessionStatus
   sessionAgendaItem SessionAgendaItem[]
