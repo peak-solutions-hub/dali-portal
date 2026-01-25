@@ -2,6 +2,7 @@
 
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
+import { Calendar } from "@repo/ui/components/calendar";
 import { Checkbox } from "@repo/ui/components/checkbox";
 import {
 	Drawer,
@@ -18,7 +19,8 @@ import {
 	PopoverTrigger,
 } from "@repo/ui/components/popover";
 import { useIsMobile, useSessionFilters } from "@repo/ui/hooks";
-import { FilterIcon, XIcon } from "@repo/ui/lib/lucide-react";
+import { CalendarIcon, FilterIcon, XIcon } from "@repo/ui/lib/lucide-react";
+import { format } from "date-fns";
 import { useState } from "react";
 import {
 	getSessionStatusBadgeClass,
@@ -165,39 +167,62 @@ function MobileSessionFiltersDrawer({
 						</h3>
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
-								<label
-									htmlFor="dateFrom-mobile"
-									className="text-xs text-[#6b7280]"
-								>
-									From
-								</label>
-								<div className="relative">
-									<input
-										id="dateFrom-mobile"
-										type="date"
-										value={dateFrom}
-										onChange={(e) => setDateFrom(e.target.value)}
-										className="w-full h-9 px-3 text-sm border border-[rgba(0,0,0,0.1)] rounded-md focus:outline-none focus:ring-1 focus:ring-[#a60202] cursor-pointer"
-									/>
-								</div>
+								<label className="text-xs text-[#6b7280]">From</label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
+										>
+											<CalendarIcon className="mr-2 h-4 w-4" />
+											{dateFrom
+												? format(new Date(dateFrom), "P")
+												: "Pick a date"}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-auto p-0" align="start">
+										<Calendar
+											mode="single"
+											selected={dateFrom ? new Date(dateFrom) : undefined}
+											onSelect={(date) => {
+												if (date) {
+													setDateFrom(format(date, "yyyy-MM-dd"));
+												} else {
+													setDateFrom("");
+												}
+											}}
+											initialFocus
+										/>
+									</PopoverContent>
+								</Popover>
 							</div>
 							<div className="space-y-1.5">
-								<label
-									htmlFor="dateTo-mobile"
-									className="text-xs text-[#6b7280]"
-								>
-									To
-								</label>
-								<div className="relative">
-									<input
-										id="dateTo-mobile"
-										type="date"
-										value={dateTo}
-										onChange={(e) => setDateTo(e.target.value)}
-										min={dateFrom || undefined}
-										className="w-full h-9 px-3 text-sm border border-[rgba(0,0,0,0.1)] rounded-md focus:outline-none focus:ring-1 focus:ring-[#a60202] cursor-pointer"
-									/>
-								</div>
+								<label className="text-xs text-[#6b7280]">To</label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
+										>
+											<CalendarIcon className="mr-2 h-4 w-4" />
+											{dateTo ? format(new Date(dateTo), "P") : "Pick a date"}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-auto p-0" align="start">
+										<Calendar
+											mode="single"
+											selected={dateTo ? new Date(dateTo) : undefined}
+											onSelect={(date) => {
+												if (date) {
+													setDateTo(format(date, "yyyy-MM-dd"));
+												} else {
+													setDateTo("");
+												}
+											}}
+											autoFocus
+										/>
+									</PopoverContent>
+								</Popover>
 							</div>
 						</div>
 					</div>
@@ -213,24 +238,23 @@ function MobileSessionFiltersDrawer({
 				</div>
 
 				<DrawerFooter className="border-t">
-					<div className="flex gap-2 w-full">
+					<div className="flex w-full gap-3">
 						<Button
-							onClick={applyFilters}
-							size="sm"
-							className="h-9 flex-1 cursor-pointer bg-[#a60202] text-white hover:bg-[#8a0101]"
-							disabled={isDateRangeInvalid}
-						>
-							Apply Filters
-						</Button>
-						<Button
+							variant="outline"
 							onClick={() => {
 								clearAllFilters();
 							}}
-							variant="outline"
-							size="sm"
-							className="h-9 flex-1 cursor-pointer border-[rgba(0,0,0,0.1)]"
+							className="flex-1"
 						>
+							<XIcon className="w-4 h-4 mr-2" />
 							Clear
+						</Button>
+						<Button
+							onClick={applyFilters}
+							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
+							disabled={isDateRangeInvalid}
+						>
+							Apply Filters
 						</Button>
 					</div>
 				</DrawerFooter>
@@ -259,32 +283,6 @@ function DesktopSessionFilters({
 		applyFilters,
 		isDateRangeInvalid,
 	} = filterState;
-
-	// const removeFilter = (
-	// 	filterType: "type" | "status" | "dateFrom" | "dateTo",
-	// 	value: string,
-	// ) => {
-	// 	if (filterType === "type") {
-	// 		const types = filters.types.filter((t) => t !== value);
-	// 		filterState.setSelectedTypes(types);
-	// 	} else if (filterType === "status") {
-	// 		const statuses = filters.statuses.filter((s) => s !== value);
-	// 		filterState.setSelectedStatuses(statuses);
-	// 	} else if (filterType === "dateFrom") {
-	// 		filterState.setDateFrom("");
-	// 	} else if (filterType === "dateTo") {
-	// 		filterState.setDateTo("");
-	// 	}
-	// };
-
-	// const formatDateLabel = (date: string) => {
-	// 	if (!date) return "";
-	// 	return new Date(date).toLocaleDateString("en-US", {
-	// 		month: "short",
-	// 		day: "numeric",
-	// 		year: "numeric",
-	// 	});
-	// };
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -355,39 +353,62 @@ function DesktopSessionFilters({
 						</h3>
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
-								<label
-									htmlFor="dateFrom-desktop"
-									className="text-xs text-[#6b7280]"
-								>
-									From
-								</label>
-								<div className="relative">
-									<input
-										id="dateFrom-desktop"
-										type="date"
-										value={dateFrom}
-										onChange={(e) => setDateFrom(e.target.value)}
-										className="w-full h-9 px-3 text-sm border border-[rgba(0,0,0,0.1)] rounded-md focus:outline-none focus:ring-1 focus:ring-[#a60202] cursor-pointer"
-									/>
-								</div>
+								<label className="text-xs text-[#6b7280]">From</label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
+										>
+											<CalendarIcon className="mr-2 h-4 w-4" />
+											{dateFrom
+												? format(new Date(dateFrom), "P")
+												: "Pick a date"}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-auto p-0" align="start">
+										<Calendar
+											mode="single"
+											selected={dateFrom ? new Date(dateFrom) : undefined}
+											onSelect={(date) => {
+												if (date) {
+													setDateFrom(format(date, "yyyy-MM-dd"));
+												} else {
+													setDateFrom("");
+												}
+											}}
+											autoFocus
+										/>
+									</PopoverContent>
+								</Popover>
 							</div>
 							<div className="space-y-1.5">
-								<label
-									htmlFor="dateTo-desktop"
-									className="text-xs text-[#6b7280]"
-								>
-									To
-								</label>
-								<div className="relative">
-									<input
-										id="dateTo-desktop"
-										type="date"
-										value={dateTo}
-										onChange={(e) => setDateTo(e.target.value)}
-										min={dateFrom || undefined}
-										className="w-full h-9 px-3 text-sm border border-[rgba(0,0,0,0.1)] rounded-md focus:outline-none focus:ring-1 focus:ring-[#a60202] cursor-pointer"
-									/>
-								</div>
+								<label className="text-xs text-[#6b7280]">To</label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
+										>
+											<CalendarIcon className="mr-2 h-4 w-4" />
+											{dateTo ? format(new Date(dateTo), "P") : "Pick a date"}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-auto p-0" align="start">
+										<Calendar
+											mode="single"
+											selected={dateTo ? new Date(dateTo) : undefined}
+											onSelect={(date) => {
+												if (date) {
+													setDateTo(format(date, "yyyy-MM-dd"));
+												} else {
+													setDateTo("");
+												}
+											}}
+											initialFocus
+										/>
+									</PopoverContent>
+								</Popover>
 							</div>
 						</div>
 					</div>
@@ -400,31 +421,28 @@ function DesktopSessionFilters({
 							</p>
 						</div>
 					)}
+				</div>
 
-					<div className="flex gap-2 border-t border-[rgba(0,0,0,0.1)] pt-4">
-						<Button
-							onClick={applyFilters}
-							size="sm"
-							className="h-9 flex-1 cursor-pointer bg-[#a60202] text-white hover:bg-[#8a0101]"
-							disabled={isDateRangeInvalid}
-						>
-							Apply Filters
-						</Button>
-						<Button
-							onClick={() => {
-								filterState.setSelectedTypes(filters.types);
-								filterState.setSelectedStatuses(filters.statuses);
-								filterState.setDateFrom(filters.dateFrom || "");
-								filterState.setDateTo(filters.dateTo || "");
-								setOpen(false);
-							}}
-							variant="outline"
-							size="sm"
-							className="h-9 cursor-pointer border-[rgba(0,0,0,0.1)]"
-						>
-							Cancel
-						</Button>
-					</div>
+				<div className="flex gap-2 pt-4 border-t mt-4">
+					<Button
+						variant="outline"
+						onClick={() => {
+							filterState.clearAllFilters();
+						}}
+						className="flex-1"
+						size="sm"
+					>
+						<XIcon className="w-4 h-4 mr-2" />
+						Clear
+					</Button>
+					<Button
+						onClick={applyFilters}
+						className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
+						disabled={isDateRangeInvalid}
+						size="sm"
+					>
+						Apply Filters
+					</Button>
 				</div>
 			</PopoverContent>
 		</Popover>

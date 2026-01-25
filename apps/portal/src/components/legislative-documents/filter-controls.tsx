@@ -8,6 +8,14 @@ import {
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
 import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@repo/ui/components/command";
+import {
 	Drawer,
 	DrawerContent,
 	DrawerDescription,
@@ -30,7 +38,13 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { useIsMobile } from "@repo/ui/hooks";
-import { FilterIcon, XIcon } from "@repo/ui/lib/lucide-react";
+import {
+	Check,
+	ChevronsUpDown,
+	FilterIcon,
+	XIcon,
+} from "@repo/ui/lib/lucide-react";
+import { cn } from "@repo/ui/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -50,10 +64,7 @@ interface FilterState {
 	hasPendingChanges: boolean;
 	yearSearch: string;
 	setYearSearch: (search: string) => void;
-	classificationSearch: string;
-	setClassificationSearch: (search: string) => void;
 	filteredYears: number[];
-	filteredClassifications: Array<{ value: string; label: string }>;
 }
 
 interface MobileFilterControlDrawerProps {
@@ -145,118 +156,140 @@ function MobileFilterControlDrawer({
 						</div>
 					</div>
 
-					{/* Year - Searchable Select */}
+					{/* Year - Typeahead Combobox */}
 					<div className="space-y-2 border-t pt-4">
 						<h3 className="text-sm font-semibold text-gray-900">Year</h3>
-						<Select
-							value={selectedYear}
-							onValueChange={(value) => {
-								setSelectedYear(value);
-								filterState.setYearSearch("");
-							}}
-						>
-							<SelectTrigger className="w-full h-10 bg-white">
-								<SelectValue placeholder="All Years" />
-							</SelectTrigger>
-							<SelectContent className="w-[(--radix-select-trigger-width)]">
-								<div className="p-2 sticky top-0 bg-white border-b z-10">
-									<div className="relative">
-										<Input
-											placeholder="Type to search..."
-											value={filterState.yearSearch}
-											onChange={(e) =>
-												filterState.setYearSearch(e.target.value)
-											}
-											className="h-8 pr-8"
-											onClick={(e) => e.stopPropagation()}
-										/>
-										{filterState.yearSearch && (
-											<button
-												type="button"
-												onClick={() => filterState.setYearSearch("")}
-												className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button
+									variant="outline"
+									role="combobox"
+									className="w-full h-10 justify-between bg-white hover:bg-white"
+								>
+									<span className="truncate">
+										{selectedYear && selectedYear !== "all"
+											? selectedYear
+											: "All Years"}
+									</span>
+									<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-(--radix-popover-trigger-width) p-0">
+								<Command>
+									<CommandInput placeholder="Search years..." />
+									<CommandEmpty>No year found.</CommandEmpty>
+									<CommandList className="max-h-75 overflow-auto">
+										<CommandGroup>
+											<CommandItem
+												value="all"
+												onSelect={() => {
+													setSelectedYear("all");
+												}}
 											>
-												<XIcon className="w-4 h-4" />
-											</button>
-										)}
-									</div>
-								</div>
-								<div className="max-h-50 overflow-y-auto">
-									<SelectItem value="all">All Years</SelectItem>
-									{filterState.filteredYears.length > 0 ? (
-										filterState.filteredYears.map((year) => (
-											<SelectItem key={year} value={year.toString()}>
-												{year}
-											</SelectItem>
-										))
-									) : (
-										<div className="px-2 py-6 text-center text-sm text-gray-500">
-											No years found
-										</div>
-									)}
-								</div>
-							</SelectContent>
-						</Select>
+												<Check
+													className={cn(
+														"mr-2 h-4 w-4",
+														selectedYear === "all"
+															? "opacity-100"
+															: "opacity-0",
+													)}
+												/>
+												All Years
+											</CommandItem>
+											{availableYears.map((year) => (
+												<CommandItem
+													key={year}
+													value={year.toString()}
+													onSelect={() => {
+														setSelectedYear(year.toString());
+													}}
+												>
+													<Check
+														className={cn(
+															"mr-2 h-4 w-4",
+															selectedYear === year.toString()
+																? "opacity-100"
+																: "opacity-0",
+														)}
+													/>
+													{year}
+												</CommandItem>
+											))}
+										</CommandGroup>
+									</CommandList>
+								</Command>
+							</PopoverContent>
+						</Popover>
 					</div>
 
-					{/* Classification - Searchable */}
+					{/* Classification - Typeahead Combobox */}
 					<div className="space-y-2 border-t pt-4">
 						<h3 className="text-sm font-semibold text-gray-900">
 							Classification
 						</h3>
-						<Select
-							value={selectedClassification}
-							onValueChange={(value) => {
-								setSelectedClassification(value);
-								filterState.setClassificationSearch("");
-							}}
-						>
-							<SelectTrigger className="w-full h-10 bg-white">
-								<SelectValue placeholder="All Classifications" />
-							</SelectTrigger>
-							<SelectContent className="w-[--radix-select-trigger-width]">
-								<div className="p-2 sticky top-0 bg-white border-b z-10">
-									<div className="relative">
-										<Input
-											placeholder="Type to search..."
-											value={filterState.classificationSearch}
-											onChange={(e) =>
-												filterState.setClassificationSearch(e.target.value)
-											}
-											className="h-8 pr-8"
-											onClick={(e) => e.stopPropagation()}
-										/>
-										{filterState.classificationSearch && (
-											<button
-												type="button"
-												onClick={() => filterState.setClassificationSearch("")}
-												className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button
+									variant="outline"
+									role="combobox"
+									className="w-full h-10 justify-between bg-white hover:bg-white"
+								>
+									<span className="truncate">
+										{selectedClassification && selectedClassification !== "all"
+											? CLASSIFICATION_TYPES.find(
+													(c) => c.value === selectedClassification,
+												)?.label
+											: "All Classifications"}
+									</span>
+									<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-(--radix-popover-trigger-width) p-0">
+								<Command>
+									<CommandInput placeholder="Search classifications..." />
+									<CommandEmpty>No classification found.</CommandEmpty>
+									<CommandList className="max-h-75 overflow-auto">
+										<CommandGroup>
+											<CommandItem
+												value="all"
+												onSelect={() => {
+													setSelectedClassification("all");
+												}}
 											>
-												<XIcon className="w-4 h-4" />
-											</button>
-										)}
-									</div>
-								</div>
-								<div className="max-h-50 overflow-y-auto">
-									{filterState.filteredClassifications.length > 0 ? (
-										filterState.filteredClassifications.map(
-											(classification) => (
-												<SelectItem
+												<Check
+													className={cn(
+														"mr-2 h-4 w-4",
+														selectedClassification === "all"
+															? "opacity-100"
+															: "opacity-0",
+													)}
+												/>
+												All Classifications
+											</CommandItem>
+											{CLASSIFICATION_TYPES.map((classification) => (
+												<CommandItem
 													key={classification.value}
 													value={classification.value}
+													onSelect={() => {
+														setSelectedClassification(classification.value);
+													}}
 												>
+													<Check
+														className={cn(
+															"mr-2 h-4 w-4",
+															selectedClassification === classification.value
+																? "opacity-100"
+																: "opacity-0",
+														)}
+													/>
 													{classification.label}
-												</SelectItem>
-											),
-										)
-									) : (
-										<div className="px-2 py-6 text-center text-sm text-gray-500">
-											No classifications found
-										</div>
-									)}
-								</div>
-							</SelectContent>
-						</Select>
+												</CommandItem>
+											))}
+										</CommandGroup>
+									</CommandList>
+								</Command>
+							</PopoverContent>
+						</Popover>
 					</div>
 				</div>
 
@@ -348,120 +381,139 @@ function DesktopFilterControl({
 							</div>
 						</div>
 
-						{/* Year - Searchable Select */}
+						{/* Year - Typeahead Combobox */}
 						<div className="space-y-3 border-t pt-4">
 							<h3 className="text-sm font-semibold text-gray-900">Year</h3>
-							<Select
-								value={selectedYear}
-								onValueChange={(value) => {
-									setSelectedYear(value);
-									filterState.setYearSearch("");
-								}}
-							>
-								<SelectTrigger className="w-full h-10 bg-white">
-									<SelectValue placeholder="All Years" />
-								</SelectTrigger>
-								<SelectContent className="w-(--radix-select-trigger-width)">
-									<div className="p-2 sticky top-0 bg-white border-b z-10">
-										<div className="relative">
-											<Input
-												placeholder="Type to search..."
-												value={filterState.yearSearch}
-												onChange={(e) =>
-													filterState.setYearSearch(e.target.value)
-												}
-												className="h-8 pr-8"
-												onClick={(e) => e.stopPropagation()}
-											/>
-											{filterState.yearSearch && (
-												<button
-													type="button"
-													onClick={() => filterState.setYearSearch("")}
-													className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+							<Popover>
+								<PopoverTrigger asChild>
+									<Button
+										variant="outline"
+										role="combobox"
+										className="w-full h-10 justify-between bg-white hover:bg-white"
+									>
+										{selectedYear && selectedYear !== "all"
+											? selectedYear
+											: "All Years"}
+										<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent className="w-(--radix-popover-trigger-width) p-0">
+									<Command>
+										<CommandInput placeholder="Search years..." />
+										<CommandEmpty>No year found.</CommandEmpty>
+										<CommandList>
+											<CommandGroup>
+												<CommandItem
+													value="all"
+													onSelect={() => {
+														setSelectedYear("all");
+													}}
 												>
-													<XIcon className="w-4 h-4" />
-												</button>
-											)}
-										</div>
-									</div>
-									<div className="max-h-50 overflow-y-auto">
-										<SelectItem value="all">All Years</SelectItem>
-										{filterState.filteredYears.length > 0 ? (
-											filterState.filteredYears.map((year) => (
-												<SelectItem key={year} value={year.toString()}>
-													{year}
-												</SelectItem>
-											))
-										) : (
-											<div className="px-2 py-6 text-center text-sm text-gray-500">
-												No years found
-											</div>
-										)}
-									</div>
-								</SelectContent>
-							</Select>
+													<Check
+														className={cn(
+															"mr-2 h-4 w-4",
+															selectedYear === "all"
+																? "opacity-100"
+																: "opacity-0",
+														)}
+													/>
+													All Years
+												</CommandItem>
+												{filterState.filteredYears.map((year) => (
+													<CommandItem
+														key={year}
+														value={year.toString()}
+														onSelect={() => {
+															setSelectedYear(year.toString());
+														}}
+													>
+														<Check
+															className={cn(
+																"mr-2 h-4 w-4",
+																selectedYear === year.toString()
+																	? "opacity-100"
+																	: "opacity-0",
+															)}
+														/>
+														{year}
+													</CommandItem>
+												))}
+											</CommandGroup>
+										</CommandList>
+									</Command>
+								</PopoverContent>
+							</Popover>
 						</div>
 
-						{/* Classification - Searchable */}
+						{/* Classification - Typeahead Combobox */}
 						<div className="space-y-3 border-t pt-4">
 							<h3 className="text-sm font-semibold text-gray-900">
 								Classification
 							</h3>
-							<Select
-								value={selectedClassification}
-								onValueChange={(value) => {
-									setSelectedClassification(value);
-									filterState.setClassificationSearch("");
-								}}
-							>
-								<SelectTrigger className="w-full h-10 bg-white">
-									<SelectValue placeholder="All Classifications" />
-								</SelectTrigger>
-								<SelectContent className="w-[--radix-select-trigger-width]">
-									<div className="p-2 sticky top-0 bg-white border-b z-10">
-										<div className="relative">
-											<Input
-												placeholder="Type to search..."
-												value={filterState.classificationSearch}
-												onChange={(e) =>
-													filterState.setClassificationSearch(e.target.value)
-												}
-												className="h-8 pr-8"
-												onClick={(e) => e.stopPropagation()}
-											/>
-											{filterState.classificationSearch && (
-												<button
-													type="button"
-													onClick={() =>
-														filterState.setClassificationSearch("")
-													}
-													className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+							<Popover>
+								<PopoverTrigger asChild>
+									<Button
+										variant="outline"
+										role="combobox"
+										className="w-full h-10 justify-between bg-white hover:bg-white"
+									>
+										<span className="truncate">
+											{selectedClassification &&
+											selectedClassification !== "all"
+												? CLASSIFICATION_TYPES.find(
+														(c) => c.value === selectedClassification,
+													)?.label
+												: "All Classifications"}
+										</span>
+										<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent className="w-(--radix-popover-trigger-width) p-0">
+									<Command>
+										<CommandInput placeholder="Search classifications..." />
+										<CommandEmpty>No classification found.</CommandEmpty>
+										<CommandList>
+											<CommandGroup>
+												<CommandItem
+													value="all"
+													onSelect={() => {
+														setSelectedClassification("all");
+													}}
 												>
-													<XIcon className="w-4 h-4" />
-												</button>
-											)}
-										</div>
-									</div>
-									<div className="max-h-50 overflow-y-auto">
-										{filterState.filteredClassifications.length > 0 ? (
-											filterState.filteredClassifications.map(
-												(classification) => (
-													<SelectItem
+													<Check
+														className={cn(
+															"mr-2 h-4 w-4",
+															selectedClassification === "all"
+																? "opacity-100"
+																: "opacity-0",
+														)}
+													/>
+													All Classifications
+												</CommandItem>
+												{CLASSIFICATION_TYPES.map((classification) => (
+													<CommandItem
 														key={classification.value}
 														value={classification.value}
+														onSelect={() => {
+															setSelectedClassification(classification.value);
+														}}
 													>
+														<Check
+															className={cn(
+																"mr-2 h-4 w-4",
+																selectedClassification === classification.value
+																	? "opacity-100"
+																	: "opacity-0",
+															)}
+														/>
 														{classification.label}
-													</SelectItem>
-												),
-											)
-										) : (
-											<div className="px-2 py-6 text-center text-sm text-gray-500">
-												No classifications found
-											</div>
-										)}
-									</div>
-								</SelectContent>
-							</Select>
+													</CommandItem>
+												))}
+											</CommandGroup>
+										</CommandList>
+									</Command>
+								</PopoverContent>
+							</Popover>
 						</div>
 					</div>
 
@@ -513,9 +565,8 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 		currentParams.classification,
 	);
 
-	// Search states for filtering dropdowns
+	// Search state for filtering year dropdown
 	const [yearSearch, setYearSearch] = useState("");
-	const [classificationSearch, setClassificationSearch] = useState("");
 
 	// Filter years based on search
 	const filteredYears = useMemo(() => {
@@ -524,18 +575,6 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 			year.toString().includes(yearSearch),
 		);
 	}, [availableYears, yearSearch]);
-
-	// Filter classifications based on search
-	const filteredClassifications = useMemo(() => {
-		const allClassifications = [
-			{ value: "all", label: "All Classifications" },
-			...CLASSIFICATION_TYPES,
-		];
-		if (!classificationSearch) return allClassifications;
-		return allClassifications.filter((item) =>
-			item.label.toLowerCase().includes(classificationSearch.toLowerCase()),
-		);
-	}, [classificationSearch]);
 
 	// Sync local state when URL changes (e.g., user uses Clear Filters)
 	useEffect(() => {
@@ -595,7 +634,6 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 		setSelectedYear("all");
 		setSelectedClassification("all");
 		setYearSearch("");
-		setClassificationSearch("");
 		const queryString = buildQueryString({
 			search,
 			type: "all",
@@ -619,10 +657,7 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 		hasPendingChanges,
 		yearSearch,
 		setYearSearch,
-		classificationSearch,
-		setClassificationSearch,
 		filteredYears,
-		filteredClassifications,
 	};
 
 	return (

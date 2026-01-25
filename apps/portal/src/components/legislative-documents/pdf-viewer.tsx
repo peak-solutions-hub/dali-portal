@@ -196,7 +196,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 								</Button>
 							</div>
 
-							<div className="flex-1 overflow-hidden">
+							<div className="flex-1 overflow-auto">
 								<object
 									data={pdfUrl}
 									type="application/pdf"
