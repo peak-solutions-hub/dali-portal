@@ -30,7 +30,6 @@ export const SESSION_SECTION_LABELS: Record<string, string> = {
 		"National Anthem and Pledge of Allegiance",
 	roll_call: "Roll Call",
 	reading_and_or_approval_of_minutes: "Reading and/or Approval of the Minutes",
-	agenda: "Agenda",
 	first_reading_and_references: "First Reading and References",
 	committee_report: "Committee Report",
 	calendar_of_business: "Calendar of Business",
