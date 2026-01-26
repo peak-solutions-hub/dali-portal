@@ -11,11 +11,7 @@ import {
 	isSameDay,
 	monthNames,
 } from "@/utils/date-utils";
-import {
-	generateTimeSlots,
-	isTimeSlotBooked,
-	parseTimeToHour,
-} from "@/utils/time-utils";
+import { generateTimeSlots, isTimeSlotBooked } from "@/utils/time-utils";
 import { BookingModal } from "./booking-modal";
 
 export function RoomBookingCalendar() {
@@ -30,6 +26,7 @@ export function RoomBookingCalendar() {
 	const [dragStartIndex, setDragStartIndex] = useState<number | null>(null);
 	const [dragEndIndex, setDragEndIndex] = useState<number | null>(null);
 	const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
+	const [dragPreviewTime, setDragPreviewTime] = useState<string>("");
 
 	// Mock bookings data
 	const mockBookings = useMemo(
@@ -79,7 +76,7 @@ export function RoomBookingCalendar() {
 	}, []);
 
 	const days = useMemo(() => getCalendarDays(currentDate), [currentDate]);
-	const timeSlots = useMemo(() => generateTimeSlots(), []);
+	const timeSlots = useMemo(() => generateTimeSlots(15), []);
 
 	// Calculate position for the red line (Current Time)
 	// Position is calculated as a percentage of the full day (1440 minutes)
@@ -132,14 +129,19 @@ export function RoomBookingCalendar() {
 		// Prevent selecting booked slots
 		if (isSlotBooked(index)) return;
 
-		setIsDragging(true);
 		setDragStartIndex(index);
 		setDragEndIndex(index);
 		setSelectedSlots([index]);
+		setDragPreviewTime("");
 	};
 
 	const handleMouseEnter = (index: number) => {
-		if (isDragging && dragStartIndex !== null) {
+		if (dragStartIndex !== null) {
+			// Set dragging flag when user moves to a different slot
+			if (index !== dragStartIndex) {
+				setIsDragging(true);
+			}
+
 			// Don't allow dragging over booked slots
 			if (isSlotBooked(index)) return;
 
@@ -155,15 +157,72 @@ export function RoomBookingCalendar() {
 				slots.push(i);
 			}
 			setSelectedSlots(slots);
+
+			// Update drag preview time
+			const startSlot = timeSlots[start];
+			const endSlot = timeSlots[end];
+
+			if (startSlot && endSlot) {
+				// Format start time
+				const startPeriod = startSlot.hour < 12 ? "AM" : "PM";
+				const startDisplayHour =
+					startSlot.hour === 0
+						? 12
+						: startSlot.hour > 12
+							? startSlot.hour - 12
+							: startSlot.hour;
+				const startTime = `${startDisplayHour}:${startSlot.minute.toString().padStart(2, "0")} ${startPeriod}`;
+
+				// Calculate end time (add 15 min interval to the end slot)
+				const endTotalMinutes = endSlot.hour * 60 + endSlot.minute + 15;
+				const endHour = Math.floor(endTotalMinutes / 60) % 24;
+				const endMinute = endTotalMinutes % 60;
+
+				const endPeriod = endHour < 12 ? "AM" : "PM";
+				const endDisplay =
+					endHour === 0 ? 12 : endHour > 12 ? endHour - 12 : endHour;
+				const endTime = `${endDisplay}:${endMinute.toString().padStart(2, "0")} ${endPeriod}`;
+
+				setDragPreviewTime(`${startTime} - ${endTime}`);
+			}
 		}
 	};
 
 	const handleMouseUp = () => {
-		if (isDragging && dragStartIndex !== null && dragEndIndex !== null) {
-			setIsDragging(false);
+		if (dragStartIndex !== null && dragEndIndex !== null) {
+			let start = Math.min(dragStartIndex, dragEndIndex);
+			let end = Math.max(dragStartIndex, dragEndIndex);
 
-			const start = Math.min(dragStartIndex, dragEndIndex);
-			const end = Math.max(dragStartIndex, dragEndIndex);
+			// If it's a click (not a drag), auto-select 1 hour on the hour
+			if (!isDragging) {
+				// Find the slot that represents the hour (minute === 0)
+				const clickedSlot = timeSlots[start];
+				if (!clickedSlot) return;
+
+				// Find the start of the hour (when minute === 0)
+				const hourStartIndex = timeSlots.findIndex(
+					(slot) => slot.hour === clickedSlot.hour && slot.minute === 0,
+				);
+
+				if (hourStartIndex === -1) return;
+
+				start = hourStartIndex;
+				end = start + 3; // 4 slots total = 1 hour (0, 15, 30, 45 minutes)
+
+				// Make sure we don't exceed the time slots
+				if (end >= timeSlots.length) {
+					end = timeSlots.length - 1;
+				}
+				// Check if any slot in the 1-hour range is booked
+				if (isRangeBooked(start, end)) {
+					// Reset and return
+					setIsDragging(false);
+					setDragStartIndex(null);
+					setDragEndIndex(null);
+					setSelectedSlots([]);
+					return;
+				}
+			}
 
 			// Get start and end times
 			const startSlot = timeSlots[start];
@@ -171,22 +230,35 @@ export function RoomBookingCalendar() {
 
 			if (!startSlot || !endSlot) return;
 
-			const startTime = startSlot.time || "12 AM";
-			const endHour = (endSlot.hour + 1) % 24;
+			// Format start time
+			const startPeriod = startSlot.hour < 12 ? "AM" : "PM";
+			const startDisplayHour =
+				startSlot.hour === 0
+					? 12
+					: startSlot.hour > 12
+						? startSlot.hour - 12
+						: startSlot.hour;
+			const startTime = `${startDisplayHour}:${startSlot.minute.toString().padStart(2, "0")} ${startPeriod}`;
 
-			// Format end time
+			// Calculate end time (add 15 min interval to the end slot)
+			const endTotalMinutes = endSlot.hour * 60 + endSlot.minute + 15;
+			const endHour = Math.floor(endTotalMinutes / 60) % 24;
+			const endMinute = endTotalMinutes % 60;
+
 			const endPeriod = endHour < 12 ? "AM" : "PM";
 			const endDisplay =
 				endHour === 0 ? 12 : endHour > 12 ? endHour - 12 : endHour;
-			const endTime = `${endDisplay} ${endPeriod}`;
+			const endTime = `${endDisplay}:${endMinute.toString().padStart(2, "0")} ${endPeriod}`;
 
 			setSelectedTimeSlot(`${startTime} - ${endTime}`);
 			setIsModalOpen(true);
 
 			// Reset selection
+			setIsDragging(false);
 			setDragStartIndex(null);
 			setDragEndIndex(null);
 			setSelectedSlots([]);
+			setDragPreviewTime("");
 		}
 	};
 
@@ -197,12 +269,15 @@ export function RoomBookingCalendar() {
 	// Check if a time slot is already booked
 	const isSlotBooked = (index: number): boolean => {
 		const slot = timeSlots[index];
-		if (!slot?.time) return false;
-
-		const slotHour = slot.hour;
+		if (!slot) return false;
 
 		return bookingsForSelectedDate.some((booking) => {
-			return isTimeSlotBooked(slotHour, booking.startTime, booking.endTime);
+			return isTimeSlotBooked(
+				slot.hour,
+				slot.minute,
+				booking.startTime,
+				booking.endTime,
+			);
 		});
 	};
 
@@ -409,6 +484,13 @@ export function RoomBookingCalendar() {
 						</div>
 
 						<div className="flex-1 overflow-y-auto relative">
+							{" "}
+							{/* Drag Preview Label */}
+							{isDragging && dragPreviewTime && (
+								<div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg font-medium text-sm animate-in fade-in duration-200">
+									{dragPreviewTime}
+								</div>
+							)}
 							{/* Time Slots - Complete 24 hours (12 AM to 11 PM) */}
 							<div className="relative">
 								{/* Real-time Indicator Line */}
@@ -435,6 +517,7 @@ export function RoomBookingCalendar() {
 										? bookingsForSelectedDate.find((b) => {
 												return isTimeSlotBooked(
 													slot.hour,
+													slot.minute,
 													b.startTime,
 													b.endTime,
 												);
@@ -442,63 +525,62 @@ export function RoomBookingCalendar() {
 										: null;
 
 									return (
-										<button
-											key={`${slot.time}-${index}`}
-											onMouseDown={() => handleMouseDown(index)}
-											onMouseEnter={() => handleMouseEnter(index)}
-											onMouseUp={handleMouseUp}
-											disabled={slotIsBooked}
-											className={`group flex items-start p-0 w-full text-left h-20 border-b border-gray-50 transition-colors relative ${
-												slotIsBooked
-													? booking?.status === "confirmed"
-														? "bg-blue-50 border-l-4 border-l-blue-600 cursor-not-allowed"
-														: "bg-yellow-50 border-l-4 border-l-yellow-500 cursor-not-allowed"
-													: isSlotSelected(index)
-														? "bg-blue-100 border-l-4 border-l-blue-600"
-														: "hover:bg-gray-50/50 cursor-pointer"
-											}`}
-										>
-											<div
-												className={`w-24 px-6 pt-1 text-[11px] font-black ${
+										<div key={`${slot.time}-${index}`} className="relative">
+											{/* Time label - positioned absolutely to prevent movement during drag */}
+											{slot.minute === 0 && slot.time && (
+												<div className="absolute left-0 top-0 -translate-y-1/2 z-10 w-24 px-6 text-[11px] font-medium text-gray-400 pointer-events-none">
+													{slot.time}
+												</div>
+											)}
+											<button
+												onMouseDown={() => handleMouseDown(index)}
+												onMouseEnter={() => handleMouseEnter(index)}
+												onMouseUp={handleMouseUp}
+												disabled={slotIsBooked}
+												className={`flex items-start p-0 w-full text-left h-5 ${
+													slot.minute === 0 ? "border-t border-gray-100" : ""
+												} transition-colors relative ${
 													slotIsBooked
 														? booking?.status === "confirmed"
-															? "text-blue-600"
-															: "text-yellow-600"
-														: "text-gray-300 group-hover:text-blue-500"
+															? "bg-blue-50 border-l-4 border-l-blue-600 cursor-not-allowed"
+															: "bg-yellow-50 border-l-4 border-l-yellow-500 cursor-not-allowed"
+														: isSlotSelected(index)
+															? "bg-blue-100 border-l-4 border-l-blue-600"
+															: "cursor-pointer"
 												}`}
 											>
-												{slot.time}
-											</div>
-											<div className="flex-1 h-full border-l border-gray-100 px-4 pt-1">
-												{slotIsBooked && booking && (
-													<div className="flex flex-col gap-1">
-														<div className="flex items-center gap-2">
-															<span
-																className={`text-xs font-semibold ${
-																	booking.status === "confirmed"
-																		? "text-blue-700"
-																		: "text-yellow-700"
-																}`}
-															>
-																{booking.purpose}
-															</span>
-															<span
-																className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${
-																	booking.status === "confirmed"
-																		? "bg-blue-100 text-blue-700"
-																		: "bg-yellow-100 text-yellow-700"
-																}`}
-															>
-																{booking.status}
+												<div className="w-24" />
+												<div className="flex-1 h-full border-l border-gray-100 px-4 pt-1">
+													{slotIsBooked && booking && (
+														<div className="flex flex-col gap-1">
+															<div className="flex items-center gap-2">
+																<span
+																	className={`text-xs font-semibold ${
+																		booking.status === "confirmed"
+																			? "text-blue-700"
+																			: "text-yellow-700"
+																	}`}
+																>
+																	{booking.purpose}
+																</span>
+																<span
+																	className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${
+																		booking.status === "confirmed"
+																			? "bg-blue-100 text-blue-700"
+																			: "bg-yellow-100 text-yellow-700"
+																	}`}
+																>
+																	{booking.status}
+																</span>
+															</div>
+															<span className="text-[10px] text-gray-500">
+																{booking.startTime} - {booking.endTime}
 															</span>
 														</div>
-														<span className="text-[10px] text-gray-500">
-															{booking.startTime} - {booking.endTime}
-														</span>
-													</div>
-												)}
-											</div>
-										</button>
+													)}
+												</div>
+											</button>{" "}
+										</div>
 									);
 								})}
 							</div>
@@ -545,14 +627,17 @@ export function RoomBookingCalendar() {
 					<div className="flex-1 flex flex-col overflow-hidden">
 						{/* Headers */}
 						<div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50">
-							{["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
-								<div
-									key={day}
-									className="py-2 text-center text-[10px] font-bold text-gray-400 tracking-widest border-r border-gray-100 last:border-r-0"
-								>
-									{day}
-								</div>
-							))}
+							{dayNames.map((dayName) => {
+								const shortName = dayName.slice(0, 3).toUpperCase();
+								return (
+									<div
+										key={shortName}
+										className="py-2 text-center text-[10px] font-bold text-gray-400 tracking-widest border-r border-gray-100 last:border-r-0"
+									>
+										{shortName}
+									</div>
+								);
+							})}
 						</div>
 
 						{/* Grid */}

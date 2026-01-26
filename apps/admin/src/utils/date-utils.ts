@@ -13,7 +13,7 @@ export const monthNames = [
 	"December",
 ];
 
-export const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+export const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export const isSameDay = (date1: Date, date2: Date) => {
 	return (

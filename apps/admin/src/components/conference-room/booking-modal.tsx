@@ -4,7 +4,7 @@ import { TEXT_LIMITS } from "@repo/shared";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { parseDisplayDateToInput } from "@/utils/date-utils";
-import { formatTimeToInput } from "@/utils/time-utils";
+import { convertTo24HourFormat } from "@/utils/time-utils";
 
 interface BookingModalProps {
 	isOpen: boolean;
@@ -56,8 +56,8 @@ export function BookingModal({
 			if (selectedTime.includes(" - ")) {
 				const [start, end] = selectedTime.split(" - ");
 				if (start && end) {
-					setStartTime(formatTimeToInput(start.trim()));
-					setEndTime(formatTimeToInput(end.trim()));
+					setStartTime(convertTo24HourFormat(start.trim()));
+					setEndTime(convertTo24HourFormat(end.trim()));
 				}
 			}
 		}
@@ -134,11 +134,10 @@ export function BookingModal({
 							</label>
 							<input
 								id="startTime"
-								type="text"
+								type="time"
 								value={startTime}
 								onChange={(e) => setStartTime(e.target.value)}
 								className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								placeholder="08:00 AM"
 								required
 							/>
 						</div>
@@ -151,11 +150,10 @@ export function BookingModal({
 							</label>
 							<input
 								id="endTime"
-								type="text"
+								type="time"
 								value={endTime}
 								onChange={(e) => setEndTime(e.target.value)}
 								className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								placeholder="09:00 AM"
 								required
 							/>
 						</div>
