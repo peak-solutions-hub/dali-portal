@@ -24,6 +24,7 @@ export function BookingModal({
 	const [endTime, setEndTime] = useState("");
 	const [title, setTitle] = useState("");
 	const [attachment, setAttachment] = useState<File | null>(null);
+	const [fileError, setFileError] = useState<string | null>(null);
 
 	// Parse selected time and date when modal opens
 	useEffect(() => {
@@ -78,7 +79,24 @@ export function BookingModal({
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
-			setAttachment(file);
+			const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+			if (file.size > maxSize) {
+				setFileError("File size must not exceed 10MB");
+				setAttachment(null);
+				e.target.value = ""; // Clear the input
+			} else {
+				setFileError(null);
+				setAttachment(file);
+			}
+		}
+	};
+
+	const handleRemoveFile = () => {
+		setAttachment(null);
+		setFileError(null);
+		const fileInput = document.getElementById("attachment") as HTMLInputElement;
+		if (fileInput) {
+			fileInput.value = "";
 		}
 	};
 
@@ -190,20 +208,43 @@ export function BookingModal({
 						>
 							Attach Letter (Optional)
 						</label>
-						<input
-							id="attachment"
-							type="file"
-							accept=".jpg,.jpeg,.pdf"
-							onChange={handleFileChange}
-							className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-						/>
-						{attachment && (
-							<p className="text-sm text-gray-600 mt-2">
-								Selected: {attachment.name}
-							</p>
+						<div className="flex items-center gap-2">
+							<div className="flex-1 relative">
+								<input
+									id="attachment"
+									type="file"
+									accept=".jpg,.jpeg,.pdf"
+									onChange={handleFileChange}
+									className="hidden"
+								/>
+								<label
+									htmlFor="attachment"
+									className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-md text-sm font-semibold hover:bg-blue-100 cursor-pointer transition-colors"
+								>
+									Choose File
+								</label>
+								{attachment && (
+									<span className="ml-3 text-sm text-gray-600">
+										{attachment.name}
+									</span>
+								)}
+							</div>
+							{attachment && (
+								<button
+									type="button"
+									onClick={handleRemoveFile}
+									className="p-2 hover:bg-gray-100 rounded-md transition-colors shrink-0"
+									aria-label="Remove file"
+								>
+									<X className="w-4 h-4 text-gray-500" />
+								</button>
+							)}
+						</div>
+						{fileError && (
+							<p className="text-sm text-red-600 mt-2">{fileError}</p>
 						)}
 						<p className="text-xs text-gray-500 mt-1">
-							Accepted formats: JPG, PDF
+							Accepted formats: JPG, PDF (Max size: 10MB)
 						</p>
 					</div>
 
