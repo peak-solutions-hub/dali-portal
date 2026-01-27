@@ -48,7 +48,8 @@ export const ADMIN_SESSION_STATUSES: SessionStatus[] = [
 // =============================================================================
 
 /**
- * Format a date to Philippine locale format (e.g., "Wednesday, January 15, 2024")
+ * Format a date to Philippine locale (PHT) using Asia/Manila timezone
+ * Example: "Wednesday, January 15, 2024"
  */
 export function formatSessionDate(date: Date | string): string {
 	if (!date) return "N/A";
@@ -57,7 +58,9 @@ export function formatSessionDate(date: Date | string): string {
 	if (Number.isNaN(dateObj.getTime())) return "N/A";
 
 	try {
+		// Force timezone to Asia/Manila so the displayed date is always in PHT
 		return dateObj.toLocaleDateString("en-US", {
+			timeZone: "Asia/Manila",
 			weekday: "long",
 			year: "numeric",
 			month: "long",
@@ -69,7 +72,8 @@ export function formatSessionDate(date: Date | string): string {
 }
 
 /**
- * Format a time to 12-hour format (e.g., "10:00 AM")
+ * Format a time to 12-hour format in Philippine Time (PHT)
+ * Example: "10:00 AM PHT"
  */
 export function formatSessionTime(date: Date | string): string {
 	if (!date) return "N/A";
@@ -78,11 +82,16 @@ export function formatSessionTime(date: Date | string): string {
 	if (Number.isNaN(dateObj.getTime())) return "N/A";
 
 	try {
-		return dateObj.toLocaleTimeString("en-US", {
+		// Force timezone to Asia/Manila so the displayed time is always in PHT
+		const timeStr = dateObj.toLocaleTimeString("en-US", {
+			timeZone: "Asia/Manila",
 			hour: "numeric",
 			minute: "2-digit",
 			hour12: true,
 		});
+
+		// Append explicit PHT label for clarity (consistent across environments)
+		return `${timeStr} PHT`;
 	} catch {
 		return "N/A";
 	}

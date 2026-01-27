@@ -6,4 +6,3 @@ export { DocumentsPanel } from "./documents-panel";
 export { EmptyState } from "./empty-state";
 export { PresentationMode } from "./presentation-mode";
 export { PublishSessionDialog } from "./publish-session-dialog";
-export { SessionInfoBanner } from "./session-info-banner";

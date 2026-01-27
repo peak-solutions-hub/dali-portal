@@ -1,7 +1,8 @@
 "use client";
 
+import { formatSessionDate, formatSessionTime } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { ChevronDown, Play } from "@repo/ui/lib/lucide-react";
+import { CheckCircle2, ChevronDown, Monitor } from "@repo/ui/lib/lucide-react";
 import {
 	getSessionStatusBadgeClass,
 	getSessionStatusLabel,
@@ -110,16 +111,15 @@ export function AgendaPanel({
 					>
 						<option value="">Choose a session...</option>
 						{sessions.map((session) => {
-							const date = new Date(session.date);
-							const formattedDate = date.toLocaleDateString("en-US", {
-								year: "numeric",
-								month: "2-digit",
-								day: "2-digit",
-							});
+							const formattedDate = formatSessionDate(session.date);
+							const formattedTime = session.time
+								? formatSessionTime(`${session.date}T${session.time}`)
+								: "";
 							return (
 								<option key={session.id} value={session.id}>
 									Session #{session.sessionNumber} -{" "}
-									{getSessionTypeLabel(session.type)} - {formattedDate} (
+									{getSessionTypeLabel(session.type)} - {formattedDate}
+									{formattedTime && ` (${formattedTime})`} (
 									{getSessionStatusLabel(session.status)})
 								</option>
 							);
@@ -139,8 +139,10 @@ export function AgendaPanel({
 									Session #{selectedSession.sessionNumber}
 								</h3>
 								<p className="text-sm text-gray-600 leading-5">
-									{selectedSession.time} •{" "}
-									{getSessionTypeLabel(selectedSession.type)}
+									{formatSessionTime(
+										`${selectedSession.date}T${selectedSession.time}`,
+									)}{" "}
+									• {getSessionTypeLabel(selectedSession.type)}
 								</p>
 							</div>
 							<span
@@ -158,10 +160,11 @@ export function AgendaPanel({
 									className="flex-1 cursor-pointer"
 									onClick={onStartPresentation}
 								>
-									<Play className="h-4 w-4 mr-2" />
+									<Monitor className="h-4 w-4 mr-2" />
 									Start Presentation
 								</Button>
 								<Button variant="outline" className="flex-1 cursor-pointer">
+									<CheckCircle2 className="h-4 w-4 mr-2" />
 									Mark as Completed
 								</Button>
 							</div>

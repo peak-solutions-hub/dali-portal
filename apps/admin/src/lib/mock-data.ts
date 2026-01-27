@@ -39,37 +39,37 @@ export const MOCK_DOCUMENTS: Document[] = [
 	{
 		id: "doc-1",
 		title: "Budget Appropriation for Education Programs",
-		type: "Ordinance",
+		type: "Proposed Ordinance",
 		number: "ORD-2026-001",
 	},
 	{
 		id: "doc-2",
 		title: "Resolution Supporting Infrastructure Development",
-		type: "Resolution",
+		type: "Proposed Resolution",
 		number: "RES-2026-015",
 	},
 	{
 		id: "doc-3",
 		title: "Community Health Services Enhancement Act",
-		type: "Ordinance",
+		type: "Proposed Ordinance",
 		number: "ORD-2026-002",
 	},
 	{
 		id: "doc-4",
 		title: "Traffic Management Implementation Plan",
-		type: "Resolution",
+		type: "Proposed Resolution",
 		number: "RES-2026-016",
 	},
 	{
 		id: "doc-5",
 		title: "Environmental Protection Guidelines",
-		type: "Ordinance",
+		type: "Proposed Ordinance",
 		number: "ORD-2026-003",
 	},
 	{
 		id: "doc-6",
 		title: "Youth Development Program Approval",
-		type: "Resolution",
+		type: "Proposed Resolution",
 		number: "RES-2026-017",
 	},
 ];

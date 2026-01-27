@@ -20,14 +20,13 @@ const DEFAULT_AGENDA_ITEMS = [
 	{ id: "3", title: "03. National Anthem and Pledge of Allegiance" },
 	{ id: "4", title: "04. Roll Call" },
 	{ id: "5", title: "05. Reading and/or approval of the Minutes" },
-	{ id: "6", title: "06. Agenda" },
-	{ id: "7", title: "07. First Reading and References" },
-	{ id: "8", title: "08. Committee Report" },
-	{ id: "9", title: "09. Calendar of Business" },
-	{ id: "10", title: "10. Third Reading" },
-	{ id: "11", title: "11. Other Matters" },
-	{ id: "12", title: "12. Closing Prayer" },
-	{ id: "13", title: "13. Adjournment" },
+	{ id: "6", title: "06. First Reading and References" },
+	{ id: "7", title: "07. Committee Report" },
+	{ id: "8", title: "08. Calendar of Business" },
+	{ id: "9", title: "09. Third Reading" },
+	{ id: "10", title: "10. Other Matters" },
+	{ id: "11", title: "11. Closing Prayer" },
+	{ id: "12", title: "12. Adjournment" },
 ];
 
 export default function SessionManagement() {

@@ -21,10 +21,6 @@ export interface Session {
 	status: "draft" | "scheduled" | "completed";
 }
 
-export interface SessionInfoBannerProps {
-	session: Session;
-}
-
 export interface AgendaPanelProps {
 	selectedSession: Session | null;
 	agendaItems: AgendaItem[];
