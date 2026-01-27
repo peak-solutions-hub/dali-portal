@@ -1,64 +1,33 @@
-"use client";
-
 import { HeartHandshake, Loader2, MapPin } from "@repo/ui/lib/lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense } from "react";
+import MapClient from "./map-client";
 
 export function PublicFooter() {
-	const [isMapLoading, setIsMapLoading] = useState(true);
-	const address = "MHVF+F7R, Iloilo City Proper, Iloilo City, Iloilo";
-	const embedUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
-	const googleMapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(address)}`;
 	return (
 		<footer className="bg-[#a60202] py-8 sm:py-12">
 			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5">
 				<div className="space-y-6 sm:space-y-8">
 					{/* Main Content Grid */}
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-						{/* Map Section */}
-						<div className="flex">
-							<Link
-								href={googleMapsUrl}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="block w-full group"
-							>
-								<div className="bg-white h-75 sm:h-100 lg:h-113 rounded-lg overflow-hidden relative hover:shadow-xl transition-shadow">
-									<div className="relative h-full min-h-100">
-										{isMapLoading && (
-											<div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-												<div className="flex flex-col items-center gap-3">
-													<Loader2 className="w-8 h-8 animate-spin text-[#a60202]" />
-													<p className="text-sm text-gray-600">
-														Loading map...
-													</p>
-												</div>
-											</div>
-										)}
-										<iframe
-											src={embedUrl}
-											width="100%"
-											height="100%"
-											style={{ border: 0, minHeight: "400px" }}
-											allowFullScreen
-											loading="lazy"
-											referrerPolicy="no-referrer-when-downgrade"
-											className="pointer-events-none"
-											onLoad={() => setIsMapLoading(false)}
-										/>
-										<div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors flex items-center justify-center">
-											<div className="bg-[#a60202] text-white px-4 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-												<MapPin className="w-4 h-4" />
-												<span className="text-sm">
-													Click to open in Google Maps
-												</span>
+						{/* Map Section (server component uses client boundary) */}
+						<Suspense
+							fallback={
+								<div className="flex">
+									<div className="bg-white h-75 sm:h-100 lg:h-113 rounded-lg overflow-hidden relative">
+										<div className="relative h-full min-h-100 flex items-center justify-center">
+											<div className="flex flex-col items-center gap-3">
+												<Loader2 className="w-8 h-8 animate-spin text-[#a60202]" />
+												<p className="text-sm text-gray-600">Loading map...</p>
 											</div>
 										</div>
 									</div>
 								</div>
-							</Link>
-						</div>
+							}
+						>
+							<MapClient />
+						</Suspense>
 
 						{/* Right Column */}
 						<div className="flex flex-col justify-between gap-6">
