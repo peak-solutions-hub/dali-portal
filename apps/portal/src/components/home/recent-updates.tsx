@@ -67,10 +67,11 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 											(doc.fullDate
 												? String(new Date(doc.fullDate).getDate())
 												: "");
-										console.log("RecentUpdates - doc:", doc, {
-											derivedMonth,
-											derivedDay,
-										});
+										// For debugging
+										// console.log("RecentUpdates - doc:", doc, {
+										// 	derivedMonth,
+										// 	derivedDay,
+										// });
 
 										return (
 											<Link

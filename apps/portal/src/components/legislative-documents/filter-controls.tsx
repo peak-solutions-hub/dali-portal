@@ -446,7 +446,7 @@ function DesktopFilterPopover({
 									</Button>
 								</PopoverTrigger>
 								<PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-									<Command>
+									<Command className="min-w-80">
 										<CommandInput placeholder="Search years..." />
 										<CommandEmpty>No year found.</CommandEmpty>
 										<CommandList>
@@ -513,7 +513,7 @@ function DesktopFilterPopover({
 									</Button>
 								</PopoverTrigger>
 								<PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-									<Command>
+									<Command className="max-w-80">
 										<CommandInput placeholder="Search classifications..." />
 										<CommandEmpty>No classification found.</CommandEmpty>
 										<CommandList>
@@ -683,6 +683,18 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 	return isMobile ? (
 		<MobileFilterDrawer {...sharedProps} />
 	) : (
-		<DesktopFilterPopover {...sharedProps} />
+		<div className="flex items-center gap-2">
+			<DesktopFilterPopover {...sharedProps} />
+			{hasActiveFilters && (
+				<Button
+					variant="outline"
+					size="sm"
+					className="h-10 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
+					onClick={clearFilters}
+				>
+					Clear All
+				</Button>
+			)}
+		</div>
 	);
 }
