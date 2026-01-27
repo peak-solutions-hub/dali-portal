@@ -1,5 +1,5 @@
+import type { SessionManagementDocument as Document } from "@repo/shared";
 import { File } from "lucide-react";
-import type { Document } from "@/types/session-management";
 
 interface DocumentCardProps {
 	document: Document;

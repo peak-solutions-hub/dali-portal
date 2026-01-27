@@ -1,6 +1,6 @@
+import type { SessionManagementAgendaItem as AgendaItem } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { ChevronDown, X } from "@repo/ui/lib/lucide-react";
-import type { AgendaItem } from "@/types/session-management";
 
 interface Document {
 	id: string;

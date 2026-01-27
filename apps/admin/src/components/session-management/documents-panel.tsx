@@ -1,5 +1,6 @@
 "use client";
 
+import type { SessionManagementDocumentsPanelProps as DocumentsPanelProps } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Input } from "@repo/ui/components/input";
 import {
@@ -11,7 +12,6 @@ import {
 } from "@repo/ui/components/select";
 import { FileText, Search } from "@repo/ui/lib/lucide-react";
 import { useMemo, useState } from "react";
-import type { DocumentsPanelProps } from "@/types/session-management";
 import { DocumentCard } from "./document-card";
 
 export function DocumentsPanel({ documents }: DocumentsPanelProps) {

@@ -1,31 +1,15 @@
 "use client";
 
-import { formatSessionDate, formatSessionTime } from "@repo/shared";
+import type { SessionPresentationSlide } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import {
-	ChevronDown,
-	ChevronLeft,
-	ChevronRight,
-	Eye,
-	Menu,
-	Monitor,
-	Pencil,
-	X,
-} from "@repo/ui/lib/lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Pencil } from "@repo/ui/lib/lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DesktopOnlyGuard } from "@/components/desktop-only-guard";
 import { DrawingCanvas } from "./drawing-canvas";
-import { PresenterViewLayout } from "./presenter-view-layout";
-import { AgendaSlide, CoverSlide } from "./slides";
-
-interface PresentationSlide {
-	id: string;
-	type: "cover" | "agenda-item";
-	title: string;
-	subtitle?: string;
-	agendaNumber?: string;
-	documents?: Array<{ key: string; title: string }>;
-}
+import { PresentationBottomBar } from "./presentation-bottom-bar";
+import { PresentationNavDrawer } from "./presentation-nav-drawer";
+import { PresentationSlideViewport } from "./presentation-slide-viewport";
+import { PresentationTopBar } from "./presentation-top-bar";
 
 interface PresentationModeProps {
 	sessionNumber: string;
@@ -48,17 +32,20 @@ export function PresentationMode({
 	agendaItems,
 	onExit,
 }: PresentationModeProps) {
+	const drawingChannelName = useMemo(
+		() => `dali-session-${sessionNumber}`,
+		[sessionNumber],
+	);
 	const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 	const [showNavMenu, setShowNavMenu] = useState(false);
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [presenterView, setPresenterView] = useState(false);
 	const [presenterWindow, setPresenterWindow] = useState<Window | null>(null);
-	const [presenterOpenError, setPresenterOpenError] = useState<string | null>(
-		null,
-	);
+	const presenterAckedRef = useRef(false);
 	const [showExitConfirm, setShowExitConfirm] = useState(false);
 
-	const openPresenterWindow = () => {
+	const openPresenterWindow = useCallback(() => {
+		presenterAckedRef.current = false;
 		const url = `/session-presenter?session=${encodeURIComponent(sessionNumber)}`;
 		console.debug("openPresenterWindow: attempting to open", url);
 
@@ -77,7 +64,7 @@ export function PresentationMode({
 		if (w && !w.closed) {
 			setPresenterWindow(w);
 			setPresenterView(true);
-			setPresenterOpenError(null);
+			presenterAckedRef.current = true;
 			return;
 		}
 
@@ -91,33 +78,83 @@ export function PresentationMode({
 		if (w && !w.closed) {
 			setPresenterWindow(w);
 			setPresenterView(true);
-			setPresenterOpenError(null);
+			presenterAckedRef.current = true;
 			return;
 		}
+	}, [sessionNumber]);
 
-		// Popup was blocked
-		setPresenterOpenError(
-			"Popup blocked. Allow popups or open presenter in a new tab.",
-		);
-	};
+	const togglePresenterWindow = useCallback(() => {
+		if (document.fullscreenElement) {
+			try {
+				document.exitFullscreen();
+			} catch {
+				// ignore
+			}
+		}
+		if (presenterWindow && !presenterWindow.closed) {
+			presenterWindow.close();
+			setPresenterWindow(null);
+			setPresenterView(false);
+			return;
+		}
+		if (presenterView) {
+			try {
+				const bc = new BroadcastChannel(drawingChannelName);
+				bc.postMessage({ type: "presenter-window-close-request" });
+				bc.close();
+			} catch {
+				// ignore
+			}
+			setPresenterView(false);
+			setPresenterWindow(null);
+			presenterAckedRef.current = false;
+			return;
+		}
+		openPresenterWindow();
+	}, [drawingChannelName, openPresenterWindow, presenterView, presenterWindow]);
 	const [drawingMode, setDrawingMode] = useState(false);
 	const [isEraser, setIsEraser] = useState(false);
+	const [drawingController, setDrawingController] = useState<
+		"presentation" | "presenter" | null
+	>(null);
 
-	const slides: PresentationSlide[] = [
-		{
-			id: "cover",
-			type: "cover",
-			title: "Sangguniang Panlungsod ng Iloilo",
-			subtitle: `${sessionType} Session #${sessionNumber}`,
+	const postPresentationDrawing = useCallback(
+		(nextActive: boolean) => {
+			const bc = new BroadcastChannel(drawingChannelName);
+			bc.postMessage({
+				type: "presenter-drawing",
+				active: nextActive,
+				origin: "presentation",
+			});
+			if (!nextActive) {
+				bc.postMessage({
+					type: "drawing-clear",
+					sourceId: `presentation-${sessionNumber}-toggle-off`,
+				});
+			}
+			bc.close();
 		},
-		...agendaItems.map((item, index) => ({
-			id: item.id,
-			type: "agenda-item" as const,
-			title: item.title,
-			agendaNumber: String(index + 1).padStart(2, "0"),
-			documents: item.documents,
-		})),
-	];
+		[drawingChannelName, sessionNumber],
+	);
+
+	const slides: SessionPresentationSlide[] = useMemo(
+		() => [
+			{
+				id: "cover",
+				type: "cover",
+				title: "Sangguniang Panlungsod ng Iloilo",
+				subtitle: `${sessionType} Session #${sessionNumber}`,
+			},
+			...agendaItems.map((item, index) => ({
+				id: item.id,
+				type: "agenda-item" as const,
+				title: item.title,
+				agendaNumber: String(index + 1).padStart(2, "0"),
+				documents: item.documents,
+			})),
+		],
+		[agendaItems, sessionNumber, sessionType],
+	);
 
 	const currentSlide = slides[currentSlideIndex];
 
@@ -134,6 +171,23 @@ export function PresentationMode({
 		setShowNavMenu(false);
 	};
 
+	const enterFullscreen = useCallback(async () => {
+		try {
+			await document.documentElement.requestFullscreen();
+			setIsFullscreen(true);
+		} catch (err) {
+			console.error(err);
+		}
+	}, []);
+	const exitFullscreen = useCallback(async () => {
+		try {
+			if (document.fullscreenElement) await document.exitFullscreen();
+			setIsFullscreen(false);
+		} catch (err) {
+			console.error(err);
+		}
+	}, []);
+
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (showExitConfirm) {
@@ -144,6 +198,8 @@ export function PresentationMode({
 				if (e.key.toLowerCase() === "d") {
 					setDrawingMode(false);
 					setIsEraser(false);
+					setDrawingController(null);
+					postPresentationDrawing(false);
 					return;
 				}
 				if (e.key.toLowerCase() === "e") {
@@ -162,15 +218,21 @@ export function PresentationMode({
 					e.preventDefault();
 					goToPrevSlide();
 					break;
+				case "f":
+					if (isFullscreen) void exitFullscreen();
+					else void enterFullscreen();
+					break;
 				case "m":
 					setShowNavMenu((p) => !p);
 					break;
 				case "p":
-					setPresenterView((p) => !p);
+					togglePresenterWindow();
 					break;
 				case "d":
 					setDrawingMode(true);
 					setIsEraser(false);
+					setDrawingController("presentation");
+					postPresentationDrawing(true);
 					break;
 				case "Escape":
 					if (showNavMenu) setShowNavMenu(false);
@@ -186,31 +248,16 @@ export function PresentationMode({
 		showNavMenu,
 		showExitConfirm,
 		drawingMode,
+		postPresentationDrawing,
 		isFullscreen,
+		enterFullscreen,
+		exitFullscreen,
+		togglePresenterWindow,
 	]);
 
-	const enterFullscreen = async () => {
-		try {
-			await document.documentElement.requestFullscreen();
-			setIsFullscreen(true);
-		} catch (err) {
-			console.error(err);
-		}
-	};
-	const exitFullscreen = async () => {
-		try {
-			if (document.fullscreenElement) await document.exitFullscreen();
-			setIsFullscreen(false);
-		} catch (err) {
-			console.error(err);
-		}
-	};
 	const handleExitPresentation = async () => {
 		await exitFullscreen();
 		onExit();
-	};
-	const handleRejoinFullscreen = async () => {
-		await enterFullscreen();
 	};
 
 	useEffect(() => {
@@ -223,29 +270,29 @@ export function PresentationMode({
 		enterFullscreen();
 	}, []);
 
-	// BroadcastChannel: sync presenter -> display window
+	// Broadcast each slide change
 	useEffect(() => {
-		let bc: BroadcastChannel | null = null;
-		if (presenterView) {
-			bc = new BroadcastChannel(`dali-session-${sessionNumber}`);
-			bc.postMessage({ type: "init", slide: slides[currentSlideIndex] });
-		}
-		return () => {
-			if (bc) bc.close();
-		};
-	}, [presenterView, sessionNumber]);
-
-	// Broadcast each slide change while in presenter view
-	useEffect(() => {
-		if (!presenterView) return;
 		const bc = new BroadcastChannel(`dali-session-${sessionNumber}`);
 		bc.postMessage({
 			type: "slide",
 			index: currentSlideIndex,
 			slide: slides[currentSlideIndex],
+			nextSlide: slides[currentSlideIndex + 1],
+			totalSlides: slides.length,
+			sessionDate,
+			sessionTime,
 		});
 		bc.close();
-	}, [currentSlideIndex, presenterView, sessionNumber, slides]);
+	}, [currentSlideIndex, sessionNumber, slides, sessionDate, sessionTime]);
+
+	useEffect(() => {
+		const bc = new BroadcastChannel(drawingChannelName);
+		bc.postMessage({
+			type: "drawing-clear",
+			sourceId: `presentation-${sessionNumber}-slide-${currentSlideIndex}`,
+		});
+		bc.close();
+	}, [currentSlideIndex, drawingChannelName, sessionNumber]);
 
 	// Listen for control commands from presenter window and for init requests
 	useEffect(() => {
@@ -255,6 +302,8 @@ export function PresentationMode({
 			if (!msg || !msg.type) return;
 
 			if (msg.type === "control") {
+				setPresenterView(true);
+				presenterAckedRef.current = true;
 				switch (msg.action) {
 					case "next":
 						goToNextSlide();
@@ -268,13 +317,46 @@ export function PresentationMode({
 				}
 			}
 
+			if (msg.type === "presenter-drawing") {
+				if (msg.active) {
+					setDrawingMode(true);
+					setIsEraser(false);
+					setDrawingController(
+						msg.origin === "presenter" ? "presenter" : "presentation",
+					);
+				} else {
+					setDrawingMode(false);
+					setIsEraser(false);
+					setDrawingController(null);
+				}
+			}
+
+			if (msg.type === "presenter-window-closed") {
+				setPresenterView(false);
+				setPresenterWindow(null);
+				presenterAckedRef.current = false;
+			}
+
+			if (msg.type === "presenter-window-opened") {
+				setPresenterView(true);
+				presenterAckedRef.current = true;
+			}
+
 			if (msg.type === "request-init") {
+				setPresenterView(true);
+				presenterAckedRef.current = true;
+				bc.postMessage({
+					type: "presenter-drawing",
+					active: drawingMode,
+					origin: "presentation",
+				});
 				bc.postMessage({
 					type: "init",
 					slide: slides[currentSlideIndex],
 					index: currentSlideIndex,
 					totalSlides: slides.length,
 					nextSlide: slides[currentSlideIndex + 1],
+					slides,
 					sessionDate,
 					sessionTime,
 				});
@@ -288,6 +370,7 @@ export function PresentationMode({
 		};
 	}, [
 		currentSlideIndex,
+		drawingMode,
 		slides,
 		sessionNumber,
 		sessionDate,
@@ -345,100 +428,48 @@ export function PresentationMode({
 					</div>
 				)}
 
-				<div className="fixed top-0 left-0 right-0 h-12 bg-white/95 backdrop-blur-sm border-b border-gray-200 flex items-center justify-between px-6 z-50">
-					<div className="flex items-center gap-4">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setShowExitConfirm(true)}
-							className="gap-2 cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
-						>
-							<X className="h-4 w-4" />
-							Exit Presentation
-						</Button>
-						<div className="h-6 w-px bg-gray-300" />
-						<span className="text-sm text-gray-600">
-							Session #{sessionNumber} • {formatSessionDate(sessionDate)} •{" "}
-							{formatSessionTime(`${sessionDate}T${sessionTime}`)}
-						</span>
-					</div>
-					<div className="flex items-center gap-2">
-						{isFullscreen ? (
-							<Button variant="ghost" size="sm" onClick={exitFullscreen}>
-								<Monitor className="h-4 w-4" />
-								Exit Fullscreen
-							</Button>
-						) : (
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={handleRejoinFullscreen}
-								className="text-[#a60202] hover:text-[#8a0101] hover:bg-[#a60202]/10"
-							>
-								<Monitor className="h-4 w-4" />
-								Enter Fullscreen
-							</Button>
-						)}
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => {
-								setDrawingMode(!drawingMode);
-								setIsEraser(false);
-							}}
-							className={`gap-2 ${drawingMode ? "bg-blue-100 text-blue-600" : "text-gray-700"}`}
-						>
-							<Pencil className="h-4 w-4" />
-							{drawingMode ? "Drawing..." : "Draw"}
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => {
-								if (presenterWindow && !presenterWindow.closed) {
-									presenterWindow.close();
-									setPresenterWindow(null);
-									setPresenterView(false);
-									setPresenterOpenError(null);
-									return;
-								}
-								openPresenterWindow();
-							}}
-							className={`gap-2 ${presenterView ? "bg-[#a60202]/10 text-[#a60202]" : "text-gray-700"}`}
-						>
-							<Eye className="h-4 w-4" />
-							Presenter
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setShowNavMenu(!showNavMenu)}
-						>
-							<Menu className="h-4 w-4" />
-							Menu
-						</Button>
-					</div>
-				</div>
+				<PresentationTopBar
+					sessionNumber={sessionNumber}
+					sessionDate={sessionDate}
+					sessionTime={sessionTime}
+					isFullscreen={isFullscreen}
+					onEnterFullscreen={() => void enterFullscreen()}
+					onExitFullscreen={() => void exitFullscreen()}
+					drawingMode={drawingMode}
+					onToggleDrawing={() => {
+						if (drawingMode && drawingController === "presenter") {
+							setDrawingMode(false);
+							setIsEraser(false);
+							setDrawingController(null);
+							postPresentationDrawing(false);
+							return;
+						}
 
-				<div className="h-screen flex items-center justify-center p-20">
-					{currentSlide.type === "cover" ? (
-						<CoverSlide
-							title={currentSlide.title}
-							subtitle={currentSlide.subtitle!}
-							date={sessionDate}
-							time={sessionTime}
-						/>
-					) : (
-						<AgendaSlide
-							agendaNumber={currentSlide.agendaNumber!}
-							title={currentSlide.title}
-							documents={currentSlide.documents}
-						/>
-					)}
-				</div>
+						setDrawingMode((p) => {
+							const next = !p;
+							if (next) setDrawingController("presentation");
+							else setDrawingController(null);
+							postPresentationDrawing(next);
+							return next;
+						});
+						setIsEraser(false);
+					}}
+					presenterView={presenterView}
+					onTogglePresenter={togglePresenterWindow}
+					onToggleMenu={() => setShowNavMenu(!showNavMenu)}
+					onExit={() => setShowExitConfirm(true)}
+				/>
+
+				<PresentationSlideViewport
+					slide={currentSlide}
+					sessionDate={sessionDate}
+					sessionTime={sessionTime}
+				/>
 
 				{drawingMode && (
 					<DrawingCanvas
+						channelName={drawingChannelName}
+						active={drawingController === "presentation"}
 						isEraser={isEraser}
 						onToggleEraser={() => setIsEraser(!isEraser)}
 						onClear={() => {
@@ -447,185 +478,33 @@ export function PresentationMode({
 						onExit={() => {
 							setDrawingMode(false);
 							setIsEraser(false);
+							setDrawingController(null);
+							postPresentationDrawing(false);
 						}}
+						insetTop={48}
+						insetBottom={64}
 					/>
 				)}
 
-				<div className="fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-sm border-t border-gray-200 flex items-center justify-center px-20 z-50">
-					<div className="flex items-center justify-between w-full max-w-5xl">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={goToPrevSlide}
-							disabled={currentSlideIndex === 0}
-						>
-							<ChevronLeft className="h-4 w-4" />
-							Previous
-						</Button>
-						<div className="flex items-center gap-4">
-							<span className="text-lg font-medium text-gray-900">
-								{currentSlideIndex + 1} / {slides.length}
-							</span>
-							<button
-								type="button"
-								onClick={() => setShowNavMenu(!showNavMenu)}
-								className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors text-sm text-gray-900 cursor-pointer"
-							>
-								<span>
-									{currentSlide.type === "cover" ? "Cover" : currentSlide.title}
-								</span>
-								<ChevronDown className="h-4 w-4" />
-							</button>
-							<div className="flex items-center gap-2">
-								{slides.map((_, index) => (
-									<button
-										key={index}
-										type="button"
-										onClick={() => goToSlide(index)}
-										className={`h-2 rounded-full transition-all ${index === currentSlideIndex ? "w-8 bg-[#a60202]" : "w-2 bg-gray-300 hover:bg-gray-400"}`}
-										aria-label={`Go to slide ${index + 1}`}
-									/>
-								))}
-							</div>
-						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={goToNextSlide}
-							disabled={currentSlideIndex === slides.length - 1}
-						>
-							Next
-							<ChevronRight className="h-4 w-4" />
-						</Button>
-					</div>
-				</div>
+				<PresentationBottomBar
+					currentSlideIndex={currentSlideIndex}
+					totalSlides={slides.length}
+					currentSlideTitle={
+						currentSlide.type === "cover" ? "Cover" : currentSlide.title
+					}
+					onPrev={goToPrevSlide}
+					onNext={goToNextSlide}
+					onToggleMenu={() => setShowNavMenu(!showNavMenu)}
+					onGoto={goToSlide}
+				/>
 
-				{showNavMenu && (
-					<div className="fixed right-0 top-12 bottom-16 w-96 bg-white border-l border-gray-200 shadow-2xl z-40 flex flex-col">
-						<div className="flex items-center justify-between p-6 border-b border-gray-200">
-							<h3 className="text-lg font-semibold text-gray-900">
-								Session Navigation
-							</h3>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => setShowNavMenu(false)}
-								className="cursor-pointer"
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
-						<div className="flex-1 overflow-y-auto p-4">
-							<div className="space-y-2">
-								{slides.map((slide, index) => (
-									<button
-										key={slide.id}
-										type="button"
-										onClick={() => goToSlide(index)}
-										className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${index === currentSlideIndex ? "bg-[#a60202]/10 text-[#a60202] font-medium border border-[#a60202]/20" : "hover:bg-gray-50 text-gray-900"}`}
-									>
-										<div className="flex items-start gap-3">
-											<span className="text-xs text-gray-500 mt-0.5">
-												{index + 1}
-											</span>
-											<span className="flex-1">
-												{slide.type === "cover" ? "Cover" : slide.title}
-											</span>
-										</div>
-									</button>
-								))}
-							</div>
-						</div>
-						<div className="p-6 border-t border-gray-200 bg-gray-50">
-							<div className="text-xs text-gray-600 space-y-2">
-								<div className="font-semibold mb-2">Keyboard Shortcuts:</div>
-								<div className="flex justify-between">
-									<span className="flex items-center gap-2">
-										<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-											←/→/Space
-										</kbd>
-										Navigate
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="flex items-center gap-2">
-										<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-											D
-										</kbd>
-										Toggle drawing
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="flex items-center gap-2">
-										<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-											E
-										</kbd>
-										Toggle eraser
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="flex items-center gap-2">
-										<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-											M
-										</kbd>
-										Toggle menu
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="flex items-center gap-2">
-										<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-											P
-										</kbd>
-										Presenter view
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="flex items-center gap-2">
-										<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-											ESC
-										</kbd>
-										Exit fullscreen
-									</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				)}
-
-				{presenterOpenError && (
-					<div className="fixed top-14 right-6 z-60 bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded shadow-sm">
-						<div className="flex items-center gap-3">
-							<div className="text-sm">{presenterOpenError}</div>
-							<div className="ml-2 flex gap-2">
-								<button
-									className="px-2 py-1 bg-yellow-100 rounded"
-									onClick={() => {
-										setPresenterOpenError(null);
-										openPresenterWindow();
-									}}
-								>
-									Try again
-								</button>
-								<button
-									className="px-2 py-1 bg-gray-50 rounded"
-									onClick={() =>
-										window.location.assign(
-											`/session-presenter?session=${encodeURIComponent(sessionNumber)}`,
-										)
-									}
-								>
-									Open in same tab
-								</button>
-							</div>
-							<button
-								className="ml-2 text-xs"
-								onClick={() => setPresenterOpenError(null)}
-							>
-								Dismiss
-							</button>
-						</div>
-					</div>
-				)}
+				<PresentationNavDrawer
+					open={showNavMenu}
+					onClose={() => setShowNavMenu(false)}
+					slides={slides}
+					currentSlideIndex={currentSlideIndex}
+					onGoto={goToSlide}
+				/>
 
 				{!showNavMenu && !presenterView && !drawingMode && (
 					<div className="fixed bottom-20 right-6 bg-gray-900/90 text-white text-xs px-3 py-2 rounded-lg">

@@ -1,4 +1,8 @@
-import type { AgendaItem, Document, Session } from "@/types/session-management";
+import type {
+	SessionManagementAgendaItem as AgendaItem,
+	SessionManagementDocument as Document,
+	SessionManagementSession as Session,
+} from "@repo/shared";
 
 export const MOCK_SESSIONS: Session[] = [
 	{

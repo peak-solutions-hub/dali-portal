@@ -1,34 +1,11 @@
-export interface AgendaItem {
-	id: string;
-	title: string;
-	documentId?: string;
-	description?: string;
-}
+// DEPRECATED: Re-export centralized session management types from @repo/shared.
+// Keep this file for backward compatibility while migrating imports.
+// Use: import type { SessionManagementSession, SessionManagementAgendaItem } from '@repo/shared'
 
-export interface Document {
-	id: string;
-	title: string;
-	type: string;
-	number: string;
-}
-
-export interface Session {
-	id: string;
-	sessionNumber: number;
-	date: string;
-	time: string;
-	type: "regular" | "special";
-	status: "draft" | "scheduled" | "completed";
-}
-
-export interface AgendaPanelProps {
-	selectedSession: Session | null;
-	agendaItems: AgendaItem[];
-	onAddDocument: (itemId: string) => void;
-	onSaveDraft: () => void;
-	onPublish: () => void;
-}
-
-export interface DocumentsPanelProps {
-	documents: Document[];
-}
+export type AgendaItem = import("@repo/shared").SessionManagementAgendaItem;
+export type Document = import("@repo/shared").SessionManagementDocument;
+export type Session = import("@repo/shared").SessionManagementSession;
+export type AgendaPanelProps =
+	import("@repo/shared").SessionManagementAgendaPanelProps;
+export type DocumentsPanelProps =
+	import("@repo/shared").SessionManagementDocumentsPanelProps;

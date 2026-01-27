@@ -1,5 +1,10 @@
 "use client";
 
+import type {
+	SessionManagementAgendaPanelProps as AgendaPanelProps,
+	SessionManagementDocument as Document,
+	SessionManagementSession as Session,
+} from "@repo/shared";
 import { formatSessionDate, formatSessionTime } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { CheckCircle2, ChevronDown, Monitor } from "@repo/ui/lib/lucide-react";
@@ -9,11 +14,6 @@ import {
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import { useState } from "react";
-import type {
-	AgendaPanelProps,
-	Document,
-	Session,
-} from "@/types/session-management";
 import { AgendaItemCard } from "./agenda-item-card";
 
 interface AttachedDocument {
