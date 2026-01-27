@@ -18,25 +18,16 @@ import {
 import {
 	Drawer,
 	DrawerContent,
-	DrawerDescription,
 	DrawerFooter,
 	DrawerHeader,
 	DrawerTitle,
 	DrawerTrigger,
 } from "@repo/ui/components/drawer";
-import { Input } from "@repo/ui/components/input";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@repo/ui/components/popover";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/ui/components/select";
 import { useIsMobile } from "@repo/ui/hooks";
 import {
 	Check,
@@ -46,263 +37,309 @@ import {
 } from "@repo/ui/lib/lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+	ComponentProps,
+	forwardRef,
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 
 interface FilterControlsProps {
 	availableYears: number[];
 }
 
-interface FilterState {
-	selectedType: string;
-	selectedYear: string;
-	selectedClassification: string;
-	setSelectedType: (type: string) => void;
-	setSelectedYear: (year: string) => void;
-	setSelectedClassification: (classification: string) => void;
-	applyFilters: () => void;
-	clearFilters: () => void;
-	hasPendingChanges: boolean;
-	yearSearch: string;
-	setYearSearch: (search: string) => void;
-	filteredYears: number[];
-}
+// Shared filter button component - forward ref & props so Trigger asChild works
+const FilterButton = forwardRef<
+	HTMLButtonElement,
+	{
+		hasActiveFilters: boolean;
+		activeFilterCount: number;
+	} & ComponentProps<typeof Button>
+>(({ hasActiveFilters, activeFilterCount, ...props }, ref) => {
+	return (
+		<Button
+			ref={ref}
+			{...props}
+			variant="outline"
+			size="sm"
+			className="h-10 gap-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
+		>
+			<FilterIcon className="h-4 w-4" />
+			Filter
+			{hasActiveFilters && (
+				<span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#a60202] text-[10px] text-white">
+					{activeFilterCount}
+				</span>
+			)}
+		</Button>
+	);
+});
 
-interface MobileFilterControlDrawerProps {
-	availableYears: number[];
-	filterState: FilterState;
-	hasActiveFilters: boolean;
-	activeFilterCount: number;
-	open: boolean;
-	setOpen: (open: boolean) => void;
-}
-
-interface DesktopFilterControlProps {
-	availableYears: number[];
-	filterState: FilterState;
-	hasActiveFilters: boolean;
-	activeFilterCount: number;
-	open: boolean;
-	setOpen: (open: boolean) => void;
-}
-
-function MobileFilterControlDrawer({
+// Mobile Drawer Component
+function MobileFilterDrawer({
 	availableYears,
-	filterState,
+	selectedType,
+	selectedYear,
+	selectedClassification,
+	onTypeChange,
+	onYearChange,
+	onClassificationChange,
+	onApply,
+	onClear,
 	hasActiveFilters,
 	activeFilterCount,
 	open,
 	setOpen,
-}: MobileFilterControlDrawerProps) {
-	const {
-		selectedType,
-		selectedYear,
-		selectedClassification,
-		setSelectedType,
-		setSelectedYear,
-		setSelectedClassification,
-		applyFilters,
-		clearFilters,
-		hasPendingChanges,
-	} = filterState;
+}: {
+	availableYears: number[];
+	selectedType: string;
+	selectedYear: string;
+	selectedClassification: string;
+	onTypeChange: (type: string) => void;
+	onYearChange: (year: string) => void;
+	onClassificationChange: (classification: string) => void;
+	onApply: () => void;
+	onClear: () => void;
+	hasActiveFilters: boolean;
+	activeFilterCount: number;
+	open: boolean;
+	setOpen: (open: boolean) => void;
+}) {
+	const [view, setView] = useState<"main" | "year" | "classification">("main");
+
+	// Reset view when drawer closes
+	useEffect(() => {
+		if (!open) {
+			const timeout = setTimeout(() => setView("main"), 300);
+			return () => clearTimeout(timeout);
+		}
+	}, [open]);
+
+	const handleApply = () => {
+		onApply();
+		setOpen(false);
+	};
+
+	const handleClear = () => {
+		onClear();
+		setOpen(false);
+	};
 
 	return (
 		<Drawer open={open} onOpenChange={setOpen}>
 			<DrawerTrigger asChild>
-				<Button
-					variant="outline"
-					size="sm"
-					className="h-10 gap-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
-				>
-					<FilterIcon className="h-4 w-4" />
-					Filter
-					{hasActiveFilters && (
-						<span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#a60202] text-[10px] text-white">
-							{activeFilterCount}
-						</span>
-					)}
-				</Button>
+				<FilterButton
+					hasActiveFilters={hasActiveFilters}
+					activeFilterCount={activeFilterCount}
+				/>
 			</DrawerTrigger>
-			<DrawerContent>
-				<DrawerHeader>
-					<DrawerTitle>Filter Documents</DrawerTitle>
+
+			<DrawerContent className="h-[90dvh] flex flex-col">
+				<DrawerHeader className="shrink-0 border-b">
+					<div className="flex items-center justify-between">
+						{view !== "main" && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setView("main")}
+								className="p-0 h-auto hover:bg-transparent text-[#a60202]"
+							>
+								← Back
+							</Button>
+						)}
+						{view === "main" && <div className="w-16" />}
+						<DrawerTitle className="text-center flex-1">
+							{view === "main" && "Filter Documents"}
+							{view === "year" && "Select Year"}
+							{view === "classification" && "Select Classification"}
+						</DrawerTitle>
+						<div className="w-16" />
+					</div>
 				</DrawerHeader>
 
-				<div className="space-y-4 px-4 py-4">
-					{/* Document Type */}
-					<div className="space-y-2">
-						<h3 className="text-sm font-semibold text-gray-900">
-							Document Type
-						</h3>
-						<div className="space-y-2">
-							<label className="flex cursor-pointer items-center gap-2">
-								<Checkbox
-									checked={selectedType === "all"}
-									onCheckedChange={() => setSelectedType("all")}
-								/>
-								<span className="text-sm text-gray-700">All Types</span>
-							</label>
-							{LEGISLATIVE_DOCUMENT_TYPES.map((type) => (
-								<label
-									key={type.value}
-									className="flex cursor-pointer items-center gap-2"
-								>
-									<Checkbox
-										checked={selectedType === type.value}
-										onCheckedChange={() => setSelectedType(type.value)}
-									/>
-									<span className="text-sm text-gray-700">{type.label}</span>
-								</label>
-							))}
-						</div>
-					</div>
+				<div className="flex-1 overflow-y-auto">
+					{view === "main" && (
+						<div className="space-y-6 px-4 py-4">
+							{/* Document Type */}
+							<div className="space-y-3">
+								<h3 className="text-sm font-semibold text-gray-900">
+									Document Type
+								</h3>
+								<div className="space-y-2">
+									<label className="flex cursor-pointer items-center gap-2">
+										<Checkbox
+											checked={selectedType === "all"}
+											onCheckedChange={() => onTypeChange("all")}
+										/>
+										<span className="text-sm text-gray-700">All Types</span>
+									</label>
+									{LEGISLATIVE_DOCUMENT_TYPES.map((type) => (
+										<label
+											key={type.value}
+											className="flex cursor-pointer items-center gap-2"
+										>
+											<Checkbox
+												checked={selectedType === type.value}
+												onCheckedChange={() => onTypeChange(type.value)}
+											/>
+											<span className="text-sm text-gray-700">
+												{type.label}
+											</span>
+										</label>
+									))}
+								</div>
+							</div>
 
-					{/* Year - Typeahead Combobox */}
-					<div className="space-y-2 border-t pt-4">
-						<h3 className="text-sm font-semibold text-gray-900">Year</h3>
-						<Popover>
-							<PopoverTrigger asChild>
+							{/* Year */}
+							<div className="space-y-2 border-t pt-4">
+								<h3 className="text-sm font-semibold text-gray-900">Year</h3>
 								<Button
 									variant="outline"
-									role="combobox"
-									className="w-full h-10 justify-between bg-white hover:bg-white"
+									className="w-full justify-between h-12 cursor-pointer"
+									onClick={() => setView("year")}
 								>
-									<span className="truncate">
-										{selectedYear && selectedYear !== "all"
-											? selectedYear
-											: "All Years"}
-									</span>
-									<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									{selectedYear === "all" ? "All Years" : selectedYear}
+									<ChevronsUpDown className="h-4 w-4 opacity-50" />
 								</Button>
-							</PopoverTrigger>
-							<PopoverContent className="w-(--radix-popover-trigger-width) p-0">
-								<Command>
-									<CommandInput placeholder="Search years..." />
-									<CommandEmpty>No year found.</CommandEmpty>
-									<CommandList className="max-h-75 overflow-auto">
-										<CommandGroup>
-											<CommandItem
-												value="all"
-												onSelect={() => {
-													setSelectedYear("all");
-												}}
-											>
-												<Check
-													className={cn(
-														"mr-2 h-4 w-4",
-														selectedYear === "all"
-															? "opacity-100"
-															: "opacity-0",
-													)}
-												/>
-												All Years
-											</CommandItem>
-											{availableYears.map((year) => (
-												<CommandItem
-													key={year}
-													value={year.toString()}
-													onSelect={() => {
-														setSelectedYear(year.toString());
-													}}
-												>
-													<Check
-														className={cn(
-															"mr-2 h-4 w-4",
-															selectedYear === year.toString()
-																? "opacity-100"
-																: "opacity-0",
-														)}
-													/>
-													{year}
-												</CommandItem>
-											))}
-										</CommandGroup>
-									</CommandList>
-								</Command>
-							</PopoverContent>
-						</Popover>
-					</div>
+							</div>
 
-					{/* Classification - Typeahead Combobox */}
-					<div className="space-y-2 border-t pt-4">
-						<h3 className="text-sm font-semibold text-gray-900">
-							Classification
-						</h3>
-						<Popover>
-							<PopoverTrigger asChild>
+							{/* Classification */}
+							<div className="space-y-2 border-t pt-4">
+								<h3 className="text-sm font-semibold text-gray-900">
+									Classification
+								</h3>
 								<Button
 									variant="outline"
-									role="combobox"
-									className="w-full h-10 justify-between bg-white hover:bg-white"
+									className="w-full justify-between h-12 cursor-pointer"
+									onClick={() => setView("classification")}
 								>
 									<span className="truncate">
-										{selectedClassification && selectedClassification !== "all"
-											? CLASSIFICATION_TYPES.find(
+										{selectedClassification === "all"
+											? "All Classifications"
+											: CLASSIFICATION_TYPES.find(
 													(c) => c.value === selectedClassification,
-												)?.label
-											: "All Classifications"}
+												)?.label}
 									</span>
-									<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									<ChevronsUpDown className="h-4 w-4 opacity-50" />
 								</Button>
-							</PopoverTrigger>
-							<PopoverContent className="w-(--radix-popover-trigger-width) p-0">
-								<Command>
-									<CommandInput placeholder="Search classifications..." />
-									<CommandEmpty>No classification found.</CommandEmpty>
-									<CommandList className="max-h-75 overflow-auto">
-										<CommandGroup>
-											<CommandItem
-												value="all"
-												onSelect={() => {
-													setSelectedClassification("all");
-												}}
-											>
-												<Check
-													className={cn(
-														"mr-2 h-4 w-4",
-														selectedClassification === "all"
-															? "opacity-100"
-															: "opacity-0",
-													)}
-												/>
-												All Classifications
-											</CommandItem>
-											{CLASSIFICATION_TYPES.map((classification) => (
-												<CommandItem
-													key={classification.value}
-													value={classification.value}
-													onSelect={() => {
-														setSelectedClassification(classification.value);
-													}}
-												>
-													<Check
-														className={cn(
-															"mr-2 h-4 w-4",
-															selectedClassification === classification.value
-																? "opacity-100"
-																: "opacity-0",
-														)}
-													/>
-													{classification.label}
-												</CommandItem>
-											))}
-										</CommandGroup>
-									</CommandList>
-								</Command>
-							</PopoverContent>
-						</Popover>
-					</div>
+							</div>
+						</div>
+					)}
+
+					{view === "year" && (
+						<Command className="rounded-none border-none h-full">
+							<CommandInput
+								placeholder="Search years..."
+								className="h-12 text-base"
+								autoFocus={false}
+							/>
+							<CommandList className="max-h-full pb-20">
+								<CommandEmpty>No year found.</CommandEmpty>
+								<CommandGroup>
+									<CommandItem
+										onSelect={() => {
+											onYearChange("all");
+											setView("main");
+										}}
+										className="py-3"
+									>
+										<Check
+											className={cn(
+												"mr-2 h-4 w-4",
+												selectedYear === "all" ? "opacity-100" : "opacity-0",
+											)}
+										/>
+										All Years
+									</CommandItem>
+									{availableYears.map((year) => (
+										<CommandItem
+											key={year}
+											onSelect={() => {
+												onYearChange(year.toString());
+												setView("main");
+											}}
+											className="py-3"
+										>
+											<Check
+												className={cn(
+													"mr-2 h-4 w-4",
+													selectedYear === year.toString()
+														? "opacity-100"
+														: "opacity-0",
+												)}
+											/>
+											{year}
+										</CommandItem>
+									))}
+								</CommandGroup>
+							</CommandList>
+						</Command>
+					)}
+
+					{view === "classification" && (
+						<Command className="rounded-none border-none h-full">
+							<CommandInput
+								placeholder="Search classifications..."
+								className="h-12 text-base"
+								autoFocus={false}
+							/>
+							<CommandList className="max-h-full pb-20">
+								<CommandEmpty>No classification found.</CommandEmpty>
+								<CommandGroup>
+									<CommandItem
+										onSelect={() => {
+											onClassificationChange("all");
+											setView("main");
+										}}
+										className="py-3"
+									>
+										<Check
+											className={cn(
+												"mr-2 h-4 w-4",
+												selectedClassification === "all"
+													? "opacity-100"
+													: "opacity-0",
+											)}
+										/>
+										All Classifications
+									</CommandItem>
+									{CLASSIFICATION_TYPES.map((c) => (
+										<CommandItem
+											key={c.value}
+											onSelect={() => {
+												onClassificationChange(c.value);
+												setView("main");
+											}}
+											className="py-3"
+										>
+											<Check
+												className={cn(
+													"mr-2 h-4 w-4",
+													selectedClassification === c.value
+														? "opacity-100"
+														: "opacity-0",
+												)}
+											/>
+											{c.label}
+										</CommandItem>
+									))}
+								</CommandGroup>
+							</CommandList>
+						</Command>
+					)}
 				</div>
 
 				<DrawerFooter className="border-t">
 					<div className="flex w-full gap-3">
-						<Button variant="outline" onClick={clearFilters} className="flex-1">
+						<Button variant="outline" onClick={handleClear} className="flex-1">
 							<XIcon className="w-4 h-4 mr-2" />
 							Clear
 						</Button>
 						<Button
-							onClick={applyFilters}
+							onClick={handleApply}
 							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
-							disabled={!hasPendingChanges}
 						>
 							Apply Filters
 						</Button>
@@ -313,42 +350,53 @@ function MobileFilterControlDrawer({
 	);
 }
 
-function DesktopFilterControl({
+// Desktop Popover Component
+function DesktopFilterPopover({
 	availableYears,
-	filterState,
+	selectedType,
+	selectedYear,
+	selectedClassification,
+	onTypeChange,
+	onYearChange,
+	onClassificationChange,
+	onApply,
+	onClear,
 	hasActiveFilters,
 	activeFilterCount,
 	open,
 	setOpen,
-}: DesktopFilterControlProps) {
-	const {
-		selectedType,
-		selectedYear,
-		selectedClassification,
-		setSelectedType,
-		setSelectedYear,
-		setSelectedClassification,
-		applyFilters,
-		clearFilters,
-		hasPendingChanges,
-	} = filterState;
+}: {
+	availableYears: number[];
+	selectedType: string;
+	selectedYear: string;
+	selectedClassification: string;
+	onTypeChange: (type: string) => void;
+	onYearChange: (year: string) => void;
+	onClassificationChange: (classification: string) => void;
+	onApply: () => void;
+	onClear: () => void;
+	hasActiveFilters: boolean;
+	activeFilterCount: number;
+	open: boolean;
+	setOpen: (open: boolean) => void;
+}) {
+	const handleApply = () => {
+		onApply();
+		setOpen(false);
+	};
+
+	const handleClear = () => {
+		onClear();
+		setOpen(false);
+	};
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
-				<Button
-					variant="outline"
-					size="sm"
-					className="h-10 gap-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
-				>
-					<FilterIcon className="h-4 w-4" />
-					Filter
-					{hasActiveFilters && (
-						<span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#a60202] text-[10px] text-white">
-							{activeFilterCount}
-						</span>
-					)}
-				</Button>
+				<FilterButton
+					hasActiveFilters={hasActiveFilters}
+					activeFilterCount={activeFilterCount}
+				/>
 			</PopoverTrigger>
 			<PopoverContent className="w-80" align="start">
 				<div className="space-y-4">
@@ -362,7 +410,7 @@ function DesktopFilterControl({
 								<label className="flex cursor-pointer items-center gap-2">
 									<Checkbox
 										checked={selectedType === "all"}
-										onCheckedChange={() => setSelectedType("all")}
+										onCheckedChange={() => onTypeChange("all")}
 									/>
 									<span className="text-sm text-gray-700">All Types</span>
 								</label>
@@ -373,7 +421,7 @@ function DesktopFilterControl({
 									>
 										<Checkbox
 											checked={selectedType === type.value}
-											onCheckedChange={() => setSelectedType(type.value)}
+											onCheckedChange={() => onTypeChange(type.value)}
 										/>
 										<span className="text-sm text-gray-700">{type.label}</span>
 									</label>
@@ -381,7 +429,7 @@ function DesktopFilterControl({
 							</div>
 						</div>
 
-						{/* Year - Typeahead Combobox */}
+						{/* Year */}
 						<div className="space-y-3 border-t pt-4">
 							<h3 className="text-sm font-semibold text-gray-900">Year</h3>
 							<Popover>
@@ -397,7 +445,7 @@ function DesktopFilterControl({
 										<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 									</Button>
 								</PopoverTrigger>
-								<PopoverContent className="w-(--radix-popover-trigger-width) p-0">
+								<PopoverContent className="w-[--radix-popover-trigger-width] p-0">
 									<Command>
 										<CommandInput placeholder="Search years..." />
 										<CommandEmpty>No year found.</CommandEmpty>
@@ -405,9 +453,7 @@ function DesktopFilterControl({
 											<CommandGroup>
 												<CommandItem
 													value="all"
-													onSelect={() => {
-														setSelectedYear("all");
-													}}
+													onSelect={() => onYearChange("all")}
 												>
 													<Check
 														className={cn(
@@ -419,13 +465,11 @@ function DesktopFilterControl({
 													/>
 													All Years
 												</CommandItem>
-												{filterState.filteredYears.map((year) => (
+												{availableYears.map((year) => (
 													<CommandItem
 														key={year}
 														value={year.toString()}
-														onSelect={() => {
-															setSelectedYear(year.toString());
-														}}
+														onSelect={() => onYearChange(year.toString())}
 													>
 														<Check
 															className={cn(
@@ -445,7 +489,7 @@ function DesktopFilterControl({
 							</Popover>
 						</div>
 
-						{/* Classification - Typeahead Combobox */}
+						{/* Classification */}
 						<div className="space-y-3 border-t pt-4">
 							<h3 className="text-sm font-semibold text-gray-900">
 								Classification
@@ -468,7 +512,7 @@ function DesktopFilterControl({
 										<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 									</Button>
 								</PopoverTrigger>
-								<PopoverContent className="w-(--radix-popover-trigger-width) p-0">
+								<PopoverContent className="w-[--radix-popover-trigger-width] p-0">
 									<Command>
 										<CommandInput placeholder="Search classifications..." />
 										<CommandEmpty>No classification found.</CommandEmpty>
@@ -476,9 +520,7 @@ function DesktopFilterControl({
 											<CommandGroup>
 												<CommandItem
 													value="all"
-													onSelect={() => {
-														setSelectedClassification("all");
-													}}
+													onSelect={() => onClassificationChange("all")}
 												>
 													<Check
 														className={cn(
@@ -494,9 +536,9 @@ function DesktopFilterControl({
 													<CommandItem
 														key={classification.value}
 														value={classification.value}
-														onSelect={() => {
-															setSelectedClassification(classification.value);
-														}}
+														onSelect={() =>
+															onClassificationChange(classification.value)
+														}
 													>
 														<Check
 															className={cn(
@@ -520,7 +562,7 @@ function DesktopFilterControl({
 					<div className="flex gap-2 pt-4 border-t mt-4">
 						<Button
 							variant="outline"
-							onClick={clearFilters}
+							onClick={handleClear}
 							className="flex-1"
 							size="sm"
 						>
@@ -528,9 +570,8 @@ function DesktopFilterControl({
 							Clear
 						</Button>
 						<Button
-							onClick={applyFilters}
+							onClick={handleApply}
 							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
-							disabled={!hasPendingChanges}
 							size="sm"
 						>
 							Apply Filters
@@ -565,18 +606,7 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 		currentParams.classification,
 	);
 
-	// Search state for filtering year dropdown
-	const [yearSearch, setYearSearch] = useState("");
-
-	// Filter years based on search
-	const filteredYears = useMemo(() => {
-		if (!yearSearch) return availableYears;
-		return availableYears.filter((year) =>
-			year.toString().includes(yearSearch),
-		);
-	}, [availableYears, yearSearch]);
-
-	// Sync local state when URL changes (e.g., user uses Clear Filters)
+	// Sync local state when URL changes
 	useEffect(() => {
 		setSelectedType(currentParams.type);
 		setSelectedYear(currentParams.year);
@@ -601,14 +631,6 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 		[currentParams],
 	);
 
-	const hasPendingChanges = useMemo(
-		() =>
-			selectedType !== currentParams.type ||
-			selectedYear !== currentParams.year ||
-			selectedClassification !== currentParams.classification,
-		[selectedType, selectedYear, selectedClassification, currentParams],
-	);
-
 	const applyFilters = useCallback(() => {
 		const search = searchParams.get("search") || "";
 		const queryString = buildQueryString({
@@ -619,7 +641,6 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 			page: "1",
 		});
 		router.push(`/legislative-documents?${queryString}`);
-		setOpen(false);
 	}, [
 		selectedType,
 		selectedYear,
@@ -633,7 +654,6 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 		setSelectedType("all");
 		setSelectedYear("all");
 		setSelectedClassification("all");
-		setYearSearch("");
 		const queryString = buildQueryString({
 			search,
 			type: "all",
@@ -642,45 +662,27 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 			page: "1",
 		});
 		router.push(`/legislative-documents?${queryString}`);
-		setOpen(false);
 	}, [searchParams, router]);
 
-	const filterState: FilterState = {
+	const sharedProps = {
+		availableYears,
 		selectedType,
 		selectedYear,
 		selectedClassification,
-		setSelectedType,
-		setSelectedYear,
-		setSelectedClassification,
-		applyFilters,
-		clearFilters,
-		hasPendingChanges,
-		yearSearch,
-		setYearSearch,
-		filteredYears,
+		onTypeChange: setSelectedType,
+		onYearChange: setSelectedYear,
+		onClassificationChange: setSelectedClassification,
+		onApply: applyFilters,
+		onClear: clearFilters,
+		hasActiveFilters,
+		activeFilterCount,
+		open,
+		setOpen,
 	};
 
-	return (
-		<>
-			{isMobile ? (
-				<MobileFilterControlDrawer
-					availableYears={availableYears}
-					filterState={filterState}
-					hasActiveFilters={hasActiveFilters}
-					activeFilterCount={activeFilterCount}
-					open={open}
-					setOpen={setOpen}
-				/>
-			) : (
-				<DesktopFilterControl
-					availableYears={availableYears}
-					filterState={filterState}
-					hasActiveFilters={hasActiveFilters}
-					activeFilterCount={activeFilterCount}
-					open={open}
-					setOpen={setOpen}
-				/>
-			)}
-		</>
+	return isMobile ? (
+		<MobileFilterDrawer {...sharedProps} />
+	) : (
+		<DesktopFilterPopover {...sharedProps} />
 	);
 }

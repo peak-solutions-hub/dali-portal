@@ -7,7 +7,6 @@ import { Checkbox } from "@repo/ui/components/checkbox";
 import {
 	Drawer,
 	DrawerContent,
-	DrawerDescription,
 	DrawerFooter,
 	DrawerHeader,
 	DrawerTitle,
@@ -21,6 +20,7 @@ import {
 import { useIsMobile, useSessionFilters } from "@repo/ui/hooks";
 import { CalendarIcon, FilterIcon, XIcon } from "@repo/ui/lib/lucide-react";
 import { format } from "date-fns";
+import * as React from "react";
 import { useState } from "react";
 import {
 	getSessionStatusBadgeClass,
@@ -35,88 +35,151 @@ interface SessionFiltersProps {
 	sortOrder: string;
 }
 
-interface FilterState {
+// Enhanced Calendar Picker with Month/Year Dropdowns
+function EnhancedCalendarPicker({
+	date,
+	onSelect,
+	disabledDate,
+	align = "start",
+}: {
+	date: Date | undefined;
+	onSelect: (date: Date | undefined) => void;
+	disabledDate?: (date: Date) => boolean;
+	align?: "start" | "center" | "end";
+}) {
+	const currentYear = new Date().getFullYear();
+
+	// Ensure min year is not earlier than 1950
+	const minYear = Math.max(currentYear - 100, 1950);
+
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<Button
+					variant="outline"
+					className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
+				>
+					<CalendarIcon className="mr-2 h-4 w-4" />
+					{date ? format(date, "P") : "Pick a date"}
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto p-0" align={align}>
+				<Calendar
+					mode="single"
+					selected={date}
+					onSelect={onSelect}
+					disabled={disabledDate}
+					captionLayout="dropdown"
+					fromYear={minYear}
+					toYear={currentYear}
+					classNames={{
+						today: "bg-transparent text-yellow-400 font-normal",
+						day_selected:
+							"bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+					}}
+				/>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+// Shared Filter Button
+const FilterButton = React.forwardRef<
+	HTMLButtonElement,
+	{
+		hasActiveFilters: boolean;
+		filterCount: number;
+		onClick?: () => void;
+	}
+>(({ hasActiveFilters, filterCount, onClick, ...props }, ref) => {
+	return (
+		<Button
+			ref={ref}
+			variant="outline"
+			size="sm"
+			className="h-9 gap-2 border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a] hover:bg-[#f9fafb] cursor-pointer"
+			onClick={onClick}
+			{...props}
+		>
+			<FilterIcon className="h-4 w-4" />
+			Filter
+			{hasActiveFilters && (
+				<Badge className="ml-1 h-5 w-5 rounded-full bg-[#a60202] p-0 text-[10px] text-white hover:bg-[#a60202]">
+					{filterCount}
+				</Badge>
+			)}
+		</Button>
+	);
+});
+
+FilterButton.displayName = "FilterButton";
+
+// Mobile Drawer
+function MobileSessionFiltersDrawer({
+	selectedTypes,
+	selectedStatuses,
+	dateFrom,
+	dateTo,
+	onTypeChange,
+	onStatusChange,
+	onDateFromChange,
+	onDateToChange,
+	onApply,
+	onClear,
+	hasActiveFilters,
+	filterCount,
+	isDateRangeInvalid,
+	open,
+	setOpen,
+}: {
 	selectedTypes: string[];
 	selectedStatuses: string[];
 	dateFrom: string;
 	dateTo: string;
-	setSelectedTypes: (types: string[]) => void;
-	setSelectedStatuses: (statuses: string[]) => void;
-	setDateFrom: (date: string) => void;
-	setDateTo: (date: string) => void;
-	handleTypeChange: (type: string, checked: boolean) => void;
-	handleStatusChange: (status: string, checked: boolean) => void;
-	applyFilters: () => void;
-	clearAllFilters: () => void;
+	onTypeChange: (type: string, checked: boolean) => void;
+	onStatusChange: (status: string, checked: boolean) => void;
+	onDateFromChange: (date: string) => void;
+	onDateToChange: (date: string) => void;
+	onApply: () => void;
+	onClear: () => void;
+	hasActiveFilters: boolean;
+	filterCount: number;
 	isDateRangeInvalid: boolean;
-}
-
-interface MobileSessionFiltersDrawerProps {
-	filterState: FilterState;
-	hasActiveFilters: boolean;
-	filterCount: number;
 	open: boolean;
 	setOpen: (open: boolean) => void;
-}
-
-interface DesktopSessionFiltersProps {
-	filterState: FilterState;
-	hasActiveFilters: boolean;
-	filterCount: number;
-	open: boolean;
-	setOpen: (open: boolean) => void;
-	filters: {
-		types: string[];
-		statuses: string[];
-		dateFrom: string | null;
-		dateTo: string | null;
+}) {
+	const handleApply = () => {
+		if (isDateRangeInvalid) return;
+		onApply();
+		setOpen(false);
 	};
-}
 
-function MobileSessionFiltersDrawer({
-	filterState,
-	hasActiveFilters,
-	filterCount,
-	open,
-	setOpen,
-}: MobileSessionFiltersDrawerProps) {
-	const {
-		selectedTypes,
-		selectedStatuses,
-		dateFrom,
-		dateTo,
-		handleTypeChange,
-		handleStatusChange,
-		setDateFrom,
-		setDateTo,
-		applyFilters,
-		clearAllFilters,
-		isDateRangeInvalid,
-	} = filterState;
+	const handleClear = () => {
+		onClear();
+		setOpen(false);
+	};
 
 	return (
 		<Drawer open={open} onOpenChange={setOpen}>
 			<DrawerTrigger asChild>
-				<Button
-					variant="outline"
-					size="sm"
-					className="h-9 gap-2 border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a] hover:bg-[#f9fafb] cursor-pointer"
-				>
-					<FilterIcon className="h-4 w-4" />
-					Filter
-					{hasActiveFilters && (
-						<Badge className="ml-1 h-5 w-5 rounded-full bg-[#a60202] p-0 text-[10px] text-white hover:bg-[#a60202]">
-							{filterCount}
-						</Badge>
-					)}
-				</Button>
+				<FilterButton
+					hasActiveFilters={hasActiveFilters}
+					filterCount={filterCount}
+				/>
 			</DrawerTrigger>
-			<DrawerContent>
-				<DrawerHeader>
-					<DrawerTitle>Filter Sessions</DrawerTitle>
+			<DrawerContent className="h-[90dvh] flex flex-col">
+				<DrawerHeader className="shrink-0 border-b">
+					<div className="flex items-center justify-between">
+						<div className="w-16" />
+						<DrawerTitle className="text-center flex-1">
+							Filter Sessions
+						</DrawerTitle>
+						<div className="w-16" />
+					</div>
 				</DrawerHeader>
 
-				<div className="space-y-4 px-4 py-6 max-h-[60vh] overflow-y-auto">
+				<div className="flex-1 overflow-y-auto space-y-4 px-4 py-6">
+					{/* Session Type */}
 					<div>
 						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
 							Session Type
@@ -130,7 +193,7 @@ function MobileSessionFiltersDrawer({
 									<Checkbox
 										checked={selectedTypes.includes(value)}
 										onCheckedChange={(checked) =>
-											handleTypeChange(value, checked as boolean)
+											onTypeChange(value, checked as boolean)
 										}
 									/>
 									<span className="text-sm text-[#4a5565]">{label}</span>
@@ -139,6 +202,7 @@ function MobileSessionFiltersDrawer({
 						</div>
 					</div>
 
+					{/* Status */}
 					<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
 						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
 							Status
@@ -152,7 +216,7 @@ function MobileSessionFiltersDrawer({
 									<Checkbox
 										checked={selectedStatuses.includes(value)}
 										onCheckedChange={(checked) =>
-											handleStatusChange(value, checked as boolean)
+											onStatusChange(value, checked as boolean)
 										}
 									/>
 									<span className="text-sm text-[#4a5565]">{label}</span>
@@ -161,6 +225,7 @@ function MobileSessionFiltersDrawer({
 						</div>
 					</div>
 
+					{/* Date Range */}
 					<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
 						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
 							Date Range
@@ -168,61 +233,33 @@ function MobileSessionFiltersDrawer({
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
 								<label className="text-xs text-[#6b7280]">From</label>
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button
-											variant="outline"
-											className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
-										>
-											<CalendarIcon className="mr-2 h-4 w-4" />
-											{dateFrom
-												? format(new Date(dateFrom), "P")
-												: "Pick a date"}
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar
-											mode="single"
-											selected={dateFrom ? new Date(dateFrom) : undefined}
-											onSelect={(date) => {
-												if (date) {
-													setDateFrom(format(date, "yyyy-MM-dd"));
-												} else {
-													setDateFrom("");
-												}
-											}}
-											initialFocus
-										/>
-									</PopoverContent>
-								</Popover>
+								<EnhancedCalendarPicker
+									date={dateFrom ? new Date(dateFrom) : undefined}
+									onSelect={(date) => {
+										if (date) {
+											onDateFromChange(format(date, "yyyy-MM-dd"));
+										} else {
+											onDateFromChange("");
+										}
+									}}
+								/>
 							</div>
 							<div className="space-y-1.5">
 								<label className="text-xs text-[#6b7280]">To</label>
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button
-											variant="outline"
-											className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
-										>
-											<CalendarIcon className="mr-2 h-4 w-4" />
-											{dateTo ? format(new Date(dateTo), "P") : "Pick a date"}
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar
-											mode="single"
-											selected={dateTo ? new Date(dateTo) : undefined}
-											onSelect={(date) => {
-												if (date) {
-													setDateTo(format(date, "yyyy-MM-dd"));
-												} else {
-													setDateTo("");
-												}
-											}}
-											autoFocus
-										/>
-									</PopoverContent>
-								</Popover>
+								<EnhancedCalendarPicker
+									date={dateTo ? new Date(dateTo) : undefined}
+									onSelect={(date) => {
+										if (date) {
+											onDateToChange(format(date, "yyyy-MM-dd"));
+										} else {
+											onDateToChange("");
+										}
+									}}
+									disabledDate={(date) => {
+										if (!dateFrom) return false;
+										return date < new Date(dateFrom);
+									}}
+								/>
 							</div>
 						</div>
 					</div>
@@ -239,18 +276,12 @@ function MobileSessionFiltersDrawer({
 
 				<DrawerFooter className="border-t">
 					<div className="flex w-full gap-3">
-						<Button
-							variant="outline"
-							onClick={() => {
-								clearAllFilters();
-							}}
-							className="flex-1"
-						>
+						<Button variant="outline" onClick={handleClear} className="flex-1">
 							<XIcon className="w-4 h-4 mr-2" />
 							Clear
 						</Button>
 						<Button
-							onClick={applyFilters}
+							onClick={handleApply}
 							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
 							disabled={isDateRangeInvalid}
 						>
@@ -263,46 +294,62 @@ function MobileSessionFiltersDrawer({
 	);
 }
 
+// Desktop Popover
 function DesktopSessionFilters({
-	filterState,
+	selectedTypes,
+	selectedStatuses,
+	dateFrom,
+	dateTo,
+	onTypeChange,
+	onStatusChange,
+	onDateFromChange,
+	onDateToChange,
+	onApply,
+	onClear,
 	hasActiveFilters,
 	filterCount,
+	isDateRangeInvalid,
 	open,
 	setOpen,
-	filters,
-}: DesktopSessionFiltersProps) {
-	const {
-		selectedTypes,
-		selectedStatuses,
-		dateFrom,
-		dateTo,
-		handleTypeChange,
-		handleStatusChange,
-		setDateFrom,
-		setDateTo,
-		applyFilters,
-		isDateRangeInvalid,
-	} = filterState;
+}: {
+	selectedTypes: string[];
+	selectedStatuses: string[];
+	dateFrom: string;
+	dateTo: string;
+	onTypeChange: (type: string, checked: boolean) => void;
+	onStatusChange: (status: string, checked: boolean) => void;
+	onDateFromChange: (date: string) => void;
+	onDateToChange: (date: string) => void;
+	onApply: () => void;
+	onClear: () => void;
+	hasActiveFilters: boolean;
+	filterCount: number;
+	isDateRangeInvalid: boolean;
+	open: boolean;
+	setOpen: (open: boolean) => void;
+}) {
+	const handleApply = () => {
+		if (isDateRangeInvalid) return;
+		onApply();
+		setOpen(false);
+	};
+
+	const handleClear = () => {
+		onClear();
+		setOpen(false);
+	};
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
-				<Button
-					variant="outline"
-					size="sm"
-					className="h-9 gap-2 border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a] hover:bg-[#f9fafb] cursor-pointer"
-				>
-					<FilterIcon className="h-4 w-4" />
-					Filter
-					{hasActiveFilters && (
-						<Badge className="ml-1 h-5 w-5 rounded-full bg-[#a60202] p-0 text-[10px] text-white hover:bg-[#a60202]">
-							{filterCount}
-						</Badge>
-					)}
-				</Button>
+				<FilterButton
+					hasActiveFilters={hasActiveFilters}
+					filterCount={filterCount}
+				/>
 			</PopoverTrigger>
 			<PopoverContent className="w-80" align="start">
 				<div className="space-y-4">
+					{/* Session Type */}
 					<div>
 						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
 							Session Type
@@ -316,7 +363,7 @@ function DesktopSessionFilters({
 									<Checkbox
 										checked={selectedTypes.includes(value)}
 										onCheckedChange={(checked) =>
-											handleTypeChange(value, checked as boolean)
+											onTypeChange(value, checked as boolean)
 										}
 									/>
 									<span className="text-sm text-[#4a5565]">{label}</span>
@@ -325,6 +372,7 @@ function DesktopSessionFilters({
 						</div>
 					</div>
 
+					{/* Status */}
 					<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
 						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
 							Status
@@ -338,7 +386,7 @@ function DesktopSessionFilters({
 									<Checkbox
 										checked={selectedStatuses.includes(value)}
 										onCheckedChange={(checked) =>
-											handleStatusChange(value, checked as boolean)
+											onStatusChange(value, checked as boolean)
 										}
 									/>
 									<span className="text-sm text-[#4a5565]">{label}</span>
@@ -347,6 +395,7 @@ function DesktopSessionFilters({
 						</div>
 					</div>
 
+					{/* Date Range */}
 					<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
 						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
 							Date Range
@@ -354,61 +403,33 @@ function DesktopSessionFilters({
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
 								<label className="text-xs text-[#6b7280]">From</label>
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button
-											variant="outline"
-											className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
-										>
-											<CalendarIcon className="mr-2 h-4 w-4" />
-											{dateFrom
-												? format(new Date(dateFrom), "P")
-												: "Pick a date"}
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar
-											mode="single"
-											selected={dateFrom ? new Date(dateFrom) : undefined}
-											onSelect={(date) => {
-												if (date) {
-													setDateFrom(format(date, "yyyy-MM-dd"));
-												} else {
-													setDateFrom("");
-												}
-											}}
-											autoFocus
-										/>
-									</PopoverContent>
-								</Popover>
+								<EnhancedCalendarPicker
+									date={dateFrom ? new Date(dateFrom) : undefined}
+									onSelect={(date) => {
+										if (date) {
+											onDateFromChange(format(date, "yyyy-MM-dd"));
+										} else {
+											onDateFromChange("");
+										}
+									}}
+								/>
 							</div>
 							<div className="space-y-1.5">
 								<label className="text-xs text-[#6b7280]">To</label>
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button
-											variant="outline"
-											className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
-										>
-											<CalendarIcon className="mr-2 h-4 w-4" />
-											{dateTo ? format(new Date(dateTo), "P") : "Pick a date"}
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar
-											mode="single"
-											selected={dateTo ? new Date(dateTo) : undefined}
-											onSelect={(date) => {
-												if (date) {
-													setDateTo(format(date, "yyyy-MM-dd"));
-												} else {
-													setDateTo("");
-												}
-											}}
-											initialFocus
-										/>
-									</PopoverContent>
-								</Popover>
+								<EnhancedCalendarPicker
+									date={dateTo ? new Date(dateTo) : undefined}
+									onSelect={(date) => {
+										if (date) {
+											onDateToChange(format(date, "yyyy-MM-dd"));
+										} else {
+											onDateToChange("");
+										}
+									}}
+									disabledDate={(date) => {
+										if (!dateFrom) return false;
+										return date < new Date(dateFrom);
+									}}
+								/>
 							</div>
 						</div>
 					</div>
@@ -421,28 +442,26 @@ function DesktopSessionFilters({
 							</p>
 						</div>
 					)}
-				</div>
 
-				<div className="flex gap-2 pt-4 border-t mt-4">
-					<Button
-						variant="outline"
-						onClick={() => {
-							filterState.clearAllFilters();
-						}}
-						className="flex-1"
-						size="sm"
-					>
-						<XIcon className="w-4 h-4 mr-2" />
-						Clear
-					</Button>
-					<Button
-						onClick={applyFilters}
-						className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
-						disabled={isDateRangeInvalid}
-						size="sm"
-					>
-						Apply Filters
-					</Button>
+					<div className="flex gap-2 pt-4 border-t mt-4">
+						<Button
+							variant="outline"
+							onClick={handleClear}
+							className="flex-1"
+							size="sm"
+						>
+							<XIcon className="w-4 h-4 mr-2" />
+							Clear
+						</Button>
+						<Button
+							onClick={handleApply}
+							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
+							disabled={isDateRangeInvalid}
+							size="sm"
+						>
+							Apply Filters
+						</Button>
+					</div>
 				</div>
 			</PopoverContent>
 		</Popover>
@@ -454,7 +473,7 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		useSessionFilters();
 	const isMobile = useIsMobile();
 
-	// Local state for popover and form fields
+	// Local state
 	const [selectedTypes, setSelectedTypes] = useState<string[]>(filters.types);
 	const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
 		filters.statuses,
@@ -483,7 +502,6 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 	};
 
 	const applyFilters = () => {
-		// Don't apply if date range is invalid
 		if (isDateRangeInvalid) return;
 
 		updateFilters({
@@ -493,7 +511,6 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 			dateTo: dateTo || null,
 			sortOrder: sortOrder as "asc" | "desc",
 		});
-		setOpen(false);
 	};
 
 	const clearAllFilters = () => {
@@ -502,11 +519,10 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		setDateFrom("");
 		setDateTo("");
 		resetFilters();
-		setOpen(false);
 	};
 
 	const removeFilter = (
-		filterType: "type" | "status" | "dateFrom" | "dateTo" | "dateRange",
+		filterType: "type" | "status" | "dateFrom" | "dateTo",
 		value: string,
 	) => {
 		if (filterType === "type") {
@@ -517,11 +533,7 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 			const statuses = filters.statuses.filter((s) => s !== value);
 			updateFilters({ statuses });
 			setSelectedStatuses(statuses);
-		} else if (
-			filterType === "dateFrom" ||
-			filterType === "dateTo" ||
-			filterType === "dateRange"
-		) {
+		} else if (filterType === "dateFrom" || filterType === "dateTo") {
 			// Clear both date filters when any date filter X is clicked
 			updateFilters({ dateFrom: null, dateTo: null });
 			setDateFrom("");
@@ -538,43 +550,31 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		});
 	};
 
-	const filterState: FilterState = {
+	const sharedProps = {
 		selectedTypes,
 		selectedStatuses,
 		dateFrom,
 		dateTo,
-		setSelectedTypes,
-		setSelectedStatuses,
-		setDateFrom,
-		setDateTo,
-		handleTypeChange,
-		handleStatusChange,
-		applyFilters,
-		clearAllFilters,
+		onTypeChange: handleTypeChange,
+		onStatusChange: handleStatusChange,
+		onDateFromChange: setDateFrom,
+		onDateToChange: setDateTo,
+		onApply: applyFilters,
+		onClear: clearAllFilters,
+		hasActiveFilters,
+		filterCount: getFilterCount(),
 		isDateRangeInvalid,
+		open,
+		setOpen,
 	};
 
 	return (
 		<div className="space-y-3">
 			<div className="flex items-center gap-2">
-				{/* Conditionally render Mobile Drawer or Desktop Popover */}
 				{isMobile ? (
-					<MobileSessionFiltersDrawer
-						filterState={filterState}
-						hasActiveFilters={hasActiveFilters}
-						filterCount={getFilterCount()}
-						open={open}
-						setOpen={setOpen}
-					/>
+					<MobileSessionFiltersDrawer {...sharedProps} />
 				) : (
-					<DesktopSessionFilters
-						filterState={filterState}
-						hasActiveFilters={hasActiveFilters}
-						filterCount={getFilterCount()}
-						open={open}
-						setOpen={setOpen}
-						filters={filters}
-					/>
+					<DesktopSessionFilters {...sharedProps} />
 				)}
 
 				{hasActiveFilters && !isMobile && (

@@ -135,7 +135,7 @@ export class LegislativeDocumentsService {
 				type: { in: ["ordinance", "resolution"] },
 			},
 			include: LEGISLATIVE_DOCUMENT_INCLUDE,
-			orderBy: { id: "desc" },
+			orderBy: { dateEnacted: "desc" },
 			take: limit,
 		});
 
