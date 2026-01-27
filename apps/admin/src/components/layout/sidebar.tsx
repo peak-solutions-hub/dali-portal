@@ -3,7 +3,6 @@
 import { Button } from "@repo/ui/components/button";
 import {
 	BookUser,
-	Building2,
 	CalendarDays,
 	ChevronRight,
 	ClipboardList,
@@ -47,18 +46,20 @@ export function Sidebar() {
 
 	return (
 		<aside className="w-64 bg-white border-r border-[#e5e7eb] flex flex-col h-screen overflow-hidden">
-			{/* Logo Section */}
-			<div className="px-6 pt-6 pb-4 flex items-center gap-3">
-				<div className="size-10 bg-[#dc2626] rounded-full flex items-center justify-center shrink-0">
-					<div className="size-6 text-white">
-						<Building2 />
-					</div>
-				</div>
-				<div className="flex flex-col">
-					<span className="text-[14px] font-semibold text-[#0a0a0a] leading-tight">
-						Iloilo City
+			{/* Logo & Branding Section */}
+			<div className="px-5 pt-6 pb-5 flex items-center gap-3">
+				<img
+					src="/iloilo-city-seal.png"
+					alt="Iloilo City Council Seal"
+					className="w-10 h-10 object-contain shrink-0"
+				/>
+				<div className="flex flex-col min-w-0">
+					<span className="text-[13px] font-bold text-gray-900 leading-tight">
+						Sangguniang Panlungsod
 					</span>
-					<span className="text-[12px] text-[#4a5565]">Council</span>
+					<span className="text-[11px] text-gray-600 leading-tight">
+						ng Iloilo
+					</span>
 				</div>
 			</div>
 
