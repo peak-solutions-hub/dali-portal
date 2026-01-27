@@ -57,42 +57,26 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 							<div className="space-y-3">
 								{documents.length > 0 ? (
 									documents.map((doc) => {
-										const derivedMonth =
-											doc.month ||
-											(doc.fullDate
-												? format(new Date(doc.fullDate), "MMM")
-												: "");
-										const derivedDay =
-											doc.day ||
-											(doc.fullDate
-												? String(new Date(doc.fullDate).getDate())
-												: "");
-										// For debugging
-										// console.log("RecentUpdates - doc:", doc, {
-										// 	derivedMonth,
-										// 	derivedDay,
-										// });
+										const derivedFullDate = doc.fullDate
+											? format(new Date(doc.fullDate), "MMMM d, yyyy")
+											: doc.month && doc.day
+												? `${doc.month} ${doc.day}`
+												: "";
 
 										return (
 											<Link
+												title={`${doc.number} - ${doc.title}`}
 												key={doc.id}
 												href={`/legislative-documents/${doc.id}`}
 												className="block p-4 rounded-lg hover:bg-gray-50 border border-gray-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#a60202] focus:ring-offset-2"
 												aria-label={`View ${doc.type.toLowerCase()}: ${doc.number} - ${doc.title}`}
 											>
 												<div className="flex items-start gap-3">
-													<div className="shrink-0">
-														<div className="w-12 h-12 rounded-lg bg-[#a60202] flex flex-col items-center justify-center text-white">
-															<span className="text-xs font-medium">
-																{derivedMonth}
-															</span>
-															<span className="text-lg font-bold leading-none">
-																{derivedDay}
-															</span>
-														</div>
-													</div>
 													<div className="flex-1 min-w-0">
 														<div className="flex items-center gap-2 mb-1">
+															<p className="text-xs font-medium rounded bg-[#a60202] px-2.5 py-1 text-white">
+																{doc.number}
+															</p>
 															<span
 																className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${
 																	doc.type.toLowerCase() === "ordinance"
@@ -108,11 +92,8 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 																/>
 																{doc.type}
 															</span>
-															<p className="text-sm font-semibold text-gray-900">
-																{doc.number}
-															</p>
 														</div>
-														<p className="text-sm text-gray-700 line-clamp-2">
+														<p className="text-sm font-semibold text-gray-700 line-clamp-2">
 															{doc.title}
 														</p>
 														<div className="text-xs text-gray-500 mt-1">
@@ -131,6 +112,16 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 																		{doc.classification}
 																	</span>
 																</span>
+															)}
+															{derivedFullDate && (
+																<div className="mt-1">
+																	<span className="text-xs text-gray-500">
+																		Date Enacted:{" "}
+																	</span>
+																	<span className="ml-1 font-medium text-gray-700 text-xs">
+																		{derivedFullDate}
+																	</span>
+																</div>
 															)}
 														</div>
 													</div>
