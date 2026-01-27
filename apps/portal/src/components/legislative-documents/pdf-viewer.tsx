@@ -38,6 +38,16 @@ export function PDFViewer({ document }: PDFViewerProps) {
 		document.displayTitle || document.document?.title || "Untitled Document";
 	const downloadFilename = getDocumentFilename(document);
 
+	// Handler for viewing PDF - opens in new tab on mobile, modal on desktop
+	const handleView = () => {
+		if (isMobile && pdfUrl) {
+			// Open in native browser viewer for better mobile experience
+			window.open(pdfUrl, "_blank", "noopener,noreferrer");
+		} else {
+			setIsOpen(true);
+		}
+	};
+
 	// Generate signed URL when component mounts
 	useEffect(() => {
 		if (document.storagePath && document.storageBucket) {
@@ -135,7 +145,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 			>
 				<Button
 					ref={triggerRef}
-					onClick={() => setIsOpen(true)}
+					onClick={handleView}
 					variant="outline"
 					className="w-full sm:w-auto border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-8 py-6"
 					aria-label={`View PDF document: ${documentTitle}`}

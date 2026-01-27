@@ -9,21 +9,18 @@ export function DocumentCardSkeleton() {
 					{/* Left Content */}
 					<div className="flex-1 min-w-0">
 						{/* Type Badge, Number, and Year Row */}
-						<div className="flex flex-col gap-3 mb-2 flex-wrap">
+						<div className="flex items-center gap-3 mb-2 flex-wrap">
 							<Skeleton className="h-6 w-20 rounded" /> {/* Type Badge */}
 							<Skeleton className="h-5 w-24" /> {/* Document Number */}
-							<Skeleton className="h-4 w-14" /> {/* Year */}
 						</div>
-
 						{/* Title */}
 						<Skeleton className="h-6 w-3/4 mb-2" />
-
+						<Skeleton className="h-4 w-14 mb-2" /> {/* Year */}
 						{/* Metadata Row */}
 						<div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
 							<Skeleton className="h-5 w-36" /> {/* Author */}
 							<Skeleton className="h-5 w-40" /> {/* Date Passed */}
 						</div>
-
 						{/* Classification */}
 						<div className="mt-2">
 							<Skeleton className="h-5 w-24" />
