@@ -71,8 +71,22 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 			}
 
 			// Update date range
-			newParams.dateFrom = updates.dateFrom ?? filters.dateFrom ?? undefined;
-			newParams.dateTo = updates.dateTo ?? filters.dateTo ?? undefined;
+			// Treat `null` as an explicit instruction to clear the param
+			if (Object.hasOwn(updates, "dateFrom")) {
+				newParams.dateFrom =
+					updates.dateFrom === null
+						? undefined
+						: (updates.dateFrom ?? undefined);
+			} else {
+				newParams.dateFrom = filters.dateFrom ?? undefined;
+			}
+
+			if (Object.hasOwn(updates, "dateTo")) {
+				newParams.dateTo =
+					updates.dateTo === null ? undefined : (updates.dateTo ?? undefined);
+			} else {
+				newParams.dateTo = filters.dateTo ?? undefined;
+			}
 
 			const queryString = buildSessionQueryString(newParams);
 			router.push(`/sessions?${queryString}`);
