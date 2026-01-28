@@ -1,12 +1,19 @@
 import { Controller } from "@nestjs/common";
-import { Implement, implement, ORPCError } from "@orpc/nest";
+import { Throttle } from "@nestjs/throttler";
+import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
-import { InquiryTicketService } from "./inquiry-ticket.service";
+import { Captcha } from "@/app/captcha/captcha.guard";
+import { InquiryTicketService } from "@/app/inquiry-ticket/inquiry-ticket.service";
+import { InquiryMessageService } from "./inquiry-message.service";
 
 @Controller()
 export class InquiryTicketController {
-	constructor(private readonly inquiryService: InquiryTicketService) {}
+	constructor(
+		private readonly inquiryService: InquiryTicketService,
+		private readonly messageService: InquiryMessageService,
+	) {}
 
+	@Captcha()
 	@Implement(contract.inquiries.create)
 	create() {
 		return implement(contract.inquiries.create).handler(async ({ input }) => {
@@ -14,15 +21,48 @@ export class InquiryTicketController {
 		});
 	}
 
+	// 10 reqs per min
+	@Throttle({
+		default: {
+			limit: 10,
+			ttl: 60000,
+		},
+	})
+	@Implement(contract.inquiries.track)
+	track() {
+		return implement(contract.inquiries.track).handler(async ({ input }) => {
+			return await this.inquiryService.track(input);
+		});
+	}
+
+	@Implement(contract.inquiries.getWithMessages)
+	getWithMessages() {
+		return implement(contract.inquiries.getWithMessages).handler(
+			async ({ input }) => {
+				return await this.inquiryService.getWithMessages(input);
+			},
+		);
+	}
+
+	// 5 reqs per min
+	@Throttle({
+		default: {
+			limit: 5,
+			ttl: 60000,
+		},
+	})
+	@Implement(contract.inquiries.sendMessage)
+	sendMessage() {
+		return implement(contract.inquiries.sendMessage).handler(
+			async ({ input }) => {
+				return await this.messageService.send(input);
+			},
+		);
+	}
+
 	@Implement(contract.inquiries.getList)
 	getList() {
 		return implement(contract.inquiries.getList).handler(async ({ input }) => {
-			// sample only to test error handling
-			if (input.limit == 10) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "You are not authorized to view inquiries.",
-				});
-			}
 			return await this.inquiryService.getList(input);
 		});
 	}
