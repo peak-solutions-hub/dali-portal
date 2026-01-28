@@ -10,11 +10,15 @@ export interface TicketHelperCallbacks {
 	onMessageClear: () => void;
 	onLoadingChange: (loading: boolean) => void;
 	onStatusLoadingChange: (loading: boolean) => void;
+	onFilesClear: () => void;
+	onUploadProgress: (progress: number) => void;
 }
 
 export const createTicketHelpers = (
 	ticketId: string | null,
 	message: string,
+	files: File[],
+	uploadFiles: () => Promise<string[]>,
 	callbacks: TicketHelperCallbacks,
 ) => {
 	const {
@@ -22,6 +26,8 @@ export const createTicketHelpers = (
 		onMessageClear,
 		onLoadingChange,
 		onStatusLoadingChange,
+		onFilesClear,
+		onUploadProgress,
 	} = callbacks;
 
 	const refreshTicketData = async () => {
@@ -38,30 +44,50 @@ export const createTicketHelpers = (
 	};
 
 	const handleSendMessage = async () => {
-		if (!message.trim() || !ticketId) return;
+		if ((!message.trim() && files.length === 0) || !ticketId) return;
 
 		onLoadingChange(true);
-		const [err, _result] = await api.inquiries.sendMessage({
-			ticketId,
-			content: message,
-			senderName: "Staff Member", // TODO: Get from auth context
-			senderType: "staff",
-		});
+		onUploadProgress(10);
 
-		if (err) {
-			if (isDefinedError(err)) {
-				alert(`Error: ${err.message}`);
-			} else {
-				alert("Failed to send message");
+		try {
+			let attachmentPaths: string[] = [];
+			if (files.length > 0) {
+				onUploadProgress(40);
+				attachmentPaths = await uploadFiles();
+				onUploadProgress(80);
 			}
-			onLoadingChange(false);
-			return;
-		}
 
-		// Refresh ticket data
-		await refreshTicketData();
-		onMessageClear();
-		onLoadingChange(false);
+			const [err, _result] = await api.inquiries.sendMessage({
+				ticketId,
+				content: message.trim() || "(Attachment)",
+				senderName: "Staff Member", // TODO: Get from auth context
+				senderType: "staff",
+				attachmentPaths:
+					attachmentPaths.length > 0 ? attachmentPaths : undefined,
+			});
+
+			if (err) {
+				if (isDefinedError(err)) {
+					alert(`Error: ${err.message}`);
+				} else {
+					alert("Failed to send message");
+				}
+				onLoadingChange(false);
+				onUploadProgress(0);
+				return;
+			}
+
+			// Refresh ticket data
+			await refreshTicketData();
+			onMessageClear();
+			onFilesClear();
+		} catch (e) {
+			console.error(e);
+			alert("An error occurred.");
+		} finally {
+			onLoadingChange(false);
+			onUploadProgress(0);
+		}
 	};
 
 	const handleUpdateStatus = async (
@@ -92,23 +118,29 @@ export const createTicketHelpers = (
 		onStatusLoadingChange(false);
 	};
 
-	const handleAssignToMe = () => {
+	const handleAssignToMe = (onOpenDialog: () => void) => {
+		onOpenDialog();
+	};
+
+	const handleResolve = (onOpenDialog: () => void) => {
+		onOpenDialog();
+	};
+
+	const handleReject = (onOpenDialog: () => void) => {
+		onOpenDialog();
+	};
+
+	const confirmAssignToMe = async () => {
 		// TODO: Implement assign to me with user context
-		handleUpdateStatus("open");
+		await handleUpdateStatus("open");
 	};
 
-	const handleResolve = () => {
-		const remarks = prompt("Please provide closure remarks:");
-		if (remarks) {
-			handleUpdateStatus("resolved", remarks);
-		}
+	const confirmResolve = async (remarks: string) => {
+		await handleUpdateStatus("resolved", remarks);
 	};
 
-	const handleReject = () => {
-		const remarks = prompt("Please provide reason for rejection:");
-		if (remarks) {
-			handleUpdateStatus("rejected", remarks);
-		}
+	const confirmReject = async (remarks: string) => {
+		await handleUpdateStatus("rejected", remarks);
 	};
 
 	return {
@@ -117,6 +149,9 @@ export const createTicketHelpers = (
 		handleAssignToMe,
 		handleResolve,
 		handleReject,
+		confirmAssignToMe,
+		confirmResolve,
+		confirmReject,
 		refreshTicketData,
 	};
 };

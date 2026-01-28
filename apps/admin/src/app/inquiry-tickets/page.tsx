@@ -60,6 +60,7 @@ export default function InquiryTicketsPage() {
 	// Calculate status counts from all loaded tickets
 	const statusCounts = {
 		all: allTickets.length,
+		new: allTickets.filter((t) => t.status === "new").length,
 		open: allTickets.filter((t) => t.status === "open").length,
 		waiting_for_citizen: allTickets.filter(
 			(t) => t.status === "waiting_for_citizen",
@@ -91,6 +92,7 @@ export default function InquiryTicketsPage() {
 					<Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
 						<TabsList>
 							<TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
+							<TabsTrigger value="new">New ({statusCounts.new})</TabsTrigger>
 							<TabsTrigger value="open">Open ({statusCounts.open})</TabsTrigger>
 							<TabsTrigger value="waiting_for_citizen">
 								Waiting ({statusCounts.waiting_for_citizen})
