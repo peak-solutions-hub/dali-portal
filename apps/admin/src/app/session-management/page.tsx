@@ -84,16 +84,23 @@ function AgendaBuilderPage() {
 	return (
 		<div className="h-full bg-gray-50 overflow-hidden border-b border-[#e5e7eb] px-6 py-4">
 			<div className="container mx-auto max-w-360 h-full flex flex-col">
-				{/* Header with Create Button */}
-				<div className="mb-2 flex items-center justify-between">
-					<div />
-					<Button
-						onClick={() => setShowCreateDialog(true)}
-						className="cursor-pointer"
-					>
-						<Plus className="h-4 w-4 mr-2" />
-						Create New Session
-					</Button>
+				{/* Header with Title and Create Button */}
+				<div className="mb-4">
+					<div className="flex items-center justify-between mb-1">
+						<h1 className="text-2xl font-semibold text-[#101828]">
+							Session Management
+						</h1>
+						<Button
+							onClick={() => setShowCreateDialog(true)}
+							className="cursor-pointer bg-[#a60202] hover:bg-[#8a0101] text-white"
+						>
+							<Plus className="h-4 w-4 mr-2" />
+							Create New Session
+						</Button>
+					</div>
+					<p className="text-sm text-[#4a5565]">
+						Create and manage legislative session agendas and presentations
+					</p>
 				</div>
 
 				{/* Two Column Layout */}

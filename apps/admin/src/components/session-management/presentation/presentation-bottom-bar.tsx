@@ -15,6 +15,7 @@ export function PresentationBottomBar({
 	onNext,
 	onToggleMenu,
 	onGoto,
+	isVisible = true,
 }: {
 	currentSlideIndex: number;
 	totalSlides: number;
@@ -23,9 +24,12 @@ export function PresentationBottomBar({
 	onNext: () => void;
 	onToggleMenu: () => void;
 	onGoto: (index: number) => void;
+	isVisible?: boolean;
 }) {
 	return (
-		<div className="fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-sm border-t border-gray-200 flex items-center justify-center px-20 z-50">
+		<div
+			className={`fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-sm border-t border-gray-200 flex items-center justify-center px-20 z-50 transition-transform duration-300 ${!isVisible ? "translate-y-full" : "translate-y-0"}`}
+		>
 			<div className="flex items-center justify-between w-full max-w-5xl">
 				<Button
 					variant="ghost"

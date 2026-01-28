@@ -93,6 +93,12 @@ export function PresentationNavDrawer({
 					<div className="flex justify-between">
 						<span className="flex items-center gap-2">
 							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
+								F
+							</kbd>
+							Fullscreen
+						</span>
+						<span className="flex items-center gap-2">
+							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
 								ESC
 							</kbd>
 							Exit fullscreen

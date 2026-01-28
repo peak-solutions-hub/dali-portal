@@ -24,6 +24,7 @@ export function PresentationTopBar({
 	onTogglePresenter,
 	onToggleMenu,
 	onExit,
+	isVisible = true,
 }: {
 	sessionNumber: string;
 	sessionDate: string;
@@ -37,9 +38,12 @@ export function PresentationTopBar({
 	onTogglePresenter: () => void;
 	onToggleMenu: () => void;
 	onExit: () => void;
+	isVisible?: boolean;
 }) {
 	return (
-		<div className="fixed top-0 left-0 right-0 h-12 bg-white/95 backdrop-blur-sm border-b border-gray-200 flex items-center justify-between px-6 z-50">
+		<div
+			className={`fixed top-0 left-0 right-0 h-12 bg-white/95 backdrop-blur-sm border-b border-gray-200 flex items-center justify-between px-6 z-50 transition-transform duration-300 ${!isVisible ? "-translate-y-full" : "translate-y-0"}`}
+		>
 			<div className="flex items-center gap-4">
 				<Button
 					variant="ghost"

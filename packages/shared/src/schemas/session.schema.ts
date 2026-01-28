@@ -241,6 +241,12 @@ export type SessionManagementSession = z.infer<
    Admin UI Component Props
    ============================ */
 
+/**
+ * These prop types are kept in the schema file to maintain type safety
+ * and ensure consistency between the schema definitions and component interfaces.
+ * They provide compile-time type checking for session management components.
+ */
+
 export type SessionManagementAgendaPanelProps = {
 	selectedSession: SessionManagementSession | null;
 	agendaItems: SessionManagementAgendaItem[];

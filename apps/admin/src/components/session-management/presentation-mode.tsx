@@ -46,6 +46,10 @@ export function PresentationMode({
 	const presenterAckedRef = useRef(false);
 	const [showExitConfirm, setShowExitConfirm] = useState(false);
 
+	// Auto-hide state for bars (hover-based)
+	const [topBarHovered, setTopBarHovered] = useState(false);
+	const [bottomBarHovered, setBottomBarHovered] = useState(false);
+
 	const openPresenterWindow = useCallback(() => {
 		presenterAckedRef.current = false;
 		const url = `/session-presenter?session=${encodeURIComponent(sessionNumber)}`;
@@ -411,13 +415,17 @@ export function PresentationMode({
 							Are you sure you want to exit presentation mode?
 						</p>
 						<div className="flex gap-3 justify-end">
-							<Button variant="ghost" onClick={() => setShowExitConfirm(false)}>
+							<Button
+								variant="ghost"
+								onClick={() => setShowExitConfirm(false)}
+								className="cursor-pointer"
+							>
 								Cancel
 							</Button>
 							<Button
 								variant="default"
 								onClick={handleExitPresentation}
-								className="bg-[#a60202] hover:bg-[#8a0101] text-white"
+								className="bg-[#a60202] hover:bg-[#8a0101] text-white cursor-pointer"
 							>
 								Exit Presentation
 							</Button>
@@ -426,37 +434,43 @@ export function PresentationMode({
 				</div>
 			)}
 
-			<PresentationTopBar
-				sessionNumber={sessionNumber}
-				sessionDate={sessionDate}
-				sessionTime={sessionTime}
-				isFullscreen={isFullscreen}
-				onEnterFullscreen={() => void enterFullscreen()}
-				onExitFullscreen={() => void exitFullscreen()}
-				drawingMode={drawingMode}
-				onToggleDrawing={() => {
-					if (drawingMode && drawingController === "presenter") {
-						setDrawingMode(false);
-						setIsEraser(false);
-						setDrawingController(null);
-						postPresentationDrawing(false);
-						return;
-					}
+			<div
+				onMouseEnter={() => setTopBarHovered(true)}
+				onMouseLeave={() => setTopBarHovered(false)}
+			>
+				<PresentationTopBar
+					sessionNumber={sessionNumber}
+					sessionDate={sessionDate}
+					sessionTime={sessionTime}
+					isFullscreen={isFullscreen}
+					onEnterFullscreen={() => void enterFullscreen()}
+					onExitFullscreen={() => void exitFullscreen()}
+					drawingMode={drawingMode}
+					isVisible={topBarHovered || showNavMenu || drawingMode}
+					onToggleDrawing={() => {
+						if (drawingMode && drawingController === "presenter") {
+							setDrawingMode(false);
+							setIsEraser(false);
+							setDrawingController(null);
+							postPresentationDrawing(false);
+							return;
+						}
 
-					setDrawingMode((p) => {
-						const next = !p;
-						if (next) setDrawingController("presentation");
-						else setDrawingController(null);
-						postPresentationDrawing(next);
-						return next;
-					});
-					setIsEraser(false);
-				}}
-				presenterView={presenterView}
-				onTogglePresenter={togglePresenterWindow}
-				onToggleMenu={() => setShowNavMenu(!showNavMenu)}
-				onExit={() => setShowExitConfirm(true)}
-			/>
+						setDrawingMode((p) => {
+							const next = !p;
+							if (next) setDrawingController("presentation");
+							else setDrawingController(null);
+							postPresentationDrawing(next);
+							return next;
+						});
+						setIsEraser(false);
+					}}
+					presenterView={presenterView}
+					onTogglePresenter={togglePresenterWindow}
+					onToggleMenu={() => setShowNavMenu(!showNavMenu)}
+					onExit={() => setShowExitConfirm(true)}
+				/>
+			</div>
 
 			<PresentationSlideViewport
 				slide={currentSlide}
@@ -484,17 +498,23 @@ export function PresentationMode({
 				/>
 			)}
 
-			<PresentationBottomBar
-				currentSlideIndex={currentSlideIndex}
-				totalSlides={slides.length}
-				currentSlideTitle={
-					currentSlide.type === "cover" ? "Cover" : currentSlide.title
-				}
-				onPrev={goToPrevSlide}
-				onNext={goToNextSlide}
-				onToggleMenu={() => setShowNavMenu(!showNavMenu)}
-				onGoto={goToSlide}
-			/>
+			<div
+				onMouseEnter={() => setBottomBarHovered(true)}
+				onMouseLeave={() => setBottomBarHovered(false)}
+			>
+				<PresentationBottomBar
+					currentSlideIndex={currentSlideIndex}
+					totalSlides={slides.length}
+					currentSlideTitle={
+						currentSlide.type === "cover" ? "Cover" : currentSlide.title
+					}
+					onPrev={goToPrevSlide}
+					onNext={goToNextSlide}
+					onToggleMenu={() => setShowNavMenu(!showNavMenu)}
+					onGoto={goToSlide}
+					isVisible={bottomBarHovered || showNavMenu || drawingMode}
+				/>
+			</div>
 
 			<PresentationNavDrawer
 				open={showNavMenu}
@@ -504,16 +524,57 @@ export function PresentationMode({
 				onGoto={goToSlide}
 			/>
 
-			{!showNavMenu && !presenterView && !drawingMode && (
-				<div className="fixed bottom-20 right-6 bg-gray-900/90 text-white text-xs px-3 py-2 rounded-lg">
-					<div className="space-y-1">
-						<div className="font-semibold mb-1">Keyboard Shortcuts:</div>
-						<div>← → Space: Navigate</div>
-						<div>D: Toggle Draw • M: Menu • P: Presenter</div>
-						<div>ESC: Exit Fullscreen</div>
+			{!showNavMenu &&
+				!presenterView &&
+				!drawingMode &&
+				!topBarHovered &&
+				!bottomBarHovered && (
+					<div className="fixed bottom-6 right-6 bg-gray-900/95 text-white text-xs px-4 py-3 rounded-lg shadow-2xl">
+						<div className="space-y-1.5">
+							<div className="font-semibold mb-2 text-sm">
+								Keyboard Shortcuts
+							</div>
+							<div className="flex items-center gap-2">
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									←
+								</kbd>
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									→
+								</kbd>
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									Space
+								</kbd>
+								<span>Navigate</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									F
+								</kbd>
+								<span>Fullscreen</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									M
+								</kbd>
+								<span>Menu</span>
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									P
+								</kbd>
+								<span>Presenter</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									D
+								</kbd>
+								<span>Draw</span>
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									ESC
+								</kbd>
+								<span>Exit</span>
+							</div>
+						</div>
 					</div>
-				</div>
-			)}
+				)}
 
 			{drawingMode && (
 				<div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-blue-600/90 text-white text-sm px-4 py-2 rounded-lg">

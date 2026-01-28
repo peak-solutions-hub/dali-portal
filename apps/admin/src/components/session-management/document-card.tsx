@@ -1,5 +1,6 @@
 import type { SessionManagementDocument as Document } from "@repo/shared";
-import { File } from "lucide-react";
+import { getDocumentTypeBadgeClass } from "@repo/ui/lib/session-ui";
+import { FileText, GripVertical } from "lucide-react";
 
 interface DocumentCardProps {
 	document: Document;
@@ -15,24 +16,43 @@ export function DocumentCard({ document }: DocumentCardProps) {
 		<div
 			draggable
 			onDragStart={handleDragStart}
-			className="flex flex-col gap-0 rounded-lg border border-gray-200 bg-white p-3 hover:border-gray-300 cursor-move transition-all hover:shadow-md"
+			className="group overflow-hidden hover:shadow-lg active:shadow-xl transition-all duration-200 border border-gray-200 rounded-lg border-l-4 border-l-[#a60202] bg-white cursor-grab active:cursor-grabbing hover:border-gray-300"
 		>
-			<div className="flex items-start gap-2">
-				<File className="h-4 w-4 shrink-0 text-gray-600 mt-1" />
-				<div className="flex-1 min-w-0">
-					<p className="text-sm font-medium text-gray-900 leading-5">
-						{document.number}
-					</p>
-					<p className="text-xs text-gray-600 leading-4 mt-1 line-clamp-2">
-						{document.title}
-					</p>
-					<div className="mt-2">
-						<span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-900">
-							{document.type}
-						</span>
+			<article
+				className="px-4 py-3"
+				aria-labelledby={`doc-title-${document.id}`}
+			>
+				<div className="flex items-start gap-2">
+					{/* Drag Handle */}
+					<div className="flex-shrink-0 text-gray-400 group-hover:text-gray-600 transition-colors pt-1">
+						<GripVertical className="w-4 h-4" aria-hidden="true" />
+					</div>
+
+					{/* Content */}
+					<div className="flex-1 min-w-0">
+						{/* Type Badge and Number */}
+						<div className="flex items-center gap-2 mb-1.5 flex-wrap">
+							<span
+								className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${getDocumentTypeBadgeClass(document.type)}`}
+							>
+								<FileText className="w-3 h-3" aria-hidden="true" />
+								<span>{document.type}</span>
+							</span>
+							<span className="text-sm text-[#a60202] font-semibold">
+								{document.number}
+							</span>
+						</div>
+
+						{/* Title */}
+						<h3
+							id={`doc-title-${document.id}`}
+							className="text-base font-semibold text-gray-900 line-clamp-2 group-hover:text-[#a60202] transition-colors"
+						>
+							{document.title}
+						</h3>
 					</div>
 				</div>
-			</div>
+			</article>
 		</div>
 	);
 }

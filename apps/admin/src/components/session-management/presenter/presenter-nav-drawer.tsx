@@ -77,6 +77,12 @@ export function PresenterNavDrawer({
 							</kbd>
 							Draw
 						</span>
+						<span className="flex items-center gap-2">
+							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
+								M
+							</kbd>
+							Menu
+						</span>
 					</div>
 					<div className="flex items-center justify-between gap-4">
 						<span className="flex items-center gap-2">
@@ -87,9 +93,9 @@ export function PresenterNavDrawer({
 						</span>
 						<span className="flex items-center gap-2">
 							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-								M
+								ESC
 							</kbd>
-							Menu
+							Exit fullscreen
 						</span>
 					</div>
 				</div>

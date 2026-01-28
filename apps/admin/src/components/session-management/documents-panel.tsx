@@ -35,6 +35,7 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 					return false;
 				}
 			}
+
 			// Search filter
 			if (searchQuery) {
 				const searchLower = searchQuery.toLowerCase();
@@ -67,10 +68,16 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 					</h3>
 				</div>
 				<div className="flex gap-1">
-					<Badge variant="outline" className="text-xs">
+					<Badge
+						variant="outline"
+						className="text-xs bg-blue-100 text-blue-800"
+					>
 						{ordinanceCount} Ord.
 					</Badge>
-					<Badge variant="outline" className="text-xs">
+					<Badge
+						variant="outline"
+						className="text-xs bg-green-100 text-green-800"
+					>
 						{resolutionCount} Res.
 					</Badge>
 				</div>
@@ -85,20 +92,26 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 				<div className="relative flex-1">
 					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 					<Input
-						placeholder="Search..."
+						placeholder="Search documents..."
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-9 h-8 text-sm"
+						className="pl-9 h-9 text-sm"
 					/>
 				</div>
 				<Select value={typeFilter} onValueChange={setTypeFilter}>
-					<SelectTrigger className="w-28 h-8 text-sm">
-						<SelectValue placeholder="Type" />
+					<SelectTrigger className="w-36 h-9 text-sm cursor-pointer">
+						<SelectValue placeholder="Document Type" />
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="all">All</SelectItem>
-						<SelectItem value="ordinance">Ordinances</SelectItem>
-						<SelectItem value="resolution">Resolutions</SelectItem>
+						<SelectItem className="cursor-pointer" value="all">
+							All Types
+						</SelectItem>
+						<SelectItem className="cursor-pointer" value="ordinance">
+							Ordinances
+						</SelectItem>
+						<SelectItem className="cursor-pointer" value="resolution">
+							Resolutions
+						</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>

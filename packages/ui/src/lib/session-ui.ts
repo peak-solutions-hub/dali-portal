@@ -53,7 +53,6 @@ export const SESSION_TYPES = [
 export const SESSION_STATUSES = [
 	{ value: "scheduled", label: "Scheduled" },
 	{ value: "completed", label: "Completed" },
-	{ value: "draft", label: "Draft" },
 ] as const;
 
 /**
@@ -106,4 +105,26 @@ export function getSessionStatusBadgeClass(status: string): string {
  */
 export function getSectionLabel(section: string): string {
 	return SESSION_SECTION_LABELS[section] || section;
+}
+
+/**
+ * Document type badge colors for better visual distinction
+ */
+export const DOCUMENT_TYPE_BADGE_COLORS: Record<string, string> = {
+	ordinance: "bg-blue-100 text-blue-800",
+	resolution: "bg-green-100 text-green-800",
+};
+
+/**
+ * Get badge color class for document type
+ */
+export function getDocumentTypeBadgeClass(type: string): string {
+	const typeLower = type.toLowerCase();
+	if (typeLower.includes("ordinance")) {
+		return DOCUMENT_TYPE_BADGE_COLORS.ordinance!;
+	}
+	if (typeLower.includes("resolution")) {
+		return DOCUMENT_TYPE_BADGE_COLORS.resolution!;
+	}
+	return "bg-gray-100 text-gray-700 border-gray-200";
 }
