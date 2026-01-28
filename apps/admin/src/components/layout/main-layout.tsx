@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { Toaster } from "sonner";
 import { LayoutContent } from "@/components/layout/layout-content";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -8,16 +7,7 @@ import { SidebarSkeleton } from "@/components/layout/sidebar-skeleton";
 import { useAuth } from "@/contexts/auth-context";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
-	const pathname = usePathname();
 	const { isLoading } = useAuth();
-
-	// Check if current route is an auth route
-	const isAuthRoute = pathname.startsWith("/auth");
-
-	// Auth routes render without sidebar/header (and without loading check)
-	if (isAuthRoute) {
-		return <>{children}</>;
-	}
 
 	// Show sidebar skeleton while auth is loading
 	if (isLoading) {

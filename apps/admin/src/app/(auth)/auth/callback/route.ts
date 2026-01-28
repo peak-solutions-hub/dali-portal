@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 		console.error("Auth callback error:", error.message);
 
 		// Redirect to sign-in with specific error
-		const errorUrl = new URL("/auth/sign-in", origin);
+		const errorUrl = new URL("/login", origin);
 		errorUrl.searchParams.set("error", "auth_code_error");
 		errorUrl.searchParams.set(
 			"message",
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 	}
 
 	// No code provided - failure
-	const errorUrl = new URL("/auth/sign-in", origin);
+	const errorUrl = new URL("/login", origin);
 	errorUrl.searchParams.set("error", "auth_code_error");
 	errorUrl.searchParams.set(
 		"message",

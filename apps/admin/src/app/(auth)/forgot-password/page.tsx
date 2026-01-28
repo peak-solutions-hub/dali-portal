@@ -38,10 +38,9 @@ function ForgotPasswordForm() {
 	const onSubmit = async (data: ResetPasswordInput) => {
 		try {
 			const supabase = createBrowserClient();
-			// Use /auth/confirm for email OTP verification
-			// Supabase will redirect with token_hash and type=recovery
+			// Use /auth/callback for code exchange and redirect to update password page
 			const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-				redirectTo: `${window.location.origin}/auth/confirm`,
+				redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
 			});
 
 			if (error) {
@@ -92,7 +91,7 @@ function ForgotPasswordForm() {
 					</Button>
 
 					<Button
-						onClick={() => router.push("/auth/sign-in")}
+						onClick={() => router.push("/login")}
 						variant="ghost"
 						className="w-full text-[#a60202] hover:text-[#8a0101] hover:bg-red-50"
 					>
@@ -147,7 +146,7 @@ function ForgotPasswordForm() {
 			<div className="text-center">
 				<button
 					type="button"
-					onClick={() => router.push("/auth/sign-in")}
+					onClick={() => router.push("/login")}
 					className="text-sm text-[#a60202] hover:text-[#8a0101] hover:underline font-medium inline-flex items-center gap-1"
 				>
 					<ArrowLeft className="w-3 h-3" />

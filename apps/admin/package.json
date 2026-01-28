@@ -11,10 +11,11 @@
 		"check-types": "next typegen && tsc --noEmit"
 	},
 	"dependencies": {
-		"@orpc/openapi-client": "1.13.4",
 		"@hookform/resolvers": "^5.2.2",
+		"@orpc/openapi-client": "1.13.4",
 		"@repo/shared": "workspace:*",
 		"@repo/ui": "workspace:*",
+		"@supabase/ssr": "^0.8.0",
 		"next": "16.0.10",
 		"react": "19.2.1",
 		"react-dom": "19.2.1",

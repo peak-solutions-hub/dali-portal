@@ -6,11 +6,12 @@ import { NextResponse } from "next/server";
  * Public routes that don't require authentication
  */
 const publicRoutes = [
-	"/auth/sign-in",
-	"/auth/forgot-password",
-	"/auth/confirm",
+	"/login",
+	"/forgot-password",
+	"/set-password",
 	"/auth/callback",
-	"/auth/set-password",
+	"/auth/confirm",
+	"/auth/sign-in", // Keep for backward compatibility if needed
 	"/unauthorized",
 ];
 
@@ -63,27 +64,25 @@ export async function proxy(request: NextRequest) {
 	// This also triggers automatic token refresh if needed
 	const {
 		data: { user },
-		error,
 	} = await supabase.auth.getUser();
 
 	// Allow public routes
-	if (publicRoutes.some((route) => pathname.startsWith(route))) {
-		return response;
+	const isPublic = publicRoutes.some(
+		(route) => pathname.startsWith(route) || pathname === "/",
+	);
+
+	if (!user && !isPublic) {
+		console.log(`[Proxy] No valid user for ${pathname}, redirecting to login`);
+		const url = request.nextUrl.clone();
+		url.pathname = "/login";
+		url.searchParams.set("next", pathname);
+		return NextResponse.redirect(url);
 	}
 
-	// Protected routes - require authentication
-	if (!user || error) {
-		console.log(
-			`[Proxy] No valid user for ${pathname}, redirecting to sign-in`,
-		);
+	if (user && pathname === "/login") {
+		// Redirect to dashboard if already logged in
 		const url = request.nextUrl.clone();
-		url.pathname = "/auth/sign-in";
-		if (error) {
-			url.searchParams.set(
-				"message",
-				"Your session has expired. Please sign in again.",
-			);
-		}
+		url.pathname = "/dashboard";
 		return NextResponse.redirect(url);
 	}
 

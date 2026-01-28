@@ -1,21 +1,14 @@
 import { Skeleton } from "@repo/ui/components/skeleton";
-import { Building2 } from "@repo/ui/lib/lucide-react";
 
 export function SidebarSkeleton() {
 	return (
 		<aside className="w-64 bg-white border-r border-[#e5e7eb] flex flex-col h-screen overflow-hidden">
 			{/* Logo Section */}
-			<div className="px-6 pt-6 pb-4 flex items-center gap-3">
-				<div className="size-10 bg-[#dc2626] rounded-full flex items-center justify-center shrink-0">
-					<div className="size-6 text-white">
-						<Building2 />
-					</div>
-				</div>
-				<div className="flex flex-col">
-					<span className="text-[14px] font-semibold text-[#0a0a0a] leading-tight">
-						Iloilo City
-					</span>
-					<span className="text-[12px] text-[#4a5565]">Council</span>
+			<div className="px-5 pt-6 pb-5 flex items-center gap-3">
+				<Skeleton className="size-10 rounded-full shrink-0" />
+				<div className="flex flex-col gap-1.5 w-full">
+					<Skeleton className="h-3.5 w-32" />
+					<Skeleton className="h-3 w-16" />
 				</div>
 			</div>
 
@@ -24,7 +17,7 @@ export function SidebarSkeleton() {
 				<div className="bg-[#f9fafb] rounded-lg p-4">
 					<div className="flex flex-col min-w-0 space-y-2">
 						<Skeleton className="h-4 w-32" />
-						<Skeleton className="h-4 w-20" />
+						<Skeleton className="h-5 w-24 rounded-md" />
 					</div>
 				</div>
 			</div>

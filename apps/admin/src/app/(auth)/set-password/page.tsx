@@ -9,7 +9,15 @@ import {
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
-import { Check, Key, KeyRound, Loader2, X } from "@repo/ui/lib/lucide-react";
+import {
+	Check,
+	Eye,
+	EyeOff,
+	Key,
+	KeyRound,
+	Loader2,
+	X,
+} from "@repo/ui/lib/lucide-react";
 import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -41,6 +49,8 @@ function PasswordRequirement({ met, label }: { met: boolean; label: string }) {
 function SetPasswordForm() {
 	const router = useRouter();
 	const { setSession, fetchProfile } = useAuthStore();
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	const {
 		register,
@@ -177,12 +187,23 @@ function SetPasswordForm() {
 				<div className="relative">
 					<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
 					<Input
-						type="password"
+						type={showPassword ? "text" : "password"}
 						{...register("password")}
 						placeholder="••••••••"
-						className="h-12 pl-11 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
+						className="h-12 pl-11 pr-10 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
 						disabled={isSubmitting}
 					/>
+					<button
+						type="button"
+						onClick={() => setShowPassword(!showPassword)}
+						className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+					>
+						{showPassword ? (
+							<EyeOff className="w-5 h-5" />
+						) : (
+							<Eye className="w-5 h-5" />
+						)}
+					</button>
 				</div>
 				{errors.password && (
 					<p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
@@ -220,12 +241,23 @@ function SetPasswordForm() {
 				<div className="relative">
 					<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
 					<Input
-						type="password"
+						type={showConfirmPassword ? "text" : "password"}
 						{...register("confirmPassword")}
 						placeholder="••••••••"
-						className="h-12 pl-11 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
+						className="h-12 pl-11 pr-10 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
 						disabled={isSubmitting}
 					/>
+					<button
+						type="button"
+						onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+						className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+					>
+						{showConfirmPassword ? (
+							<EyeOff className="w-5 h-5" />
+						) : (
+							<Eye className="w-5 h-5" />
+						)}
+					</button>
 				</div>
 				{errors.confirmPassword && (
 					<p className="mt-1 text-sm text-red-600">

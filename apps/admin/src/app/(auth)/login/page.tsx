@@ -7,6 +7,8 @@ import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
 import {
 	AlertCircle,
+	Eye,
+	EyeOff,
 	Key,
 	Loader2,
 	Lock,
@@ -28,6 +30,7 @@ import { useAuthStore } from "@/stores/auth-store";
 function LoginForm() {
 	const router = useRouter();
 	const { setSession, fetchProfile } = useAuthStore();
+	const [showPassword, setShowPassword] = useState(false);
 
 	const {
 		register,
@@ -62,44 +65,41 @@ function LoginForm() {
 				return;
 			}
 
-			// Step 2: Wait for AuthContext to handle SIGNED_IN event
-			// The AuthContext will automatically fetch profile and update state
-			await new Promise((resolve) => setTimeout(resolve, 500));
+			// Step 2: Set session in store
+			setSession(authData.session);
 
-			// Step 3: Get profile from store (should be set by AuthContext)
-			let profile = useAuthStore.getState().userProfile;
-
-			if (!profile) {
-				// Profile not loaded yet by AuthContext, try fetching manually
-				console.log(
-					"[SignIn] Profile not loaded by AuthContext, fetching manually",
-				);
-				setSession(authData.session);
+			// Step 3: Fetch profile manually for role-based redirect
+			// This avoids waiting for AuthContext subscription
+			try {
 				await fetchProfile();
-				profile = useAuthStore.getState().userProfile;
-			}
+				const profile = useAuthStore.getState().userProfile;
 
-			if (!profile) {
-				toast.error("Failed to load user profile");
-				await supabase.auth.signOut();
-				setSession(null);
-				return;
-			}
+				if (profile) {
+					if (profile.status === "deactivated") {
+						toast.error(
+							"Your account has been deactivated. Please contact an administrator.",
+						);
+						await supabase.auth.signOut();
+						setSession(null);
+						return;
+					}
 
-			// Step 4: Check if user is deactivated
-			if (profile.status === "deactivated") {
-				toast.error(
-					"Your account has been deactivated. Please contact an administrator.",
-				);
-				await supabase.auth.signOut();
-				setSession(null);
-				return;
+					const redirectPath = getRedirectPath(profile.role.name);
+					toast.success("Login successful");
+					router.push(redirectPath);
+					router.refresh();
+				} else {
+					// Fallback if profile fetch fails but auth succeeded
+					toast.success("Login successful");
+					router.push("/dashboard");
+					router.refresh();
+				}
+			} catch (error) {
+				console.error("Profile fetch error:", error);
+				// Fallback to dashboard
+				router.push("/dashboard");
+				router.refresh();
 			}
-
-			// Step 5: Redirect based on role
-			const redirectPath = getRedirectPath(profile.role.name);
-			toast.success("Login successful");
-			router.push(redirectPath);
 		} catch (err) {
 			console.error("Login error:", err);
 			toast.error("An unexpected error occurred");
@@ -134,12 +134,23 @@ function LoginForm() {
 				<div className="relative">
 					<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
 					<Input
-						type="password"
+						type={showPassword ? "text" : "password"}
 						{...register("password")}
 						placeholder="••••••••"
-						className="h-12 pl-11 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
+						className="h-12 pl-11 pr-10 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
 						disabled={isSubmitting}
 					/>
+					<button
+						type="button"
+						onClick={() => setShowPassword(!showPassword)}
+						className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+					>
+						{showPassword ? (
+							<EyeOff className="w-5 h-5" />
+						) : (
+							<Eye className="w-5 h-5" />
+						)}
+					</button>
 				</div>
 				{errors.password && (
 					<p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
@@ -166,7 +177,7 @@ function LoginForm() {
 
 			<div className="text-center">
 				<Link
-					href="/auth/forgot-password"
+					href="/forgot-password"
 					className="text-sm text-[#a60202] hover:text-[#8a0101] hover:underline font-medium"
 				>
 					Forgot your password?

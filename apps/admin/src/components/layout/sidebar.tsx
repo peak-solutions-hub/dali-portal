@@ -1,19 +1,7 @@
 "use client";
 
-import { Button } from "@repo/ui/components/button";
-import {
-	BookUser,
-	CalendarDays,
-	ChevronRight,
-	ClipboardList,
-	FileSearch,
-	LayoutDashboard,
-	Ticket,
-	UserCog,
-	Users,
-} from "@repo/ui/lib/lucide-react";
 import { ROLE_DISPLAY_NAMES } from "@repo/shared";
-import { Building2, ChevronRight } from "@repo/ui/lib/lucide-react";
+import { ChevronRight } from "@repo/ui/lib/lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
