@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import React from "react";
-import { PresenterWindow } from "@/components/session-management/presenter-window";
+import { PresenterWindow } from "@/components/session-management/presenter/presenter-window";
 
 export default function SessionPresenterPage() {
 	const params = useSearchParams();

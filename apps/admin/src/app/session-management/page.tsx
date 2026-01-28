@@ -3,7 +3,6 @@
 import { Button } from "@repo/ui/components/button";
 import { Plus } from "@repo/ui/lib/lucide-react";
 import { useState } from "react";
-import { DesktopOnlyGuard } from "@/components/desktop-only-guard";
 import {
 	AgendaPanel,
 	CreateSessionDialog,
@@ -30,11 +29,7 @@ const DEFAULT_AGENDA_ITEMS = [
 ];
 
 export default function SessionManagement() {
-	return (
-		<DesktopOnlyGuard>
-			<AgendaBuilderPage />
-		</DesktopOnlyGuard>
-	);
+	return <AgendaBuilderPage />;
 }
 
 function AgendaBuilderPage() {

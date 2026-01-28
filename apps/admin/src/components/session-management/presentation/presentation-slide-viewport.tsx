@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionPresentationSlide } from "@repo/shared";
-import { AgendaSlide, CoverSlide } from "./slides";
+import { AgendaSlide, CoverSlide } from "../slides";
 
 export function PresentationSlideViewport({
 	slide,

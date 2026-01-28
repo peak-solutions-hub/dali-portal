@@ -5,8 +5,8 @@ import type {
 	SessionPresentationSlideDocument,
 } from "@repo/shared";
 import { formatSessionDate, formatSessionTime } from "@repo/shared";
-import React, { useEffect, useMemo, useState } from "react";
-import { AgendaSlide, CoverSlide } from "./slides";
+import { useEffect, useMemo, useState } from "react";
+import { AgendaSlide, CoverSlide } from "../slides";
 
 export function PresenterSidePanel({
 	currentSlide,

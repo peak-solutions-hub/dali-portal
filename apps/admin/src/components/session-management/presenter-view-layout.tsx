@@ -1,13 +1,15 @@
 "use client";
 
 import type { SessionPresentationSlide } from "@repo/shared";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DrawingCanvas } from "./drawing-canvas";
-import { PresenterBottomBar } from "./presenter-bottom-bar";
-import { PresenterNavDrawer } from "./presenter-nav-drawer";
-import { PresenterSidePanel } from "./presenter-side-panel";
-import { PresenterSlideViewport } from "./presenter-slide-viewport";
-import { PresenterTopBar } from "./presenter-top-bar";
+import {
+	PresenterBottomBar,
+	PresenterNavDrawer,
+	PresenterSidePanel,
+	PresenterSlideViewport,
+	PresenterTopBar,
+} from "./presenter";
 
 export function PresenterViewLayout({
 	currentSlide,

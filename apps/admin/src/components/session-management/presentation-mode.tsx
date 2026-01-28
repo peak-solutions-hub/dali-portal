@@ -3,13 +3,15 @@
 import type { SessionPresentationSlide } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Pencil } from "@repo/ui/lib/lucide-react";
+import { getSessionTypeLabel } from "@repo/ui/lib/session-ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DesktopOnlyGuard } from "@/components/desktop-only-guard";
 import { DrawingCanvas } from "./drawing-canvas";
-import { PresentationBottomBar } from "./presentation-bottom-bar";
-import { PresentationNavDrawer } from "./presentation-nav-drawer";
-import { PresentationSlideViewport } from "./presentation-slide-viewport";
-import { PresentationTopBar } from "./presentation-top-bar";
+import {
+	PresentationBottomBar,
+	PresentationNavDrawer,
+	PresentationSlideViewport,
+	PresentationTopBar,
+} from "./presentation";
 
 interface PresentationModeProps {
 	sessionNumber: string;
@@ -143,7 +145,7 @@ export function PresentationMode({
 				id: "cover",
 				type: "cover",
 				title: "Sangguniang Panlungsod ng Iloilo",
-				subtitle: `${sessionType} Session #${sessionNumber}`,
+				subtitle: `${getSessionTypeLabel(sessionType)} #${sessionNumber}`,
 			},
 			...agendaItems.map((item, index) => ({
 				id: item.id,
@@ -398,137 +400,132 @@ export function PresentationMode({
 	if (!currentSlide) return null;
 
 	return (
-		<DesktopOnlyGuard>
-			<div className="fixed inset-0 bg-white z-50">
-				{showExitConfirm && (
-					<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100">
-						<div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4">
-							<h3 className="text-xl font-semibold text-gray-900 mb-4">
-								Exit Presentation?
-							</h3>
-							<p className="text-gray-600 mb-6">
-								Are you sure you want to exit presentation mode?
-							</p>
-							<div className="flex gap-3 justify-end">
-								<Button
-									variant="ghost"
-									onClick={() => setShowExitConfirm(false)}
-								>
-									Cancel
-								</Button>
-								<Button
-									variant="default"
-									onClick={handleExitPresentation}
-									className="bg-[#a60202] hover:bg-[#8a0101] text-white"
-								>
-									Exit Presentation
-								</Button>
-							</div>
+		<div className="fixed inset-0 bg-white z-50">
+			{showExitConfirm && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100">
+					<div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4">
+						<h3 className="text-xl font-semibold text-gray-900 mb-4">
+							Exit Presentation?
+						</h3>
+						<p className="text-gray-600 mb-6">
+							Are you sure you want to exit presentation mode?
+						</p>
+						<div className="flex gap-3 justify-end">
+							<Button variant="ghost" onClick={() => setShowExitConfirm(false)}>
+								Cancel
+							</Button>
+							<Button
+								variant="default"
+								onClick={handleExitPresentation}
+								className="bg-[#a60202] hover:bg-[#8a0101] text-white"
+							>
+								Exit Presentation
+							</Button>
 						</div>
 					</div>
-				)}
+				</div>
+			)}
 
-				<PresentationTopBar
-					sessionNumber={sessionNumber}
-					sessionDate={sessionDate}
-					sessionTime={sessionTime}
-					isFullscreen={isFullscreen}
-					onEnterFullscreen={() => void enterFullscreen()}
-					onExitFullscreen={() => void exitFullscreen()}
-					drawingMode={drawingMode}
-					onToggleDrawing={() => {
-						if (drawingMode && drawingController === "presenter") {
-							setDrawingMode(false);
-							setIsEraser(false);
-							setDrawingController(null);
-							postPresentationDrawing(false);
-							return;
-						}
-
-						setDrawingMode((p) => {
-							const next = !p;
-							if (next) setDrawingController("presentation");
-							else setDrawingController(null);
-							postPresentationDrawing(next);
-							return next;
-						});
+			<PresentationTopBar
+				sessionNumber={sessionNumber}
+				sessionDate={sessionDate}
+				sessionTime={sessionTime}
+				isFullscreen={isFullscreen}
+				onEnterFullscreen={() => void enterFullscreen()}
+				onExitFullscreen={() => void exitFullscreen()}
+				drawingMode={drawingMode}
+				onToggleDrawing={() => {
+					if (drawingMode && drawingController === "presenter") {
+						setDrawingMode(false);
 						setIsEraser(false);
-					}}
-					presenterView={presenterView}
-					onTogglePresenter={togglePresenterWindow}
-					onToggleMenu={() => setShowNavMenu(!showNavMenu)}
-					onExit={() => setShowExitConfirm(true)}
-				/>
-
-				<PresentationSlideViewport
-					slide={currentSlide}
-					sessionDate={sessionDate}
-					sessionTime={sessionTime}
-				/>
-
-				{drawingMode && (
-					<DrawingCanvas
-						channelName={drawingChannelName}
-						active={drawingController === "presentation"}
-						isEraser={isEraser}
-						onToggleEraser={() => setIsEraser(!isEraser)}
-						onClear={() => {
-							/* noop */
-						}}
-						onExit={() => {
-							setDrawingMode(false);
-							setIsEraser(false);
-							setDrawingController(null);
-							postPresentationDrawing(false);
-						}}
-						insetTop={48}
-						insetBottom={64}
-					/>
-				)}
-
-				<PresentationBottomBar
-					currentSlideIndex={currentSlideIndex}
-					totalSlides={slides.length}
-					currentSlideTitle={
-						currentSlide.type === "cover" ? "Cover" : currentSlide.title
+						setDrawingController(null);
+						postPresentationDrawing(false);
+						return;
 					}
-					onPrev={goToPrevSlide}
-					onNext={goToNextSlide}
-					onToggleMenu={() => setShowNavMenu(!showNavMenu)}
-					onGoto={goToSlide}
-				/>
 
-				<PresentationNavDrawer
-					open={showNavMenu}
-					onClose={() => setShowNavMenu(false)}
-					slides={slides}
-					currentSlideIndex={currentSlideIndex}
-					onGoto={goToSlide}
-				/>
+					setDrawingMode((p) => {
+						const next = !p;
+						if (next) setDrawingController("presentation");
+						else setDrawingController(null);
+						postPresentationDrawing(next);
+						return next;
+					});
+					setIsEraser(false);
+				}}
+				presenterView={presenterView}
+				onTogglePresenter={togglePresenterWindow}
+				onToggleMenu={() => setShowNavMenu(!showNavMenu)}
+				onExit={() => setShowExitConfirm(true)}
+			/>
 
-				{!showNavMenu && !presenterView && !drawingMode && (
-					<div className="fixed bottom-20 right-6 bg-gray-900/90 text-white text-xs px-3 py-2 rounded-lg">
-						<div className="space-y-1">
-							<div className="font-semibold mb-1">Keyboard Shortcuts:</div>
-							<div>← → Space: Navigate</div>
-							<div>D: Toggle Draw • M: Menu • P: Presenter</div>
-							<div>ESC: Exit Fullscreen</div>
+			<PresentationSlideViewport
+				slide={currentSlide}
+				sessionDate={sessionDate}
+				sessionTime={sessionTime}
+			/>
+
+			{drawingMode && (
+				<DrawingCanvas
+					channelName={drawingChannelName}
+					active={drawingController === "presentation"}
+					isEraser={isEraser}
+					onToggleEraser={() => setIsEraser(!isEraser)}
+					onClear={() => {
+						/* noop */
+					}}
+					onExit={() => {
+						setDrawingMode(false);
+						setIsEraser(false);
+						setDrawingController(null);
+						postPresentationDrawing(false);
+					}}
+					insetTop={48}
+					insetBottom={64}
+				/>
+			)}
+
+			<PresentationBottomBar
+				currentSlideIndex={currentSlideIndex}
+				totalSlides={slides.length}
+				currentSlideTitle={
+					currentSlide.type === "cover" ? "Cover" : currentSlide.title
+				}
+				onPrev={goToPrevSlide}
+				onNext={goToNextSlide}
+				onToggleMenu={() => setShowNavMenu(!showNavMenu)}
+				onGoto={goToSlide}
+			/>
+
+			<PresentationNavDrawer
+				open={showNavMenu}
+				onClose={() => setShowNavMenu(false)}
+				slides={slides}
+				currentSlideIndex={currentSlideIndex}
+				onGoto={goToSlide}
+			/>
+
+			{!showNavMenu && !presenterView && !drawingMode && (
+				<div className="fixed bottom-20 right-6 bg-gray-900/90 text-white text-xs px-3 py-2 rounded-lg">
+					<div className="space-y-1">
+						<div className="font-semibold mb-1">Keyboard Shortcuts:</div>
+						<div>← → Space: Navigate</div>
+						<div>D: Toggle Draw • M: Menu • P: Presenter</div>
+						<div>ESC: Exit Fullscreen</div>
+					</div>
+				</div>
+			)}
+
+			{drawingMode && (
+				<div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-blue-600/90 text-white text-sm px-4 py-2 rounded-lg">
+					<div className="flex items-center gap-3">
+						<Pencil className="h-4 w-4" />
+						<div className="font-semibold">Drawing Mode Active</div>
+						<div className="text-xs opacity-90">
+							Press D to exit • E to toggle eraser
 						</div>
 					</div>
-				)}
-
-				{drawingMode && (
-					<div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-blue-600/90 text-white text-sm px-4 py-2 rounded-lg">
-						<div className="flex items-center gap-3">
-							<Pencil className="h-4 w-4" />
-							<div className="font-semibold">Drawing Mode Active</div>
-							<div className="text-xs opacity-90">
-								Press D to exit • E to toggle eraser
-							</div>
-						</div>
-					</div>
-				)}
-			</div>
-		</DesktopOnlyGuard>
+				</div>
+			)}
+		</div>
 	);
 }

@@ -2,7 +2,7 @@
 
 import type { SessionPresentationSlide } from "@repo/shared";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { PresenterViewLayout } from "./presenter-view-layout";
+import { PresenterViewLayout } from "../presenter-view-layout";
 
 export function PresenterWindow({ sessionId }: { sessionId: string }) {
 	const [currentSlide, setCurrentSlide] =
