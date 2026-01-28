@@ -2,14 +2,23 @@
 
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
+import { Calendar } from "@repo/ui/components/calendar";
 import { Checkbox } from "@repo/ui/components/checkbox";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerFooter,
+	DrawerHeader,
+	DrawerTitle,
+	DrawerTrigger,
+} from "@repo/ui/components/drawer";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@repo/ui/components/popover";
-import { useSessionFilters } from "@repo/ui/hooks";
-import { FilterIcon, XIcon } from "@repo/ui/lib/lucide-react";
+import { useIsMobile, useSessionFilters } from "@repo/ui/hooks";
+import { CalendarIcon, FilterIcon, XIcon } from "@repo/ui/lib/lucide-react";
 import {
 	getSessionStatusBadgeClass,
 	getSessionStatusLabel,
@@ -18,17 +27,453 @@ import {
 	SESSION_STATUSES,
 	SESSION_TYPES,
 } from "@repo/ui/lib/session-ui";
+import { format } from "date-fns";
+import * as React from "react";
 import { useState } from "react";
 
 interface SessionFiltersProps {
 	sortOrder: string;
 }
 
+// Enhanced Calendar Picker with Month/Year Dropdowns
+function EnhancedCalendarPicker({
+	date,
+	onSelect,
+	disabledDate,
+	align = "start",
+}: {
+	date: Date | undefined;
+	onSelect: (date: Date | undefined) => void;
+	disabledDate?: (date: Date) => boolean;
+	align?: "start" | "center" | "end";
+}) {
+	const currentYear = new Date().getFullYear();
+
+	// Ensure min year is not earlier than 1950
+	const minYear = Math.max(currentYear - 100, 1950);
+
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<Button
+					variant="outline"
+					className="w-full h-9 justify-start text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white cursor-pointer"
+				>
+					<CalendarIcon className="mr-2 h-4 w-4" />
+					{date ? format(date, "P") : "Pick a date"}
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto p-0" align={align}>
+				<Calendar
+					mode="single"
+					selected={date}
+					onSelect={onSelect}
+					disabled={disabledDate}
+					captionLayout="dropdown"
+					fromYear={minYear}
+					toYear={currentYear}
+					classNames={{
+						today: "bg-transparent text-yellow-400 font-normal",
+						day_selected:
+							"bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+					}}
+				/>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+// Shared Filter Button
+const FilterButton = React.forwardRef<
+	HTMLButtonElement,
+	{
+		hasActiveFilters: boolean;
+		filterCount: number;
+		onClick?: () => void;
+	}
+>(({ hasActiveFilters, filterCount, onClick, ...props }, ref) => {
+	return (
+		<Button
+			ref={ref}
+			variant="outline"
+			size="sm"
+			className="h-9 gap-2 border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a] hover:bg-[#f9fafb] cursor-pointer"
+			onClick={onClick}
+			{...props}
+		>
+			<FilterIcon className="h-4 w-4" />
+			Filter
+			{hasActiveFilters && (
+				<Badge className="ml-1 h-5 w-5 rounded-full bg-[#a60202] p-0 text-[10px] text-white hover:bg-[#a60202]">
+					{filterCount}
+				</Badge>
+			)}
+		</Button>
+	);
+});
+
+FilterButton.displayName = "FilterButton";
+
+// Mobile Drawer
+function MobileSessionFiltersDrawer({
+	selectedTypes,
+	selectedStatuses,
+	dateFrom,
+	dateTo,
+	onTypeChange,
+	onStatusChange,
+	onDateFromChange,
+	onDateToChange,
+	onApply,
+	onClear,
+	hasActiveFilters,
+	filterCount,
+	isDateRangeInvalid,
+	open,
+	setOpen,
+}: {
+	selectedTypes: string[];
+	selectedStatuses: string[];
+	dateFrom: string;
+	dateTo: string;
+	onTypeChange: (type: string, checked: boolean) => void;
+	onStatusChange: (status: string, checked: boolean) => void;
+	onDateFromChange: (date: string) => void;
+	onDateToChange: (date: string) => void;
+	onApply: () => void;
+	onClear: () => void;
+	hasActiveFilters: boolean;
+	filterCount: number;
+	isDateRangeInvalid: boolean;
+	open: boolean;
+	setOpen: (open: boolean) => void;
+}) {
+	const handleApply = () => {
+		if (isDateRangeInvalid) return;
+		onApply();
+		setOpen(false);
+	};
+
+	const handleClear = () => {
+		onClear();
+		setOpen(false);
+	};
+
+	return (
+		<Drawer open={open} onOpenChange={setOpen}>
+			<DrawerTrigger asChild>
+				<FilterButton
+					hasActiveFilters={hasActiveFilters}
+					filterCount={filterCount}
+				/>
+			</DrawerTrigger>
+			<DrawerContent className="h-[90dvh] flex flex-col">
+				<DrawerHeader className="shrink-0 border-b">
+					<div className="flex items-center justify-between">
+						<div className="w-16" />
+						<DrawerTitle className="text-center flex-1">
+							Filter Sessions
+						</DrawerTitle>
+						<div className="w-16" />
+					</div>
+				</DrawerHeader>
+
+				<div className="flex-1 overflow-y-auto space-y-4 px-4 py-6">
+					{/* Session Type */}
+					<div>
+						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
+							Session Type
+						</h3>
+						<div className="space-y-2">
+							{SESSION_TYPES.map(({ value, label }) => (
+								<label
+									key={value}
+									className="flex cursor-pointer items-center gap-2"
+								>
+									<Checkbox
+										checked={selectedTypes.includes(value)}
+										onCheckedChange={(checked) =>
+											onTypeChange(value, checked as boolean)
+										}
+									/>
+									<span className="text-sm text-[#4a5565]">{label}</span>
+								</label>
+							))}
+						</div>
+					</div>
+
+					{/* Status */}
+					<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
+						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
+							Status
+						</h3>
+						<div className="space-y-2">
+							{SESSION_STATUSES.map(({ value, label }) => (
+								<label
+									key={value}
+									className="flex cursor-pointer items-center gap-2"
+								>
+									<Checkbox
+										checked={selectedStatuses.includes(value)}
+										onCheckedChange={(checked) =>
+											onStatusChange(value, checked as boolean)
+										}
+									/>
+									<span className="text-sm text-[#4a5565]">{label}</span>
+								</label>
+							))}
+						</div>
+					</div>
+
+					{/* Date Range */}
+					<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
+						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
+							Date Range
+						</h3>
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<label className="text-xs text-[#6b7280]">From</label>
+								<EnhancedCalendarPicker
+									date={dateFrom ? new Date(dateFrom) : undefined}
+									onSelect={(date) => {
+										if (date) {
+											onDateFromChange(format(date, "yyyy-MM-dd"));
+										} else {
+											onDateFromChange("");
+										}
+									}}
+								/>
+							</div>
+							<div className="space-y-1.5">
+								<label className="text-xs text-[#6b7280]">To</label>
+								<EnhancedCalendarPicker
+									date={dateTo ? new Date(dateTo) : undefined}
+									onSelect={(date) => {
+										if (date) {
+											onDateToChange(format(date, "yyyy-MM-dd"));
+										} else {
+											onDateToChange("");
+										}
+									}}
+									disabledDate={(date) => {
+										if (!dateFrom) return false;
+										return date < new Date(dateFrom);
+									}}
+								/>
+							</div>
+						</div>
+					</div>
+
+					{/* Date Range Validation Error */}
+					{isDateRangeInvalid && (
+						<div className="rounded-md border border-red-200 bg-red-50 px-3 py-2">
+							<p className="text-sm text-red-600">
+								"To" date must be after "From" date
+							</p>
+						</div>
+					)}
+				</div>
+
+				<DrawerFooter className="border-t">
+					<div className="flex w-full gap-3">
+						<Button variant="outline" onClick={handleClear} className="flex-1">
+							<XIcon className="w-4 h-4 mr-2" />
+							Clear
+						</Button>
+						<Button
+							onClick={handleApply}
+							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
+							disabled={isDateRangeInvalid}
+						>
+							Apply Filters
+						</Button>
+					</div>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
+// Desktop Popover
+function DesktopSessionFilters({
+	selectedTypes,
+	selectedStatuses,
+	dateFrom,
+	dateTo,
+	onTypeChange,
+	onStatusChange,
+	onDateFromChange,
+	onDateToChange,
+	onApply,
+	onClear,
+	hasActiveFilters,
+	filterCount,
+	isDateRangeInvalid,
+	open,
+	setOpen,
+}: {
+	selectedTypes: string[];
+	selectedStatuses: string[];
+	dateFrom: string;
+	dateTo: string;
+	onTypeChange: (type: string, checked: boolean) => void;
+	onStatusChange: (status: string, checked: boolean) => void;
+	onDateFromChange: (date: string) => void;
+	onDateToChange: (date: string) => void;
+	onApply: () => void;
+	onClear: () => void;
+	hasActiveFilters: boolean;
+	filterCount: number;
+	isDateRangeInvalid: boolean;
+	open: boolean;
+	setOpen: (open: boolean) => void;
+}) {
+	const handleApply = () => {
+		if (isDateRangeInvalid) return;
+		onApply();
+		setOpen(false);
+	};
+
+	const handleClear = () => {
+		onClear();
+		setOpen(false);
+	};
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<FilterButton
+					hasActiveFilters={hasActiveFilters}
+					filterCount={filterCount}
+				/>
+			</PopoverTrigger>
+			<PopoverContent className="w-80" align="start">
+				<div className="space-y-4">
+					{/* Session Type */}
+					<div>
+						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
+							Session Type
+						</h3>
+						<div className="space-y-2">
+							{SESSION_TYPES.map(({ value, label }) => (
+								<label
+									key={value}
+									className="flex cursor-pointer items-center gap-2"
+								>
+									<Checkbox
+										checked={selectedTypes.includes(value)}
+										onCheckedChange={(checked) =>
+											onTypeChange(value, checked as boolean)
+										}
+									/>
+									<span className="text-sm text-[#4a5565]">{label}</span>
+								</label>
+							))}
+						</div>
+					</div>
+
+					{/* Status */}
+					<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
+						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
+							Status
+						</h3>
+						<div className="space-y-2">
+							{SESSION_STATUSES.map(({ value, label }) => (
+								<label
+									key={value}
+									className="flex cursor-pointer items-center gap-2"
+								>
+									<Checkbox
+										checked={selectedStatuses.includes(value)}
+										onCheckedChange={(checked) =>
+											onStatusChange(value, checked as boolean)
+										}
+									/>
+									<span className="text-sm text-[#4a5565]">{label}</span>
+								</label>
+							))}
+						</div>
+					</div>
+
+					{/* Date Range */}
+					<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
+						<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
+							Date Range
+						</h3>
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<label className="text-xs text-[#6b7280]">From</label>
+								<EnhancedCalendarPicker
+									date={dateFrom ? new Date(dateFrom) : undefined}
+									onSelect={(date) => {
+										if (date) {
+											onDateFromChange(format(date, "yyyy-MM-dd"));
+										} else {
+											onDateFromChange("");
+										}
+									}}
+								/>
+							</div>
+							<div className="space-y-1.5">
+								<label className="text-xs text-[#6b7280]">To</label>
+								<EnhancedCalendarPicker
+									date={dateTo ? new Date(dateTo) : undefined}
+									onSelect={(date) => {
+										if (date) {
+											onDateToChange(format(date, "yyyy-MM-dd"));
+										} else {
+											onDateToChange("");
+										}
+									}}
+									disabledDate={(date) => {
+										if (!dateFrom) return false;
+										return date < new Date(dateFrom);
+									}}
+								/>
+							</div>
+						</div>
+					</div>
+
+					{/* Date Range Validation Error */}
+					{isDateRangeInvalid && (
+						<div className="rounded-md border border-red-200 bg-red-50 px-3 py-2">
+							<p className="text-sm text-red-600">
+								"To" date must be after "From" date
+							</p>
+						</div>
+					)}
+
+					<div className="flex gap-2 pt-4 border-t mt-4">
+						<Button
+							variant="outline"
+							onClick={handleClear}
+							className="flex-1"
+							size="sm"
+						>
+							<XIcon className="w-4 h-4 mr-2" />
+							Clear
+						</Button>
+						<Button
+							onClick={handleApply}
+							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
+							disabled={isDateRangeInvalid}
+							size="sm"
+						>
+							Apply Filters
+						</Button>
+					</div>
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
 export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 	const { filters, updateFilters, resetFilters, getFilterCount } =
 		useSessionFilters();
+	const isMobile = useIsMobile();
 
-	// Local state for popover and form fields
+	// Local state
 	const [selectedTypes, setSelectedTypes] = useState<string[]>(filters.types);
 	const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
 		filters.statuses,
@@ -57,7 +502,6 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 	};
 
 	const applyFilters = () => {
-		// Don't apply if date range is invalid
 		if (isDateRangeInvalid) return;
 
 		updateFilters({
@@ -67,7 +511,6 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 			dateTo: dateTo || null,
 			sortOrder: sortOrder as "asc" | "desc",
 		});
-		setOpen(false);
 	};
 
 	const clearAllFilters = () => {
@@ -76,7 +519,6 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		setDateFrom("");
 		setDateTo("");
 		resetFilters();
-		setOpen(false);
 	};
 
 	const removeFilter = (
@@ -91,11 +533,10 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 			const statuses = filters.statuses.filter((s) => s !== value);
 			updateFilters({ statuses });
 			setSelectedStatuses(statuses);
-		} else if (filterType === "dateFrom") {
-			updateFilters({ dateFrom: null });
+		} else if (filterType === "dateFrom" || filterType === "dateTo") {
+			// Clear both date filters when any date filter X is clicked
+			updateFilters({ dateFrom: null, dateTo: null });
 			setDateFrom("");
-		} else if (filterType === "dateTo") {
-			updateFilters({ dateTo: null });
 			setDateTo("");
 		}
 	};
@@ -109,135 +550,34 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		});
 	};
 
+	const sharedProps = {
+		selectedTypes,
+		selectedStatuses,
+		dateFrom,
+		dateTo,
+		onTypeChange: handleTypeChange,
+		onStatusChange: handleStatusChange,
+		onDateFromChange: setDateFrom,
+		onDateToChange: setDateTo,
+		onApply: applyFilters,
+		onClear: clearAllFilters,
+		hasActiveFilters,
+		filterCount: getFilterCount(),
+		isDateRangeInvalid,
+		open,
+		setOpen,
+	};
+
 	return (
 		<div className="space-y-3">
 			<div className="flex items-center gap-2">
-				<Popover open={open} onOpenChange={setOpen}>
-					<PopoverTrigger asChild>
-						<Button
-							variant="outline"
-							size="sm"
-							className="h-9 gap-2 border-[rgba(0,0,0,0.1)] bg-white text-[#0a0a0a] hover:bg-[#f9fafb] cursor-pointer"
-						>
-							<FilterIcon className="h-4 w-4" />
-							Filter
-							{hasActiveFilters && (
-								<Badge className="ml-1 h-5 w-5 rounded-full bg-[#a60202] p-0 text-[10px] text-white hover:bg-[#a60202]">
-									{getFilterCount()}
-								</Badge>
-							)}
-						</Button>
-					</PopoverTrigger>
-					<PopoverContent className="w-80" align="start">
-						<div className="space-y-4">
-							<div>
-								<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
-									Session Type
-								</h3>
-								<div className="space-y-2">
-									{SESSION_TYPES.map(({ value, label }) => (
-										<label
-											key={value}
-											className="flex cursor-pointer items-center gap-2"
-										>
-											<Checkbox
-												checked={selectedTypes.includes(value)}
-												onCheckedChange={(checked) =>
-													handleTypeChange(value, checked as boolean)
-												}
-											/>
-											<span className="text-sm text-[#4a5565]">{label}</span>
-										</label>
-									))}
-								</div>
-							</div>
+				{isMobile ? (
+					<MobileSessionFiltersDrawer {...sharedProps} />
+				) : (
+					<DesktopSessionFilters {...sharedProps} />
+				)}
 
-							<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
-								<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
-									Status
-								</h3>
-								<div className="space-y-2">
-									{SESSION_STATUSES.map(({ value, label }) => (
-										<label
-											key={value}
-											className="flex cursor-pointer items-center gap-2"
-										>
-											<Checkbox
-												checked={selectedStatuses.includes(value)}
-												onCheckedChange={(checked) =>
-													handleStatusChange(value, checked as boolean)
-												}
-											/>
-											<span className="text-sm text-[#4a5565]">{label}</span>
-										</label>
-									))}
-								</div>
-							</div>
-
-							<div className="border-t border-[rgba(0,0,0,0.1)] pt-4">
-								<h3 className="mb-3 text-sm font-semibold text-[#0a0a0a]">
-									Date Range
-								</h3>
-								<div className="space-y-3">
-									<div className="space-y-1.5">
-										<label className="text-xs text-[#6b7280]">From</label>
-										<input
-											type="date"
-											value={dateFrom}
-											onChange={(e) => setDateFrom(e.target.value)}
-											className="w-full h-9 px-3 text-sm border border-[rgba(0,0,0,0.1)] rounded-md focus:outline-none focus:ring-1 focus:ring-[#a60202]"
-										/>
-									</div>
-									<div className="space-y-1.5">
-										<label className="text-xs text-[#6b7280]">To</label>
-										<input
-											type="date"
-											value={dateTo}
-											onChange={(e) => setDateTo(e.target.value)}
-											className="w-full h-9 px-3 text-sm border border-[rgba(0,0,0,0.1)] rounded-md focus:outline-none focus:ring-1 focus:ring-[#a60202]"
-										/>
-									</div>
-								</div>
-							</div>
-
-							{/* Date Range Validation Error */}
-							{isDateRangeInvalid && (
-								<div className="rounded-md border border-red-200 bg-red-50 px-3 py-2">
-									<p className="text-sm text-red-600">
-										"To" date must be after "From" date
-									</p>
-								</div>
-							)}
-
-							<div className="flex gap-2 border-t border-[rgba(0,0,0,0.1)] pt-4">
-								<Button
-									onClick={applyFilters}
-									size="sm"
-									className="h-9 flex-1 cursor-pointer bg-[#a60202] text-white hover:bg-[#8a0101]"
-									disabled={isDateRangeInvalid}
-								>
-									Apply Filters
-								</Button>
-								<Button
-									onClick={() => {
-										setSelectedTypes(filters.types);
-										setSelectedStatuses(filters.statuses);
-										setDateFrom(filters.dateFrom || "");
-										setDateTo(filters.dateTo || "");
-										setOpen(false);
-									}}
-									variant="outline"
-									size="sm"
-									className="h-9 cursor-pointer border-[rgba(0,0,0,0.1)]"
-								>
-									Cancel
-								</Button>
-							</div>
-						</div>
-					</PopoverContent>
-				</Popover>
-
-				{hasActiveFilters && (
+				{hasActiveFilters && !isMobile && (
 					<Button
 						onClick={clearAllFilters}
 						variant="outline"

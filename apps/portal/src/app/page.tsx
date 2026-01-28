@@ -34,17 +34,31 @@ export default async function HomePage() {
 
 	// Transform documents and map to the format expected by RecentUpdates
 	const latestDocuments = latestDocsResponse?.documents
-		? transformDocumentListDates(latestDocsResponse.documents).map((doc) => ({
-				id: String(doc.id),
-				number: doc.officialNumber,
-				title: doc.displayTitle || doc.document.title,
-				type:
-					doc.type === "ordinance"
-						? ("Ordinance" as const)
-						: ("Resolution" as const),
-			}))
-		: [];
+		? transformDocumentListDates(latestDocsResponse.documents).map((doc) => {
+				const dateEnacted = new Date(doc.dateEnacted);
+				const month = dateEnacted.toLocaleString("en-US", { month: "short" });
+				const day = String(dateEnacted.getDate());
+				const fullDate = dateEnacted.toLocaleDateString("en-US", {
+					month: "long",
+					day: "numeric",
+					year: "numeric",
+				});
 
+				return {
+					id: String(doc.id),
+					number: doc.officialNumber,
+					title: doc.displayTitle || doc.document.title,
+					type:
+						doc.type === "ordinance"
+							? ("Ordinance" as const)
+							: ("Resolution" as const),
+					month,
+					day,
+					fullDate,
+					author: doc.authorNames?.[0] ?? undefined,
+				};
+			})
+		: [];
 	// Fetch upcoming sessions (next 3)
 	const [sessionsError, sessionsResponse] = await api.sessions.list({
 		dateFrom: new Date(),

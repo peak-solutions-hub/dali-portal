@@ -2,17 +2,31 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 /**
- * Download utilities for handling file downloads with proper memory management
+ * Forces a download by re-wrapping the blob as an octet-stream
  */
+function triggerDownload(blob: Blob, filename: string) {
+	// IMPORTANT: We create a NEW blob and force the type to octet-stream.
+	// This prevents Safari from trying to "view" the PDF and forces a "download".
+	const forcedBlob = new Blob([blob], { type: "application/octet-stream" });
+	const blobUrl = window.URL.createObjectURL(forcedBlob);
 
-/**
- * Download a file from Supabase Storage using the download() method
- * This prevents exposing signed URLs by fetching the file as a blob
- * @param supabase - Supabase client instance
- * @param bucket - Storage bucket name
- * @param path - File path in the bucket
- * @param filename - The desired filename for the download
- */
+	const link = window.document.createElement("a");
+	link.href = blobUrl;
+	link.download = filename;
+
+	// Required for Firefox and some Safari versions
+	link.style.display = "none";
+	window.document.body.appendChild(link);
+
+	link.click();
+
+	// Cleanup
+	setTimeout(() => {
+		window.document.body.removeChild(link);
+		window.URL.revokeObjectURL(blobUrl);
+	}, 200);
+}
+
 export async function downloadFile(
 	supabase: SupabaseClient,
 	bucket: string,
@@ -20,37 +34,34 @@ export async function downloadFile(
 	filename: string,
 ): Promise<void> {
 	try {
-		// Download file as blob from Supabase Storage
 		const { data: blob, error } = await supabase.storage
 			.from(bucket)
 			.download(path);
 
-		if (error) {
-			throw error;
-		}
+		if (error) throw error;
+		if (!blob) throw new Error("No file data received");
 
-		if (!blob) {
-			throw new Error("No file data received");
-		}
-
-		// Create object URL from blob
-		const blobUrl = window.URL.createObjectURL(blob);
-
-		// Create and trigger download link
-		const link = window.document.createElement("a");
-		link.href = blobUrl;
-		link.download = filename;
-		window.document.body.appendChild(link);
-		link.click();
-		window.document.body.removeChild(link);
-
-		// Clean up the blob URL
-		window.URL.revokeObjectURL(blobUrl);
+		triggerDownload(blob, filename);
 	} catch (error) {
 		console.error("Download failed:", error);
-		toast.error("Failed to download file", {
-			description: "Please try again or contact support if the issue persists.",
-		});
+		toast.error("Failed to download file");
+		throw error;
+	}
+}
+
+export async function downloadFileFromUrl(
+	url: string,
+	filename: string,
+): Promise<void> {
+	try {
+		const response = await fetch(url);
+		if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+		const blob = await response.blob();
+		triggerDownload(blob, filename);
+	} catch (error) {
+		console.error("Download failed:", error);
+		toast.error("Failed to download file");
 		throw error;
 	}
 }
