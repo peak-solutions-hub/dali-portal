@@ -104,12 +104,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
 							<span className="text-sm text-[#a60202] font-semibold">
 								{documentNumber}
 							</span>
-							{year && (
-								<span className="inline-flex items-center gap-1 text-xs text-gray-500">
-									<Calendar className="w-3 h-3" aria-hidden="true" />
-									<time dateTime={String(year)}>{year}</time>
-								</span>
-							)}
 						</div>
 
 						{/* Title */}
@@ -125,6 +119,16 @@ export function DocumentCard({ document }: DocumentCardProps) {
 								{documentTitle}
 							</Link>
 						</h3>
+
+						{/* Year */}
+						{year && (
+							<div className="mb-2">
+								<span className="inline-flex items-center gap-1 text-sm text-gray-500">
+									<Calendar className="w-3 h-3" aria-hidden="true" />
+									<time dateTime={String(year)}>{year}</time>
+								</span>
+							</div>
+						)}
 
 						{/* Metadata */}
 						<div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">

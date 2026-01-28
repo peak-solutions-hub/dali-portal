@@ -5,7 +5,6 @@ export const SessionSection = {
 		"national_anthem_and_pledge_of_allegiance",
 	ROLL_CALL: "roll_call",
 	READING_AND_OR_APPROVAL_OF_MINUTES: "reading_and_or_approval_of_minutes",
-	AGENDA: "agenda",
 	FIRST_READING_AND_REFERENCES: "first_reading_and_references",
 	COMMITTEE_REPORT: "committee_report",
 	CALENDAR_OF_BUSINESS: "calendar_of_business",

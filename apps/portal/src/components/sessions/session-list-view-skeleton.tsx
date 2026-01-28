@@ -17,19 +17,20 @@ export function SessionListViewSkeleton({
 				>
 					<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
 						<div className="w-full flex-1 space-y-2">
-							{/* Badges skeleton */}
+							{/* Badges Row - Type + Status + Session Number */}
 							<div className="flex flex-wrap items-center gap-2 sm:gap-3">
-								<Skeleton className="h-5 sm:h-7 w-28 rounded-md" />
-								<Skeleton className="h-5 sm:h-7 w-24 rounded-md" />
-								<Skeleton className="h-4 sm:h-6 w-20" />
+								<Skeleton className="h-6 w-28 rounded-md" /> {/* Type Badge */}
+								<Skeleton className="h-6 w-24 rounded-md" />{" "}
+								{/* Status Badge */}
+								<Skeleton className="h-5 w-20" /> {/* Session Number */}
 							</div>
-							{/* Date skeleton */}
-							<Skeleton className="h-6 w-44 sm:h-7 sm:w-64" />
-							{/* Time skeleton */}
-							<Skeleton className="h-4 w-24 sm:h-5" />
+							{/* Date Title */}
+							<Skeleton className="h-6 sm:h-7 w-56 sm:w-64" />
+							{/* Time */}
+							<Skeleton className="h-4 sm:h-5 w-32" />
 						</div>
-						{/* Button skeleton (full width on mobile, auto on sm+) */}
-						<Skeleton className="h-8 w-full sm:h-9 sm:w-auto sm:min-w-28 rounded-md" />
+						{/* Button (full width on mobile, auto width on sm+) */}
+						<Skeleton className="h-8 w-full sm:h-9 sm:w-28 rounded-md" />
 					</div>
 				</Card>
 			))}
