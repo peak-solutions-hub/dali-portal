@@ -17,46 +17,48 @@ export default function UserManagementPage() {
 	const [roles, setRoles] = useState<Role[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [currentPage, setCurrentPage] = useState(1);
+	const itemsPerPage = 10;
 
 	// Fetch all users and roles once on mount
-	useEffect(() => {
-		async function fetchData() {
-			try {
-				setIsLoading(true);
+	const fetchData = async () => {
+		try {
+			setIsLoading(true);
 
-				// Fetch all users (no search or pagination)
-				const [usersError, usersResult] = await api.users.list({});
+			// Fetch all users (no search or pagination)
+			const [usersError, usersResult] = await api.users.list({});
 
-				if (usersError) {
-					throw usersError;
-				}
-
-				if (usersResult?.users) {
-					setUsers(usersResult.users as unknown as UserWithRole[]);
-				}
-
-				// Fetch roles
-				const [rolesError, rolesResult] = await api.roles.list();
-
-				if (rolesError) {
-					throw rolesError;
-				}
-
-				if (rolesResult?.roles) {
-					setRoles(rolesResult.roles as unknown as Role[]);
-				}
-
-				setError(null);
-			} catch (e) {
-				console.error("Fetch error:", e);
-				setError(
-					`Failed to load data: ${e instanceof Error ? e.message : String(e)}`,
-				);
-			} finally {
-				setIsLoading(false);
+			if (usersError) {
+				throw usersError;
 			}
-		}
 
+			if (usersResult?.users) {
+				setUsers(usersResult.users as unknown as UserWithRole[]);
+			}
+
+			// Fetch roles
+			const [rolesError, rolesResult] = await api.roles.list();
+
+			if (rolesError) {
+				throw rolesError;
+			}
+
+			if (rolesResult?.roles) {
+				setRoles(rolesResult.roles as unknown as Role[]);
+			}
+
+			setError(null);
+		} catch (e) {
+			console.error("Fetch error:", e);
+			setError(
+				`Failed to load data: ${e instanceof Error ? e.message : String(e)}`,
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	useEffect(() => {
 		fetchData();
 	}, []);
 
@@ -67,6 +69,27 @@ export default function UserManagementPage() {
 		const matchesRole = roleFilter === "all" || user.role.name === roleFilter;
 		return matchesSearch && matchesRole;
 	});
+
+	// Pagination calculations
+	const totalUsers = filteredUsers.length;
+	const totalPages = Math.ceil(totalUsers / itemsPerPage);
+	const startIndex = (currentPage - 1) * itemsPerPage;
+	const endIndex = startIndex + itemsPerPage;
+	const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+	const handlePageChange = (page: number) => {
+		setCurrentPage(page);
+	};
+
+	const handleRefresh = () => {
+		// Refetch data
+		fetchData();
+	};
+
+	// Reset page when filters change
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [searchQuery, roleFilter]);
 
 	return (
 		<div className="flex flex-col gap-6 p-6">
@@ -131,7 +154,7 @@ export default function UserManagementPage() {
 						totalCount={users.length}
 					/>
 
-					{filteredUsers.length === 0 ? (
+					{paginatedUsers.length === 0 ? (
 						<Card className="p-8 text-center">
 							<div className="flex flex-col items-center gap-2 text-[#4a5565]">
 								<p className="text-lg font-medium">No users found</p>
@@ -142,7 +165,16 @@ export default function UserManagementPage() {
 						</Card>
 					) : (
 						<Card className="p-0 overflow-hidden">
-							<UsersTable users={filteredUsers} roles={roles} />
+							<UsersTable
+								users={paginatedUsers}
+								roles={roles}
+								onRefresh={handleRefresh}
+								totalUsers={totalUsers}
+								currentPage={currentPage}
+								totalPages={totalPages}
+								onPageChange={handlePageChange}
+								itemsPerPage={itemsPerPage}
+							/>
 						</Card>
 					)}
 				</>

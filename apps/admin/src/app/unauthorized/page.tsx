@@ -11,15 +11,6 @@ import { useRouter } from "next/navigation";
 import { AuthCard } from "@/components/auth";
 import { useAuthStore } from "@/stores/auth-store";
 
-/**
- * Unauthorized page displayed when a user attempts to access
- * a resource they don't have permission to view.
- *
- * This handles 401 Unauthorized errors and provides options to:
- * - Go back to the previous page
- * - Return to dashboard
- * - Sign out and log in with different credentials
- */
 export default function UnauthorizedPage() {
 	const router = useRouter();
 	const { logout, userProfile } = useAuthStore();
@@ -45,14 +36,20 @@ export default function UnauthorizedPage() {
 
 			{/* Description */}
 			<p className="text-center text-gray-600 mb-6">
-				You don&apos;t have permission to access this page.
-				{userProfile?.role?.name && (
-					<span className="block mt-1 text-sm">
-						Your current role:{" "}
-						<span className="font-semibold capitalize">
-							{userProfile.role.name.replace(/_/g, " ")}
-						</span>
-					</span>
+				{userProfile?.status === "deactivated" ? (
+					"Your account has been deactivated. Please contact your system administrator to restore access."
+				) : (
+					<>
+						You don&apos;t have permission to access this page.
+						{userProfile?.role?.name && (
+							<span className="block mt-1 text-sm">
+								Your current role:{" "}
+								<span className="font-semibold capitalize">
+									{userProfile.role.name.replace(/_/g, " ")}
+								</span>
+							</span>
+						)}
+					</>
 				)}
 			</p>
 
@@ -97,17 +94,6 @@ export default function UnauthorizedPage() {
 					Sign Out & Use Different Account
 				</Button>
 			</div>
-
-			{/* Help text */}
-			<p className="text-center text-xs text-gray-500 mt-6">
-				Need help? Contact IT support at{" "}
-				<a
-					href="mailto:support@iloilocity.gov.ph"
-					className="text-[#a60202] hover:underline"
-				>
-					support@iloilocity.gov.ph
-				</a>
-			</p>
 		</AuthCard>
 	);
 }

@@ -51,12 +51,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 		if (error) {
 			console.error("[AuthProvider] Failed to fetch user profile:", error);
+
+			// If the backend indicates the account is deactivated, sign out and redirect
+			const errStatus = (error as { status?: number })?.status;
+			const errMessage = (error as { message?: string })?.message ?? "";
+			if (
+				errStatus === 401 ||
+				errStatus === 403 ||
+				(typeof errMessage === "string" &&
+					errMessage.toLowerCase().includes("deactivated"))
+			) {
+				console.warn(
+					"[AuthProvider] Account deactivated or unauthorized — signing out",
+				);
+				await supabase.auth.signOut();
+				setAuthToken(null);
+				setUserProfile(null);
+				setIsLoading(false);
+				router.push("/unauthorized");
+				return;
+			}
+
 			// Log more details about the error
 			if ("status" in error) {
-				console.error("[AuthProvider] Error status:", error.status);
+				console.error(
+					"[AuthProvider] Error status:",
+					(error as { status?: number }).status,
+				);
 			}
 			if ("message" in error) {
-				console.error("[AuthProvider] Error message:", error.message);
+				console.error(
+					"[AuthProvider] Error message:",
+					(error as { message?: string }).message,
+				);
 			}
 			setUserProfile(null);
 			setIsLoading(false);
@@ -115,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				// Only redirect if not already on auth pages
 				if (!window.location.pathname.startsWith("/auth/")) {
 					router.push(
-						"/auth/sign-in?message=Your session has expired. Please sign in again.",
+						"/login?message=Your session has expired. Please sign in again.",
 					);
 				}
 			}
@@ -130,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		await supabase.auth.signOut();
 		setAuthToken(null);
 		setUserProfile(null);
-		router.push("/auth/sign-in");
+		router.push("/login");
 	};
 
 	const value = {

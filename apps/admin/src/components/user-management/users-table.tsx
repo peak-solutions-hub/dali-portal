@@ -5,10 +5,18 @@ import {
 	formatRoleDisplay,
 	getRoleBadgeStyles,
 	getStatusBadgeStyles,
-	truncateEmail,
 } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
+import {
+	Pagination,
+	PaginationContent,
+	PaginationEllipsis,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
+} from "@repo/ui/components/pagination";
 import {
 	Table,
 	TableBody,
@@ -17,19 +25,38 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Mail, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { api } from "@/lib/api.client";
+import { ActivateUserDialog } from "./activate-user-dialog";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { UpdateUserDialog } from "./update-user-dialog";
 
 interface UsersTableProps {
 	users: UserWithRole[];
 	roles: Role[];
+	onRefresh?: () => void;
+	totalUsers: number;
+	currentPage: number;
+	totalPages: number;
+	onPageChange: (page: number) => void;
+	itemsPerPage: number;
 }
 
-export function UsersTable({ users, roles }: UsersTableProps) {
+export function UsersTable({
+	users,
+	roles,
+	onRefresh,
+	totalUsers,
+	currentPage,
+	totalPages,
+	onPageChange,
+	itemsPerPage,
+}: UsersTableProps) {
 	const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
 	const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+	const [activateDialogOpen, setActivateDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	const [menuOpenUserId, setMenuOpenUserId] = useState<string | null>(null);
@@ -49,141 +76,280 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 		return () => document.removeEventListener("click", onDocClick);
 	}, [menuOpenUserId]);
 
-	const handleActionClick = (user: UserWithRole) => {
+	const handleActionClick = (user: UserWithRole, index: number) => {
 		setSelectedUser(user);
 
 		// Determine if we should show menu above or below
-		if (buttonRef.current) {
-			const rect = buttonRef.current.getBoundingClientRect();
-			const spaceBelow = window.innerHeight - rect.bottom;
-			const spaceAbove = rect.top;
-			const menuHeight = 100; // Approximate height of the menu
-
-			// If not enough space below but enough above, show menu on top
-			if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
-				setMenuPosition("top");
-			} else {
-				setMenuPosition("bottom");
-			}
+		// Show menu on top for last 2 rows to prevent cutoff
+		if (index >= users.length - 2) {
+			setMenuPosition("top");
+		} else {
+			setMenuPosition("bottom");
 		}
 
 		setMenuOpenUserId((prev) => (prev === user.id ? null : user.id));
 	};
 
+	// Calculate pagination display
+	const startItem = totalUsers === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+	const endItem =
+		totalUsers === 0 ? 0 : Math.min(currentPage * itemsPerPage, totalUsers);
+
+	// Calculate which page numbers to show
+	const maxVisiblePages = 5;
+	const halfVisible = Math.floor(maxVisiblePages / 2);
+	let startPage = Math.max(currentPage - halfVisible, 1);
+	const endPage = Math.min(startPage + maxVisiblePages - 1, totalPages);
+
+	if (endPage - startPage + 1 < maxVisiblePages) {
+		startPage = Math.max(endPage - maxVisiblePages + 1, 1);
+	}
+
+	const pageNumbers = Array.from(
+		{ length: endPage - startPage + 1 },
+		(_, i) => startPage + i,
+	);
+
 	return (
 		<>
-			<Table>
-				<TableHeader className="bg-[#f9fafb]">
-					<TableRow className="border-b border-[rgba(0,0,0,0.1)]">
-						<TableHead className="px-6 py-4 text-[#364153] font-medium text-sm">
-							Full Name
-						</TableHead>
-						<TableHead className="px-6 py-4 text-[#364153] font-medium text-sm">
-							Email Address
-						</TableHead>
-						<TableHead className="px-6 py-4 text-[#364153] font-medium text-sm">
-							Role
-						</TableHead>
-						<TableHead className="px-6 py-4 text-[#364153] font-medium text-sm">
-							Status
-						</TableHead>
-						<TableHead className="px-6 py-4 text-[#364153] font-medium text-sm text-right">
-							Actions
-						</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{users.map((user) => (
-						<TableRow
-							key={user.id}
-							className="border-b border-[#e5e7eb] hover:bg-transparent"
-						>
-							<TableCell className="px-6 py-5">
-								<div
-									className="text-base font-medium text-[#101828] truncate max-w-72"
-									title={user.fullName}
-								>
-									{user.fullName}
-								</div>
-							</TableCell>
-							<TableCell className="px-6 py-5">
-								<div
-									className="text-base text-[#4a5565] truncate max-w-62.5"
-									title={user.email}
-								>
-									{truncateEmail(user.email, 15)}
-								</div>
-							</TableCell>
-							<TableCell className="px-6 py-5">
-								<Badge
-									className={`text-xs px-2 py-0.5 rounded-md ${getRoleBadgeStyles()}`}
-								>
-									{formatRoleDisplay(user.role.name)}
-								</Badge>
-							</TableCell>
-							<TableCell className="px-6 py-5">
-								<Badge
-									variant="outline"
-									className={`text-xs px-2 py-0.5 rounded-md border ${getStatusBadgeStyles(user.status)}`}
-								>
-									{user.status === "active"
-										? "Active"
-										: user.status === "invited"
-											? "Invited"
-											: user.status === "deactivated"
-												? "Deactivated"
-												: "Inactive"}
-								</Badge>
-							</TableCell>
-							<TableCell className="px-6 py-5 text-right relative">
-								<div className="inline-flex items-center justify-end relative">
-									<Button
-										ref={buttonRef}
-										variant="ghost"
-										size="icon-sm"
-										onClick={() => handleActionClick(user)}
-										className="rounded-md"
-										aria-haspopup="menu"
-										aria-expanded={menuOpenUserId === user.id}
-									>
-										<MoreHorizontal className="size-4" />
-									</Button>
-									{menuOpenUserId === user.id && (
-										<div
-											ref={menuRef}
-											role="menu"
-											className={`absolute right-0 ${menuPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"} w-40 rounded-md border bg-white shadow-md z-50`}
-										>
-											<button
-												className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center"
-												onClick={() => {
-													setSelectedUser(user);
-													setUpdateDialogOpen(true);
-													setMenuOpenUserId(null);
-												}}
-											>
-												<Pencil className="w-4 h-4 mr-2" />
-												Edit
-											</button>
-											<button
-												className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 flex items-center"
-												onClick={() => {
-													setSelectedUser(user);
-													setDeleteDialogOpen(true);
-													setMenuOpenUserId(null);
-												}}
-											>
-												<Trash2 className="w-4 h-4 mr-2 text-red-600" />
-												Deactivate
-											</button>
-										</div>
-									)}
-								</div>
-							</TableCell>
+			<div>
+				<Table>
+					<TableHeader className="bg-[#f9fafb]">
+						<TableRow className="border-b border-[rgba(0,0,0,0.1)]">
+							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm w-[40%]">
+								User
+							</TableHead>
+							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm w-[25%]">
+								Role
+							</TableHead>
+							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm w-[20%]">
+								Status
+							</TableHead>
+							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm text-right w-[15%]">
+								Actions
+							</TableHead>
 						</TableRow>
-					))}
-				</TableBody>
-			</Table>
+					</TableHeader>
+					<TableBody>
+						{users.map((user, index) => (
+							<TableRow
+								key={user.id}
+								className="border-b border-[#e5e7eb] hover:bg-transparent"
+							>
+								<TableCell className="px-6 py-3">
+									<div className="flex flex-col">
+										<span className="text-sm font-medium text-[#101828]">
+											{user.fullName}
+										</span>
+										<span className="text-sm text-[#6b7280]">{user.email}</span>
+									</div>
+								</TableCell>
+								<TableCell className="px-6 py-3">
+									<Badge
+										className={`text-xs px-2 py-0.5 rounded-md ${getRoleBadgeStyles()}`}
+									>
+										{formatRoleDisplay(user.role.name)}
+									</Badge>
+								</TableCell>
+								<TableCell className="px-6 py-3">
+									<Badge
+										variant="outline"
+										className={`text-xs px-2 py-0.5 rounded-md border ${getStatusBadgeStyles(user.status)}`}
+									>
+										{user.status === "active"
+											? "Active"
+											: user.status === "invited"
+												? "Invited"
+												: user.status === "deactivated"
+													? "Deactivated"
+													: "Inactive"}
+									</Badge>
+								</TableCell>
+								<TableCell className="px-6 py-3 text-right relative">
+									<div className="inline-flex items-center justify-end relative">
+										<Button
+											ref={buttonRef}
+											variant="ghost"
+											size="icon-sm"
+											onClick={() => handleActionClick(user, index)}
+											className="rounded-md"
+											aria-haspopup="menu"
+											aria-expanded={menuOpenUserId === user.id}
+										>
+											<MoreHorizontal className="size-4" />
+										</Button>
+										{menuOpenUserId === user.id && (
+											<div
+												ref={menuRef}
+												role="menu"
+												className={`absolute right-0 ${menuPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"} w-40 rounded-md border bg-white shadow-md z-[100]`}
+											>
+												<button
+													className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center"
+													onClick={() => {
+														setSelectedUser(user);
+														setUpdateDialogOpen(true);
+														setMenuOpenUserId(null);
+													}}
+												>
+													<Pencil className="w-4 h-4 mr-2" />
+													Edit
+												</button>
+
+												{user.status === "invited" && (
+													<button
+														className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-gray-50 flex items-center"
+														onClick={() => {
+															setMenuOpenUserId(null);
+															const promise = api.users.invite({
+																email: user.email,
+																fullName: user.fullName,
+																roleId: user.role.id,
+															});
+
+															toast.promise(promise, {
+																loading: "Sending invitation...",
+																success: "Invitation email sent successfully",
+																error: (err) =>
+																	`Failed to send invitation: ${err.message}`,
+															});
+														}}
+													>
+														<Mail className="w-4 h-4 mr-2 text-blue-600" />
+														Re-invite
+													</button>
+												)}
+
+												{user.status === "deactivated" ? (
+													<button
+														className="w-full text-left px-3 py-2 text-sm text-green-600 hover:bg-gray-50 flex items-center"
+														onClick={() => {
+															setSelectedUser(user);
+															setActivateDialogOpen(true);
+															setMenuOpenUserId(null);
+														}}
+													>
+														<Pencil className="w-4 h-4 mr-2 text-green-600" />
+														Reactivate
+													</button>
+												) : (
+													<button
+														className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 flex items-center"
+														onClick={() => {
+															setSelectedUser(user);
+															setDeleteDialogOpen(true);
+															setMenuOpenUserId(null);
+														}}
+													>
+														<Trash2 className="w-4 h-4 mr-2 text-red-600" />
+														Deactivate
+													</button>
+												)}
+											</div>
+										)}
+									</div>
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+
+				{/* Pagination */}
+				{totalPages > 1 && (
+					<div className="border-t py-4 px-6">
+						<div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+							<span className="text-sm text-gray-700">
+								Showing <span className="font-semibold">{startItem}</span>
+								{endItem > startItem && (
+									<>
+										{" "}
+										- <span className="font-semibold">{endItem}</span>
+									</>
+								)}{" "}
+								of <span className="font-semibold">{totalUsers}</span> users
+							</span>
+
+							<Pagination className="mx-0 w-full sm:w-auto justify-center sm:justify-end">
+								<PaginationContent>
+									<PaginationItem>
+										<PaginationPrevious
+											onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+											className={
+												currentPage === 1
+													? "pointer-events-none opacity-50"
+													: "cursor-pointer"
+											}
+										/>
+									</PaginationItem>
+
+									{startPage > 1 && (
+										<>
+											<PaginationItem>
+												<PaginationLink
+													onClick={() => onPageChange(1)}
+													isActive={currentPage === 1}
+													className="cursor-pointer"
+												>
+													1
+												</PaginationLink>
+											</PaginationItem>
+											{startPage > 2 && (
+												<PaginationItem>
+													<PaginationEllipsis />
+												</PaginationItem>
+											)}
+										</>
+									)}
+
+									{pageNumbers.map((number) => (
+										<PaginationItem key={number}>
+											<PaginationLink
+												onClick={() => onPageChange(number)}
+												isActive={currentPage === number}
+												className="cursor-pointer"
+											>
+												{number}
+											</PaginationLink>
+										</PaginationItem>
+									))}
+
+									{endPage < totalPages && (
+										<>
+											{endPage < totalPages - 1 && (
+												<PaginationItem>
+													<PaginationEllipsis />
+												</PaginationItem>
+											)}
+											<PaginationItem>
+												<PaginationLink
+													onClick={() => onPageChange(totalPages)}
+													isActive={currentPage === totalPages}
+													className="cursor-pointer"
+												>
+													{totalPages}
+												</PaginationLink>
+											</PaginationItem>
+										</>
+									)}
+
+									<PaginationItem>
+										<PaginationNext
+											onClick={() =>
+												onPageChange(Math.min(totalPages, currentPage + 1))
+											}
+											className={
+												currentPage === totalPages
+													? "pointer-events-none opacity-50"
+													: "cursor-pointer"
+											}
+										/>
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
+						</div>
+					</div>
+				)}
+			</div>
 
 			{/* Update User Dialog */}
 			{selectedUser && (
@@ -192,6 +358,7 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 					onOpenChange={setUpdateDialogOpen}
 					user={selectedUser}
 					roles={roles}
+					onRefresh={onRefresh}
 				/>
 			)}
 
@@ -201,6 +368,17 @@ export function UsersTable({ users, roles }: UsersTableProps) {
 					open={deleteDialogOpen}
 					onOpenChange={setDeleteDialogOpen}
 					user={selectedUser}
+					onRefresh={onRefresh}
+				/>
+			)}
+
+			{/* Activate User Dialog */}
+			{selectedUser && (
+				<ActivateUserDialog
+					open={activateDialogOpen}
+					onOpenChange={setActivateDialogOpen}
+					user={selectedUser}
+					onRefresh={onRefresh}
 				/>
 			)}
 		</>

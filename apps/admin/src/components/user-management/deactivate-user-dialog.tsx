@@ -25,12 +25,14 @@ interface DeactivateUserDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	user: UserWithRole | null;
+	onRefresh?: () => void;
 }
 
 export function DeactivateUserDialog({
 	open,
 	onOpenChange,
 	user,
+	onRefresh,
 }: DeactivateUserDialogProps) {
 	const [isDeactivating, setIsDeactivating] = useState(false);
 	const router = useRouter();
@@ -53,9 +55,13 @@ export function DeactivateUserDialog({
 					duration: 3000,
 				});
 				onOpenChange(false);
-				setTimeout(() => {
-					router.refresh();
-				}, 1000);
+				if (onRefresh) {
+					onRefresh();
+				} else {
+					setTimeout(() => {
+						router.refresh();
+					}, 1000);
+				}
 			}
 		} catch (error) {
 			console.error("Error deactivating user:", error);

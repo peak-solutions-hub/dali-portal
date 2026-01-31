@@ -7,6 +7,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
+import { DbService } from "@/app/db/db.service";
 import { ConfigService } from "@/lib/config.service";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 
@@ -38,6 +39,7 @@ export class AuthGuard implements CanActivate {
 	constructor(
 		private readonly reflector: Reflector,
 		private readonly configService: ConfigService,
+		private readonly db: DbService,
 	) {
 		// Create Supabase client for token verification
 		const supabaseUrl = this.configService.getOrThrow("supabase.url") as string;
@@ -85,6 +87,22 @@ export class AuthGuard implements CanActivate {
 
 			if (error || !user) {
 				throw new UnauthorizedException("Invalid or expired token");
+			}
+
+			// Check DB status to prevent deactivated users from authenticating
+			try {
+				const dbUser = await this.db.user.findUnique({
+					where: { id: user.id },
+					select: { status: true },
+				});
+
+				if (dbUser?.status === "deactivated") {
+					throw new UnauthorizedException("User account is deactivated");
+				}
+			} catch (err) {
+				if (err instanceof UnauthorizedException) throw err;
+				console.error("AuthGuard DB check error:", err);
+				throw new UnauthorizedException("Token verification failed");
 			}
 
 			// Attach the Supabase user to the request

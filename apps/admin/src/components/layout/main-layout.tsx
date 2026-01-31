@@ -21,7 +21,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 							<p className="text-sm text-muted-foreground">Loading...</p>
 						</div>
 					</div>
-					<Toaster position="top-right" richColors />
 				</div>
 			</div>
 		);
@@ -33,7 +32,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<LayoutContent>{children}</LayoutContent>
-				<Toaster position="top-right" richColors />
+				<Toaster position="bottom-right" richColors />
 			</div>
 		</div>
 	);

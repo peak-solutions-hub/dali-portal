@@ -42,7 +42,13 @@ export default function AuthConfirmPage() {
 						return;
 					}
 
-					if (data.session) {
+					// Some Supabase clients may not return session in the setSession response.
+					// Ensure a session actually exists by querying the client.
+					const {
+						data: { session: confirmedSession },
+					} = await supabase.auth.getSession();
+
+					if (data.session || confirmedSession) {
 						console.log(`[AuthConfirm] Session established for ${hashType}`);
 
 						// Wait a moment for the session to propagate to auth store
@@ -52,7 +58,11 @@ export default function AuthConfirmPage() {
 						setStatus("success");
 
 						// Clear hash from URL for security
-						window.history.replaceState(null, "", window.location.pathname);
+						window.history.replaceState(
+							null,
+							"",
+							window.location.pathname + window.location.search,
+						);
 
 						// Redirect based on type
 						if (
@@ -60,7 +70,7 @@ export default function AuthConfirmPage() {
 							hashType === "signup" ||
 							hashType === "recovery"
 						) {
-							router.push("/auth/set-password");
+							router.push("/set-password");
 						} else {
 							router.push("/dashboard");
 						}
@@ -107,7 +117,7 @@ export default function AuthConfirmPage() {
 						otpType === "signup" ||
 						otpType === "recovery"
 					) {
-						router.push("/auth/set-password");
+						router.push("/set-password");
 					} else {
 						router.push("/dashboard");
 					}

@@ -149,7 +149,7 @@ export const activateUserContract = oc
 		path: "/users/activate/{id}",
 		summary: "Activate user account",
 		description:
-			"Activate a user account by changing status from 'invited' to 'active'",
+			"Activate a user account by changing status from 'invited' to 'active', or reactivate a deactivated account",
 		tags: ["Users", "Auth"],
 	})
 	.input(ActivateUserSchema)

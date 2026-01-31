@@ -102,6 +102,28 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
 		if (error) {
 			console.error("Failed to fetch user profile:", error);
+
+			// If backend indicates deactivated/forbidden, sign out and redirect to unauthorized page
+			const errStatus = (error as { status?: number })?.status;
+			const errMessage = (error as { message?: string })?.message ?? "";
+			if (
+				errStatus === 401 ||
+				errStatus === 403 ||
+				(typeof errMessage === "string" &&
+					errMessage.toLowerCase().includes("deactivated"))
+			) {
+				try {
+					const supabase = createBrowserClient();
+					await supabase.auth.signOut();
+				} catch (_e) {
+					// ignore
+				}
+				setAuthToken(null);
+				set({ userProfile: null });
+				window.location.href = "/unauthorized";
+				return;
+			}
+
 			set({ userProfile: null });
 			return;
 		}

@@ -11,7 +11,6 @@ const publicRoutes = [
 	"/set-password",
 	"/auth/callback",
 	"/auth/confirm",
-	"/auth/sign-in", // Keep for backward compatibility if needed
 	"/unauthorized",
 ];
 
