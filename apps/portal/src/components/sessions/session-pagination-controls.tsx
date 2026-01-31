@@ -91,7 +91,7 @@ export function SessionPaginationControls({
 	};
 
 	return (
-		<div className="sticky bottom-0 left-0 right-0 xl:sticky xl:top-38.5 xl:bottom-auto z-20 bg-white py-3 px-4 mb-0  flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-t xl:border-t-0 xl:border-b border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.08)] xl:shadow-sm">
+		<div className="sticky bottom-0 left-0 right-0 xl:sticky xl:top-62 xl:bottom-auto z-20 bg-white py-3 px-4 mb-0 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-t xl:border-t-0 xl:border-b border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.08)] xl:shadow-sm">
 			<div className="container mx-auto px-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between w-full">
 				<span className="text-sm text-gray-700" aria-live="polite">
 					Showing <span className="font-semibold">{startItem}</span>
@@ -106,7 +106,7 @@ export function SessionPaginationControls({
 
 				{totalPages > 1 && (
 					<Pagination
-						className="mx-0 w-auto justify-end"
+						className="mx-0 w-full sm:w-auto justify-center sm:justify-end"
 						aria-label="Session list pagination"
 					>
 						<PaginationContent>

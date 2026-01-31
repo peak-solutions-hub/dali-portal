@@ -13,22 +13,23 @@ export function SessionListViewSkeleton({
 			{Array.from({ length: count }, (_, i) => (
 				<Card
 					key={i}
-					className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6"
+					className="rounded-xl border-[0.8px] border-[rgba(0,0,0,0.1)] bg-white p-4 sm:p-6 transition-shadow hover:shadow-lg"
 				>
 					<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
 						<div className="w-full flex-1 space-y-2">
-							{/* Badges skeleton */}
+							{/* Badges Row - Type + Status + Session Number */}
 							<div className="flex flex-wrap items-center gap-2 sm:gap-3">
-								<Skeleton className="h-5 w-28 rounded-md" />
-								<Skeleton className="h-5 w-24 rounded-md" />
-								<Skeleton className="h-4 w-20" />
+								<Skeleton className="h-6 w-28 rounded-md" /> {/* Type Badge */}
+								<Skeleton className="h-6 w-24 rounded-md" />{" "}
+								{/* Status Badge */}
+								<Skeleton className="h-5 w-20" /> {/* Session Number */}
 							</div>
-							{/* Date skeleton */}
-							<Skeleton className="h-6 w-64 sm:h-7" />
-							{/* Time skeleton */}
-							<Skeleton className="h-4 w-24 sm:h-5" />
+							{/* Date Title */}
+							<Skeleton className="h-6 sm:h-7 w-56 sm:w-64" />
+							{/* Time */}
+							<Skeleton className="h-4 sm:h-5 w-32" />
 						</div>
-						{/* Button skeleton */}
+						{/* Button (full width on mobile, auto width on sm+) */}
 						<Skeleton className="h-8 w-full sm:h-9 sm:w-28 rounded-md" />
 					</div>
 				</Card>

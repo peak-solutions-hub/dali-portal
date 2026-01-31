@@ -222,9 +222,9 @@ async function SessionContent({
 
 				{/* Desktop: Sticky Group (Filters + Sort + Pagination) */}
 				<div
-					className={`hidden lg:block lg:sticky lg:top-0 lg:z-30 ${view !== "calendar" ? "lg:pb-4" : ""}`}
+					className={`hidden lg:block lg:sticky lg:top-20 lg:z-30 ${view !== "calendar" ? "lg:pb-4" : ""}`}
 				>
-					<div className="flex flex-col gap-4 lg:bg-gray-50 lg:pt-4">
+					<div className="flex flex-col gap-4 lg:bg-gray-50 lg:pt-4 lg:pb-2">
 						<div className="flex items-start justify-between gap-4">
 							{/* Left Group: Sort & Filters */}
 							<div className="flex items-start gap-4 flex-1">
@@ -288,7 +288,7 @@ async function SessionContent({
 				</div>
 
 				{/* Mobile: Sticky Group (Filters + Sort + Toggle) */}
-				<div className="lg:hidden sticky top-0 z-30 bg-gray-50 pb-4 pt-4">
+				<div className="lg:hidden sticky top-18 sm:top-20 z-30 bg-gray-50 pb-4 pt-4">
 					<div className="flex flex-col gap-4">
 						<div className="flex flex-col gap-3">
 							{/* Sort and Toggle Row */}
@@ -347,7 +347,7 @@ async function SessionContent({
 								/>
 
 								{/* Mobile Pagination - Sticky bottom */}
-								{sessions.length > 0 && (
+								{sessions.length > 0 && pagination.totalPages > 1 && (
 									<div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
 										<SessionPaginationControls
 											pagination={pagination}

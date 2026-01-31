@@ -130,8 +130,8 @@ export default async function LegislativeDocumentsPage({
 	};
 
 	return (
-		<div className="min-h-screen bg-gray-50">
-			<div className="container mx-auto px-6 py-8 max-w-7xl">
+		<div className="min-h-screen bg-gray-50 flex flex-col">
+			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4 grow">
 				{/* Page Header */}
 				<div className="mb-6">
 					<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
@@ -142,30 +142,52 @@ export default async function LegislativeDocumentsPage({
 					</p>
 				</div>
 
-				<SearchFilterBar availableYears={availableYears} />
-
-				{documents.length > 0 && (
-					<PaginationControls
-						pagination={pagination}
-						currentFilters={currentFilters}
-					/>
-				)}
-
-				{documents.length > 0 ? (
-					<div className="space-y-3">
-						{documents.map((document) => (
-							<DocumentCard key={document.id} document={document} />
-						))}
+				{/* Desktop: Sticky Header with Search & Pagination */}
+				<div className="hidden lg:block sticky top-20 z-30 bg-gray-50 pt-4 pb-2">
+					<div className="space-y-4">
+						<SearchFilterBar availableYears={availableYears} />
+						{documents.length > 0 && (
+							<PaginationControls
+								pagination={pagination}
+								currentFilters={currentFilters}
+							/>
+						)}
 					</div>
-				) : (
-					<Card className="p-12">
-						<div className="text-center text-gray-500">
-							<p className="text-lg mb-2">No Documents Found</p>
-							<p className="text-sm">
-								Try adjusting your filters or search terms
-							</p>
+				</div>
+
+				{/* Mobile: Sticky Header with Search Only */}
+				<div className="lg:hidden sticky top-16 sm:top-20 z-30 bg-gray-50 pt-4 pb-2">
+					<SearchFilterBar availableYears={availableYears} />
+				</div>
+
+				{/* Content Area with bottom padding for mobile sticky pagination */}
+				<div className="pt-4 pb-24 lg:pb-4">
+					{documents.length > 0 ? (
+						<div className="space-y-3">
+							{documents.map((document) => (
+								<DocumentCard key={document.id} document={document} />
+							))}
 						</div>
-					</Card>
+					) : (
+						<Card className="p-12">
+							<div className="text-center text-gray-500">
+								<p className="text-lg mb-2">No Documents Found</p>
+								<p className="text-sm">
+									Try adjusting your filters or search terms
+								</p>
+							</div>
+						</Card>
+					)}
+				</div>
+
+				{/* Mobile Sticky Pagination - Bottom */}
+				{documents.length > 0 && pagination.totalPages > 1 && (
+					<div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 p-4 shadow-lg">
+						<PaginationControls
+							pagination={pagination}
+							currentFilters={currentFilters}
+						/>
+					</div>
 				)}
 			</div>
 		</div>

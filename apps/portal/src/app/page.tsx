@@ -1,6 +1,15 @@
 import { isDefinedError } from "@orpc/client";
-import { transformDocumentListDates } from "@repo/shared";
-import { HeroSection, QuickActions, RecentUpdates } from "@/components/home";
+import {
+	formatSessionDate,
+	transformDocumentListDates,
+	transformSessionListDates,
+} from "@repo/shared";
+import {
+	AboutSection,
+	HeroSection,
+	QuickActions,
+	RecentUpdates,
+} from "@/components/home";
 import { api } from "@/lib/api.client";
 
 export default async function HomePage() {
@@ -25,50 +34,70 @@ export default async function HomePage() {
 
 	// Transform documents and map to the format expected by RecentUpdates
 	const latestDocuments = latestDocsResponse?.documents
-		? transformDocumentListDates(latestDocsResponse.documents).map((doc) => ({
-				id: String(doc.id),
-				number: doc.officialNumber,
-				title: doc.displayTitle || doc.document.title,
-				type:
-					doc.type === "ordinance"
-						? ("Ordinance" as const)
-						: ("Resolution" as const),
-			}))
-		: [];
+		? transformDocumentListDates(latestDocsResponse.documents).map((doc) => {
+				const dateEnacted = new Date(doc.dateEnacted);
+				const month = dateEnacted.toLocaleString("en-US", { month: "short" });
+				const day = String(dateEnacted.getDate());
+				const fullDate = dateEnacted.toLocaleDateString("en-US", {
+					month: "long",
+					day: "numeric",
+					year: "numeric",
+				});
 
-	// TODO: Replace with actual session data from API when sessions feature is implemented
-	const upcomingSessions = [
-		{
-			id: "1",
-			type: "Regular",
-			sessionNumber: "45",
-			date: "2026-12-23",
-			month: "Dec",
-			day: "23",
-			weekday: "Monday",
-			fullDate: "Monday, December 23, 2026",
-		},
-		{
-			id: "2",
-			type: "Special",
-			sessionNumber: "46",
-			date: "2026-12-27",
-			month: "Dec",
-			day: "27",
-			weekday: "Friday",
-			fullDate: "Friday, December 27, 2026",
-		},
-		{
-			id: "3",
-			type: "Regular",
-			sessionNumber: "47",
-			date: "2026-01-06",
-			month: "Jan",
-			day: "06",
-			weekday: "Monday",
-			fullDate: "Monday, January 6, 2026",
-		},
-	];
+				return {
+					id: String(doc.id),
+					number: doc.officialNumber,
+					title: doc.displayTitle || doc.document.title,
+					type:
+						doc.type === "ordinance"
+							? ("Ordinance" as const)
+							: ("Resolution" as const),
+					month,
+					day,
+					fullDate,
+					author: doc.authorNames?.[0] ?? undefined,
+				};
+			})
+		: [];
+	// Fetch upcoming sessions (next 3)
+	const [sessionsError, sessionsResponse] = await api.sessions.list({
+		dateFrom: new Date(),
+		sortBy: "date",
+		sortDirection: "asc",
+		limit: 3,
+		page: 1,
+	});
+	console.log(sessionsResponse);
+	if (sessionsError && isDefinedError(sessionsError)) {
+		console.error("Failed to fetch upcoming sessions:", sessionsError.message);
+	}
+
+	const upcomingSessions = sessionsResponse?.sessions
+		? transformSessionListDates(sessionsResponse.sessions)
+				.slice(0, 3)
+				.map((s) => {
+					const scheduleDate = new Date(s.scheduleDate);
+					const month = scheduleDate.toLocaleString("en-US", {
+						month: "short",
+					});
+					const day = String(scheduleDate.getDate()).padStart(2, "0");
+					const weekday = scheduleDate.toLocaleString("en-US", {
+						weekday: "long",
+					});
+					const fullDate = formatSessionDate(scheduleDate);
+
+					return {
+						id: s.id,
+						type: s.type,
+						sessionNumber: String(s.sessionNumber),
+						date: String(scheduleDate.toISOString().split("T")[0]),
+						month,
+						day,
+						weekday,
+						fullDate,
+					};
+				})
+		: [];
 
 	return (
 		<div className="min-h-screen bg-white">
@@ -77,6 +106,7 @@ export default async function HomePage() {
 				approvedResolutions={approvedResolutions}
 			/>
 			<QuickActions />
+			<AboutSection councilorCount={12} />
 			<RecentUpdates documents={latestDocuments} sessions={upcomingSessions} />
 		</div>
 	);

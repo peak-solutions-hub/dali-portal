@@ -47,18 +47,6 @@ export const SESSION_MIN_ITEMS_PER_PAGE = 1;
 export const SESSION_AGENDA_BUCKET = "session-agendas";
 
 /**
- * Supabase storage bucket name for session minutes files
- * Used by getSessionMinutesUrl in lib/sessions.ts
- */
-export const SESSION_MINUTES_BUCKET = "session-minutes";
-
-/**
- * Supabase storage bucket name for session journal files
- * Used by getSessionJournalUrl in lib/sessions.ts
- */
-export const SESSION_JOURNAL_BUCKET = "session-journals";
-
-/**
  * Supabase storage bucket name for session agenda item attachments
  * Used for agenda item attachment downloads
  */

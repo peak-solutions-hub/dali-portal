@@ -1,12 +1,19 @@
 import { Card } from "@repo/ui/components/card";
 import { Calendar, FileText } from "@repo/ui/lib/lucide-react";
+import { format } from "date-fns";
 import Link from "next/link";
+import { getSessionTypeBadgeClass } from "@/lib/session-ui";
 
 interface Document {
 	id: string;
 	number: string;
 	title: string;
 	type: "Ordinance" | "Resolution";
+	month?: string;
+	day?: string;
+	fullDate?: string;
+	author?: string;
+	classification?: string;
 }
 
 interface Session {
@@ -42,35 +49,86 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 										/>
 									</div>
 									<h2 className="text-xl font-semibold text-gray-900 font-playfair-display">
-										Latest Ordinances & Resolutions
+										Latest Ordinances &amp; Resolutions
 									</h2>
 								</div>
 							</div>
 
 							<div className="space-y-3">
 								{documents.length > 0 ? (
-									documents.map((doc) => (
-										<Link
-											key={doc.id}
-											href={`/legislative-documents/${doc.id}`}
-											className="block p-4 rounded-lg hover:bg-gray-50 border border-gray-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#a60202] focus:ring-offset-2"
-											aria-label={`View ${doc.type.toLowerCase()}: ${
-												doc.number
-											} - ${doc.title}`}
-										>
-											<div className="flex items-start gap-3">
-												<div className="shrink-0 w-2 h-2 rounded-full bg-[#a60202] mt-2" />
-												<div className="flex-1 min-w-0">
-													<p className="text-sm font-semibold text-[#a60202] mb-1">
-														{doc.number}
-													</p>
-													<p className="text-sm text-gray-700 line-clamp-2">
-														{doc.title}
-													</p>
+									documents.map((doc) => {
+										const derivedFullDate = doc.fullDate
+											? format(new Date(doc.fullDate), "MMMM d, yyyy")
+											: doc.month && doc.day
+												? `${doc.month} ${doc.day}`
+												: "";
+
+										return (
+											<Link
+												title={`${doc.number} - ${doc.title}`}
+												key={doc.id}
+												href={`/legislative-documents/${doc.id}`}
+												className="block p-4 rounded-lg hover:bg-gray-50 border border-gray-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#a60202] focus:ring-offset-2"
+												aria-label={`View ${doc.type.toLowerCase()}: ${doc.number} - ${doc.title}`}
+											>
+												<div className="flex items-start gap-3">
+													<div className="flex-1 min-w-0">
+														<div className="flex items-center gap-2 mb-1">
+															<p className="text-xs font-medium rounded bg-[#a60202] px-2.5 py-1 text-white">
+																{doc.number}
+															</p>
+															<span
+																className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${
+																	doc.type.toLowerCase() === "ordinance"
+																		? "bg-blue-100 text-blue-800"
+																		: doc.type.toLowerCase() === "resolution"
+																			? "bg-green-100 text-green-800"
+																			: "bg-gray-100 text-gray-800"
+																}`}
+															>
+																<FileText
+																	className="w-3 h-3"
+																	aria-hidden="true"
+																/>
+																{doc.type}
+															</span>
+														</div>
+														<p className="text-sm font-semibold text-gray-700 line-clamp-2">
+															{doc.title}
+														</p>
+														<div className="text-xs text-gray-500 mt-1">
+															{doc.author && (
+																<span>
+																	Author:{" "}
+																	<span className="font-medium text-gray-700">
+																		{doc.author}
+																	</span>
+																</span>
+															)}
+															{doc.classification && (
+																<span className="ml-3">
+																	Classification:{" "}
+																	<span className="font-medium text-gray-700">
+																		{doc.classification}
+																	</span>
+																</span>
+															)}
+															{derivedFullDate && (
+																<div className="mt-1">
+																	<span className="text-xs text-gray-500">
+																		Date Enacted:{" "}
+																	</span>
+																	<span className="ml-1 font-medium text-gray-700 text-xs">
+																		{derivedFullDate}
+																	</span>
+																</div>
+															)}
+														</div>
+													</div>
 												</div>
-											</div>
-										</Link>
-									))
+											</Link>
+										);
+									})
 								) : (
 									<p className="text-sm text-gray-500 py-8 text-center">
 										No documents available
@@ -108,7 +166,7 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 								</div>
 							</div>
 
-							<div className="space-y-3">
+							<div className="space-y-6">
 								{sessions.length > 0 ? (
 									sessions.map((session) => (
 										<Link
@@ -129,9 +187,19 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 													</div>
 												</div>
 												<div className="flex-1 min-w-0">
-													<p className="text-sm font-semibold text-gray-900 mb-1">
-														{session.type} Session #{session.sessionNumber}
-													</p>
+													<div className="flex items-center gap-2 mb-1">
+														<span
+															className={`inline-flex h-6 items-center rounded-md px-2 text-xs font-medium text-white ${getSessionTypeBadgeClass((session.type || "").toLowerCase())}`}
+														>
+															{String(session.type || "")
+																.charAt(0)
+																.toUpperCase() +
+																String(session.type || "").slice(1)}
+														</span>
+														<p className="text-sm font-semibold text-gray-900">
+															Session #{session.sessionNumber}
+														</p>
+													</div>
 													<p className="text-sm text-gray-600 mb-1">
 														{session.fullDate}
 													</p>

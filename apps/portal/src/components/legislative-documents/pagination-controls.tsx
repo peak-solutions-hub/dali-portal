@@ -43,6 +43,8 @@ export function PaginationControls({
 
 	// Calculate showing range (handle empty state)
 	const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+	const endItem =
+		totalItems === 0 ? 0 : Math.min(currentPage * itemsPerPage, totalItems);
 
 	if (totalPages <= 1) {
 		return null; // Don't show pagination if only one page or no items
@@ -81,16 +83,25 @@ export function PaginationControls({
 	};
 
 	return (
-		<div className="sticky top-38.5 z-20 bg-white py-3 px-4 mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-gray-200 shadow-sm">
-			<div className="container mx-auto px-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between w-full">
-				<span className="text-sm text-gray-700" aria-live="polite">
-					Showing <span className="font-semibold">{startItem}</span> of{" "}
-					<span className="font-semibold">{totalItems}</span> results
+		<div className="sticky bottom-0 left-0 right-0 xl:sticky xl:top-38.5 xl:bottom-auto z-20 bg-white py-3 px-4 mb-0  flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-t xl:border-t-0 xl:border-b border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.08)] xl:shadow-sm">
+			<div className="container mx-auto px-4 flex flex-col sm:flex-row gap-3 items-center sm:items-center justify-between w-full">
+				<span
+					className="text-sm text-gray-700 text-center sm:text-left"
+					aria-live="polite"
+				>
+					Showing <span className="font-semibold">{startItem}</span>
+					{endItem > startItem && (
+						<>
+							{" "}
+							- <span className="font-semibold">{endItem}</span>
+						</>
+					)}{" "}
+					of <span className="font-semibold">{totalItems}</span> documents
 				</span>
 
 				{totalPages > 1 && (
 					<Pagination
-						className="mx-0 w-auto justify-end"
+						className="mx-0 w-full sm:w-auto justify-center sm:justify-end"
 						aria-label="Document list pagination"
 					>
 						<PaginationContent>
