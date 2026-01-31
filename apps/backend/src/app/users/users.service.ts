@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ORPCError } from "@orpc/nest";
 import type {
+	ActivateUserInput,
 	GetUserListInput,
 	InviteUserInput,
 	InviteUserResponse,
@@ -107,27 +108,44 @@ export class UsersService {
 		return user as UserWithRole;
 	}
 
-	async updateUser(input: UpdateUserInput): Promise<UserWithRole> {
+	async updateUser(
+		input: UpdateUserInput,
+		currentUserId?: string,
+	): Promise<UserWithRole> {
 		const { id, ...updateData } = input;
 
 		// Check if user exists
 		const existingUser = await this.db.user.findUnique({
 			where: { id },
+			include: { role: true },
 		});
 
 		if (!existingUser) {
 			throw new ORPCError("NOT_FOUND", { message: "User not found" });
 		}
 
-		// If updating roleId, validate role exists
+		// If updating roleId, validate role exists and check for self-demotion
 		if (updateData.roleId) {
-			const role = await this.db.role.findUnique({
+			const newRole = await this.db.role.findUnique({
 				where: { id: updateData.roleId },
 			});
 
-			if (!role) {
+			if (!newRole) {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "Invalid role specified",
+				});
+			}
+
+			// Prevent IT_ADMIN from demoting themselves
+			if (
+				currentUserId &&
+				currentUserId === id &&
+				existingUser.role.name === "it_admin" &&
+				newRole.name !== "it_admin"
+			) {
+				throw new ORPCError("FORBIDDEN", {
+					message:
+						"You cannot change your own IT Admin role. Ask another IT Admin to update your role.",
 				});
 			}
 		}
@@ -155,7 +173,8 @@ export class UsersService {
 			throw new ORPCError("NOT_FOUND", { message: "User not found" });
 		}
 
-		if (existingUser.status === "active" || existingUser.status === "invited") {
+		// If the user isn't already deactivated, mark them as deactivated in the DB.
+		if (existingUser.status !== "deactivated") {
 			const deactivatedUser = await this.db.user.update({
 				where: { id },
 				data: {
@@ -170,6 +189,40 @@ export class UsersService {
 		}
 
 		return existingUser as UserWithRole;
+	}
+
+	async activateUser(input: ActivateUserInput): Promise<UserWithRole> {
+		const { id } = input;
+
+		const existingUser = await this.db.user.findUnique({
+			where: { id },
+			include: {
+				role: true,
+			},
+		});
+
+		if (!existingUser) {
+			throw new ORPCError("NOT_FOUND", { message: "User not found" });
+		}
+
+		// Only activate if status is 'invited' or 'deactivated'
+		if (existingUser.status === "active") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "User is already active or cannot be activated",
+			});
+		}
+
+		const activatedUser = await this.db.user.update({
+			where: { id },
+			data: {
+				status: "active",
+			},
+			include: {
+				role: true,
+			},
+		});
+
+		return activatedUser as UserWithRole;
 	}
 
 	async inviteUser(input: InviteUserInput): Promise<InviteUserResponse> {
@@ -189,16 +242,29 @@ export class UsersService {
 			where: { email },
 		});
 
-		if (existingUser) {
+		// If user exists and is DEACTIVATED, suggest reactivation instead
+		if (existingUser && existingUser.status === "deactivated") {
 			throw new ORPCError("BAD_REQUEST", {
-				message: "User with this email already exists",
+				message:
+					"This email belongs to a deactivated user. Please reactivate their account instead.",
 			});
 		}
 
+		// If user exists and is ACTIVE, fail
+		if (existingUser && existingUser.status === "active") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "User with this email already exists and is active",
+			});
+		}
+
+		// If user exists and is INVITED, Proceed to re-send invite logic (fall through)
+		// If user does not exist, Proceed to create logic
+
 		const adminUrl = this.configService.get("adminUrl") as string;
-		const redirectTo = `${adminUrl}/auth/set-password`;
+		const redirectTo = `${adminUrl}/auth/confirm`;
 		const supabase = this.supabaseAdmin.getClient();
 
+		// Supabase Invite (Idempotent-ish: resends email if exists)
 		const { data: authData, error: authError } =
 			await supabase.auth.admin.inviteUserByEmail(email, {
 				redirectTo,
@@ -210,8 +276,61 @@ export class UsersService {
 
 		if (authError) {
 			console.error("Supabase Auth Error:", authError);
+
+			// If the user already exists in Supabase Auth, inviteUserByEmail returns
+			// an `email_exists` error. In that case we should not fail hard — instead
+			// we send a password reset (recovery) email so the user can set their
+			// password / complete account setup. If we already have a DB record for
+			// this email, update its status to `invited`.
+			const isEmailExists =
+				(authError as { code?: string })?.code === "email_exists" ||
+				(authError as { status?: number })?.status === 422;
+
+			if (isEmailExists) {
+				try {
+					// Send password reset (recovery) email which lets the user set a password.
+					const { error: resetError } =
+						await supabase.auth.resetPasswordForEmail(email, {
+							redirectTo,
+						});
+
+					if (resetError) {
+						console.error("Failed to send password reset email:", resetError);
+						throw new ORPCError("INTERNAL_SERVER_ERROR", {
+							message: `Failed to send password reset email: ${resetError.message}`,
+						});
+					}
+
+					// If we already have a DB user, update their status to `invited` and apply updates
+					if (existingUser) {
+						await this.db.user.update({
+							where: { id: existingUser.id },
+							data: {
+								fullName,
+								roleId,
+								status: "invited",
+							},
+						});
+					}
+
+					return {
+						success: true,
+						message:
+							"User already exists in Auth; password reset (recovery) email sent.",
+						userId: existingUser?.id ?? null,
+					} as InviteUserResponse;
+				} catch (e: unknown) {
+					console.error("Reinvite handling failed:", e);
+					const errorMessage = e instanceof Error ? e.message : String(e);
+					throw new ORPCError("INTERNAL_SERVER_ERROR", {
+						message: `Failed to process existing user: ${errorMessage}`,
+					});
+				}
+			}
+
+			// Fallback: other auth errors should still fail loudly
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: `Failed to create user in Supabase: ${authError.message}`,
+				message: `Failed to create/invite user in Supabase: ${authError.message}`,
 			});
 		}
 
@@ -221,26 +340,44 @@ export class UsersService {
 			});
 		}
 
-		try {
-			const newUser = await this.db.user.create({
+		// If user didn't exist in our DB, create them
+		if (!existingUser) {
+			try {
+				const newUser = await this.db.user.create({
+					data: {
+						id: authData.user.id,
+						roleId: roleId,
+						fullName: fullName,
+						email: email,
+						status: "invited",
+					},
+					include: {
+						role: true,
+					},
+				});
+
+				console.log("✓ User created in database:", newUser.id);
+			} catch (dbError) {
+				console.error("Database Error:", dbError);
+				// If DB create fails, try to cleanup auth user (only if it was just created)
+				// Hard to know if auth user was just created or existed, but cleaner to leave auth than have inconsistent state?
+				// Actually, better to delete auth user if we can't create DB record to keep consistency
+				await supabase.auth.admin.deleteUser(authData.user.id);
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to create user in database",
+				});
+			}
+		} else {
+			// User existed (e.g. re-invite), update their info if needed
+			// Update name/role in case they changed in the re-invite
+			await this.db.user.update({
+				where: { id: existingUser.id },
 				data: {
-					id: authData.user.id,
-					roleId: roleId,
-					fullName: fullName,
-					email: email,
+					fullName,
+					roleId,
+					// Ensure status is invited
 					status: "invited",
 				},
-				include: {
-					role: true,
-				},
-			});
-
-			console.log("✓ User created in database:", newUser.id);
-		} catch (dbError) {
-			console.error("Database Error:", dbError);
-			await supabase.auth.admin.deleteUser(authData.user.id);
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Failed to create user in database",
 			});
 		}
 
@@ -249,8 +386,8 @@ export class UsersService {
 		return {
 			success: true,
 			message: emailSent
-				? "User invited successfully. Invitation email sent."
-				: "User created but email NOT sent. Check Supabase email settings.",
+				? "Invitation email sent successfully."
+				: "User processed but email might not have been sent.",
 			userId: authData.user.id,
 		};
 	}

@@ -1,4 +1,5 @@
 export * from "./document-rules";
+export * from "./role-permissions";
 export * from "./session-rules";
 
 export const TEXT_LIMITS = {

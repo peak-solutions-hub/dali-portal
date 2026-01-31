@@ -30,6 +30,7 @@ interface UpdateUserDialogProps {
 	onOpenChange: (open: boolean) => void;
 	user: UserWithRole | null;
 	roles: Role[];
+	onRefresh?: () => void;
 }
 
 export function UpdateUserDialog({
@@ -37,6 +38,7 @@ export function UpdateUserDialog({
 	onOpenChange,
 	user,
 	roles,
+	onRefresh,
 }: UpdateUserDialogProps) {
 	const [fullName, setFullName] = useState(user?.fullName || "");
 	const [roleId, setRoleId] = useState(user?.roleId || "");
@@ -86,9 +88,13 @@ export function UpdateUserDialog({
 				onOpenChange(false);
 
 				// Refresh the page to show updated data
-				setTimeout(() => {
-					router.refresh();
-				}, 1000);
+				if (onRefresh) {
+					onRefresh();
+				} else {
+					setTimeout(() => {
+						router.refresh();
+					}, 1000);
+				}
 			}
 		} catch (error) {
 			console.error("Error updating user:", error);
