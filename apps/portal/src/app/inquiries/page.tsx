@@ -18,9 +18,9 @@ export default async function InquiriesPage({ searchParams }: PageProps) {
 							Citizen Inquiry Help Desk
 						</h1>
 						<p className="text-gray-600 text-sm leading-relaxed max-w-3xl">
-							Welcome to the Vice Mayor&apos;s digital assistance portal.
-							Whether you have a concern, suggestion, or need to follow up on an
-							existing request, we&apos;re here to help.
+							Welcome to the Vice Mayor Office&apos;s digital assistance portal.
+							Whether you have a concern, want to set an appointment, or need to
+							follow up on a document request, we&apos;re here to help.
 						</p>
 					</div>
 					{/* Tabs & Form Section */}

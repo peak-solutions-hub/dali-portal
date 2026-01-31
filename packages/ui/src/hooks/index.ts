@@ -7,3 +7,9 @@ export type {
 	UseSessionFiltersReturn,
 } from "./use-session-filters";
 export { useSessionFilters } from "./use-session-filters";
+export type {
+	UploadError,
+	UseSupabaseUploadOptions,
+	UseSupabaseUploadReturn,
+} from "./use-supabase-upload";
+export { useSupabaseUpload } from "./use-supabase-upload";

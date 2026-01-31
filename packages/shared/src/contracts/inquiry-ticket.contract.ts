@@ -1,4 +1,5 @@
 import { oc } from "@orpc/contract";
+import { ERRORS } from "../constants";
 import {
 	CreateInquiryTicketResponseSchema,
 	CreateInquiryTicketSchema,
@@ -8,7 +9,7 @@ import {
 	InquiryTicketListResponseSchema,
 	InquiryTicketListSchema,
 	InquiryTicketSchema,
-	InquiryTicketWithMessagesSchema,
+	InquiryTicketWithMessagesAndAttachmentsSchema,
 	SendInquiryMessageSchema,
 	TrackInquiryTicketResponseSchema,
 	TrackInquiryTicketSchema,
@@ -25,10 +26,8 @@ export const createInquiryTicket = oc
 		tags: ["Inquiry", "Public"],
 	})
 	.errors({
-		TOO_MANY_REQUESTS: {
-			status: 429,
-			description: "Too many requests. Please try again later.",
-		},
+		TOO_MANY_REQUESTS: ERRORS.GENERAL.TOO_MANY_REQUESTS,
+		CREATION_FAILED: ERRORS.INQUIRY.CREATION_FAILED,
 	})
 	.input(CreateInquiryTicketSchema)
 	.output(CreateInquiryTicketResponseSchema);
@@ -45,10 +44,15 @@ export const trackInquiryTicket = oc
 	.errors({
 		NOT_FOUND: {
 			status: 404,
-			description: "Inquiry not found.",
+			message: "Inquiry not found.",
+		},
+		TOO_MANY_REQUESTS: {
+			status: 429,
+			message: "Too many requests. Please try again later.",
 		},
 	})
 	.input(TrackInquiryTicketSchema)
+	.errors({})
 	// null if not found
 	.output(TrackInquiryTicketResponseSchema);
 
@@ -63,11 +67,11 @@ export const sendInquiryMessage = oc
 	.errors({
 		NOT_FOUND: {
 			status: 404,
-			description: "Inquiry not found",
+			message: "Inquiry not found",
 		},
 		TOO_MANY_REQUESTS: {
 			status: 429,
-			description: "Too many requests. Please try again later.",
+			message: "Too many requests. Please try again later.",
 		},
 	})
 	.input(SendInquiryMessageSchema)
@@ -77,19 +81,19 @@ export const getInquiryTicketWithMessages = oc
 	.route({
 		method: "GET",
 		path: "/inquiries/{id}/messages",
-		summary: "Get inquiry details with messages",
+		summary: "Get inquiry details with messages and attachment URLs",
 		description:
-			"Citizens and staff retrieve full inquiry details with messages.",
+			"Citizens and staff retrieve full inquiry details with messages. Attachments include pre-signed download URLs (valid for 1 hour).",
 		tags: ["Inquiry", "Public", "Admin"],
 	})
 	.errors({
 		NOT_FOUND: {
 			status: 404,
-			description: "Inquiry not found",
+			message: "Inquiry not found",
 		},
 	})
 	.input(GetInquiryTicketByIdSchema)
-	.output(InquiryTicketWithMessagesSchema);
+	.output(InquiryTicketWithMessagesAndAttachmentsSchema);
 
 export const getInquiryTicketList = oc
 	.route({
@@ -103,7 +107,7 @@ export const getInquiryTicketList = oc
 	.errors({
 		UNAUTHORIZED: {
 			status: 401,
-			description: "Unauthorized access",
+			message: "Unauthorized access",
 		},
 	})
 	.input(GetInquiryTicketListSchema)

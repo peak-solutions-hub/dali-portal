@@ -6,6 +6,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@repo/ui/components/tabs";
+import { useRouter } from "next/navigation";
 import { SubmitInquiryForm } from "@/components/inquiries/submit-inquiry-form";
 import { TrackInquiryForm } from "@/components/inquiries/track-inquiry-form";
 
@@ -14,8 +15,14 @@ interface InquiryTabsProps {
 }
 
 export function InquiryTabs({ activeTab = "submit" }: InquiryTabsProps) {
+	const router = useRouter();
+
 	return (
-		<Tabs defaultValue={activeTab} className="w-full relative">
+		<Tabs
+			defaultValue={activeTab}
+			className="w-full relative"
+			onValueChange={(value) => router.replace(`/inquiries?tab=${value}`)}
+		>
 			<div className="sticky top-0 z-30 bg-gray-50/95 backdrop-blur-sm py-4 -mx-6 px-6 sm:mx-0 sm:px-0 transition-all">
 				<TabsList className="sticky grid w-full grid-cols-2 p-1 bg-white rounded-xl shadow-sm border border-gray-200 h-14">
 					<TabsTrigger
@@ -32,7 +39,6 @@ export function InquiryTabs({ activeTab = "submit" }: InquiryTabsProps) {
 					</TabsTrigger>
 				</TabsList>
 			</div>
-
 			<div className="mt-0">
 				<TabsContent
 					value="submit"

@@ -22,7 +22,9 @@ if (!apiUrl) {
 
 const link = new OpenAPILink(contract, {
 	url: apiUrl,
-	headers: () => ({}),
+	headers: () => ({
+		"Content-Type": "application/json",
+	}),
 });
 
 const jsonApi: JsonifiedClient<ContractRouterClient<Contract>> =

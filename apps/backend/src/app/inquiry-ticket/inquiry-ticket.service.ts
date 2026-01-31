@@ -1,23 +1,31 @@
 import { Injectable } from "@nestjs/common";
-import { ORPCError } from "@orpc/nest";
 import {
+	AppError,
 	type CreateInquiryTicketInput,
 	type CreateInquiryTicketResponse,
 	type GetInquiryTicketByIdInput,
+	INQUIRY_CATEGORY_LABELS,
+	type InquiryMessage,
+	type InquiryMessageWithAttachments,
 	type InquiryTicket,
-	InquiryTicketWithMessages,
-	TrackInquiryTicketInput,
-	TrackInquiryTicketResponse,
+	type InquiryTicketWithMessagesAndAttachments,
+	type TrackInquiryTicketInput,
+	type TrackInquiryTicketResponse,
 } from "@repo/shared";
 import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
+import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
 import { ResendService } from "@/lib/resend.service";
+
+/** Storage bucket for inquiry attachments */
+const ATTACHMENTS_BUCKET = "attachments";
 
 @Injectable()
 export class InquiryTicketService {
 	constructor(
 		private readonly db: DbService,
 		private readonly resend: ResendService,
+		private readonly storageService: SupabaseStorageService,
 	) {}
 
 	async create(
@@ -50,7 +58,8 @@ export class InquiryTicketService {
 			},
 		});
 
-		this.resend.send({
+		// send confirmation email
+		const emailRes = await this.resend.send({
 			to: response.citizenEmail,
 			template: {
 				id: "inquiry-confirmation",
@@ -58,12 +67,17 @@ export class InquiryTicketService {
 					CITIZEN_NAME: response.citizenName,
 					REFERENCE_NUMBER: response.referenceNumber,
 					SUBJECT: response.subject,
-					CATEGORY: response.category,
-					YEAR: new Date().getFullYear(),
+					CATEGORY: INQUIRY_CATEGORY_LABELS[response.category],
+					YEAR: new Date().getFullYear().toString(),
 					PORTAL_URL: "http://localhost:3000",
 				},
 			},
 		});
+
+		if (emailRes.error) {
+			// override error message to be more user-friendly
+			throw new AppError("INQUIRY.EMAIL_SEND_FAILED", emailRes.error.message);
+		}
 
 		return { referenceNumber };
 	}
@@ -80,21 +94,38 @@ export class InquiryTicketService {
 		return ticketId;
 	}
 
+	/**
+	 * Get inquiry ticket with all messages and pre-signed attachment URLs.
+	 * Signed URLs are valid for 1 hour and generated server-side.
+	 */
 	async getWithMessages(
 		input: GetInquiryTicketByIdInput,
-	): Promise<InquiryTicketWithMessages> {
-		const inquiryTicketWithMessages = await this.db.inquiryTicket.findFirst({
-			where: { id: input.id },
-			include: {
-				inquiryMessages: true,
-			},
-		});
+	): Promise<InquiryTicketWithMessagesAndAttachments> {
+		const inquiryTicketWithMessages =
+			await this.db.inquiryTicket.findFirstOrThrow({
+				where: { id: input.id },
+				include: {
+					inquiryMessages: {
+						orderBy: { createdAt: "asc" },
+					},
+				},
+			});
 
 		if (!inquiryTicketWithMessages) {
-			throw new ORPCError("NOT_FOUND");
+			throw new AppError("INQUIRY.NOT_FOUND");
 		}
 
-		return inquiryTicketWithMessages;
+		// Generate signed URLs for all message attachments
+		const messagesWithAttachments = await Promise.all(
+			inquiryTicketWithMessages.inquiryMessages.map(async (message) =>
+				this.addAttachmentUrlsToMessage(message),
+			),
+		);
+
+		return {
+			...inquiryTicketWithMessages,
+			inquiryMessages: messagesWithAttachments,
+		};
 	}
 
 	async getById(input: GetInquiryTicketByIdInput): Promise<InquiryTicket> {
@@ -103,10 +134,28 @@ export class InquiryTicketService {
 		});
 
 		if (!inquiryTicket) {
-			throw new ORPCError("NOT_FOUND");
+			throw new AppError("INQUIRY.NOT_FOUND");
 		}
 
 		return inquiryTicket;
+	}
+
+	/**
+	 * Add signed attachment URLs to a message.
+	 * Delegates to SupabaseStorageService for URL generation.
+	 */
+	private async addAttachmentUrlsToMessage(
+		message: InquiryMessage,
+	): Promise<InquiryMessageWithAttachments> {
+		const attachments = await this.storageService.getSignedUrls(
+			ATTACHMENTS_BUCKET,
+			message.attachmentPaths ?? [],
+		);
+
+		return {
+			...message,
+			attachments,
+		};
 	}
 
 	private generateReferenceNumber(year: number): string {

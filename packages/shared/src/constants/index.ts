@@ -1,4 +1,5 @@
 export * from "./document-rules";
+export * from "./errors";
 export * from "./session-rules";
 
 export const TEXT_LIMITS = {
@@ -8,11 +9,19 @@ export const TEXT_LIMITS = {
 	LG: 1000,
 } as const;
 
+/**
+ * File size limits in bytes
+ * Using whole numbers for readability
+ */
 export const FILE_SIZE_LIMITS = {
-	XS: 5 * 1024 * 1024, //5mb
-	SM: 10 * 1024 * 1024, //10mb
-	MD: 25 * 1024 * 1024, //25mb
-	LG: 50 * 1024 * 1024, //50mb
+	/** 5 MB */
+	XS: 5_242_880,
+	/** 10 MB */
+	SM: 10_485_760,
+	/** 25 MB */
+	MD: 26_214_400,
+	/** 50 MB */
+	LG: 52_428_800,
 } as const;
 
 export const FILE_COUNT_LIMITS = {
@@ -20,4 +29,49 @@ export const FILE_COUNT_LIMITS = {
 	SM: 3, // 3 files
 	MD: 5, // 5 files
 	LG: 8, // 8 files
+} as const;
+
+/**
+ * Allowed MIME types for file uploads
+ */
+export const ALLOWED_MIME_TYPES = {
+	IMAGES: ["image/jpeg", "image/jpg", "image/png"],
+	DOCUMENTS: [
+		"application/pdf",
+		"application/msword",
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	],
+	/** Images + Documents (default for most uploads) */
+	ALL: [
+		"image/jpeg",
+		"image/jpg",
+		"image/png",
+		"application/pdf",
+		"application/msword", // doc
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document", // docx
+	],
+} as const;
+
+/**
+ * File upload presets for common use cases
+ */
+export const FILE_UPLOAD_PRESETS = {
+	/** Inquiry attachments: 3 files, 5MB each */
+	INQUIRY_ATTACHMENTS: {
+		maxFiles: FILE_COUNT_LIMITS.SM,
+		maxFileSize: FILE_SIZE_LIMITS.XS,
+		allowedMimeTypes: ALLOWED_MIME_TYPES.ALL,
+	},
+	/** Chat/message replies: 3 files, 5MB each */
+	ATTACHMENTS: {
+		maxFiles: FILE_COUNT_LIMITS.SM,
+		maxFileSize: FILE_SIZE_LIMITS.XS,
+		allowedMimeTypes: ALLOWED_MIME_TYPES.ALL,
+	},
+	/** Single document upload: 1 file, 25MB */
+	SINGLE_DOCUMENT: {
+		maxFiles: FILE_COUNT_LIMITS.XS,
+		maxFileSize: FILE_SIZE_LIMITS.MD,
+		allowedMimeTypes: ALLOWED_MIME_TYPES.ALL,
+	},
 } as const;

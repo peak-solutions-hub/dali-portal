@@ -1,17 +1,30 @@
 "use client";
 
-import { isDefinedError } from "@orpc/client";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
+	FILE_UPLOAD_PRESETS,
 	InquiryStatus,
-	type InquiryTicketWithMessagesResponse,
+	type InquiryTicketWithMessagesAndAttachmentsResponse,
+	type SendInquiryMessageInput,
+	SendInquiryMessageSchema,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent, CardHeader } from "@repo/ui/components/card";
-import { Input } from "@repo/ui/components/input";
+import { formatBytes } from "@repo/ui/components/dropzone";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormMessage,
+} from "@repo/ui/components/form";
 import { Textarea } from "@repo/ui/components/textarea";
+import { useSupabaseUpload } from "@repo/ui/hooks/use-supabase-upload";
 import {
 	CheckCircle2,
 	Clock,
+	Download,
+	FileIcon,
 	Mail,
 	MessageSquare,
 	MoveLeft,
@@ -25,110 +38,134 @@ import {
 import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/api.client";
+import { useForm } from "react-hook-form";
+import { useSendInquiryMessage } from "@/hooks/use-send-inquiry-message";
 
 interface InquiryDetailsProps {
-	data: InquiryTicketWithMessagesResponse;
+	/** Inquiry ticket with messages and pre-signed attachment URLs from the backend */
+	data: InquiryTicketWithMessagesAndAttachmentsResponse;
 }
+
+const { maxFiles, maxFileSize, allowedMimeTypes } =
+	FILE_UPLOAD_PRESETS.ATTACHMENTS;
 
 export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 	const router = useRouter();
 	const [ticket, setTicket] =
-		useState<InquiryTicketWithMessagesResponse>(initialData);
-	const [newMessage, setNewMessage] = useState("");
-	const [isSending, setIsSending] = useState(false);
-	const [files, setFiles] = useState<File[]>([]);
-	const [uploadProgress, setUploadProgress] = useState(0);
+		useState<InquiryTicketWithMessagesAndAttachmentsResponse>(initialData);
+
+	// Use the send inquiry message hook for API logic
+	const {
+		send,
+		isSending,
+		error: sendError,
+	} = useSendInquiryMessage({
+		onSuccess: (message) => {
+			// Add the new message to the local state with empty attachments array
+			// (newly sent messages won't have signed URLs until page refresh)
+			setTicket((prev) => ({
+				...prev,
+				inquiryMessages: [
+					...prev.inquiryMessages,
+					{ ...message, attachments: [] },
+				],
+			}));
+			messageForm.reset();
+			// Note: setFiles will be called after upload succeeds
+		},
+	});
+
+	// State for upload errors
+	const [uploadError, setUploadError] = useState<string | null>(null);
+
+	const messageForm = useForm<Pick<SendInquiryMessageInput, "content">>({
+		resolver: zodResolver(SendInquiryMessageSchema.pick({ content: true })),
+		mode: "onChange",
+		reValidateMode: "onChange",
+		defaultValues: {
+			content: "",
+		},
+	});
+
+	const supabase = createSupabaseBrowserClient();
+
+	// File upload hook with Supabase integration
+	const {
+		files,
+		setFiles,
+		getRootProps,
+		getInputProps,
+		isDragActive,
+		onUpload,
+		hasFileErrors,
+		isMaxFilesReached,
+	} = useSupabaseUpload({
+		supabaseClient: supabase,
+		bucketName: "attachments",
+		path: "inquiries/replies",
+		maxFiles,
+		maxFileSize,
+		allowedMimeTypes: [...allowedMimeTypes],
+	});
 
 	// Sort messages by date (oldest first for chat flow)
 	const sortedMessages = [...ticket.inquiryMessages].sort(
 		(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
 	);
 
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files) {
-			const newFiles = Array.from(e.target.files);
-			// Limit to 3 files, 10MB each for replies (simpler limits)
-			const validFiles = newFiles.filter((f) => f.size <= 10 * 1024 * 1024);
-			if (validFiles.length < newFiles.length) {
-				alert("Some files were rejected (Max 10MB).");
-			}
-			setFiles((prev) => [...prev, ...validFiles].slice(0, 3));
-		}
-	};
-
 	const removeFile = (index: number) => {
 		setFiles((prev) => prev.filter((_, i) => i !== index));
 	};
 
-	const uploadFiles = async (): Promise<string[]> => {
-		if (files.length === 0) return [];
-
-		const supabase = createSupabaseBrowserClient();
-		const paths: string[] = [];
-
-		for (const file of files) {
-			const fileExt = file.name.split(".").pop();
-			const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-			const filePath = `inquiries/replies/${fileName}`;
-
-			const { error } = await supabase.storage
-				.from("attachments")
-				.upload(filePath, file);
-
-			if (error) {
-				console.error("Upload error", error);
-				throw new Error("Failed to upload attachment");
-			}
-			paths.push(filePath);
-		}
-		return paths;
-	};
-
 	const handleSendMessage = async () => {
-		if ((!newMessage.trim() && files.length === 0) || isSending) return;
+		const content = messageForm.getValues("content");
+		if ((!content.trim() && files.length === 0) || isSending) return;
 
-		setIsSending(true);
-		setUploadProgress(10);
+		// Clear previous errors
+		setUploadError(null);
 
-		try {
-			let attachmentPaths: string[] = [];
-			if (files.length > 0) {
-				setUploadProgress(40);
-				attachmentPaths = await uploadFiles();
-				setUploadProgress(80);
+		// Can't send if all files have errors
+		if (
+			files.length > 0 &&
+			hasFileErrors &&
+			files.every((f) => f.errors.length > 0)
+		) {
+			setUploadError("Please fix file errors before sending.");
+			return;
+		}
+
+		// Trigger validation
+		const isValid = await messageForm.trigger("content");
+		if (!isValid && content.trim()) return;
+
+		let attachmentPaths: string[] = [];
+
+		// Upload files if any valid ones exist
+		const validFiles = files.filter((f) => f.errors.length === 0);
+		if (validFiles.length > 0) {
+			const uploadResult = await onUpload();
+			if (uploadResult.errors.length > 0) {
+				setUploadError("Failed to upload some files. Please try again.");
+				return; // Upload failed, don't send message
 			}
+			if (uploadResult.successes.length > 0) {
+				attachmentPaths = uploadResult.successes.map((s) => s.path);
+			}
+		}
 
-			const [err, response] = await api.inquiries.sendMessage({
+		// Send the message via hook
+		const { success } = await send(
+			{
 				ticketId: ticket.id,
-				content: newMessage.trim() || "(Attachment)",
-				senderName: ticket.citizenName, // Citizen is replying
+				content: content.trim() || "(Attachment)",
+				senderName: ticket.citizenName,
 				senderType: "citizen",
-				attachmentPaths:
-					attachmentPaths.length > 0 ? attachmentPaths : undefined,
-			});
+			},
+			attachmentPaths,
+		);
 
-			if (err) {
-				alert(isDefinedError(err) ? err.message : "Failed to send message");
-				return;
-			}
-
-			if (response) {
-				// Add the new message to the local state (response already has ISO string date)
-				setTicket((prev) => ({
-					...prev,
-					inquiryMessages: [...prev.inquiryMessages, response],
-				}));
-
-				setNewMessage("");
-				setFiles([]);
-			}
-		} catch (e) {
-			console.error(e);
-			alert("An error occurred.");
-		} finally {
-			setIsSending(false);
-			setUploadProgress(0);
+		if (success) {
+			setFiles([]);
 		}
 	};
 
@@ -280,16 +317,40 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 											{msg.content}
 										</div>
 
-										{msg.attachmentPaths && msg.attachmentPaths.length > 0 && (
-											<div className="mt-2 flex flex-wrap gap-2 justify-end">
-												{msg.attachmentPaths.map((path, i) => (
-													<span
-														key={i}
-														className="inline-flex items-center gap-1 bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs"
+										{/* Display attachments with signed URLs from backend */}
+										{msg.attachments && msg.attachments.length > 0 && (
+											<div
+												className={`mt-2 flex flex-wrap gap-2 ${isCitizen ? "justify-end" : "justify-start"}`}
+											>
+												{msg.attachments.map((attachment) => (
+													<a
+														key={attachment.path}
+														href={attachment.signedUrl || "#"}
+														target="_blank"
+														rel="noopener noreferrer"
+														className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+															attachment.signedUrl
+																? isCitizen
+																	? "bg-white/20 text-white hover:bg-white/30"
+																	: "bg-gray-100 text-gray-700 hover:bg-gray-200"
+																: "bg-gray-100 text-gray-400 cursor-not-allowed"
+														}`}
+														onClick={
+															attachment.signedUrl
+																? undefined
+																: (e) => e.preventDefault()
+														}
+														title={
+															attachment.signedUrl
+																? `Download ${attachment.fileName}`
+																: "Download unavailable"
+														}
 													>
-														<Paperclip className="h-3 w-3" />
-														Attachment {i + 1}
-													</span>
+														<Download className="h-3 w-3" />
+														<span className="max-w-24 truncate">
+															{attachment.fileName}
+														</span>
+													</a>
 												))}
 											</div>
 										)}
@@ -318,69 +379,128 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 							</div>
 						) : (
 							<div className="p-4 bg-white border-t space-y-3">
-								{files.length > 0 && (
-									<div className="flex gap-2 mb-2 flex-wrap">
-										{files.map((f, i) => (
-											<div
-												key={i}
-												className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md text-xs border border-gray-200"
-											>
-												<span className="truncate max-w-37.5">{f.name}</span>
-												<button
-													onClick={() => removeFile(i)}
-													className="text-gray-400 hover:text-red-500"
-												>
-													<X className="h-3 w-3" />
-												</button>
-											</div>
-										))}
+								{/* Error display */}
+								{(sendError || uploadError) && (
+									<div className="bg-red-50 border border-red-100 text-red-700 px-3 py-2 rounded-lg text-xs flex items-center gap-2">
+										<X className="w-3 h-3" />
+										{sendError || uploadError}
 									</div>
 								)}
-								<div className="flex gap-3">
-									<div className="relative pt-2">
-										<Input
-											type="file"
-											multiple
-											className="hidden"
-											id="reply-file-upload"
-											onChange={handleFileChange}
-										/>
-										<label
-											htmlFor="reply-file-upload"
-											className="cursor-pointer p-2 hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-500 transition-colors"
-											title="Attach files"
-										>
-											<Paperclip className="h-5 w-5" />
-										</label>
+								{/* Max files warning */}
+								{isMaxFilesReached && (
+									<div className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2 rounded-lg text-xs">
+										Maximum {maxFiles} files. Remove one to add more.
 									</div>
-									<Textarea
-										value={newMessage}
-										onChange={(e) => setNewMessage(e.target.value)}
-										placeholder="Type your reply here..."
-										className="min-h-12.5 max-h-37.5 bg-gray-50 border-gray-200 focus:bg-white resize-y"
-										onKeyDown={(e) => {
-											if (e.key === "Enter" && !e.shiftKey) {
-												e.preventDefault();
-												handleSendMessage();
+								)}
+								<Form {...messageForm}>
+									{/* File list */}
+									{files.length > 0 && (
+										<div className="flex gap-2 flex-wrap">
+											{files.map((f, i) => (
+												<div
+													key={`${f.name}-${i}`}
+													className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs border ${
+														f.errors && f.errors.length > 0
+															? "bg-red-50 border-red-200"
+															: "bg-gray-100 border-gray-200"
+													}`}
+												>
+													<FileIcon
+														className={`h-3 w-3 ${f.errors && f.errors.length > 0 ? "text-red-500" : "text-gray-500"}`}
+													/>
+													<span className="truncate max-w-40">{f.name}</span>
+													<span className="text-gray-400">
+														{formatBytes(f.size, 1)}
+													</span>
+													{f.errors && f.errors.length > 0 && (
+														<span
+															className="text-destructive text-[10px]"
+															title={f.errors[0]?.message}
+														>
+															!
+														</span>
+													)}
+													<button
+														type="button"
+														onClick={() => removeFile(i)}
+														className="text-gray-400 hover:text-red-500"
+													>
+														<X className="h-3 w-3" />
+													</button>
+												</div>
+											))}
+										</div>
+									)}
+									{/* Drop zone indicator */}
+									{isDragActive && (
+										<div className="border-2 border-dashed border-primary bg-primary/10 rounded-lg p-3 text-center text-sm text-primary">
+											Drop files here...
+										</div>
+									)}
+									<div className="flex gap-3" {...getRootProps()}>
+										<input {...getInputProps()} disabled={isMaxFilesReached} />
+										<div className="relative pt-2">
+											<button
+												type="button"
+												className={`cursor-pointer p-2 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors ${
+													isMaxFilesReached
+														? "text-gray-300 cursor-not-allowed"
+														: "text-gray-500"
+												}`}
+												title={
+													isMaxFilesReached
+														? `Maximum ${maxFiles} files reached`
+														: `Attach files (max ${maxFiles}, ${formatBytes(maxFileSize)} each)`
+												}
+												disabled={isMaxFilesReached}
+											>
+												<Paperclip className="h-5 w-5" />
+											</button>
+										</div>
+										<FormField
+											control={messageForm.control}
+											name="content"
+											render={({ field }) => (
+												<FormItem className="flex-1">
+													<FormControl>
+														<Textarea
+															{...field}
+															placeholder="Type your reply here..."
+															className="min-h-12.5 max-h-37.5 bg-gray-50 border-gray-200 focus:bg-white resize-y"
+															onKeyDown={(e) => {
+																if (e.key === "Enter" && !e.shiftKey) {
+																	e.preventDefault();
+																	handleSendMessage();
+																}
+															}}
+															onClick={(e) => e.stopPropagation()}
+														/>
+													</FormControl>
+													<FormMessage className="text-xs mt-1" />
+												</FormItem>
+											)}
+										/>
+										<Button
+											type="button"
+											className="bg-[#a60202] hover:bg-[#8b0202] h-auto px-4"
+											disabled={
+												isSending ||
+												(!messageForm.getValues("content").trim() &&
+													files.length === 0)
 											}
-										}}
-									/>
-									<Button
-										className="bg-[#a60202] hover:bg-[#8b0202] h-auto px-4"
-										disabled={
-											isSending || (!newMessage.trim() && files.length === 0)
-										}
-										onClick={handleSendMessage}
-									>
-										{isSending ? (
-											<span className="text-xs">
-												{uploadProgress > 0 ? `${uploadProgress}%` : "..."}
-											</span>
-										) : (
-											<Send className="h-4 w-4" />
-										)}
-									</Button>
-								</div>
+											onClick={(e) => {
+												e.stopPropagation();
+												handleSendMessage();
+											}}
+										>
+											{isSending ? (
+												<span className="text-xs">Sending...</span>
+											) : (
+												<Send className="h-4 w-4" />
+											)}
+										</Button>
+									</div>{" "}
+								</Form>{" "}
 							</div>
 						)}
 					</Card>

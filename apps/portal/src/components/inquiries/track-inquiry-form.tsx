@@ -1,9 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isDefinedError } from "@orpc/client";
-import type { TrackInquiryTicketInput } from "@repo/shared";
-import { TrackInquiryTicketSchema } from "@repo/shared";
+import {
+	TrackInquiryTicketInput,
+	TrackInquiryTicketSchema,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import {
@@ -19,22 +20,27 @@ import {
 	AlertCircle,
 	ArrowRight,
 	Mail,
-	Search,
 	Ticket,
 } from "@repo/ui/lib/lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { api } from "@/lib/api.client";
+import { useTrackInquiry } from "@/hooks/use-track-inquiry";
 import { InquiryFormHeader } from "./form/inquiry-form-header";
 
 export function TrackInquiryForm() {
 	const router = useRouter();
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+
+	// Use the track inquiry hook for API logic
+	const { track, isTracking, error } = useTrackInquiry({
+		onSuccess: (ticketId) => {
+			router.push(`/inquiries/${ticketId}`);
+		},
+	});
 
 	const form = useForm<TrackInquiryTicketInput>({
 		resolver: zodResolver(TrackInquiryTicketSchema),
+		mode: "onChange",
+		reValidateMode: "onChange",
 		defaultValues: {
 			referenceNumber: "",
 			citizenEmail: "",
@@ -42,31 +48,7 @@ export function TrackInquiryForm() {
 	});
 
 	const onSubmit = async (data: TrackInquiryTicketInput) => {
-		setIsSubmitting(true);
-		setError(null);
-
-		const [err, response] = await api.inquiries.track(data);
-
-		if (err) {
-			setError(
-				isDefinedError(err)
-					? err.message
-					: "Failed to track inquiry. Please check your details and try again.",
-			);
-			setIsSubmitting(false);
-			return;
-		}
-
-		if (response?.id) {
-			// Redirect to inquiry detail page
-			router.push(`/inquiries/${response.id}`);
-		} else {
-			setError(
-				"No inquiry found with these details. Please check and try again.",
-			);
-		}
-
-		setIsSubmitting(false);
+		await track(data);
 	};
 
 	return (
@@ -140,9 +122,9 @@ export function TrackInquiryForm() {
 						<Button
 							type="submit"
 							className="w-full h-14 bg-[#a60202] hover:bg-[#8d0202] text-white rounded-xl text-lg font-bold shadow-lg shadow-red-900/10 transition-all hover:-translate-y-0.5"
-							disabled={isSubmitting}
+							disabled={isTracking}
 						>
-							{isSubmitting ? (
+							{isTracking ? (
 								"Searching..."
 							) : (
 								<span className="flex items-center gap-2">

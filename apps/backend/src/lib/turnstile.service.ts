@@ -25,11 +25,11 @@ export class TurnstileService {
 	private readonly timeout: number;
 
 	constructor(
+		configService: ConfigService,
 		private readonly httpService: HttpService,
-		private readonly configService: ConfigService,
 	) {
-		this.secretKey = this.configService.getOrThrow("turnstile.secretKey");
-		this.timeout = this.configService.get("turnstile.timeout") ?? 10000;
+		this.secretKey = configService.getOrThrow("turnstile.secretKey");
+		this.timeout = configService.get("turnstile.timeout") ?? 10000;
 	}
 
 	/**
@@ -64,11 +64,8 @@ export class TurnstileService {
 			const response = await firstValueFrom(
 				this.httpService.post<TurnstileVerifyResponse>(
 					"https://challenges.cloudflare.com/turnstile/v0/siteverify",
-					formData.toString(),
+					formData,
 					{
-						headers: {
-							"Content-Type": "application/x-www-form-urlencoded",
-						},
 						timeout: this.timeout,
 					},
 				),
