@@ -94,10 +94,10 @@ export function SessionsCalendar({
 		const validatedParams = validationResult.data;
 
 		// Add validated filters
-		if (validatedParams.types && validatedParams.types.length > 0) {
+		if (validatedParams.types && validatedParams.types !== "all") {
 			filters.types = validatedParams.types.join(",");
 		}
-		if (validatedParams.statuses && validatedParams.statuses.length > 0) {
+		if (validatedParams.statuses && validatedParams.statuses !== "all") {
 			filters.statuses = validatedParams.statuses.join(",");
 		}
 		if (validatedParams.dateFrom) {

@@ -116,8 +116,8 @@ FilterButton.displayName = "FilterButton";
 
 // Mobile Drawer
 function MobileSessionFiltersDrawer({
-	selectedTypes,
-	selectedStatuses,
+	selectedType,
+	selectedStatus,
 	dateFrom,
 	dateTo,
 	onTypeChange,
@@ -132,12 +132,12 @@ function MobileSessionFiltersDrawer({
 	open,
 	setOpen,
 }: {
-	selectedTypes: string[];
-	selectedStatuses: string[];
+	selectedType: string;
+	selectedStatus: string;
 	dateFrom: string;
 	dateTo: string;
-	onTypeChange: (type: string, checked: boolean) => void;
-	onStatusChange: (status: string, checked: boolean) => void;
+	onTypeChange: (type: string) => void;
+	onStatusChange: (status: string) => void;
 	onDateFromChange: (date: string) => void;
 	onDateToChange: (date: string) => void;
 	onApply: () => void;
@@ -185,16 +185,21 @@ function MobileSessionFiltersDrawer({
 							Session Type
 						</h3>
 						<div className="space-y-2">
+							<label className="flex cursor-pointer items-center gap-2">
+								<Checkbox
+									checked={selectedType === ""}
+									onCheckedChange={() => onTypeChange("")}
+								/>
+								<span className="text-sm text-[#4a5565]">All Types</span>
+							</label>
 							{SESSION_TYPES.map(({ value, label }) => (
 								<label
 									key={value}
 									className="flex cursor-pointer items-center gap-2"
 								>
 									<Checkbox
-										checked={selectedTypes.includes(value)}
-										onCheckedChange={(checked) =>
-											onTypeChange(value, checked as boolean)
-										}
+										checked={selectedType === value}
+										onCheckedChange={() => onTypeChange(value)}
 									/>
 									<span className="text-sm text-[#4a5565]">{label}</span>
 								</label>
@@ -208,16 +213,21 @@ function MobileSessionFiltersDrawer({
 							Status
 						</h3>
 						<div className="space-y-2">
+							<label className="flex cursor-pointer items-center gap-2">
+								<Checkbox
+									checked={selectedStatus === ""}
+									onCheckedChange={() => onStatusChange("")}
+								/>
+								<span className="text-sm text-[#4a5565]">All Statuses</span>
+							</label>
 							{SESSION_STATUSES.map(({ value, label }) => (
 								<label
 									key={value}
 									className="flex cursor-pointer items-center gap-2"
 								>
 									<Checkbox
-										checked={selectedStatuses.includes(value)}
-										onCheckedChange={(checked) =>
-											onStatusChange(value, checked as boolean)
-										}
+										checked={selectedStatus === value}
+										onCheckedChange={() => onStatusChange(value)}
 									/>
 									<span className="text-sm text-[#4a5565]">{label}</span>
 								</label>
@@ -296,8 +306,8 @@ function MobileSessionFiltersDrawer({
 
 // Desktop Popover
 function DesktopSessionFilters({
-	selectedTypes,
-	selectedStatuses,
+	selectedType,
+	selectedStatus,
 	dateFrom,
 	dateTo,
 	onTypeChange,
@@ -312,12 +322,12 @@ function DesktopSessionFilters({
 	open,
 	setOpen,
 }: {
-	selectedTypes: string[];
-	selectedStatuses: string[];
+	selectedType: string;
+	selectedStatus: string;
 	dateFrom: string;
 	dateTo: string;
-	onTypeChange: (type: string, checked: boolean) => void;
-	onStatusChange: (status: string, checked: boolean) => void;
+	onTypeChange: (type: string) => void;
+	onStatusChange: (status: string) => void;
 	onDateFromChange: (date: string) => void;
 	onDateToChange: (date: string) => void;
 	onApply: () => void;
@@ -355,16 +365,21 @@ function DesktopSessionFilters({
 							Session Type
 						</h3>
 						<div className="space-y-2">
+							<label className="flex cursor-pointer items-center gap-2">
+								<Checkbox
+									checked={selectedType === ""}
+									onCheckedChange={() => onTypeChange("")}
+								/>
+								<span className="text-sm text-[#4a5565]">All Types</span>
+							</label>
 							{SESSION_TYPES.map(({ value, label }) => (
 								<label
 									key={value}
 									className="flex cursor-pointer items-center gap-2"
 								>
 									<Checkbox
-										checked={selectedTypes.includes(value)}
-										onCheckedChange={(checked) =>
-											onTypeChange(value, checked as boolean)
-										}
+										checked={selectedType === value}
+										onCheckedChange={() => onTypeChange(value)}
 									/>
 									<span className="text-sm text-[#4a5565]">{label}</span>
 								</label>
@@ -378,16 +393,21 @@ function DesktopSessionFilters({
 							Status
 						</h3>
 						<div className="space-y-2">
+							<label className="flex cursor-pointer items-center gap-2">
+								<Checkbox
+									checked={selectedStatus === ""}
+									onCheckedChange={() => onStatusChange("")}
+								/>
+								<span className="text-sm text-[#4a5565]">All Statuses</span>
+							</label>
 							{SESSION_STATUSES.map(({ value, label }) => (
 								<label
 									key={value}
 									className="flex cursor-pointer items-center gap-2"
 								>
 									<Checkbox
-										checked={selectedStatuses.includes(value)}
-										onCheckedChange={(checked) =>
-											onStatusChange(value, checked as boolean)
-										}
+										checked={selectedStatus === value}
+										onCheckedChange={() => onStatusChange(value)}
 									/>
 									<span className="text-sm text-[#4a5565]">{label}</span>
 								</label>
@@ -447,7 +467,7 @@ function DesktopSessionFilters({
 						<Button
 							variant="outline"
 							onClick={handleClear}
-							className="flex-1"
+							className="flex-1 cursor-pointer"
 							size="sm"
 						>
 							<XIcon className="w-4 h-4 mr-2" />
@@ -455,7 +475,7 @@ function DesktopSessionFilters({
 						</Button>
 						<Button
 							onClick={handleApply}
-							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
+							className="flex-1 bg-[#a60202] hover:bg-[#8a0101] cursor-pointer"
 							disabled={isDateRangeInvalid}
 							size="sm"
 						>
@@ -473,10 +493,12 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		useSessionFilters();
 	const isMobile = useIsMobile();
 
-	// Local state
-	const [selectedTypes, setSelectedTypes] = useState<string[]>(filters.types);
-	const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
-		filters.statuses,
+	// Local state - using single values instead of arrays
+	const [selectedType, setSelectedType] = useState<string>(
+		filters.types.length > 0 ? (filters.types[0] ?? "") : "",
+	);
+	const [selectedStatus, setSelectedStatus] = useState<string>(
+		filters.statuses.length > 0 ? (filters.statuses[0] ?? "") : "",
 	);
 	const [dateFrom, setDateFrom] = useState(filters.dateFrom || "");
 	const [dateTo, setDateTo] = useState(filters.dateTo || "");
@@ -489,24 +511,20 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		dateFrom && dateTo && new Date(dateTo) < new Date(dateFrom),
 	);
 
-	const handleTypeChange = (type: string, checked: boolean) => {
-		setSelectedTypes((prev) =>
-			checked ? [...prev, type] : prev.filter((t) => t !== type),
-		);
+	const handleTypeChange = (type: string) => {
+		setSelectedType(type);
 	};
 
-	const handleStatusChange = (status: string, checked: boolean) => {
-		setSelectedStatuses((prev) =>
-			checked ? [...prev, status] : prev.filter((s) => s !== status),
-		);
+	const handleStatusChange = (status: string) => {
+		setSelectedStatus(status);
 	};
 
 	const applyFilters = () => {
 		if (isDateRangeInvalid) return;
 
 		updateFilters({
-			types: selectedTypes,
-			statuses: selectedStatuses,
+			types: selectedType ? [selectedType] : [],
+			statuses: selectedStatus ? [selectedStatus] : [],
 			dateFrom: dateFrom || null,
 			dateTo: dateTo || null,
 			sortOrder: sortOrder as "asc" | "desc",
@@ -514,8 +532,8 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 	};
 
 	const clearAllFilters = () => {
-		setSelectedTypes([]);
-		setSelectedStatuses([]);
+		setSelectedType("");
+		setSelectedStatus("");
 		setDateFrom("");
 		setDateTo("");
 		resetFilters();
@@ -526,17 +544,20 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 		value: string,
 	) => {
 		if (filterType === "type") {
-			const types = filters.types.filter((t) => t !== value);
-			updateFilters({ types });
-			setSelectedTypes(types);
+			// Reset to default (empty string = All Types)
+			updateFilters({ types: [] });
+			setSelectedType("");
 		} else if (filterType === "status") {
-			const statuses = filters.statuses.filter((s) => s !== value);
-			updateFilters({ statuses });
-			setSelectedStatuses(statuses);
-		} else if (filterType === "dateFrom" || filterType === "dateTo") {
-			// Clear both date filters when any date filter X is clicked
-			updateFilters({ dateFrom: null, dateTo: null });
+			// Reset to default (empty string = All Statuses)
+			updateFilters({ statuses: [] });
+			setSelectedStatus("");
+		} else if (filterType === "dateFrom") {
+			// Only clear the "from" date
+			updateFilters({ dateFrom: null });
 			setDateFrom("");
+		} else if (filterType === "dateTo") {
+			// Only clear the "to" date
+			updateFilters({ dateTo: null });
 			setDateTo("");
 		}
 	};
@@ -551,8 +572,8 @@ export function SessionFilters({ sortOrder }: SessionFiltersProps) {
 	};
 
 	const sharedProps = {
-		selectedTypes,
-		selectedStatuses,
+		selectedType,
+		selectedStatus,
 		dateFrom,
 		dateTo,
 		onTypeChange: handleTypeChange,

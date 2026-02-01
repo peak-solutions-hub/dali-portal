@@ -92,8 +92,12 @@ async function SessionContent({
 	const sortOrder = validatedParams.sort;
 
 	// Get filter parameters from validated params
-	const filterTypes = validatedParams.types || [];
-	const filterStatuses = validatedParams.statuses || [];
+	// If the validated param is the literal "all", normalize to empty arrays so
+	// downstream code can assume array operations like .join()
+	const filterTypes =
+		validatedParams.types === "all" ? [] : validatedParams.types || [];
+	const filterStatuses =
+		validatedParams.statuses === "all" ? [] : validatedParams.statuses || [];
 	const filterDateFrom = validatedParams.dateFrom;
 	const filterDateTo = validatedParams.dateTo;
 

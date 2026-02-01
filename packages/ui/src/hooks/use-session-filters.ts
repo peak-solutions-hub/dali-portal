@@ -41,6 +41,7 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 
 	/**
 	 * Update filters and sync with URL using buildSessionQueryString helper
+	 * Converts empty arrays to 'all' string to match legislative documents pattern
 	 */
 	const updateFilters = useCallback(
 		(updates: Partial<SessionFilterValues>) => {
@@ -54,20 +55,24 @@ export function useSessionFilters(): UseSessionFiltersReturn {
 				sort: updates.sortOrder ?? filters.sortOrder,
 			};
 
-			// Update types (comma-separated or undefined)
+			// Update types (comma-separated, 'all', or undefined)
 			if (updates.types !== undefined) {
 				newParams.types =
-					updates.types.length > 0 ? updates.types.join(",") : undefined;
+					updates.types.length > 0 ? updates.types.join(",") : "all";
 			} else if (filters.types.length > 0) {
 				newParams.types = filters.types.join(",");
+			} else {
+				newParams.types = "all";
 			}
 
-			// Update statuses (comma-separated or undefined)
+			// Update statuses (comma-separated, 'all', or undefined)
 			if (updates.statuses !== undefined) {
 				newParams.statuses =
-					updates.statuses.length > 0 ? updates.statuses.join(",") : undefined;
+					updates.statuses.length > 0 ? updates.statuses.join(",") : "all";
 			} else if (filters.statuses.length > 0) {
 				newParams.statuses = filters.statuses.join(",");
+			} else {
+				newParams.statuses = "all";
 			}
 
 			// Update date range

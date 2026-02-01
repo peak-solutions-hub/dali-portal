@@ -305,7 +305,7 @@ export function buildSessionQueryString(
 
 /**
  * Zod schema for validating URL search parameters
- * Aligns with backend GetSessionListSchema but handles array values
+ * Aligns with backend GetSessionListSchema but handles array values and 'all'
  */
 export const sessionSearchParamsSchema = z.object({
 	types: z
@@ -313,7 +313,7 @@ export const sessionSearchParamsSchema = z.object({
 		.optional()
 		.default("")
 		.transform((val) => {
-			if (!val) return undefined;
+			if (!val || val === "all") return "all";
 			return val.split(",").filter((v) => SessionTypeEnum.safeParse(v).success);
 		}),
 	statuses: z
@@ -321,7 +321,7 @@ export const sessionSearchParamsSchema = z.object({
 		.optional()
 		.default("")
 		.transform((val) => {
-			if (!val) return undefined;
+			if (!val || val === "all") return "all";
 			return val
 				.split(",")
 				.filter((v) => PublicSessionStatusEnum.safeParse(v).success);
@@ -371,13 +371,20 @@ export function validateSessionSearchParams(
 
 /**
  * Convert validated search params to API input format
+ * Converts 'all' to undefined so backend doesn't filter
  */
 export function toSessionApiFilters(
 	params: SessionSearchParams,
 ): GetSessionListInput {
 	return {
-		type: params.types as ("regular" | "special")[] | undefined,
-		status: params.statuses as ("scheduled" | "completed")[] | undefined,
+		type:
+			params.types === "all"
+				? undefined
+				: (params.types as ("regular" | "special")[] | undefined),
+		status:
+			params.statuses === "all"
+				? undefined
+				: (params.statuses as ("scheduled" | "completed")[] | undefined),
 		dateFrom: params.dateFrom,
 		dateTo: params.dateTo,
 		sortBy: "date",
