@@ -42,6 +42,7 @@ interface UsersTableProps {
 	totalPages: number;
 	onPageChange: (page: number) => void;
 	itemsPerPage: number;
+	onItemsPerPageChange?: (value: number) => void;
 }
 
 export function UsersTable({
@@ -53,6 +54,7 @@ export function UsersTable({
 	totalPages,
 	onPageChange,
 	itemsPerPage,
+	onItemsPerPageChange,
 }: UsersTableProps) {
 	const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
 	const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -89,11 +91,6 @@ export function UsersTable({
 
 		setMenuOpenUserId((prev) => (prev === user.id ? null : user.id));
 	};
-
-	// Calculate pagination display
-	const startItem = totalUsers === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-	const endItem =
-		totalUsers === 0 ? 0 : Math.min(currentPage * itemsPerPage, totalUsers);
 
 	// Calculate which page numbers to show
 	const maxVisiblePages = 5;
@@ -134,7 +131,7 @@ export function UsersTable({
 						{users.map((user, index) => (
 							<TableRow
 								key={user.id}
-								className="border-b border-[#e5e7eb] hover:bg-transparent"
+								className={`border-b border-[#e5e7eb] hover:bg-gray-50/50 ${index % 2 === 1 ? "bg-gray-50/30" : "bg-white"}`}
 							>
 								<TableCell className="px-6 py-3">
 									<div className="flex flex-col">
@@ -182,7 +179,7 @@ export function UsersTable({
 											<div
 												ref={menuRef}
 												role="menu"
-												className={`absolute right-0 ${menuPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"} w-40 rounded-md border bg-white shadow-md z-[100]`}
+												className={`absolute right-0 ${menuPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"} w-40 rounded-md border bg-white shadow-md z-100`}
 											>
 												<button
 													className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center"
@@ -254,22 +251,31 @@ export function UsersTable({
 					</TableBody>
 				</Table>
 
-				{/* Pagination */}
-				{totalPages > 1 && (
-					<div className="border-t py-4 px-6">
-						<div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-							<span className="text-sm text-gray-700">
-								Showing <span className="font-semibold">{startItem}</span>
-								{endItem > startItem && (
-									<>
-										{" "}
-										- <span className="font-semibold">{endItem}</span>
-									</>
-								)}{" "}
-								of <span className="font-semibold">{totalUsers}</span> users
-							</span>
+				{/* Pagination Footer */}
+				<div className="border-t py-4 px-6">
+					<div className="flex items-center justify-between">
+						{/* Left side - Rows per page */}
+						<div className="flex items-center gap-2">
+							<span className="text-sm text-gray-700">Rows per page:</span>
+							<select
+								value={itemsPerPage}
+								onChange={(e) => {
+									const newValue = Number(e.target.value);
+									if (onItemsPerPageChange) {
+										onItemsPerPageChange(newValue);
+									}
+								}}
+								className="border border-[#d0d5dd] rounded-md px-2 py-1 text-sm bg-white focus:border-[#a60202] focus:ring-[#a60202] focus:outline-none"
+							>
+								<option value="5">5</option>
+								<option value="10">10</option>
+								<option value="20">20</option>
+							</select>
+						</div>
 
-							<Pagination className="mx-0 w-full sm:w-auto justify-center sm:justify-end">
+						{/* Right side - Pagination */}
+						{totalPages > 1 && (
+							<Pagination className="mx-0">
 								<PaginationContent>
 									<PaginationItem>
 										<PaginationPrevious
@@ -346,9 +352,9 @@ export function UsersTable({
 									</PaginationItem>
 								</PaginationContent>
 							</Pagination>
-						</div>
+						)}
 					</div>
-				)}
+				</div>
 			</div>
 
 			{/* Update User Dialog */}

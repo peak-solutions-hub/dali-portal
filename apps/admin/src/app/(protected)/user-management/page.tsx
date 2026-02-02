@@ -3,22 +3,27 @@
 import type { Role, UserWithRole } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
+import { useDebounce } from "@repo/ui/hooks/use-debounce";
 import { AlertTriangle, Loader2, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { UsersTable } from "@/components/user-management";
 import { InviteUserDialog, SearchFilters } from "@/components/user-management/";
 import { api } from "@/lib/api.client";
 
+type UserStatus = "active" | "invited" | "deactivated";
+
 export default function UserManagementPage() {
 	const [searchQuery, setSearchQuery] = useState("");
+	const debouncedSearch = useDebounce(searchQuery, 300);
 	const [roleFilter, setRoleFilter] = useState<Role["name"] | "all">("all");
+	const [statusFilter, setStatusFilter] = useState<UserStatus[]>([]);
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 	const [users, setUsers] = useState<UserWithRole[]>([]);
 	const [roles, setRoles] = useState<Role[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
-	const itemsPerPage = 10;
+	const [itemsPerPage, setItemsPerPage] = useState(10);
 
 	// Fetch all users and roles once on mount
 	const fetchData = async () => {
@@ -64,10 +69,13 @@ export default function UserManagementPage() {
 
 	const filteredUsers = users.filter((user) => {
 		const matchesSearch =
-			user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			user.email.toLowerCase().includes(searchQuery.toLowerCase());
+			user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+			user.email.toLowerCase().includes(debouncedSearch.toLowerCase());
 		const matchesRole = roleFilter === "all" || user.role.name === roleFilter;
-		return matchesSearch && matchesRole;
+		const matchesStatus =
+			statusFilter.length === 0 ||
+			statusFilter.includes(user.status as UserStatus);
+		return matchesSearch && matchesRole && matchesStatus;
 	});
 
 	// Pagination calculations
@@ -76,6 +84,11 @@ export default function UserManagementPage() {
 	const startIndex = (currentPage - 1) * itemsPerPage;
 	const endIndex = startIndex + itemsPerPage;
 	const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+	// Calculate display items for results count
+	const startItem = totalUsers === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+	const endItem =
+		totalUsers === 0 ? 0 : Math.min(currentPage * itemsPerPage, totalUsers);
 
 	const handlePageChange = (page: number) => {
 		setCurrentPage(page);
@@ -89,28 +102,18 @@ export default function UserManagementPage() {
 	// Reset page when filters change
 	useEffect(() => {
 		setCurrentPage(1);
-	}, [searchQuery, roleFilter]);
+	}, [debouncedSearch, roleFilter, statusFilter]);
 
 	return (
-		<div className="flex flex-col gap-6 p-6">
+		<div className="flex flex-col gap-6">
 			{/* Page Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex flex-col gap-1">
-					<h1 className="text-2xl font-semibold text-[#101828]">
-						User Management
-					</h1>
-					<p className="text-sm text-[#4a5565]">
-						Manage system users and role assignments
-					</p>
-				</div>
-				<Button
-					onClick={() => setInviteDialogOpen(true)}
-					className="bg-[#a60202] hover:bg-[#8a0101] text-white gap-2"
-					disabled={isLoading}
-				>
-					<UserPlus className="size-4" />
-					Invite New User
-				</Button>
+			<div className="flex flex-col gap-1">
+				<h1 className="text-2xl font-semibold text-[#101828]">
+					User Management
+				</h1>
+				<p className="text-sm text-[#4a5565]">
+					Manage system users and role assignments
+				</p>
 			</div>
 
 			{/* Error State */}
@@ -143,24 +146,35 @@ export default function UserManagementPage() {
 
 			{/* Content */}
 			{!isLoading && !error && (
-				<>
+				<div className="flex flex-col gap-3">
 					<SearchFilters
 						searchQuery={searchQuery}
 						onSearchChange={(v) => setSearchQuery(v)}
 						roleFilter={roleFilter}
 						onRoleChange={(v) => setRoleFilter(v)}
+						statusFilter={statusFilter}
+						onStatusChange={(v) => setStatusFilter(v)}
 						roles={roles}
 						resultCount={filteredUsers.length}
 						totalCount={users.length}
+						startItem={startItem}
+						endItem={endItem}
+						onInviteClick={() => setInviteDialogOpen(true)}
+						isLoading={isLoading}
 					/>
 
 					{paginatedUsers.length === 0 ? (
-						<Card className="p-8 text-center">
-							<div className="flex flex-col items-center gap-2 text-[#4a5565]">
-								<p className="text-lg font-medium">No users found</p>
-								<p className="text-sm">
-									Try adjusting your search or filter criteria
-								</p>
+						<Card className="p-12 text-center">
+							<div className="flex flex-col items-center gap-3 text-[#4a5565]">
+								<AlertTriangle className="size-12 text-[#d0d5dd]" />
+								<div>
+									<h3 className="text-lg font-medium text-[#101828] mb-1">
+										No users found
+									</h3>
+									<p className="text-sm">
+										Try adjusting your search or filter criteria
+									</p>
+								</div>
 							</div>
 						</Card>
 					) : (
@@ -174,10 +188,14 @@ export default function UserManagementPage() {
 								totalPages={totalPages}
 								onPageChange={handlePageChange}
 								itemsPerPage={itemsPerPage}
+								onItemsPerPageChange={(value) => {
+									setItemsPerPage(value);
+									setCurrentPage(1);
+								}}
 							/>
 						</Card>
 					)}
-				</>
+				</div>
 			)}
 
 			<InviteUserDialog
