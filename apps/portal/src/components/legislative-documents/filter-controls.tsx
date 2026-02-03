@@ -305,11 +305,11 @@ function MobileFilterDrawer({
 										/>
 										All Classifications
 									</CommandItem>
-									{CLASSIFICATION_TYPES.map((c) => (
+									{CLASSIFICATION_TYPES.map((classification) => (
 										<CommandItem
-											key={c.value}
+											key={classification.value}
 											onSelect={() => {
-												onClassificationChange(c.value);
+												onClassificationChange(classification.value);
 												setView("main");
 											}}
 											className="py-3"
@@ -317,12 +317,12 @@ function MobileFilterDrawer({
 											<Check
 												className={cn(
 													"mr-2 h-4 w-4",
-													selectedClassification === c.value
+													selectedClassification === classification.value
 														? "opacity-100"
 														: "opacity-0",
 												)}
 											/>
-											{c.label}
+											{classification.label}
 										</CommandItem>
 									))}
 								</CommandGroup>
@@ -331,15 +331,21 @@ function MobileFilterDrawer({
 					)}
 				</div>
 
-				<DrawerFooter className="border-t">
-					<div className="flex w-full gap-3">
-						<Button variant="outline" onClick={handleClear} className="flex-1">
+				<DrawerFooter className="shrink-0 border-t">
+					<div className="flex gap-2">
+						<Button
+							variant="outline"
+							onClick={handleClear}
+							className="flex-1"
+							size="sm"
+						>
 							<XIcon className="w-4 h-4 mr-2" />
 							Clear
 						</Button>
 						<Button
 							onClick={handleApply}
 							className="flex-1 bg-[#a60202] hover:bg-[#8a0101]"
+							size="sm"
 						>
 							Apply Filters
 						</Button>
@@ -398,9 +404,9 @@ function DesktopFilterPopover({
 					activeFilterCount={activeFilterCount}
 				/>
 			</PopoverTrigger>
-			<PopoverContent className="w-80" align="start">
-				<div className="space-y-4">
-					<div className="space-y-4 max-h-96 overflow-y-auto">
+			<PopoverContent className="w-96 p-0" align="end">
+				<div className="p-4">
+					<div className="space-y-4">
 						{/* Document Type */}
 						<div className="space-y-3">
 							<h3 className="text-sm font-semibold text-gray-900">
@@ -589,50 +595,44 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 	const isMobile = useIsMobile();
 	const [open, setOpen] = useState(false);
 
-	// Get current values from URL
-	const currentParams = useMemo(
-		() => ({
-			type: searchParams.get("type") || "all",
-			year: searchParams.get("year") || "all",
-			classification: searchParams.get("classification") || "all",
-		}),
-		[searchParams],
-	);
+	// Get current values from URL - extract individual values, not an object
+	const urlType = searchParams.get("type") || "all";
+	const urlYear = searchParams.get("year") || "all";
+	const urlClassification = searchParams.get("classification") || "all";
 
 	// Local state for pending filter selections
-	const [selectedType, setSelectedType] = useState(currentParams.type);
-	const [selectedYear, setSelectedYear] = useState(currentParams.year);
-	const [selectedClassification, setSelectedClassification] = useState(
-		currentParams.classification,
-	);
+	const [selectedType, setSelectedType] = useState(urlType);
+	const [selectedYear, setSelectedYear] = useState(urlYear);
+	const [selectedClassification, setSelectedClassification] =
+		useState(urlClassification);
 
-	// Sync local state when URL changes
+	// Sync local state when URL changes - FIXED: use individual values
 	useEffect(() => {
-		setSelectedType(currentParams.type);
-		setSelectedYear(currentParams.year);
-		setSelectedClassification(currentParams.classification);
-	}, [currentParams]);
+		setSelectedType(urlType);
+		setSelectedYear(urlYear);
+		setSelectedClassification(urlClassification);
+	}, [urlType, urlYear, urlClassification]);
 
 	const hasActiveFilters = useMemo(
-		() =>
-			currentParams.type !== "all" ||
-			currentParams.year !== "all" ||
-			currentParams.classification !== "all",
-		[currentParams],
+		() => urlType !== "all" || urlYear !== "all" || urlClassification !== "all",
+		[urlType, urlYear, urlClassification],
 	);
 
 	const activeFilterCount = useMemo(
 		() =>
 			[
-				currentParams.type !== "all",
-				currentParams.year !== "all",
-				currentParams.classification !== "all",
+				urlType !== "all",
+				urlYear !== "all",
+				urlClassification !== "all",
 			].filter(Boolean).length,
-		[currentParams],
+		[urlType, urlYear, urlClassification],
 	);
 
+	// FIXED: Remove searchParams from dependencies, read it at execution time
 	const applyFilters = useCallback(() => {
-		const search = searchParams.get("search") || "";
+		const currentSearchParams = new URLSearchParams(window.location.search);
+		const search = currentSearchParams.get("search") || "";
+
 		const queryString = buildQueryString({
 			search,
 			type: selectedType,
@@ -641,19 +641,17 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 			page: "1",
 		});
 		router.push(`/legislative-documents?${queryString}`);
-	}, [
-		selectedType,
-		selectedYear,
-		selectedClassification,
-		searchParams,
-		router,
-	]);
+	}, [selectedType, selectedYear, selectedClassification, router]);
 
+	// FIXED: Remove searchParams from dependencies
 	const clearFilters = useCallback(() => {
-		const search = searchParams.get("search") || "";
+		const currentSearchParams = new URLSearchParams(window.location.search);
+		const search = currentSearchParams.get("search") || "";
+
 		setSelectedType("all");
 		setSelectedYear("all");
 		setSelectedClassification("all");
+
 		const queryString = buildQueryString({
 			search,
 			type: "all",
@@ -662,7 +660,7 @@ export function FilterControls({ availableYears }: FilterControlsProps) {
 			page: "1",
 		});
 		router.push(`/legislative-documents?${queryString}`);
-	}, [searchParams, router]);
+	}, [router]);
 
 	const sharedProps = {
 		availableYears,
