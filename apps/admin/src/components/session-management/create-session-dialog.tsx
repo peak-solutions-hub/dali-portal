@@ -1,7 +1,21 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
+import { Calendar as CalendarComponent } from "@repo/ui/components/calendar";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@repo/ui/components/dialog";
 import { Input } from "@repo/ui/components/input";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@repo/ui/components/popover";
 import {
 	Select,
 	SelectContent,
@@ -9,7 +23,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
-import { Calendar, Plus, X } from "@repo/ui/lib/lucide-react";
+import { Calendar, Plus } from "@repo/ui/lib/lucide-react";
+import { format } from "date-fns";
 import { useState } from "react";
 
 interface CreateSessionDialogProps {
@@ -23,7 +38,7 @@ export function CreateSessionDialog({
 	onOpenChange,
 	onSessionCreated,
 }: CreateSessionDialogProps) {
-	const [sessionDate, setSessionDate] = useState("");
+	const [sessionDate, setSessionDate] = useState<Date | undefined>(undefined);
 	const [sessionTime, setSessionTime] = useState("10:00");
 	const [sessionType, setSessionType] = useState("regular");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,10 +50,9 @@ export function CreateSessionDialog({
 		setIsSubmitting(true);
 
 		try {
-			// Validate Wednesday
-			const date = new Date(sessionDate);
-			if (date.getDay() !== 3) {
-				setError("Sessions must be scheduled on Wednesdays");
+			// Validate date
+			if (!sessionDate) {
+				setError("Please select a session date");
 				setIsSubmitting(false);
 				return;
 			}
@@ -64,44 +78,28 @@ export function CreateSessionDialog({
 		}
 	};
 
-	if (!open) return null;
-
 	return (
-		<div
-			className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-			onClick={() => onOpenChange(false)}
-		>
-			<div
-				className="bg-white rounded-lg max-w-lg w-full shadow-xl"
-				onClick={(e) => e.stopPropagation()}
-			>
-				{/* Header */}
-				<div className="flex items-center justify-between p-6 border-b">
-					<div className="flex items-center gap-3">
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="max-w-lg">
+				<DialogHeader>
+					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
 							<Plus className="h-5 w-5 text-blue-600" />
 						</div>
 						<div>
-							<h2 className="text-xl font-semibold text-gray-900">
+							<DialogTitle className="text-xl font-semibold text-gray-900">
 								Create New Session
-							</h2>
-							<p className="text-sm text-gray-600 mt-0.5">
-								Schedule a new council session on Wednesday
-							</p>
+							</DialogTitle>
+							<DialogDescription className="text-sm text-gray-600 mt-0.5">
+								Schedule a new council session
+							</DialogDescription>
 						</div>
 					</div>
-					<button
-						type="button"
-						onClick={() => onOpenChange(false)}
-						className="text-gray-400 hover:text-gray-600 cursor-pointer"
-					>
-						<X className="h-5 w-5" />
-					</button>
-				</div>
+				</DialogHeader>
 
 				{/* Form */}
 				<form onSubmit={handleSubmit}>
-					<div className="p-6 space-y-4">
+					<div className="space-y-4">
 						{/* Session Type */}
 						<div className="space-y-2">
 							<label
@@ -124,7 +122,7 @@ export function CreateSessionDialog({
 								</SelectContent>
 							</Select>
 							<p className="text-xs text-gray-500">
-								Regular sessions are held weekly on Wednesdays
+								Regular sessions are held weekly
 							</p>
 						</div>
 
@@ -136,19 +134,31 @@ export function CreateSessionDialog({
 							>
 								Session Date <span className="text-red-500">*</span>
 							</label>
-							<div className="relative">
-								<Input
-									id="session-date"
-									type="date"
-									value={sessionDate}
-									onChange={(e) => setSessionDate(e.target.value)}
-									required
-									className="pl-10 cursor-pointer"
-								/>
-								<Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-							</div>
+							<Popover>
+								<PopoverTrigger asChild>
+									<Button
+										variant="outline"
+										className="w-full justify-start text-left font-normal cursor-pointer"
+									>
+										<Calendar className="mr-2 h-4 w-4" />
+										{sessionDate ? format(sessionDate, "PPP") : "Pick a date"}
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent className="w-auto p-0" align="start">
+									<CalendarComponent
+										mode="single"
+										selected={sessionDate}
+										onSelect={setSessionDate}
+										classNames={{
+											today: "bg-transparent text-yellow-400 font-normal",
+											day_selected:
+												"bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+										}}
+									/>
+								</PopoverContent>
+							</Popover>{" "}
 							<p className="text-xs text-gray-500">
-								Must be a Wednesday (council session day)
+								Select the desired session date
 							</p>
 						</div>
 
@@ -180,8 +190,7 @@ export function CreateSessionDialog({
 						)}
 					</div>
 
-					{/* Footer */}
-					<div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+					<DialogFooter className="mt-6">
 						<Button
 							type="button"
 							variant="outline"
@@ -199,9 +208,9 @@ export function CreateSessionDialog({
 							<Plus className="h-4 w-4 mr-2" />
 							{isSubmitting ? "Creating..." : "Create Session"}
 						</Button>
-					</div>
+					</DialogFooter>
 				</form>
-			</div>
-		</div>
+			</DialogContent>
+		</Dialog>
 	);
 }

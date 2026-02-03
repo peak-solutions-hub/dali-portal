@@ -109,7 +109,7 @@ export function PresenterWindow({ sessionId }: { sessionId: string }) {
 	);
 
 	return (
-		<div className="h-screen bg-gray-50">
+		<div className="h-full w-full overflow-hidden bg-gray-50">
 			{currentSlide ? (
 				<PresenterViewLayout
 					currentSlide={currentSlide}

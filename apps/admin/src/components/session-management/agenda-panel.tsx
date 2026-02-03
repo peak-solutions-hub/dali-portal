@@ -7,10 +7,22 @@ import type {
 } from "@repo/shared";
 import { formatSessionDate, formatSessionTime } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { Input } from "@repo/ui/components/input";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@repo/ui/components/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/ui/components/select";
 import {
 	CheckCircle2,
 	ChevronDown,
-	Filter,
 	Monitor,
 	Search,
 	X,
@@ -20,7 +32,7 @@ import {
 	getSessionStatusLabel,
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { AgendaItemCard } from "./agenda-item-card";
 import { MarkCompleteDialog } from "./mark-complete-dialog";
 
@@ -52,25 +64,6 @@ export function AgendaPanel({
 	const [showMarkCompleteDialog, setShowMarkCompleteDialog] = useState(false);
 	const [showSessionDropdown, setShowSessionDropdown] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
-	const dropdownRef = useRef<HTMLDivElement>(null);
-
-	// Close dropdown when clicking outside
-	useEffect(() => {
-		function handleClickOutside(event: MouseEvent) {
-			if (
-				dropdownRef.current &&
-				!dropdownRef.current.contains(event.target as Node)
-			) {
-				setShowSessionDropdown(false);
-			}
-		}
-
-		if (showSessionDropdown) {
-			document.addEventListener("mousedown", handleClickOutside);
-			return () =>
-				document.removeEventListener("mousedown", handleClickOutside);
-		}
-	}, [showSessionDropdown]);
 
 	const handleAddDocument = (agendaItemId: string) => {
 		onAddDocument(agendaItemId);
@@ -168,122 +161,127 @@ export function AgendaPanel({
 	return (
 		<div className="flex h-full w-full flex-col gap-6 rounded-xl border border-gray-200 bg-white p-6">
 			{/* Session Selector Dropdown */}
-			<div className="border-b border-gray-200 pb-4" ref={dropdownRef}>
+			<div className="border-b border-gray-200 pb-4">
 				<label className="block text-sm font-medium text-gray-700 mb-2">
 					Current Session
 				</label>
-				<div className="relative">
-					<button
-						onClick={() => setShowSessionDropdown(!showSessionDropdown)}
-						className="w-full flex items-center justify-between px-4 py-3 bg-white border-2 border-gray-300 rounded-lg hover:border-[#a60202] hover:bg-gray-50 transition-all cursor-pointer group"
+				<Popover
+					open={showSessionDropdown}
+					onOpenChange={setShowSessionDropdown}
+				>
+					<PopoverTrigger asChild>
+						<Button
+							variant="outline"
+							className="w-full justify-between px-4 py-6 h-auto border-2 hover:border-[#a60202] hover:bg-gray-50 transition-all cursor-pointer"
+						>
+							{selectedSession ? (
+								<div className="flex-1 text-left">
+									<div className="flex items-center gap-2">
+										<span className="text-base font-semibold text-gray-900">
+											Session #{selectedSession.sessionNumber}
+										</span>
+										<span
+											className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${getSessionStatusBadgeClass(selectedSession.status)} text-white`}
+										>
+											{getSessionStatusLabel(selectedSession.status)}
+										</span>
+									</div>
+									<div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+										<span>{getSessionTypeLabel(selectedSession.type)}</span>
+										<span>•</span>
+										<span>{formatSessionDate(selectedSession.date)}</span>
+										<span>•</span>
+										<span>
+											{formatSessionTime(
+												`${selectedSession.date}T${selectedSession.time}`,
+											)}
+										</span>
+									</div>
+								</div>
+							) : (
+								<span className="text-gray-500">Select a session...</span>
+							)}
+							<ChevronDown
+								className={`h-5 w-5 text-gray-400 transition-transform ${showSessionDropdown ? "rotate-180" : ""}`}
+							/>
+						</Button>
+					</PopoverTrigger>
+					<PopoverContent
+						className="p-0"
+						align="start"
+						style={{ width: "var(--radix-popover-trigger-width)" }}
 					>
-						{selectedSession ? (
-							<div className="flex-1 text-left">
-								<div className="flex items-center gap-2">
-									<span className="text-base font-semibold text-gray-900">
-										Session #{selectedSession.sessionNumber}
-									</span>
-									<span
-										className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${getSessionStatusBadgeClass(selectedSession.status)} text-white`}
-									>
-										{getSessionStatusLabel(selectedSession.status)}
-									</span>
-								</div>
-								<div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-									<span>{getSessionTypeLabel(selectedSession.type)}</span>
-									<span>•</span>
-									<span>{formatSessionDate(selectedSession.date)}</span>
-									<span>•</span>
-									<span>
-										{formatSessionTime(
-											`${selectedSession.date}T${selectedSession.time}`,
-										)}
-									</span>
-								</div>
-							</div>
-						) : (
-							<span className="text-gray-500">Select a session...</span>
-						)}
-						<ChevronDown
-							className={`h-5 w-5 text-gray-400 group-hover:text-[#a60202] transition-all ${showSessionDropdown ? "rotate-180" : ""}`}
-						/>
-					</button>
-
-					{/* Dropdown Panel */}
-					{showSessionDropdown && (
-						<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[500px] flex flex-col">
+						<div className="flex flex-col w-full">
 							{/* Search and Filters */}
-							<div className="p-4 space-y-3 border-b border-gray-200">
+							<div className="p-4 space-y-3 border-b border-gray-200 shrink-0 w-full">
 								{/* Search */}
 								<div className="relative">
-									<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-									<input
+									<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+									<Input
 										type="text"
 										placeholder="Search sessions..."
 										value={searchQuery}
 										onChange={(e) => setSearchQuery(e.target.value)}
-										className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a60202] focus:border-[#a60202] outline-none"
+										className="pl-9"
 									/>
 								</div>
 
 								{/* Filters Row */}
 								<div className="flex gap-2">
-									<div className="flex-1">
-										<div className="relative">
-											<select
-												value={typeFilter}
-												onChange={(e) => setTypeFilter(e.target.value)}
-												className="w-full pl-8 pr-8 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-[#a60202] focus:border-[#a60202] appearance-none cursor-pointer outline-none"
-											>
-												<option value="all">All Types</option>
-												<option value="regular">Regular</option>
-												<option value="special">Special</option>
-											</select>
-											<Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-500 pointer-events-none" />
-											<ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-500 pointer-events-none" />
-										</div>
-									</div>
-									<div className="flex-1">
-										<div className="relative">
-											<select
-												value={statusFilter}
-												onChange={(e) => setStatusFilter(e.target.value)}
-												className="w-full pl-8 pr-8 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-[#a60202] focus:border-[#a60202] appearance-none cursor-pointer outline-none"
-											>
-												<option value="all">All Statuses</option>
-												<option value="draft">Draft</option>
-												<option value="scheduled">Scheduled</option>
-												<option value="completed">Completed</option>
-											</select>
-											<Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-500 pointer-events-none" />
-											<ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-500 pointer-events-none" />
-										</div>
-									</div>
+									<Select value={typeFilter} onValueChange={setTypeFilter}>
+										<SelectTrigger className="flex-1 h-8 text-xs cursor-pointer">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Types</SelectItem>
+											<SelectItem value="regular">Regular</SelectItem>
+											<SelectItem value="special">Special</SelectItem>
+										</SelectContent>
+									</Select>
+									<Select value={statusFilter} onValueChange={setStatusFilter}>
+										<SelectTrigger className="flex-1 h-8 text-xs cursor-pointer">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Statuses</SelectItem>
+											<SelectItem value="draft">Draft</SelectItem>
+											<SelectItem value="scheduled">Scheduled</SelectItem>
+											<SelectItem value="completed">Completed</SelectItem>
+										</SelectContent>
+									</Select>
 								</div>
 
-								{/* Active Filters Summary */}
-								{hasActiveFilters && (
-									<div className="flex items-center justify-between text-xs">
-										<span className="text-gray-600">
-											{filteredSessions.length} session
-											{filteredSessions.length !== 1 ? "s" : ""} found
+								{/* Active Filters Summary - Always visible to prevent layout shift */}
+								<div className="flex items-center justify-between text-xs min-h-5">
+									{hasActiveFilters ? (
+										<>
+											<span className="text-gray-600">
+												{filteredSessions.length} session
+												{filteredSessions.length !== 1 ? "s" : ""} found
+											</span>
+											<button
+												onClick={() => {
+													setTypeFilter("all");
+													setStatusFilter("all");
+													setSearchQuery("");
+												}}
+												className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 text-[#a60202] hover:bg-red-100 font-medium transition-colors cursor-pointer"
+											>
+												<X className="h-3 w-3" />
+												Clear filters
+											</button>
+										</>
+									) : (
+										<span className="text-gray-500">
+											{sessions.length} session
+											{sessions.length !== 1 ? "s" : ""} total
 										</span>
-										<button
-											onClick={() => {
-												setTypeFilter("all");
-												setStatusFilter("all");
-												setSearchQuery("");
-											}}
-											className="text-[#a60202] hover:underline font-medium"
-										>
-											Clear filters
-										</button>
-									</div>
-								)}
+									)}
+								</div>
 							</div>
 
 							{/* Sessions List */}
-							<div className="flex-1 overflow-y-auto p-3">
+							<div className="p-3 h-96 overflow-y-auto shrink-0 w-full">
 								<div className="space-y-4">
 									{/* Draft Sessions */}
 									{groupedSessions.draft.length > 0 &&
@@ -452,28 +450,19 @@ export function AgendaPanel({
 									{/* No Results */}
 									{filteredSessions.length === 0 && (
 										<div className="text-center py-8">
-											<p className="text-sm text-gray-500 mb-2">
+											<p className="text-sm text-gray-500 mb-3">
 												No sessions found
 											</p>
-											{hasActiveFilters && (
-												<button
-													onClick={() => {
-														setTypeFilter("all");
-														setStatusFilter("all");
-														setSearchQuery("");
-													}}
-													className="text-xs text-[#a60202] hover:underline"
-												>
-													Clear filters
-												</button>
-											)}
+											<p className="text-xs text-gray-400 mb-4">
+												Try adjusting your filters or search query
+											</p>
 										</div>
 									)}
 								</div>
 							</div>
 						</div>
-					)}
-				</div>
+					</PopoverContent>
+				</Popover>
 			</div>
 
 			{selectedSession ? (
@@ -482,16 +471,14 @@ export function AgendaPanel({
 					{isScheduled && onStartPresentation && (
 						<div className="flex gap-2 border-b border-gray-200 pb-4">
 							<Button
-								variant="outline"
-								className="flex-1 cursor-pointer"
+								className="flex-1 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
 								onClick={onStartPresentation}
 							>
 								<Monitor className="h-4 w-4 mr-2" />
 								Start Presentation
 							</Button>
 							<Button
-								variant="outline"
-								className="flex-1 cursor-pointer"
+								className="flex-1 cursor-pointer bg-green-600 hover:bg-green-700 text-white"
 								onClick={() => setShowMarkCompleteDialog(true)}
 							>
 								<CheckCircle2 className="h-4 w-4 mr-2" />

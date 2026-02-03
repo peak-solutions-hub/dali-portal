@@ -183,7 +183,10 @@ export function PresenterViewLayout({
 				}
 				case "Escape": {
 					if (showNavMenu) setShowNavMenu(false);
-					else if (isFullscreen) void exitFullscreen();
+					else if (isFullscreen) {
+						e.preventDefault();
+						void exitFullscreen();
+					}
 					break;
 				}
 			}
@@ -212,7 +215,7 @@ export function PresenterViewLayout({
 	}, [slides, totalSlides]);
 
 	return (
-		<div className="fixed inset-0 bg-gray-50">
+		<div className="fixed inset-0 w-full h-full overflow-hidden bg-gray-50">
 			<PresenterTopBar
 				sessionNumber={sessionNumber}
 				sessionDate={sessionDate}
@@ -241,22 +244,29 @@ export function PresenterViewLayout({
 				onToggleNavMenu={() => setShowNavMenu((p) => !p)}
 			/>
 
-			<div className="absolute top-12 bottom-16 left-0 right-0 overflow-auto px-3 sm:px-6 py-4">
-				<div className="h-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-					<PresenterSlideViewport
-						currentSlide={currentSlide}
-						sessionDate={sessionDate}
-						sessionTime={sessionTime}
-					/>
-					<PresenterSidePanel
-						currentSlide={currentSlide}
-						nextSlide={nextSlide}
-						sessionDate={sessionDate}
-						sessionTime={sessionTime}
-						currentSlideIndex={currentSlideIndex}
-						totalSlides={totalSlides}
-						sessionNumber={sessionNumber}
-					/>
+			<div className="absolute top-14 bottom-16 left-0 right-0 overflow-auto">
+				<div className="h-full flex flex-col">
+					{/* Main Slide - 16:9 aspect ratio */}
+					<div className="flex-1 min-h-0 px-4 sm:px-6 py-4">
+						<PresenterSlideViewport
+							currentSlide={currentSlide}
+							sessionDate={sessionDate}
+							sessionTime={sessionTime}
+						/>
+					</div>
+
+					{/* Bottom Panel - Notes, Next Slide, Info */}
+					<div className="px-4 sm:px-6 pb-4">
+						<PresenterSidePanel
+							currentSlide={currentSlide}
+							nextSlide={nextSlide}
+							sessionDate={sessionDate}
+							sessionTime={sessionTime}
+							currentSlideIndex={currentSlideIndex}
+							totalSlides={totalSlides}
+							sessionNumber={sessionNumber}
+						/>
+					</div>
 				</div>
 			</div>
 
@@ -298,7 +308,7 @@ export function PresenterViewLayout({
 								}
 							: undefined
 					}
-					insetTop={48}
+					insetTop={56}
 					insetBottom={64}
 				/>
 			)}

@@ -24,7 +24,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 			>
 				<div className="flex items-start gap-2">
 					{/* Drag Handle */}
-					<div className="flex-shrink-0 text-gray-400 group-hover:text-gray-600 transition-colors pt-1">
+					<div className="shrink-0 text-gray-400 group-hover:text-gray-600 transition-colors pt-1">
 						<GripVertical className="w-4 h-4" aria-hidden="true" />
 					</div>
 

@@ -2,11 +2,14 @@
 
 import { Button } from "@repo/ui/components/button";
 import {
-	AlertTriangle,
-	CheckCircle,
-	Upload,
-	X,
-} from "@repo/ui/lib/lucide-react";
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@repo/ui/components/dialog";
+import { AlertTriangle, CheckCircle, Upload } from "@repo/ui/lib/lucide-react";
 import { useState } from "react";
 
 interface PublishSessionDialogProps {
@@ -61,20 +64,11 @@ export function PublishSessionDialog({
 
 	const canPublish = agendaItemCount > 0;
 
-	if (!open) return null;
-
 	return (
-		<div
-			className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-			onClick={() => onOpenChange(false)}
-		>
-			<div
-				className="bg-white rounded-lg max-w-md w-full shadow-xl"
-				onClick={(e) => e.stopPropagation()}
-			>
-				{/* Header */}
-				<div className="flex items-center justify-between p-6 border-b">
-					<div className="flex items-center gap-3">
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<div className="flex items-center gap-3 mb-2">
 						<div
 							className={`h-10 w-10 rounded-full flex items-center justify-center ${
 								canPublish ? "bg-green-100" : "bg-yellow-100"
@@ -87,27 +81,20 @@ export function PublishSessionDialog({
 							)}
 						</div>
 						<div>
-							<h2 className="text-xl font-semibold text-gray-900">
+							<DialogTitle className="text-xl font-semibold text-gray-900">
 								Publish Session
-							</h2>
-							<p className="text-sm text-gray-600 mt-0.5">
+							</DialogTitle>
+							<DialogDescription className="text-sm text-gray-600 mt-0.5">
 								{canPublish
 									? "Make this session public on the portal"
 									: "Session not ready to publish"}
-							</p>
+							</DialogDescription>
 						</div>
 					</div>
-					<button
-						type="button"
-						onClick={() => onOpenChange(false)}
-						className="text-gray-400 hover:text-gray-600 cursor-pointer"
-					>
-						<X className="h-5 w-5" />
-					</button>
-				</div>
+				</DialogHeader>
 
 				{/* Content */}
-				<div className="p-6 space-y-4">
+				<div className="space-y-4">
 					{canPublish ? (
 						<>
 							{/* Ready to Publish */}
@@ -164,8 +151,7 @@ export function PublishSessionDialog({
 					)}
 				</div>
 
-				{/* Footer */}
-				<div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+				<DialogFooter>
 					<Button
 						type="button"
 						variant="outline"
@@ -183,8 +169,8 @@ export function PublishSessionDialog({
 						<Upload className="h-4 w-4 mr-2" />
 						{isSubmitting ? "Publishing..." : "Publish Session"}
 					</Button>
-				</div>
-			</div>
-		</div>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

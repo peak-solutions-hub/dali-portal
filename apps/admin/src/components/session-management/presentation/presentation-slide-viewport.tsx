@@ -13,7 +13,7 @@ export function PresentationSlideViewport({
 	sessionTime: string;
 }) {
 	return (
-		<div className="h-screen flex items-center justify-center p-20">
+		<div className="h-screen w-screen flex items-center justify-center px-16 py-20 bg-red-700/90">
 			{slide.type === "cover" ? (
 				<CoverSlide
 					title={slide.title}
