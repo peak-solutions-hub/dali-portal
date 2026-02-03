@@ -1,3 +1,4 @@
+import { DEFAULT_REDIRECT_PATH, validateRedirectPath } from "@repo/shared";
 import { createRouteHandlerClient } from "@repo/ui/lib/supabase/server-client";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
@@ -20,12 +21,10 @@ export async function GET(request: NextRequest) {
 	// The 'code' is the authorization code from Supabase
 	const code = searchParams.get("code");
 	// The 'next' param tells us where to redirect after auth
-	let next = searchParams.get("next") ?? "/dashboard";
-
-	// Validate next path to prevent open redirect
-	if (!next.startsWith("/")) {
-		next = "/dashboard";
-	}
+	// Use validateRedirectPath to prevent open redirect vulnerabilities
+	const next = validateRedirectPath(
+		searchParams.get("next") ?? DEFAULT_REDIRECT_PATH,
+	);
 
 	if (code) {
 		const cookieStore = await cookies();

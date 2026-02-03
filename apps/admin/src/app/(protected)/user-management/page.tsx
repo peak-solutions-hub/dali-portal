@@ -4,11 +4,12 @@ import type { Role, UserWithRole } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
-import { AlertTriangle, Loader2, UserPlus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { UsersTable } from "@/components/user-management";
 import { InviteUserDialog, SearchFilters } from "@/components/user-management/";
-import { api } from "@/lib/api.client";
+import { api, orpc } from "@/lib/api.client";
 
 type UserStatus = "active" | "invited" | "deactivated";
 
@@ -18,54 +19,27 @@ export default function UserManagementPage() {
 	const [roleFilter, setRoleFilter] = useState<Role["name"] | "all">("all");
 	const [statusFilter, setStatusFilter] = useState<UserStatus[]>([]);
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-	const [users, setUsers] = useState<UserWithRole[]>([]);
-	const [roles, setRoles] = useState<Role[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
 	const [itemsPerPage, setItemsPerPage] = useState(10);
 
-	// Fetch all users and roles once on mount
-	const fetchData = async () => {
-		try {
-			setIsLoading(true);
+	const {
+		data: usersData,
+		isLoading: isUsersLoading,
+		error: usersError,
+		refetch: refetchUsers,
+	} = useQuery(orpc.users.list.queryOptions({ input: {} }));
 
-			// Fetch all users (no search or pagination)
-			const [usersError, usersResult] = await api.users.list({});
+	const {
+		data: rolesData,
+		isLoading: isRolesLoading,
+		error: rolesError,
+		refetch: refetchRoles,
+	} = useQuery(orpc.roles.list.queryOptions());
 
-			if (usersError) {
-				throw usersError;
-			}
-
-			if (usersResult?.users) {
-				setUsers(usersResult.users as unknown as UserWithRole[]);
-			}
-
-			// Fetch roles
-			const [rolesError, rolesResult] = await api.roles.list();
-
-			if (rolesError) {
-				throw rolesError;
-			}
-
-			if (rolesResult?.roles) {
-				setRoles(rolesResult.roles as unknown as Role[]);
-			}
-
-			setError(null);
-		} catch (e) {
-			console.error("Fetch error:", e);
-			setError(
-				`Failed to load data: ${e instanceof Error ? e.message : String(e)}`,
-			);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		fetchData();
-	}, []);
+	const users = (usersData?.users as unknown as UserWithRole[]) || [];
+	const roles = (rolesData?.roles as unknown as Role[]) || [];
+	const isLoading = isUsersLoading || isRolesLoading;
+	const error = usersError?.message || rolesError?.message || null;
 
 	const filteredUsers = users.filter((user) => {
 		const matchesSearch =
@@ -95,8 +69,8 @@ export default function UserManagementPage() {
 	};
 
 	const handleRefresh = () => {
-		// Refetch data
-		fetchData();
+		refetchUsers();
+		refetchRoles();
 	};
 
 	// Reset page when filters change

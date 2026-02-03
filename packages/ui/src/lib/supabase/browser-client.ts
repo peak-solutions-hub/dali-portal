@@ -38,12 +38,6 @@ function getSupabaseConfig() {
 	return { supabaseUrl, supabaseAnonKey };
 }
 
-/**
- * Create a Supabase client for browser/client-side usage.
- *
- * Uses @supabase/ssr for proper cookie handling and session management.
- * The client is a singleton by default for optimal performance.
- */
 export function createBrowserClient(): SupabaseClient {
 	if (browserClient) {
 		return browserClient;

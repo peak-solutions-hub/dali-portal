@@ -26,7 +26,7 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import { Mail, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
 import { ActivateUserDialog } from "./activate-user-dialog";

@@ -13,7 +13,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { api } from "@/lib/api.client";
+import { useAuth } from "@/contexts/auth-context";
+import { api, setAuthToken } from "@/lib/api.client";
 import { useAuthStore } from "@/stores/auth-store";
 import { AuthCard } from "./auth-card";
 import { AuthHeader } from "./auth-header";
@@ -23,7 +24,8 @@ import { PasswordValidationTooltip } from "./password-validation-tooltip";
 export function SetPasswordForm() {
 	const router = useRouter();
 	const supabase = createBrowserClient();
-	const { setSession, fetchProfile } = useAuthStore();
+	const { fetchProfile } = useAuth();
+	const { setSession } = useAuthStore();
 	const [hasSession, setHasSession] = useState<boolean | null>(null);
 	const [isChecking, setIsChecking] = useState(true);
 
@@ -109,6 +111,7 @@ export function SetPasswordForm() {
 			}
 
 			setSession(session);
+			setAuthToken(session.access_token);
 
 			try {
 				const supabaseUserId = updateData.user.id;
@@ -124,8 +127,8 @@ export function SetPasswordForm() {
 			}
 
 			try {
-				await fetchProfile();
-				const profile = useAuthStore.getState().userProfile;
+				// fetchProfile now returns the profile directly - no need for fragile delays
+				const profile = await fetchProfile(session.access_token);
 
 				if (!profile) {
 					toast.error("Failed to load user profile");

@@ -6,17 +6,6 @@
  *
  * IMPORTANT: Import directly from this file, not through barrel exports.
  *
- * @example Middleware
- * ```typescript
- * import { createMiddlewareClient } from '@repo/ui/lib/supabase/server-client';
- *
- * export async function middleware(request: NextRequest) {
- *   const { user } = await createMiddlewareClient({
- *     getCookies: () => request.cookies.getAll(),
- *     onSetCookies: (cookies) => { ... }
- *   });
- * }
- * ```
  *
  * @example Server Component
  * ```typescript

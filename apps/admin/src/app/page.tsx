@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 export default function Home() {
-	// Redirect to sign-in as the entry point
-	// Authenticated users will be redirected to dashboard by the proxy
-	redirect("/login");
+	// Redirect directly to dashboard - the proxy handles auth check
+	// This avoids a double redirect (/ -> /login -> /dashboard)
+	redirect("/dashboard");
 }

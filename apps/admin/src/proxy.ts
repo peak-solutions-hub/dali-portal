@@ -1,37 +1,16 @@
+import {
+	DEFAULT_REDIRECT_PATH,
+	isAuthOnlyRoute,
+	isPublicRoute,
+} from "@repo/shared";
 import { createServerClient } from "@supabase/ssr";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
-/**
- * Public routes that don't require authentication
- */
-const publicRoutes = [
-	"/login",
-	"/forgot-password",
-	"/set-password",
-	"/auth/callback",
-	"/auth/confirm",
-	"/unauthorized",
-];
-
-/**
- * Next.js 16 proxy function for authentication routing
- * Handles automatic session refresh and authentication checks
- */
 export async function proxy(request: NextRequest) {
-	const pathname = request.nextUrl.pathname;
-
-	// Allow auth callback routes to process without interference
-	// These routes handle their own session establishment
-	if (
-		pathname.startsWith("/auth/callback") ||
-		pathname.startsWith("/auth/confirm")
-	) {
-		return NextResponse.next({ request });
-	}
-
 	let response = NextResponse.next({
-		request,
+		request: {
+			headers: request.headers,
+		},
 	});
 
 	const supabase = createServerClient(
@@ -43,46 +22,42 @@ export async function proxy(request: NextRequest) {
 					return request.cookies.getAll();
 				},
 				setAll(cookiesToSet) {
-					// Set cookies on both request and response for proper propagation
-					for (const { name, value } of cookiesToSet) {
+					cookiesToSet.forEach(({ name, value }) => {
 						request.cookies.set(name, value);
-					}
+					});
 					response = NextResponse.next({
 						request,
 					});
-					for (const { name, value, options } of cookiesToSet) {
+					cookiesToSet.forEach(({ name, value, options }) => {
 						response.cookies.set(name, value, options);
-					}
+					});
 				},
 			},
 		},
 	);
 
-	// Important: Use getUser() instead of getSession() for security
-	// getUser() validates the JWT with Supabase servers
-	// This also triggers automatic token refresh if needed
+	// Refresh session if expired - this will automatically refresh the session token
+	// Per Supabase SSR docs: getSession() triggers automatic token refresh
 	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+		data: { session },
+	} = await supabase.auth.getSession();
 
-	// Allow public routes
-	const isPublic = publicRoutes.some(
-		(route) => pathname.startsWith(route) || pathname === "/",
-	);
+	const pathname = request.nextUrl.pathname;
 
-	if (!user && !isPublic) {
-		console.log(`[Proxy] No valid user for ${pathname}, redirecting to login`);
-		const url = request.nextUrl.clone();
-		url.pathname = "/login";
-		url.searchParams.set("next", pathname);
-		return NextResponse.redirect(url);
+	// If no session and not on a public route, redirect to login
+	if (!session && !isPublicRoute(pathname)) {
+		const redirectUrl = new URL("/login", request.url);
+		redirectUrl.searchParams.set(
+			"message",
+			"Please sign in to access this page.",
+		);
+		redirectUrl.searchParams.set("redirect", pathname);
+		return NextResponse.redirect(redirectUrl);
 	}
 
-	if (user && pathname === "/login") {
-		// Redirect to dashboard if already logged in
-		const url = request.nextUrl.clone();
-		url.pathname = "/dashboard";
-		return NextResponse.redirect(url);
+	// If has session and on an auth-only route (login, etc.), redirect to dashboard
+	if (session && isAuthOnlyRoute(pathname)) {
+		return NextResponse.redirect(new URL(DEFAULT_REDIRECT_PATH, request.url));
 	}
 
 	return response;
@@ -90,9 +65,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
 	matcher: [
-		/*
-		 * Match all request paths except static files and images
-		 */
 		"/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
 	],
 };

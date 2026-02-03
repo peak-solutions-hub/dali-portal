@@ -1,10 +1,11 @@
 "use client";
 
+import { AUTH_DEBOUNCE, PROFILE_CACHE } from "@repo/shared";
 import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
 import type { Session, User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
-import { api, getAuthToken, setAuthToken } from "@/lib/api.client";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { api, setAuthToken } from "@/lib/api.client";
 import type { UserProfile } from "@/stores/auth-store";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -14,6 +15,8 @@ type AuthContextType = {
 	userProfile: UserProfile | null;
 	isLoading: boolean;
 	signOut: () => Promise<void>;
+	/** Fetch user profile - returns the profile or null */
+	fetchProfile: (accessToken: string) => Promise<UserProfile | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,6 +27,11 @@ const AuthContext = createContext<AuthContextType>({
 	signOut: () => {
 		throw new Error("AuthContext.signOut was called outside of AuthProvider");
 	},
+	fetchProfile: () => {
+		throw new Error(
+			"AuthContext.fetchProfile was called outside of AuthProvider",
+		);
+	},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -31,21 +39,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [session, setSession] = useState<Session | null>(null);
 	const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
+	const [isInitialized, setIsInitialized] = useState(false);
 	const router = useRouter();
 	const supabase = createBrowserClient();
 
-	// Fetch user profile from backend
-	const fetchProfile = async (accessToken: string) => {
-		console.log("[AuthProvider] Setting auth token and fetching profile");
-		setAuthToken(accessToken);
+	// Cache to prevent re-fetching during Fast Refresh
+	const profileCacheRef = useRef<{
+		token: string;
+		profile: UserProfile;
+		timestamp: number;
+	} | null>(null);
 
-		// Verify token was set
-		const tokenCheck = getAuthToken();
-		if (!tokenCheck) {
-			console.error("[AuthProvider] Token was not set properly!");
-			setIsLoading(false);
-			return;
+	/**
+	 * Fetch user profile from backend.
+	 * Returns the profile directly for immediate use.
+	 */
+	const fetchProfile = async (
+		accessToken: string,
+	): Promise<UserProfile | null> => {
+		// Check cache first
+		if (profileCacheRef.current) {
+			const { token, profile, timestamp } = profileCacheRef.current;
+			if (
+				token === accessToken &&
+				Date.now() - timestamp < PROFILE_CACHE.TTL_MS
+			) {
+				console.log("[AuthProvider] Using cached profile");
+				setUserProfile(profile);
+				setIsLoading(false);
+				return profile;
+			}
 		}
+
+		console.log("[AuthProvider] Fetching profile from API");
+		setAuthToken(accessToken);
 
 		const [error, data] = await api.users.me({});
 
@@ -69,94 +96,122 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				setUserProfile(null);
 				setIsLoading(false);
 				router.push("/unauthorized");
-				return;
+				return null;
 			}
 
-			// Log more details about the error
-			if ("status" in error) {
-				console.error(
-					"[AuthProvider] Error status:",
-					(error as { status?: number }).status,
-				);
-			}
-			if ("message" in error) {
-				console.error(
-					"[AuthProvider] Error message:",
-					(error as { message?: string }).message,
-				);
-			}
 			setUserProfile(null);
 			setIsLoading(false);
-			return;
+			return null;
 		}
 
 		console.log("[AuthProvider] Profile fetched successfully:", data?.email);
+
+		// Cache the profile
+		if (data) {
+			profileCacheRef.current = {
+				token: accessToken,
+				profile: data,
+				timestamp: Date.now(),
+			};
+		}
+
 		setUserProfile(data);
 		setIsLoading(false);
+		return data;
 	};
 
 	useEffect(() => {
-		// Listen to auth state changes for automatic token refresh
-		// onAuthStateChange will fire INITIAL_SESSION event immediately with existing session
+		// Prevent re-initialization during Fast Refresh
+		if (isInitialized) {
+			console.log("[AuthProvider] Already initialized, skipping");
+			return;
+		}
+
+		let isSubscribed = true;
+		let debounceTimer: NodeJS.Timeout | null = null;
+
 		const {
 			data: { subscription },
-		} = supabase.auth.onAuthStateChange(async (event, session) => {
-			console.log("[AuthProvider] Auth event:", event, session?.user?.id);
+		} = supabase.auth.onAuthStateChange((event, session) => {
+			if (!isSubscribed) return;
 
-			setSession(session);
-			setUser(session?.user ?? null);
+			// Debounce rapid auth events
+			if (debounceTimer) {
+				clearTimeout(debounceTimer);
+			}
 
-			// Update Zustand store as well to keep in sync
-			useAuthStore.getState().setSession(session);
+			debounceTimer = setTimeout(async () => {
+				if (!isSubscribed) return;
+				console.log("[AuthProvider] Auth event:", event, session?.user?.id);
 
-			// INITIAL_SESSION: fired on app load with existing session
-			// SIGNED_IN: user just signed in
-			// TOKEN_REFRESHED: access token was refreshed
-			if (
-				event === "INITIAL_SESSION" ||
-				event === "SIGNED_IN" ||
-				event === "TOKEN_REFRESHED"
-			) {
-				if (session?.access_token) {
-					try {
-						await fetchProfile(session.access_token);
-					} catch (error) {
-						console.error("[AuthProvider] Failed to fetch profile:", error);
+				setSession(session);
+				setUser(session?.user ?? null);
+
+				// Update Zustand store as well to keep in sync
+				useAuthStore.getState().setSession(session);
+
+				// Only fetch profile on INITIAL_SESSION and SIGNED_IN
+				// TOKEN_REFRESHED happens frequently and doesn't need profile refresh
+				if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+					if (session?.access_token) {
+						try {
+							await fetchProfile(session.access_token);
+						} catch (error) {
+							console.error("[AuthProvider] Failed to fetch profile:", error);
+							setUserProfile(null);
+							setIsLoading(false);
+						}
+					} else {
+						console.log("[AuthProvider] No session found");
 						setUserProfile(null);
 						setIsLoading(false);
 					}
-				} else {
-					console.log("[AuthProvider] No session found");
-					setUserProfile(null);
+
+					// Mark as initialized after handling INITIAL_SESSION
+					if (event === "INITIAL_SESSION") {
+						setIsInitialized(true);
+					}
+				}
+
+				// TOKEN_REFRESHED: just update the token, no profile fetch needed
+				if (event === "TOKEN_REFRESHED" && session?.access_token) {
+					console.log("[AuthProvider] Token refreshed, updating auth token");
+					setAuthToken(session.access_token);
 					setIsLoading(false);
 				}
-			}
 
-			// SIGNED_OUT: user signed out or session expired
-			if (event === "SIGNED_OUT") {
-				console.log("[AuthProvider] User signed out, clearing state");
-				setUserProfile(null);
-				setAuthToken(null);
-				setIsLoading(false);
+				// SIGNED_OUT: user signed out or session expired
+				if (event === "SIGNED_OUT") {
+					console.log("[AuthProvider] User signed out, clearing state");
+					setUserProfile(null);
+					setAuthToken(null);
+					setIsLoading(false);
+					profileCacheRef.current = null;
 
-				// Only redirect if not already on auth pages
-				if (!window.location.pathname.startsWith("/auth/")) {
-					router.push(
-						"/login?message=Your session has expired. Please sign in again.",
-					);
+					// Only redirect if not already on auth pages
+					if (!window.location.pathname.startsWith("/auth/")) {
+						router.push(
+							"/login?message=Your session has expired. Please sign in again.",
+						);
+					}
 				}
-			}
+			}, AUTH_DEBOUNCE.DELAY_MS);
 		});
 
 		return () => {
+			isSubscribed = false;
+			if (debounceTimer) {
+				clearTimeout(debounceTimer);
+			}
 			subscription.unsubscribe();
 		};
-	}, [router, supabase]);
+	}, [router, supabase, isInitialized]);
 
 	const signOut = async () => {
 		await supabase.auth.signOut();
 		setAuthToken(null);
 		setUserProfile(null);
+		profileCacheRef.current = null;
 		router.push("/login");
 	};
 
@@ -166,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		userProfile,
 		isLoading,
 		signOut,
+		fetchProfile,
 	};
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
