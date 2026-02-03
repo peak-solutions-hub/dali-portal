@@ -57,13 +57,13 @@ export function PresentationMode({
 		const url = `/session-presenter?session=${encodeURIComponent(sessionNumber)}`;
 		console.debug("openPresenterWindow: attempting to open", url);
 
-		// Try with features first (some blockers allow opening without features)
+		// Open with 16:9 aspect ratio (1280x720)
 		let w: Window | null = null;
 		try {
 			w = window.open(
 				url,
 				`dali-presenter-${sessionNumber}`,
-				"noopener,noreferrer,width=1200,height=900",
+				"noopener,noreferrer,width=1280,height=720",
 			);
 		} catch (err) {
 			console.debug("popup open attempt failed:", err);
@@ -281,7 +281,7 @@ export function PresentationMode({
 	// Track mouse position for edge detection
 	useEffect(() => {
 		const EDGE_THRESHOLD = 50;
-		const HIDE_DELAY = 2500; // 2.5 seconds
+		const HIDE_DELAY = 1000; // 1 seconds
 
 		const handleMouseMove = (e: MouseEvent) => {
 			const windowHeight = window.innerHeight;
@@ -513,7 +513,11 @@ export function PresentationMode({
 				onEnterFullscreen={() => void enterFullscreen()}
 				onExitFullscreen={() => void exitFullscreen()}
 				drawingMode={drawingMode}
+				isEraser={isEraser}
 				isVisible={topBarHovered || showNavMenu || drawingMode}
+				isController={
+					drawingController === "presentation" || drawingController === null
+				}
 				onToggleDrawing={() => {
 					if (drawingMode && drawingController === "presenter") {
 						setDrawingMode(false);
@@ -532,10 +536,20 @@ export function PresentationMode({
 					});
 					setIsEraser(false);
 				}}
+				onToggleEraser={() => setIsEraser((p) => !p)}
+				onClearCanvas={() => {
+					const bc = new BroadcastChannel(drawingChannelName);
+					bc.postMessage({
+						type: "drawing-clear",
+						sourceId: `presentation-${sessionNumber}-clear`,
+					});
+					bc.close();
+				}}
 				presenterView={presenterView}
 				onTogglePresenter={togglePresenterWindow}
 				onToggleMenu={() => setShowNavMenu(!showNavMenu)}
 				onExit={() => setShowExitConfirm(true)}
+				showNavMenu={showNavMenu}
 			/>
 
 			<PresentationSlideViewport

@@ -20,22 +20,20 @@ export function PresenterNavDrawer({
 	if (!open) return null;
 
 	return (
-		<div className="fixed right-0 top-12 bottom-16 w-full sm:w-96 bg-white border-l border-gray-200 shadow-2xl z-40 flex flex-col">
-			<div className="flex items-center justify-between p-6 border-b border-gray-200">
-				<h3 className="text-lg font-semibold text-gray-900">
-					Session Navigation
-				</h3>
+		<div className="absolute right-0 top-10 bottom-0 w-72 bg-gray-900/95 backdrop-blur-md border-l border-gray-800 shadow-2xl z-40 flex flex-col overflow-hidden">
+			<div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+				<h3 className="text-sm font-semibold text-white">Navigation</h3>
 				<Button
 					variant="ghost"
 					size="sm"
 					onClick={onClose}
-					className="cursor-pointer"
+					className="cursor-pointer h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-white/10"
 				>
 					<X className="h-4 w-4" />
 				</Button>
 			</div>
-			<div className="flex-1 overflow-y-auto p-4">
-				<div className="space-y-2">
+			<div className="flex-1 overflow-auto p-3">
+				<div className="space-y-1">
 					{slides.map((slide, index) => (
 						<button
 							key={slide.id}
@@ -45,58 +43,41 @@ export function PresenterNavDrawer({
 								onClose();
 							}}
 							disabled={!onGoto}
-							className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${index === currentSlideIndex ? "bg-[#a60202]/10 text-[#a60202] font-medium border border-[#a60202]/20" : "hover:bg-gray-50 text-gray-900"}`}
+							className={`w-full text-left px-3 py-2 rounded transition-all cursor-pointer text-sm ${
+								index === currentSlideIndex
+									? "bg-white text-gray-900 font-medium"
+									: "text-gray-300 hover:bg-white/10 hover:text-white"
+							}`}
 						>
-							<div className="flex items-start gap-3">
-								<span className="text-xs text-gray-500 mt-0.5">
-									{index + 1}
+							<span className="flex items-center gap-2">
+								<span className="text-xs text-gray-500 w-5">{index + 1}.</span>
+								<span className="truncate">
+									{slide.type === "cover"
+										? "Cover"
+										: slide.title.replace(/^\d+\.?\s*/, "")}
 								</span>
-								<span className="flex-1">
-									{slide.type === "cover" ? "Cover" : slide.title}
-								</span>
-							</div>
+							</span>
 						</button>
 					))}
 				</div>
 			</div>
-			<div className="p-6 border-t border-gray-200 bg-gray-50">
-				<div className="text-xs text-gray-600 space-y-2">
-					<div className="font-semibold mb-2">Keyboard Shortcuts:</div>
-					<div className="flex items-center justify-between gap-4">
-						<span className="flex items-center gap-2">
-							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-								←/→/Space
-							</kbd>
-							Navigate
-						</span>
+			<div className="px-4 py-3 border-t border-gray-800 bg-black/30">
+				<div className="text-xs text-gray-500 space-y-1">
+					<div className="flex items-center gap-2">
+						<kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-[10px] text-gray-400">
+							←/→
+						</kbd>
+						<span>Navigate</span>
 					</div>
-					<div className="flex items-center justify-between gap-4">
-						<span className="flex items-center gap-2">
-							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-								D
-							</kbd>
-							Draw
-						</span>
-						<span className="flex items-center gap-2">
-							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-								M
-							</kbd>
-							Menu
-						</span>
-					</div>
-					<div className="flex items-center justify-between gap-4">
-						<span className="flex items-center gap-2">
-							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-								F
-							</kbd>
-							Fullscreen
-						</span>
-						<span className="flex items-center gap-2">
-							<kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-								ESC
-							</kbd>
-							Exit fullscreen
-						</span>
+					<div className="flex items-center gap-2">
+						<kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-[10px] text-gray-400">
+							D
+						</kbd>
+						<span>Draw</span>
+						<kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-[10px] text-gray-400 ml-2">
+							M
+						</kbd>
+						<span>Menu</span>
 					</div>
 				</div>
 			</div>

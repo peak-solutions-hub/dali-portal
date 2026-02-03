@@ -7,6 +7,11 @@ import {
 	ChevronRight,
 } from "@repo/ui/lib/lucide-react";
 
+function stripAgendaNumber(title: string): string {
+	// Remove patterns like "01. ", "1. ", "01 - ", etc.
+	return title.replace(/^\d+\.?\s*[-–—]?\s*/, "");
+}
+
 export function PresentationBottomBar({
 	currentSlideIndex,
 	totalSlides,
@@ -42,16 +47,18 @@ export function PresentationBottomBar({
 					Previous
 				</Button>
 				<div className="flex items-center gap-4">
-					<span className="text-lg font-semibold text-white">
+					<span className="text-lg font-semibold text-white min-w-[60px] text-center">
 						{currentSlideIndex + 1} / {totalSlides}
 					</span>
 					<button
 						type="button"
 						onClick={onToggleMenu}
-						className="flex items-center gap-2 px-3 py-2 rounded-md bg-white/10 hover:bg-white/15 transition-colors text-sm text-white cursor-pointer font-medium"
+						className="flex items-center gap-2 px-3 py-2 rounded-md bg-white/10 hover:bg-white/15 transition-colors text-sm text-white cursor-pointer font-medium w-[300px]"
 					>
-						<span>{currentSlideTitle}</span>
-						<ChevronDown className="h-4 w-4" />
+						<span className="truncate flex-1">
+							{stripAgendaNumber(currentSlideTitle)}
+						</span>
+						<ChevronDown className="h-4 w-4 flex-shrink-0" />
 					</button>
 					<div className="flex items-center gap-2">
 						{Array.from({ length: totalSlides }).map((_, index) => (

@@ -1,7 +1,5 @@
 "use client";
 
-import { Button } from "@repo/ui/components/button";
-import { Eraser, Pencil, Trash2, X } from "@repo/ui/lib/lucide-react";
 import React, { useCallback, useEffect, useRef } from "react";
 
 // A canvas that optionally exposes a clearCanvas method used by the drawing toolbar
@@ -18,6 +16,7 @@ export function DrawingCanvas({
 	insetRight = 0,
 	insetBottom = 0,
 	insetLeft = 0,
+	containedMode = false,
 }: {
 	channelName?: string;
 	active?: boolean;
@@ -29,6 +28,7 @@ export function DrawingCanvas({
 	insetRight?: number;
 	insetBottom?: number;
 	insetLeft?: number;
+	containedMode?: boolean;
 }) {
 	const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 	const activeRef = useRef(active);
@@ -79,7 +79,7 @@ export function DrawingCanvas({
 				ctx.strokeStyle = "rgba(0,0,0,1)";
 			} else {
 				ctx.globalCompositeOperation = "source-over";
-				ctx.strokeStyle = "#ef4444";
+				ctx.strokeStyle = "#ffffff";
 				ctx.lineWidth = 3;
 			}
 			ctx.lineCap = "round";
@@ -98,11 +98,21 @@ export function DrawingCanvas({
 			if (!ctx) return;
 
 			const resize = () => {
-				canvas.width = Math.max(0, window.innerWidth - insetLeft - insetRight);
-				canvas.height = Math.max(
-					0,
-					window.innerHeight - insetTop - insetBottom,
-				);
+				if (containedMode && canvas.parentElement) {
+					// Use parent container dimensions for contained mode
+					const parent = canvas.parentElement;
+					canvas.width = parent.clientWidth;
+					canvas.height = parent.clientHeight;
+				} else {
+					canvas.width = Math.max(
+						0,
+						window.innerWidth - insetLeft - insetRight,
+					);
+					canvas.height = Math.max(
+						0,
+						window.innerHeight - insetTop - insetBottom,
+					);
+				}
 				receivedInitialStateRef.current = false;
 				redrawFromStrokes();
 			};
@@ -116,12 +126,23 @@ export function DrawingCanvas({
 				if (!activeRef.current) return;
 				isDrawing = true;
 				ctx.beginPath();
-				ctx.moveTo(e.clientX - insetLeft, e.clientY - insetTop);
+
+				let x: number, y: number;
+				if (containedMode) {
+					const rect = canvas.getBoundingClientRect();
+					x = e.clientX - rect.left;
+					y = e.clientY - rect.top;
+				} else {
+					x = e.clientX - insetLeft;
+					y = e.clientY - insetTop;
+				}
+
+				ctx.moveTo(x, y);
 				pendingStroke = [];
 				if (canvas.width > 0 && canvas.height > 0) {
 					pendingStroke.push({
-						x: (e.clientX - insetLeft) / canvas.width,
-						y: (e.clientY - insetTop) / canvas.height,
+						x: x / canvas.width,
+						y: y / canvas.height,
 					});
 				}
 			};
@@ -129,7 +150,18 @@ export function DrawingCanvas({
 			const draw = (e: MouseEvent) => {
 				if (!activeRef.current) return;
 				if (!isDrawing) return;
-				ctx.lineTo(e.clientX - insetLeft, e.clientY - insetTop);
+
+				let x: number, y: number;
+				if (containedMode) {
+					const rect = canvas.getBoundingClientRect();
+					x = e.clientX - rect.left;
+					y = e.clientY - rect.top;
+				} else {
+					x = e.clientX - insetLeft;
+					y = e.clientY - insetTop;
+				}
+
+				ctx.lineTo(x, y);
 				const currentIsEraser = canvas.dataset.isEraser === "true";
 
 				if (currentIsEraser) {
@@ -138,7 +170,7 @@ export function DrawingCanvas({
 					ctx.strokeStyle = "rgba(0,0,0,1)";
 				} else {
 					ctx.globalCompositeOperation = "source-over";
-					ctx.strokeStyle = "#ef4444";
+					ctx.strokeStyle = "#ffffff";
 					ctx.lineWidth = 3;
 				}
 
@@ -146,11 +178,11 @@ export function DrawingCanvas({
 				ctx.lineJoin = "round";
 				ctx.stroke();
 				ctx.beginPath();
-				ctx.moveTo(e.clientX - insetLeft, e.clientY - insetTop);
+				ctx.moveTo(x, y);
 				if (canvas.width > 0 && canvas.height > 0) {
 					pendingStroke.push({
-						x: (e.clientX - insetLeft) / canvas.width,
-						y: (e.clientY - insetTop) / canvas.height,
+						x: x / canvas.width,
+						y: y / canvas.height,
 					});
 				}
 			};
@@ -196,6 +228,7 @@ export function DrawingCanvas({
 		},
 		[
 			channelName,
+			containedMode,
 			insetBottom,
 			insetLeft,
 			insetRight,
@@ -203,21 +236,6 @@ export function DrawingCanvas({
 			redrawFromStrokes,
 		],
 	);
-
-	const handleClear = () => {
-		const clearable = canvasElRef.current as ClearableCanvas | null;
-		if (clearable && clearable.clearCanvas) clearable.clearCanvas();
-		strokesRef.current = [];
-		if (channelName) {
-			const bc = new BroadcastChannel(channelName);
-			bc.postMessage({
-				type: "drawing-clear",
-				sourceId: instanceIdRef.current,
-			});
-			bc.close();
-		}
-		onClear?.();
-	};
 
 	useEffect(() => {
 		const canvas = canvasElRef.current;
@@ -294,87 +312,21 @@ export function DrawingCanvas({
 	}, [channelName, clearLocal, redrawFromStrokes]);
 
 	return (
-		<>
-			<canvas
-				ref={canvasRef}
-				data-is-eraser={String(isEraser)}
-				className={`fixed z-60 ${isEraser ? "cursor-cell" : "cursor-crosshair"}`}
-				style={{
-					pointerEvents: active ? "auto" : "none",
-					top: insetTop,
-					right: insetRight,
-					bottom: insetBottom,
-					left: insetLeft,
-				}}
-			/>
-
-			{active && (
-				<div className="fixed top-14 right-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl border border-gray-200 p-3 z-70 space-y-2 max-w-56">
-					<div className="text-xs font-semibold text-gray-700 mb-3">
-						Drawing Tools
-					</div>
-
-					<div className="flex gap-2">
-						<Button
-							variant={!isEraser ? "default" : "ghost"}
-							size="sm"
-							onClick={() => isEraser && onToggleEraser?.()}
-							className={`flex-1 justify-center gap-2 cursor-pointer ${!isEraser ? "bg-red-500 hover:bg-red-600 text-white" : ""}`}
-						>
-							<Pencil className="h-4 w-4" />
-							Pen
-						</Button>
-						<Button
-							variant={isEraser ? "default" : "ghost"}
-							size="sm"
-							onClick={() => !isEraser && onToggleEraser?.()}
-							className={`flex-1 justify-center gap-2 cursor-pointer ${isEraser ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}`}
-						>
-							<Eraser className="h-4 w-4" />
-							Eraser
-						</Button>
-					</div>
-
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={handleClear}
-						className="w-full justify-start gap-2 cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
-					>
-						<Trash2 className="h-4 w-4" />
-						Clear All
-					</Button>
-
-					<div className="border-t border-gray-200 my-2" />
-
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => onExit?.()}
-						className="w-full justify-start gap-2 cursor-pointer"
-					>
-						<X className="h-4 w-4" />
-						Done Drawing
-					</Button>
-
-					<div className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-200">
-						<div>
-							Press{" "}
-							<kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
-								E
-							</kbd>{" "}
-							to toggle eraser
-						</div>
-						<div className="mt-1">
-							Press{" "}
-							<kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
-								D
-							</kbd>{" "}
-							to exit drawing
-						</div>
-					</div>
-				</div>
-			)}
-		</>
+		<canvas
+			ref={canvasRef}
+			data-is-eraser={String(isEraser)}
+			className={`${containedMode ? "absolute inset-0" : "fixed"} z-40 ${isEraser ? "cursor-cell" : "cursor-crosshair"}`}
+			style={{
+				pointerEvents: active ? "auto" : "none",
+				...(containedMode
+					? {}
+					: {
+							top: insetTop,
+							right: insetRight,
+							bottom: insetBottom,
+							left: insetLeft,
+						}),
+			}}
+		/>
 	);
 }
