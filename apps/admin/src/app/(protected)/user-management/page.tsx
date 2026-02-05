@@ -1,17 +1,19 @@
 "use client";
 
 import type { Role, UserWithRole } from "@repo/shared";
+import { USERS_ITEMS_PER_PAGE, UserStatus } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
+import { AlertTriangle, Loader2 } from "@repo/ui/lib/lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { UsersTable } from "@/components/user-management";
-import { InviteUserDialog, SearchFilters } from "@/components/user-management/";
+import {
+	InviteUserDialog,
+	SearchFilters,
+	UsersTable,
+} from "@/components/user-management";
 import { api, orpc } from "@/lib/api.client";
-
-type UserStatus = "active" | "invited" | "deactivated";
 
 export default function UserManagementPage() {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -20,7 +22,7 @@ export default function UserManagementPage() {
 	const [statusFilter, setStatusFilter] = useState<UserStatus[]>([]);
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 	const [currentPage, setCurrentPage] = useState(1);
-	const [itemsPerPage, setItemsPerPage] = useState(10);
+	const [itemsPerPage, setItemsPerPage] = useState(USERS_ITEMS_PER_PAGE);
 
 	const {
 		data: usersData,

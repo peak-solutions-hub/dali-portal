@@ -1,6 +1,6 @@
 "use client";
 
-import type { Role } from "@repo/shared";
+import type { Role, UserStatus } from "@repo/shared";
 import { formatRoleDisplay } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
@@ -23,8 +23,6 @@ import {
 import { Separator } from "@repo/ui/components/separator";
 import { Filter, Search, UserPlus, X } from "lucide-react";
 import { useEffect, useState } from "react";
-
-type UserStatus = "active" | "invited" | "deactivated";
 
 interface Props {
 	searchQuery: string;
@@ -85,6 +83,7 @@ export function SearchFilters({
 	const handleClearFilters = () => {
 		setPendingRoleFilter("all");
 		setPendingStatusFilter([]);
+		setIsOpen(false);
 	};
 
 	const handleClearAllFilters = () => {
@@ -126,7 +125,7 @@ export function SearchFilters({
 						</Button>
 					</PopoverTrigger>
 					<PopoverContent className="w-80 p-0" align="start">
-						<div className="px-4 pb-4 space-y-4">
+						<div className="p-4 space-y-4">
 							{/* Status Filter */}
 							<div className="space-y-3">
 								<Label className="text-sm font-medium text-[#364153]">

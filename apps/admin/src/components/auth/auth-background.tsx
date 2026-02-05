@@ -1,7 +1,3 @@
-/**
- * Background component with gradient and decorative elements
- * Used across all authentication pages
- */
 export function AuthBackground() {
 	return (
 		<>

@@ -29,9 +29,7 @@ import { Mail, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
-import { ActivateUserDialog } from "./activate-user-dialog";
-import { DeactivateUserDialog } from "./deactivate-user-dialog";
-import { UpdateUserDialog } from "./update-user-dialog";
+import { ActivateUserDialog, DeactivateUserDialog, UpdateUserDialog } from ".";
 
 interface UsersTableProps {
 	users: UserWithRole[];
@@ -248,6 +246,26 @@ export function UsersTable({
 								</TableCell>
 							</TableRow>
 						))}
+
+						{Array.from({
+							length: Math.max(0, itemsPerPage - users.length),
+						}).map((_, i) => (
+							<TableRow
+								key={`empty-${i}`}
+								className={`border-b border-[#e5e7eb] ${(users.length + i) % 2 === 1 ? "bg-gray-50/30" : "bg-white"}`}
+							>
+								<TableCell className="px-6 py-3">
+									<div className="h-6" />
+								</TableCell>
+								<TableCell className="px-6 py-3">
+									<div className="h-6" />
+								</TableCell>
+								<TableCell className="px-6 py-3">
+									<div className="h-6" />
+								</TableCell>
+								<TableCell className="px-6 py-3" />
+							</TableRow>
+						))}
 					</TableBody>
 				</Table>
 
@@ -255,7 +273,7 @@ export function UsersTable({
 				<div className="border-t py-4 px-6">
 					<div className="flex items-center justify-between">
 						{/* Left side - Rows per page */}
-						<div className="flex items-center gap-2">
+						{/* <div className="flex items-center gap-2">
 							<span className="text-sm text-gray-700">Rows per page:</span>
 							<select
 								value={itemsPerPage}
@@ -271,7 +289,7 @@ export function UsersTable({
 								<option value="10">10</option>
 								<option value="20">20</option>
 							</select>
-						</div>
+						</div> */}
 
 						{/* Right side - Pagination */}
 						{totalPages > 1 && (

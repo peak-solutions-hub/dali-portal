@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { RoleTypeSchema } from "../enums/role";
 import { USER_STATUS_VALUES } from "../enums/user";
+import { RoleTypeSchema } from "./role.schema";
 
 // Base User schema matching Prisma model
 export const UserSchema = z.object({

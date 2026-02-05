@@ -1,15 +1,11 @@
 import { Card } from "@repo/ui/components/card";
-import { AuthBackground } from "./auth-background";
+import { AuthBackground } from ".";
 
 interface AuthCardProps {
 	children: React.ReactNode;
 	className?: string;
 }
 
-/**
- * Wrapper component for authentication pages
- * Provides consistent layout with background and card styling
- */
 export function AuthCard({ children, className = "" }: AuthCardProps) {
 	return (
 		<div className="h-screen w-screen relative flex items-center justify-center overflow-hidden">

@@ -19,9 +19,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
-import { AuthCard } from "./auth-card";
-import { AuthHeader } from "./auth-header";
-import { PasswordField } from "./password-field";
+import { AuthCard, AuthHeader, PasswordField } from ".";
 
 export function LoginForm() {
 	const router = useRouter();

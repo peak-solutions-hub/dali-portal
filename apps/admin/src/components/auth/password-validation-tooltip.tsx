@@ -1,5 +1,3 @@
-"use client";
-
 import { passwordRequirements } from "@repo/shared";
 import {
 	Tooltip,
@@ -8,7 +6,7 @@ import {
 	TooltipTrigger,
 } from "@repo/ui/components/tooltip";
 import { Check } from "@repo/ui/lib/lucide-react";
-import { cn } from "@repo/ui/lib/utils"; // Assuming you have a cn utility
+import { cn } from "@repo/ui/lib/utils";
 
 interface PasswordValidationTooltipProps {
 	password: string;

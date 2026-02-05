@@ -2,7 +2,7 @@
 
 import { Input } from "@repo/ui/components/input";
 import { Eye, EyeOff, Key } from "@repo/ui/lib/lucide-react";
-import * as React from "react";
+import { useState } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
 type PasswordFieldProps = {
@@ -26,7 +26,7 @@ export function PasswordField({
 	error,
 	className,
 }: PasswordFieldProps) {
-	const [visible, setVisible] = React.useState(false);
+	const [visible, setVisible] = useState(false);
 
 	return (
 		<div>

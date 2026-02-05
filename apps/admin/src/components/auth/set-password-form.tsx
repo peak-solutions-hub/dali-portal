@@ -16,10 +16,12 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import { api, setAuthToken } from "@/lib/api.client";
 import { useAuthStore } from "@/stores/auth-store";
-import { AuthCard } from "./auth-card";
-import { AuthHeader } from "./auth-header";
-import { PasswordField } from "./password-field";
-import { PasswordValidationTooltip } from "./password-validation-tooltip";
+import {
+	AuthCard,
+	AuthHeader,
+	PasswordField,
+	PasswordValidationTooltip,
+} from ".";
 
 export function SetPasswordForm() {
 	const router = useRouter();

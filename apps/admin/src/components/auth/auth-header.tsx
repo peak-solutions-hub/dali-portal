@@ -8,10 +8,6 @@ interface AuthHeaderProps {
 	iconClassName?: string;
 }
 
-/**
- * Reusable header component for authentication pages
- * Displays city seal, branding, and customizable title/subtitle
- */
 export function AuthHeader({
 	title,
 	subtitle,
