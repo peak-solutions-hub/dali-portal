@@ -8,6 +8,13 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@repo/ui/components/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/ui/components/select";
 import { cn } from "@repo/ui/lib/utils";
 import { CalendarIcon, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -130,6 +137,29 @@ export function BookingModal({
 				</div>
 
 				<form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
+					{/* Conference Room */}
+					<div>
+						<label
+							htmlFor="room"
+							className="block text-sm font-semibold text-gray-900 mb-2"
+						>
+							Conference Room <span className="text-red-500">*</span>
+						</label>
+						<Select value={room} onValueChange={setRoom} required>
+							<SelectTrigger className="w-full px-4 py-3 bg-gray-50 border-0 text-gray-900">
+								<SelectValue placeholder="Select a conference room" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="4th-floor">
+									4th Floor Conference Room
+								</SelectItem>
+								<SelectItem value="7th-floor">
+									7th Floor Conference Room
+								</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+
 					{/* Date */}
 					<div>
 						<label
@@ -170,27 +200,6 @@ export function BookingModal({
 								/>
 							</PopoverContent>
 						</Popover>
-					</div>
-
-					{/* Conference Room */}
-					<div>
-						<label
-							htmlFor="room"
-							className="block text-sm font-semibold text-gray-900 mb-2"
-						>
-							Conference Room <span className="text-red-500">*</span>
-						</label>
-						<select
-							id="room"
-							value={room}
-							onChange={(e) => setRoom(e.target.value)}
-							className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-							required
-						>
-							<option value="">Select a conference room</option>
-							<option value="7th-floor">7th Floor Conference Room</option>
-							<option value="4th-floor">4th Floor Conference Room</option>
-						</select>
 					</div>
 
 					{/* Start Time and End Time */}
