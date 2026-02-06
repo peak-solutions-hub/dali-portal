@@ -10,6 +10,7 @@ import type {
 	UserWithRole,
 } from "@repo/shared";
 import { Prisma } from "generated/prisma/client";
+import { RolesGuard } from "@/app/auth/guards/roles.guard";
 import { DbService } from "@/app/db/db.service";
 import { SupabaseAdminService } from "@/app/util/supabase/supabase-admin.service";
 import { ConfigService } from "@/lib/config.service";
@@ -158,6 +159,9 @@ export class UsersService {
 			},
 		});
 
+		// Invalidate user cache to ensure role/status changes take effect immediately
+		RolesGuard.invalidateUserCache(id);
+
 		return updatedUser as UserWithRole;
 	}
 
@@ -184,6 +188,9 @@ export class UsersService {
 					role: true,
 				},
 			});
+
+			// Invalidate user cache to ensure status change takes effect immediately
+			RolesGuard.invalidateUserCache(id);
 
 			return deactivatedUser as UserWithRole;
 		}
@@ -221,6 +228,9 @@ export class UsersService {
 				role: true,
 			},
 		});
+
+		// Invalidate user cache to ensure status change takes effect immediately
+		RolesGuard.invalidateUserCache(id);
 
 		return activatedUser as UserWithRole;
 	}
@@ -311,6 +321,9 @@ export class UsersService {
 								status: "invited",
 							},
 						});
+
+						// Invalidate user cache for re-invite
+						RolesGuard.invalidateUserCache(existingUser.id);
 					}
 
 					return {
@@ -379,6 +392,9 @@ export class UsersService {
 					status: "invited",
 				},
 			});
+
+			// Invalidate user cache for re-invite
+			RolesGuard.invalidateUserCache(existingUser.id);
 		}
 
 		const emailSent = authData.user.invited_at !== null;

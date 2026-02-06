@@ -10,6 +10,7 @@ export class UsersController {
 	constructor(private readonly usersService: UsersService) {}
 
 	// Get current authenticated user's profile - accessible by any authenticated user
+	@Roles(...ROLE_PERMISSIONS.DASHBOARD)
 	@Implement(contract.users.me)
 	getCurrentUser() {
 		return implement(contract.users.me).handler(async ({ context }) => {
@@ -42,6 +43,7 @@ export class UsersController {
 		});
 	}
 
+	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.activate)
 	activateUser() {
 		return implement(contract.users.activate).handler(async ({ input }) => {

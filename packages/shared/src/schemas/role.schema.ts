@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Role enum Zod schema (moved from enums to schemas)
 export const RoleTypeSchema = z.enum([
 	"it_admin",
 	"vice_mayor",

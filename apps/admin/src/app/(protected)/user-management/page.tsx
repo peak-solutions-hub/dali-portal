@@ -5,6 +5,7 @@ import { USERS_ITEMS_PER_PAGE, UserStatus } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
+import { usePagination } from "@repo/ui/hooks/use-pagination";
 import { AlertTriangle, Loader2 } from "@repo/ui/lib/lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -13,7 +14,7 @@ import {
 	SearchFilters,
 	UsersTable,
 } from "@/components/user-management";
-import { api, orpc } from "@/lib/api.client";
+import { orpc } from "@/lib/api.client";
 
 export default function UserManagementPage() {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -56,15 +57,27 @@ export default function UserManagementPage() {
 
 	// Pagination calculations
 	const totalUsers = filteredUsers.length;
-	const totalPages = Math.ceil(totalUsers / itemsPerPage);
-	const startIndex = (currentPage - 1) * itemsPerPage;
-	const endIndex = startIndex + itemsPerPage;
-	const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
-	// Calculate display items for results count
-	const startItem = totalUsers === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-	const endItem =
-		totalUsers === 0 ? 0 : Math.min(currentPage * itemsPerPage, totalUsers);
+	// Page number calculations via hook (supports totalItems + itemsPerPage)
+	const {
+		pageNumbers,
+		startPage,
+		endPage,
+		showStartEllipsis,
+		showEndEllipsis,
+		totalPages: computedTotalPages,
+		startIndex,
+		endIndex,
+		startItem,
+		endItem,
+	} = usePagination({
+		currentPage,
+		totalItems: totalUsers,
+		itemsPerPage,
+		maxVisiblePages: 5,
+	});
+
+	const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
 	const handlePageChange = (page: number) => {
 		setCurrentPage(page);
@@ -161,13 +174,18 @@ export default function UserManagementPage() {
 								onRefresh={handleRefresh}
 								totalUsers={totalUsers}
 								currentPage={currentPage}
-								totalPages={totalPages}
+								totalPages={computedTotalPages}
 								onPageChange={handlePageChange}
 								itemsPerPage={itemsPerPage}
 								onItemsPerPageChange={(value) => {
 									setItemsPerPage(value);
 									setCurrentPage(1);
 								}}
+								pageNumbers={pageNumbers}
+								startPage={startPage}
+								endPage={endPage}
+								showStartEllipsis={showStartEllipsis}
+								showEndEllipsis={showEndEllipsis}
 							/>
 						</Card>
 					)}

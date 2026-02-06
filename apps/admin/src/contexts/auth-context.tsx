@@ -4,7 +4,14 @@ import { AUTH_DEBOUNCE, PROFILE_CACHE } from "@repo/shared";
 import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
 import type { Session, User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+	createContext,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { api, setAuthToken } from "@/lib/api.client";
 import type { UserProfile } from "@/stores/auth-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -39,9 +46,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [session, setSession] = useState<Session | null>(null);
 	const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
-	const [isInitialized, setIsInitialized] = useState(false);
 	const router = useRouter();
-	const supabase = createBrowserClient();
+	// Stabilize Supabase client to prevent dependency changes
+	const [supabase] = useState(() => createBrowserClient());
 
 	// Cache to prevent re-fetching during Fast Refresh
 	const profileCacheRef = useRef<{
@@ -72,63 +79,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		}
 
 		console.log("[AuthProvider] Fetching profile from API");
+
+		// Ensure token is set before making API call
 		setAuthToken(accessToken);
 
-		const [error, data] = await api.users.me({});
+		try {
+			const [error, data] = await api.users.me({});
 
-		if (error) {
-			console.error("[AuthProvider] Failed to fetch user profile:", error);
+			if (error) {
+				console.error("[AuthProvider] Failed to fetch user profile:", error);
 
-			// If the backend indicates the account is deactivated, sign out and redirect
-			const errStatus = (error as { status?: number })?.status;
-			const errMessage = (error as { message?: string })?.message ?? "";
-			if (
-				errStatus === 401 ||
-				errStatus === 403 ||
-				(typeof errMessage === "string" &&
-					errMessage.toLowerCase().includes("deactivated"))
-			) {
-				console.warn(
-					"[AuthProvider] Account deactivated or unauthorized — signing out",
-				);
-				await supabase.auth.signOut();
-				setAuthToken(null);
+				// If the backend indicates the account is deactivated, sign out and redirect
+				const errStatus = (error as { status?: number })?.status;
+				const errMessage = (error as { message?: string })?.message ?? "";
+				if (
+					errStatus === 401 ||
+					errStatus === 403 ||
+					(typeof errMessage === "string" &&
+						errMessage.toLowerCase().includes("deactivated"))
+				) {
+					console.warn(
+						"[AuthProvider] Account deactivated or unauthorized — signing out",
+					);
+					await supabase.auth.signOut();
+					setAuthToken(null);
+					setUserProfile(null);
+					setIsLoading(false);
+					router.push("/unauthorized");
+					return null;
+				}
+
+				// Network or other errors - don't partial load
 				setUserProfile(null);
 				setIsLoading(false);
-				router.push("/unauthorized");
 				return null;
 			}
 
+			console.log("[AuthProvider] Profile fetched successfully:", data?.email);
+
+			// Cache the profile
+			if (data) {
+				profileCacheRef.current = {
+					token: accessToken,
+					profile: data,
+					timestamp: Date.now(),
+				};
+			}
+
+			setUserProfile(data);
+			setIsLoading(false);
+			return data;
+		} catch (error) {
+			// Catch any unexpected errors during API call
+			console.error("[AuthProvider] Unexpected error fetching profile:", error);
 			setUserProfile(null);
 			setIsLoading(false);
 			return null;
 		}
-
-		console.log("[AuthProvider] Profile fetched successfully:", data?.email);
-
-		// Cache the profile
-		if (data) {
-			profileCacheRef.current = {
-				token: accessToken,
-				profile: data,
-				timestamp: Date.now(),
-			};
-		}
-
-		setUserProfile(data);
-		setIsLoading(false);
-		return data;
 	};
 
 	useEffect(() => {
-		// Prevent re-initialization during Fast Refresh
-		if (isInitialized) {
-			console.log("[AuthProvider] Already initialized, skipping");
-			return;
-		}
-
 		let isSubscribed = true;
 		let debounceTimer: NodeJS.Timeout | null = null;
+		let hasInitialized = false;
 
 		const {
 			data: { subscription },
@@ -150,9 +163,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				// Update Zustand store as well to keep in sync
 				useAuthStore.getState().setSession(session);
 
-				// Only fetch profile on INITIAL_SESSION and SIGNED_IN
-				// TOKEN_REFRESHED happens frequently and doesn't need profile refresh
-				if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+				// Prevent INITIAL_SESSION and SIGNED_IN conflicts:
+				// Only fetch profile on INITIAL_SESSION (once) or SIGNED_IN (user login)
+				// Skip profile fetch on SIGNED_IN if we already handled INITIAL_SESSION
+				if (event === "INITIAL_SESSION") {
+					hasInitialized = true;
+
 					if (session?.access_token) {
 						try {
 							await fetchProfile(session.access_token);
@@ -166,10 +182,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 						setUserProfile(null);
 						setIsLoading(false);
 					}
-
-					// Mark as initialized after handling INITIAL_SESSION
-					if (event === "INITIAL_SESSION") {
-						setIsInitialized(true);
+				} else if (event === "SIGNED_IN" && hasInitialized) {
+					// User explicitly signed in after initialization - refetch profile
+					if (session?.access_token) {
+						try {
+							await fetchProfile(session.access_token);
+						} catch (error) {
+							console.error("[AuthProvider] Failed to fetch profile:", error);
+							setUserProfile(null);
+							setIsLoading(false);
+						}
 					}
 				}
 
@@ -205,7 +227,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			}
 			subscription.unsubscribe();
 		};
-	}, [router, supabase, isInitialized]);
+		// Note: Only depend on router and supabase (now stable via useState)
+		// Removed isInitialized to prevent premature unsubscription
+	}, [router, supabase]);
 
 	const signOut = async () => {
 		await supabase.auth.signOut();
@@ -215,14 +239,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		router.push("/login");
 	};
 
-	const value = {
-		user,
-		session,
-		userProfile,
-		isLoading,
-		signOut,
-		fetchProfile,
-	};
+	const value = useMemo(
+		() => ({
+			user,
+			session,
+			userProfile,
+			isLoading,
+			signOut,
+			fetchProfile,
+		}),
+		[user, session, userProfile, isLoading],
+	);
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

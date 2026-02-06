@@ -4,8 +4,8 @@
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",
-		"dev:admin": "turbo run dev --filter=./apps/backend... --filter=./apps/admin...",
-		"dev:portal": "turbo run dev --filter=./apps/backend... --filter=./apps/portal...",
+		"dev:admin": "turbo run dev --filter=backend --filter=admin",
+		"dev:portal": "turbo run dev --filter=backend --filter=portal",
 		"dev:shared": "pnpm run dev --filter @repo/shared ",
 		"lint": "biome check .",
 		"lint:fix": "biome check . --write",

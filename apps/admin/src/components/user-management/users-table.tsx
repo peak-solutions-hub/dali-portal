@@ -25,7 +25,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
-import { Mail, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+	Mail,
+	MoreHorizontal,
+	Pencil,
+	Trash2,
+} from "@repo/ui/lib/lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
@@ -41,6 +46,12 @@ interface UsersTableProps {
 	onPageChange: (page: number) => void;
 	itemsPerPage: number;
 	onItemsPerPageChange?: (value: number) => void;
+	// Optional pagination metadata (can be provided by parent)
+	pageNumbers: number[];
+	startPage: number;
+	endPage: number;
+	showStartEllipsis: boolean;
+	showEndEllipsis: boolean;
 }
 
 export function UsersTable({
@@ -53,6 +64,11 @@ export function UsersTable({
 	onPageChange,
 	itemsPerPage,
 	onItemsPerPageChange,
+	pageNumbers,
+	startPage,
+	endPage,
+	showStartEllipsis,
+	showEndEllipsis,
 }: UsersTableProps) {
 	const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
 	const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -90,37 +106,22 @@ export function UsersTable({
 		setMenuOpenUserId((prev) => (prev === user.id ? null : user.id));
 	};
 
-	// Calculate which page numbers to show
-	const maxVisiblePages = 5;
-	const halfVisible = Math.floor(maxVisiblePages / 2);
-	let startPage = Math.max(currentPage - halfVisible, 1);
-	const endPage = Math.min(startPage + maxVisiblePages - 1, totalPages);
-
-	if (endPage - startPage + 1 < maxVisiblePages) {
-		startPage = Math.max(endPage - maxVisiblePages + 1, 1);
-	}
-
-	const pageNumbers = Array.from(
-		{ length: endPage - startPage + 1 },
-		(_, i) => startPage + i,
-	);
-
 	return (
 		<>
 			<div>
 				<Table>
 					<TableHeader className="bg-[#f9fafb]">
 						<TableRow className="border-b border-[rgba(0,0,0,0.1)]">
-							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm w-[40%]">
+							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm min-w-64">
 								User
 							</TableHead>
-							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm w-[25%]">
+							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm w-48">
 								Role
 							</TableHead>
-							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm w-[20%]">
+							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm w-40">
 								Status
 							</TableHead>
-							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm text-right w-[15%]">
+							<TableHead className="px-6 py-3 text-[#364153] font-medium text-sm text-right w-32">
 								Actions
 							</TableHead>
 						</TableRow>
@@ -254,16 +255,9 @@ export function UsersTable({
 								key={`empty-${i}`}
 								className={`border-b border-[#e5e7eb] ${(users.length + i) % 2 === 1 ? "bg-gray-50/30" : "bg-white"}`}
 							>
-								<TableCell className="px-6 py-3">
+								<TableCell className="px-6 py-5">
 									<div className="h-6" />
 								</TableCell>
-								<TableCell className="px-6 py-3">
-									<div className="h-6" />
-								</TableCell>
-								<TableCell className="px-6 py-3">
-									<div className="h-6" />
-								</TableCell>
-								<TableCell className="px-6 py-3" />
 							</TableRow>
 						))}
 					</TableBody>
@@ -306,7 +300,7 @@ export function UsersTable({
 										/>
 									</PaginationItem>
 
-									{startPage > 1 && (
+									{showStartEllipsis && (
 										<>
 											<PaginationItem>
 												<PaginationLink
@@ -337,7 +331,7 @@ export function UsersTable({
 										</PaginationItem>
 									))}
 
-									{endPage < totalPages && (
+									{showEndEllipsis && (
 										<>
 											{endPage < totalPages - 1 && (
 												<PaginationItem>

@@ -11,6 +11,7 @@ import {
 	PaginationNext,
 	PaginationPrevious,
 } from "@repo/ui/components/pagination";
+import { usePagination } from "@repo/ui/hooks/use-pagination";
 import { useRouter } from "next/navigation";
 
 interface PaginationControlsProps {
@@ -41,34 +42,26 @@ export function PaginationControls({
 		itemsPerPage,
 	} = pagination;
 
-	// Calculate showing range (handle empty state)
-	const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-	const endItem =
-		totalItems === 0 ? 0 : Math.min(currentPage * itemsPerPage, totalItems);
+	// Use shared hook for page numbers and display counts
+	const {
+		pageNumbers,
+		startPage,
+		endPage,
+		showStartEllipsis,
+		showEndEllipsis,
+		startItem,
+		endItem,
+		totalPages: computedTotalPages,
+	} = usePagination({
+		currentPage,
+		totalItems,
+		itemsPerPage,
+		maxVisiblePages: 5,
+	});
 
-	if (totalPages <= 1) {
+	if (computedTotalPages <= 1) {
 		return null; // Don't show pagination if only one page or no items
 	}
-
-	// Calculate which page numbers to show
-	const maxVisiblePages = 5;
-	const halfVisible = Math.floor(maxVisiblePages / 2);
-
-	// First page number to show based on the current page
-	let startPage = Math.max(currentPage - halfVisible, 1);
-
-	// Last page number to show
-	const endPage = Math.min(startPage + maxVisiblePages - 1, totalPages);
-
-	if (endPage - startPage + 1 < maxVisiblePages) {
-		startPage = Math.max(endPage - maxVisiblePages + 1, 1);
-	}
-
-	// All page numbers to show
-	const pageNumbers = Array.from(
-		{ length: endPage - startPage + 1 },
-		(_, i) => startPage + i,
-	);
 
 	const handlePrevious = () => {
 		if (hasPreviousPage) {
@@ -118,7 +111,7 @@ export function PaginationControls({
 								/>
 							</PaginationItem>
 
-							{startPage > 1 && (
+							{showStartEllipsis && (
 								<>
 									<PaginationItem>
 										<PaginationLink
@@ -152,21 +145,21 @@ export function PaginationControls({
 								</PaginationItem>
 							))}
 
-							{endPage < totalPages && (
+							{showEndEllipsis && (
 								<>
-									{endPage < totalPages - 1 && (
+									{endPage < computedTotalPages - 1 && (
 										<PaginationItem>
 											<PaginationEllipsis aria-hidden="true" />
 										</PaginationItem>
 									)}
 									<PaginationItem>
 										<PaginationLink
-											onClick={() => handlePageChange(totalPages)}
-											isActive={currentPage === totalPages}
+											onClick={() => handlePageChange(computedTotalPages)}
+											isActive={currentPage === computedTotalPages}
 											className="cursor-pointer"
-											aria-label={`Go to last page (page ${totalPages})`}
+											aria-label={`Go to last page (page ${computedTotalPages})`}
 										>
-											{totalPages}
+											{computedTotalPages}
 										</PaginationLink>
 									</PaginationItem>
 								</>

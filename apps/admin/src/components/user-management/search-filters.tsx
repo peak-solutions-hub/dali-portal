@@ -64,13 +64,13 @@ export function SearchFilters({
 		Role["name"] | "all"
 	>(roleFilter);
 
-	// Sync local state when props change or popover opens
+	// Sync local state when popover opens
 	useEffect(() => {
 		if (isOpen) {
 			setPendingStatusFilter(statusFilter);
 			setPendingRoleFilter(roleFilter);
 		}
-	}, [isOpen, statusFilter, roleFilter]);
+	}, [isOpen]); // Only depend on isOpen to avoid stale state issues
 
 	const hasActiveFilters = roleFilter !== "all" || statusFilter.length > 0;
 
