@@ -14,7 +14,7 @@ interface SearchFilterBarProps {
 export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const [isPending, startTransition] = useTransition();
+	const [, startTransition] = useTransition();
 
 	// Only track the search value from URL
 	const currentSearch = useMemo(
@@ -26,9 +26,10 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 
 	const debouncedSearch = useDebounce(searchInput, 400);
 
-	// Sync input with URL when URL changes externally (e.g., back button, direct navigation)
 	useEffect(() => {
-		setSearchInput(currentSearch);
+		if (currentSearch !== debouncedSearch) {
+			setSearchInput(currentSearch);
+		}
 	}, [currentSearch]);
 
 	useEffect(() => {
@@ -74,7 +75,6 @@ export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 						className="pl-9 pr-9 h-10 bg-white border-gray-300"
 						aria-label="Search legislative documents by title, number, or author"
 						maxLength={200}
-						disabled={isPending}
 					/>
 					{searchInput && (
 						<button
