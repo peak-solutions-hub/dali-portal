@@ -59,7 +59,7 @@ export default function CouncilMembers() {
 			phone: "(033) 337-1237",
 			imageUrl: "/Councilors/hon-ganzon.png",
 			chairmanships: [
-				"Trade, Commerce & Industry",
+				"Trade, Commerce and Industry",
 				"Domestic and International Relations",
 				"Education, Science and Technology",
 			],
@@ -131,7 +131,7 @@ export default function CouncilMembers() {
 			imageUrl: "/Councilors/hon-trenas.png",
 			chairmanships: [
 				"Tourism, Culture and Historical Affairs",
-				"Urban, Planning, Housing, Land Development, Zoning, Expropriation, Assessment and Land Tax",
+				"Urban Planning, Housing and Land Development, Zoning, Expropriation, Assessment and Land Acquisition",
 				"Local Accreditation",
 			],
 		},
@@ -158,7 +158,28 @@ export default function CouncilMembers() {
 			chairmanships: [
 				"Health, Sanitation, and Hospital Services",
 				"Cooperatives and Livelihood",
-				"Labor, Employment Manpower Development and Placement",
+				"Labor, Employment, Manpower Development and Placement",
+			],
+		},
+		{
+			id: "13",
+			name: "Hon. Jelma Crystel Implica",
+			position: "President of the Sangguniang Kabataan (SK) Federation",
+			email: "councilor12@iloilocity.gov.ph",
+			phone: "(033) 337-1245",
+			imageUrl: "/Councilors/hon-implica.png",
+			chairmanships: ["Youth and Sports Development"],
+		},
+		{
+			id: "14",
+			name: "Hon. Ma. Irene Ong",
+			position: "Iloilo City - Liga ng mga Barangay President",
+			email: "councilor12@iloilocity.gov.ph",
+			phone: "(033) 337-1245",
+			imageUrl: "/Councilors/hon-ong.png",
+			chairmanships: [
+				"Ways and Means",
+				"Barangay Affairs and Community Development",
 			],
 		},
 	];
