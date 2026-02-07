@@ -58,7 +58,19 @@ export default async function LegislativeDocumentsPage({
 	// Fetch data server-side
 	const [error, documentsData] = await api.legislativeDocuments.list(filters);
 
-	// Handle API errors with user-visible message
+	// Common header UI to maintain consistency
+	const PageHeader = (
+		<div className="mb-6">
+			<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
+				Legislative Documents
+			</h1>
+			<p className="text-gray-600 text-sm">
+				Browse the official list of Iloilo City legislative documents
+			</p>
+		</div>
+	);
+
+	// Handle API errors with layout matching the success state
 	if (error) {
 		console.error("API error fetching documents:", error);
 
@@ -68,16 +80,9 @@ export default async function LegislativeDocumentsPage({
 		}
 
 		return (
-			<div className="min-h-screen bg-gray-50">
-				<div className="container mx-auto px-6 py-8 max-w-7xl">
-					<div className="mb-6">
-						<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2">
-							Legislative Documents
-						</h1>
-						<p className="text-gray-600 text-sm">
-							Browse the official list of Iloilo City legislative documents
-						</p>
-					</div>
+			<div className="min-h-screen bg-gray-50 flex flex-col">
+				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4 grow">
+					{PageHeader}
 					<Card className="p-12 border-red-200 bg-red-50">
 						<div className="text-center">
 							<p className="text-lg mb-2 text-red-800 font-semibold">
@@ -115,7 +120,6 @@ export default async function LegislativeDocumentsPage({
 		(_, i) => currentYear - i,
 	);
 
-	// Build current filters for pagination using validated values
 	const currentFilters = {
 		search: validatedParams.search,
 		type: validatedParams.type === "all" ? "all" : validatedParams.type,
@@ -132,15 +136,7 @@ export default async function LegislativeDocumentsPage({
 	return (
 		<div className="min-h-screen bg-gray-50 flex flex-col">
 			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4 grow">
-				{/* Page Header */}
-				<div className="mb-6">
-					<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
-						Legislative Documents
-					</h1>
-					<p className="text-gray-600 text-sm">
-						Browse the official list of Iloilo City legislative documents
-					</p>
-				</div>
+				{PageHeader}
 
 				{/* Desktop: Sticky Header with Search & Pagination */}
 				<div className="hidden lg:block sticky top-20 z-30 bg-gray-50 pt-4 pb-2">
@@ -160,7 +156,6 @@ export default async function LegislativeDocumentsPage({
 					<SearchFilterBar availableYears={availableYears} />
 				</div>
 
-				{/* Content Area with bottom padding for mobile sticky pagination */}
 				<div className="pt-4 pb-24 lg:pb-4">
 					{documents.length > 0 ? (
 						<div className="space-y-3">
