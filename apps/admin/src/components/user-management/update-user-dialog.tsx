@@ -1,7 +1,11 @@
 "use client";
 
 import type { Role, UserWithRole } from "@repo/shared";
-import { formatRoleDisplay, getRoleBadgeStyles } from "@repo/shared";
+import {
+	formatRoleDisplay,
+	getRoleBadgeStyles,
+	TEXT_LIMITS,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -137,33 +141,17 @@ export function UpdateUserDialog({
 							</Label>
 							<Input
 								id="fullName"
-								placeholder="Enter full name (min 10, max 50 chars)"
+								placeholder={`Enter full name (min 5, max ${TEXT_LIMITS.XS} chars)`}
 								value={fullName}
 								onChange={(e) => {
-									const value = e.target.value.slice(0, 75);
-									setFullName(value);
+									setFullName(e.target.value);
 								}}
-								maxLength={75}
+								maxLength={TEXT_LIMITS.XS}
 								required
-								className={`bg-white focus:ring-[#a60202] ${
-									fullName.length > 50
-										? "border-red-500 focus:border-red-500"
-										: "border-[#d0d5dd] focus:border-[#a60202]"
-								}`}
+								className="bg-white focus:ring-[#a60202] border-[#d0d5dd] focus:border-[#a60202]"
 							/>
-							{fullName.length > 50 ? (
-								<p className="text-xs text-red-600 font-medium">
-									Name exceeds 50 characters! Please shorten it.
-								</p>
-							) : null}
-							<p
-								className={`text-xs ${
-									fullName.length > 50
-										? "text-red-600 font-medium"
-										: "text-[#6b7280]"
-								}`}
-							>
-								{fullName.length}/50 characters
+							<p className="text-xs text-[#6b7280]">
+								{fullName.length}/{TEXT_LIMITS.XS} characters
 							</p>
 						</div>
 

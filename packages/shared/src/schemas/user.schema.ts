@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TEXT_LIMITS } from "../constants";
 import { USER_STATUS_VALUES } from "../enums/user";
 import { RoleTypeSchema } from "./role.schema";
 
@@ -9,8 +10,10 @@ export const UserSchema = z.object({
 	fullName: z
 		.string()
 		.min(5, "Name must be at least 5 characters")
-		.max(50, "Name must not exceed 50 characters"),
-	email: z.email().max(255, "Email must not exceed 255 characters"),
+		.max(TEXT_LIMITS.XS, `Name must not exceed ${TEXT_LIMITS.XS} characters`),
+	email: z
+		.email()
+		.max(TEXT_LIMITS.SM, `Email must not exceed ${TEXT_LIMITS.SM} characters`),
 	createdAt: z.date(),
 	status: z.enum(USER_STATUS_VALUES),
 });
@@ -39,8 +42,8 @@ export const UpdateUserSchema = z.object({
 	id: z.uuid(),
 	fullName: z
 		.string()
-		.min(5, "Name must be at least 10 characters")
-		.max(50, "Name must not exceed 50 characters")
+		.min(5, "Name must be at least 5 characters")
+		.max(TEXT_LIMITS.XS, `Name must not exceed ${TEXT_LIMITS.XS} characters`)
 		.optional(),
 	roleId: z.uuid().optional(),
 	status: z.enum(USER_STATUS_VALUES).optional(),
@@ -55,11 +58,13 @@ export const ActivateUserSchema = z.object({
 });
 
 export const InviteUserSchema = z.object({
-	email: z.email().max(255, "Email must not exceed 255 characters"),
+	email: z
+		.email()
+		.max(TEXT_LIMITS.SM, `Email must not exceed ${TEXT_LIMITS.SM} characters`),
 	fullName: z
 		.string()
 		.min(5, "Name must be at least 5 characters")
-		.max(50, "Name must not exceed 50 characters"),
+		.max(TEXT_LIMITS.XS, `Name must not exceed ${TEXT_LIMITS.XS} characters`),
 	roleId: z.uuid(),
 });
 
