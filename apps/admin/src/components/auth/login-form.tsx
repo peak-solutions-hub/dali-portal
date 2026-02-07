@@ -108,11 +108,7 @@ export function LoginForm() {
 
 	return (
 		<AuthCard>
-			<AuthHeader
-				title="Sangguniang Panlungsod"
-				subtitle="Internal Management System"
-				icon={Lock}
-			/>
+			<AuthHeader />
 
 			{errorMessage && (
 				<Alert variant="destructive" className="mb-6">

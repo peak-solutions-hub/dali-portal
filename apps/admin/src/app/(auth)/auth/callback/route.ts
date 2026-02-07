@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 		const { error } = await supabase.auth.exchangeCodeForSession(code);
 
 		if (!error) {
-			console.log(`✓ Auth callback successful, redirecting to: ${next}`);
+			// console.log(`✓ Auth callback successful, redirecting to: ${next}`);
 
 			// Handle load balancer scenarios
 			const forwardedHost = request.headers.get("x-forwarded-host");

@@ -28,7 +28,7 @@ export default function AuthConfirmPage() {
 				const hashType = hashParams.get("type");
 
 				if (accessToken && refreshToken) {
-					console.log(`[AuthConfirm] Processing implicit flow: ${hashType}`);
+					// console.log(`[AuthConfirm] Processing implicit flow: ${hashType}`);
 
 					const { data, error } = await supabase.auth.setSession({
 						access_token: accessToken,
@@ -49,7 +49,7 @@ export default function AuthConfirmPage() {
 					} = await supabase.auth.getSession();
 
 					if (data.session || confirmedSession) {
-						console.log(`[AuthConfirm] Session established for ${hashType}`);
+						// console.log(`[AuthConfirm] Session established for ${hashType}`);
 
 						// Wait a moment for the session to propagate to auth store
 						// This prevents race conditions with the auth provider
@@ -90,7 +90,7 @@ export default function AuthConfirmPage() {
 					| null;
 
 				if (tokenHash && otpType) {
-					console.log(`[AuthConfirm] Processing PKCE flow: ${otpType}`);
+					// console.log(`[AuthConfirm] Processing PKCE flow: ${otpType}`);
 
 					const { error } = await supabase.auth.verifyOtp({
 						type: otpType,
@@ -104,7 +104,7 @@ export default function AuthConfirmPage() {
 						return;
 					}
 
-					console.log(`[AuthConfirm] OTP verified for ${otpType}`);
+					// console.log(`[AuthConfirm] OTP verified for ${otpType}`);
 
 					// Wait for session propagation
 					await new Promise((resolve) => setTimeout(resolve, 500));
@@ -130,14 +130,14 @@ export default function AuthConfirmPage() {
 				} = await supabase.auth.getSession();
 
 				if (session) {
-					console.log("[AuthConfirm] Existing session found, redirecting");
+					// console.log("[AuthConfirm] Existing session found, redirecting");
 					setStatus("success");
 					router.push("/dashboard");
 					return;
 				}
 
 				// No tokens or session found
-				console.log("[AuthConfirm] No authentication tokens found");
+				// console.log("[AuthConfirm] No authentication tokens found");
 				setErrorMessage(
 					"The verification link is invalid or has expired. Please request a new one.",
 				);

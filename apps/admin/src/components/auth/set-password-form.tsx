@@ -55,11 +55,11 @@ export function SetPasswordForm() {
 			} = await supabase.auth.getSession();
 
 			if (session) {
-				console.log("[SetPassword] Session found, allowing password setup");
+				// console.log("[SetPassword] Session found, allowing password setup");
 				setHasSession(true);
 				setIsChecking(false);
 			} else {
-				console.log("[SetPassword] No session found, redirecting to sign-in");
+				// console.log("[SetPassword] No session found, redirecting to sign-in");
 				setHasSession(false);
 				router.push(
 					"/login?error=session_expired&message=Your session has expired. Please request a new invite link.",
@@ -189,7 +189,6 @@ export function SetPasswordForm() {
 			<AuthHeader
 				title="Update Your Password"
 				subtitle="Create a secure password for your account"
-				icon={KeyRound}
 			/>
 
 			<form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5">

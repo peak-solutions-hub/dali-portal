@@ -71,14 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				token === accessToken &&
 				Date.now() - timestamp < PROFILE_CACHE.TTL_MS
 			) {
-				console.log("[AuthProvider] Using cached profile");
+				// console.log("[AuthProvider] Using cached profile");
 				setUserProfile(profile);
 				setIsLoading(false);
 				return profile;
 			}
 		}
 
-		console.log("[AuthProvider] Fetching profile from API");
+		// console.log("[AuthProvider] Fetching profile from API");
 
 		// Ensure token is set before making API call
 		setAuthToken(accessToken);
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				return null;
 			}
 
-			console.log("[AuthProvider] Profile fetched successfully:", data?.email);
+			// console.log("[AuthProvider] Profile fetched successfully:", data?.email);
 
 			// Cache the profile
 			if (data) {
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 			debounceTimer = setTimeout(async () => {
 				if (!isSubscribed) return;
-				console.log("[AuthProvider] Auth event:", event, session?.user?.id);
+				// console.log("[AuthProvider] Auth event:", event, session?.user?.id);
 
 				setSession(session);
 				setUser(session?.user ?? null);
@@ -178,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							setIsLoading(false);
 						}
 					} else {
-						console.log("[AuthProvider] No session found");
+						// console.log("[AuthProvider] No session found");
 						setUserProfile(null);
 						setIsLoading(false);
 					}
@@ -197,14 +197,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 				// TOKEN_REFRESHED: just update the token, no profile fetch needed
 				if (event === "TOKEN_REFRESHED" && session?.access_token) {
-					console.log("[AuthProvider] Token refreshed, updating auth token");
+					// console.log("[AuthProvider] Token refreshed, updating auth token");
 					setAuthToken(session.access_token);
 					setIsLoading(false);
 				}
 
 				// SIGNED_OUT: user signed out or session expired
 				if (event === "SIGNED_OUT") {
-					console.log("[AuthProvider] User signed out, clearing state");
+					// console.log("[AuthProvider] User signed out, clearing state");
 					setUserProfile(null);
 					setAuthToken(null);
 					setIsLoading(false);
