@@ -39,27 +39,41 @@ export const ALL_ROLES: RoleType[] = [
  * - User Management: it_admin only
  */
 export const ROLE_PERMISSIONS = {
-	DASHBOARD: ALL_ROLES,
+	DASHBOARD: [
+		"admin_staff",
+		"head_admin",
+		"vice_mayor",
+		"legislative_staff",
+		"ovm_staff",
+	] as RoleType[],
 	DOCUMENT_TRACKER: [
 		"admin_staff",
 		"head_admin",
 		"vice_mayor",
 		"legislative_staff",
-		"it_admin",
 	] as RoleType[],
-	CALLER_SLIPS: ["vice_mayor", "ovm_staff", "it_admin"] as RoleType[],
+	CALLER_SLIPS: ["vice_mayor", "ovm_staff"] as RoleType[],
 	SESSION_MANAGEMENT: [
+		"head_admin",
 		"legislative_staff",
 		"vice_mayor",
-		"it_admin",
 	] as RoleType[],
-	INQUIRY_TICKETS: ["ovm_staff", "vice_mayor", "it_admin"] as RoleType[],
-	VISITOR_BENEFICIARY_HUB: [
-		"ovm_staff",
+	INQUIRY_TICKETS: [
+		"admin_staff",
+		"head_admin",
 		"vice_mayor",
-		"it_admin",
+		"ovm_staff",
+		"legislative_staff",
 	] as RoleType[],
-	CONFERENCE_ROOM: ALL_ROLES,
+	VISITOR_BENEFICIARY_HUB: ["ovm_staff", "vice_mayor"] as RoleType[],
+	CONFERENCE_ROOM: [
+		"admin_staff",
+		"head_admin",
+		"vice_mayor",
+		"legislative_staff",
+		"ovm_staff",
+		"councilor",
+	] as RoleType[],
 	USER_MANAGEMENT: ["it_admin"] as RoleType[],
 	ROLES_MANAGEMENT: ["it_admin"] as RoleType[],
 } as const;
