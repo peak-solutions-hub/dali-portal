@@ -5,10 +5,10 @@ import { USERS_ITEMS_PER_PAGE, UserStatus } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
-import { usePagination } from "@repo/ui/hooks/use-pagination";
 import { AlertTriangle, Loader2 } from "@repo/ui/lib/lucide-react";
+import { PaginationEngine } from "@repo/ui/lib/pagination-engine";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	InviteUserDialog,
 	SearchFilters,
@@ -60,22 +60,21 @@ export default function UserManagementPage() {
 
 	// Page number calculations via hook (supports totalItems + itemsPerPage)
 	const {
-		pageNumbers,
-		startPage,
-		endPage,
-		showStartEllipsis,
-		showEndEllipsis,
 		totalPages: computedTotalPages,
 		startIndex,
 		endIndex,
 		startItem,
 		endItem,
-	} = usePagination({
-		currentPage,
-		totalItems: totalUsers,
-		itemsPerPage,
-		maxVisiblePages: 5,
-	});
+	} = useMemo(
+		() =>
+			PaginationEngine.calculate({
+				currentPage,
+				totalItems: totalUsers,
+				itemsPerPage,
+				maxVisiblePages: 5,
+			}),
+		[currentPage, totalUsers, itemsPerPage],
+	);
 
 	const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
@@ -181,11 +180,6 @@ export default function UserManagementPage() {
 									setItemsPerPage(value);
 									setCurrentPage(1);
 								}}
-								pageNumbers={pageNumbers}
-								startPage={startPage}
-								endPage={endPage}
-								showStartEllipsis={showStartEllipsis}
-								showEndEllipsis={showEndEllipsis}
 							/>
 						</Card>
 					)}
