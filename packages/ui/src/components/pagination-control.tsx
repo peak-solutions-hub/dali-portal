@@ -1,3 +1,4 @@
+import { cn } from "@repo/ui/lib/utils";
 import * as React from "react";
 import { PaginationEngine } from "../lib/pagination-engine";
 import {
@@ -85,7 +86,10 @@ export function PaginationControl({
 
 	return (
 		<div
-			className={`flex flex-col sm:flex-row items-center justify-between gap-4 w-full ${className}`}
+			className={cn(
+				"flex flex-col sm:flex-row items-center justify-between gap-4 w-full",
+				className,
+			)}
 		>
 			{showCount && (
 				<div className="text-sm text-muted-foreground">

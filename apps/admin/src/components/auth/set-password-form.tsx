@@ -7,7 +7,7 @@ import {
 	SetPasswordSchema,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { Key, KeyRound, Loader2 } from "@repo/ui/lib/lucide-react";
+import { Key, Loader2 } from "@repo/ui/lib/lucide-react";
 import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

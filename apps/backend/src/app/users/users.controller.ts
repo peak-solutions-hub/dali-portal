@@ -1,5 +1,5 @@
 import { Controller } from "@nestjs/common";
-import { Implement, implement } from "@orpc/nest";
+import { Implement, implement, ORPCError } from "@orpc/nest";
 import { ALL_ROLES, contract, ROLE_PERMISSIONS } from "@repo/shared";
 import { Roles } from "@/app/auth";
 import type { ORPCContext } from "@/app/types";
@@ -19,7 +19,9 @@ export class UsersController {
 			const authUser = request.user;
 
 			if (!authUser) {
-				throw new Error("User not authenticated");
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User not authenticated",
+				});
 			}
 
 			return await this.usersService.getUserById(authUser.id);
