@@ -1,15 +1,20 @@
 import { oc } from "@orpc/contract";
+import { ERRORS } from "../constants";
 import {
 	CreateInquiryTicketResponseSchema,
 	CreateInquiryTicketSchema,
 	GetInquiryTicketByIdSchema,
 	GetInquiryTicketListSchema,
+	InquiryMessageSchema,
+	InquiryTicketListResponseSchema,
 	InquiryTicketListSchema,
 	InquiryTicketSchema,
+	InquiryTicketWithMessagesAndAttachmentsSchema,
+	SendInquiryMessageSchema,
+	TrackInquiryTicketResponseSchema,
+	TrackInquiryTicketSchema,
 	UpdateInquiryTicketStatusSchema,
 } from "../schemas/inquiry-ticket.schema";
-
-// sample for now
 
 export const createInquiryTicket = oc
 	.route({
@@ -21,10 +26,74 @@ export const createInquiryTicket = oc
 		tags: ["Inquiry", "Public"],
 	})
 	.errors({
-		// define possible errors here
+		TOO_MANY_REQUESTS: ERRORS.GENERAL.TOO_MANY_REQUESTS,
+		CREATION_FAILED: ERRORS.INQUIRY.CREATION_FAILED,
 	})
 	.input(CreateInquiryTicketSchema)
 	.output(CreateInquiryTicketResponseSchema);
+
+export const trackInquiryTicket = oc
+	.route({
+		method: "GET",
+		path: "/inquiries/track",
+		summary: "Track inquiry status",
+		description:
+			"Citizens track inquiry status using their reference number and email.",
+		tags: ["Inquiry", "Public"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			message: "Inquiry not found.",
+		},
+		TOO_MANY_REQUESTS: {
+			status: 429,
+			message: "Too many requests. Please try again later.",
+		},
+	})
+	.input(TrackInquiryTicketSchema)
+	.errors({})
+	// null if not found
+	.output(TrackInquiryTicketResponseSchema);
+
+export const sendInquiryMessage = oc
+	.route({
+		method: "POST",
+		path: "/inquiries/{ticketId}/messages",
+		summary: "Send message on inquiry",
+		description: "Citizens and staff can send messages on an inquiry.",
+		tags: ["Inquiry", "Public", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			message: "Inquiry not found",
+		},
+		TOO_MANY_REQUESTS: {
+			status: 429,
+			message: "Too many requests. Please try again later.",
+		},
+	})
+	.input(SendInquiryMessageSchema)
+	.output(InquiryMessageSchema);
+
+export const getInquiryTicketWithMessages = oc
+	.route({
+		method: "GET",
+		path: "/inquiries/{id}/messages",
+		summary: "Get inquiry details with messages and attachment URLs",
+		description:
+			"Citizens and staff retrieve full inquiry details with messages. Attachments include pre-signed download URLs (valid for 1 hour).",
+		tags: ["Inquiry", "Public", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			message: "Inquiry not found",
+		},
+	})
+	.input(GetInquiryTicketByIdSchema)
+	.output(InquiryTicketWithMessagesAndAttachmentsSchema);
 
 export const getInquiryTicketList = oc
 	.route({
@@ -38,7 +107,7 @@ export const getInquiryTicketList = oc
 	.errors({
 		UNAUTHORIZED: {
 			status: 401,
-			description: "Unauthorized access",
+			message: "Unauthorized access",
 		},
 	})
 	.input(GetInquiryTicketListSchema)
@@ -71,9 +140,11 @@ export const updateInquiryTicketStatus = oc
 	.output(InquiryTicketSchema);
 
 export const inquiryTicketContract = {
+	sendMessage: sendInquiryMessage,
+	getWithMessages: getInquiryTicketWithMessages,
 	// for public portal
 	create: createInquiryTicket,
-	// TODO: add track, reply,
+	track: trackInquiryTicket,
 
 	// for admin
 	getList: getInquiryTicketList,
