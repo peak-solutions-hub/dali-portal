@@ -1,5 +1,6 @@
 import { oc } from "@orpc/contract";
 import {
+	ActivateUserSchema,
 	DeleteUserSchema,
 	GetUserByIdSchema,
 	GetUserListSchema,
@@ -9,6 +10,26 @@ import {
 	UserListResponseSchema,
 	UserWithRoleSchema,
 } from "../schemas/user.schema";
+
+// Get current user profile (authenticated user)
+export const getCurrentUserContract = oc
+	.route({
+		method: "GET",
+		path: "/users/me",
+		summary: "Get current user profile",
+		description:
+			"Retrieve the authenticated user's profile including their role information",
+		tags: ["Users", "Auth"],
+	})
+	.output(UserWithRoleSchema)
+	.errors({
+		UNAUTHORIZED: {
+			message: "User not authenticated",
+		},
+		NOT_FOUND: {
+			message: "User profile not found",
+		},
+	});
 
 // Get users list
 export const getUserListContract = oc
@@ -121,10 +142,33 @@ export const inviteUserContract = oc
 		},
 	});
 
+// Activate user (change status from invited to active)
+export const activateUserContract = oc
+	.route({
+		method: "PATCH",
+		path: "/users/activate/{id}",
+		summary: "Activate user account",
+		description:
+			"Activate a user account by changing status from 'invited' to 'active', or reactivate a deactivated account",
+		tags: ["Users", "Auth"],
+	})
+	.input(ActivateUserSchema)
+	.output(UserWithRoleSchema)
+	.errors({
+		NOT_FOUND: {
+			message: "User not found",
+		},
+		BAD_REQUEST: {
+			message: "User is not in invited status",
+		},
+	});
+
 // Export user contract
 export const userContract = {
+	me: getCurrentUserContract,
 	list: getUserListContract,
 	deactivate: deactivateUserContract,
+	activate: activateUserContract,
 	getById: getUserByIdContract,
 	update: updateUserContract,
 	invite: inviteUserContract,

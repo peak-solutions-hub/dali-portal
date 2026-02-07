@@ -1,3 +1,4 @@
+export { ActivateUserDialog } from "./activate-user-dialog";
 export { DeactivateUserDialog } from "./deactivate-user-dialog";
 export { InviteUserDialog } from "./invite-user-dialog";
 export { SearchFilters } from "./search-filters";
