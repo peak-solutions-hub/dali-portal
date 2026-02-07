@@ -1,6 +1,6 @@
 import { Controller } from "@nestjs/common";
 import { Implement, implement } from "@orpc/nest";
-import { contract, ROLE_PERMISSIONS } from "@repo/shared";
+import { ALL_ROLES, contract, ROLE_PERMISSIONS } from "@repo/shared";
 import { Roles } from "@/app/auth";
 import type { ORPCContext } from "@/app/types";
 import { UsersService } from "./users.service";
@@ -10,7 +10,7 @@ export class UsersController {
 	constructor(private readonly usersService: UsersService) {}
 
 	// Get current authenticated user's profile - accessible by any authenticated user
-	@Roles(...ROLE_PERMISSIONS.DASHBOARD)
+	@Roles(...ALL_ROLES)
 	@Implement(contract.users.me)
 	getCurrentUser() {
 		return implement(contract.users.me).handler(async ({ context }) => {

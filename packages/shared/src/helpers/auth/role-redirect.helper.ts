@@ -17,8 +17,9 @@ export function getRedirectPath(role: RoleType): string {
 		case "admin_staff":
 		case "legislative_staff":
 		case "ovm_staff":
-		case "councilor":
 			return "/dashboard";
+		case "councilor":
+			return "/conference-room";
 		default:
 			return "/dashboard";
 	}

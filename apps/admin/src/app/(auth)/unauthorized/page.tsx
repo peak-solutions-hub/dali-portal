@@ -17,7 +17,7 @@ export default function UnauthorizedPage() {
 
 	const handleSignOut = async () => {
 		await logout();
-		router.push("/auth/sign-in");
+		router.push("/login");
 	};
 
 	return (
@@ -77,14 +77,6 @@ export default function UnauthorizedPage() {
 					<ArrowLeft className="w-4 h-4 mr-2" />
 					Go Back
 				</Button>
-
-				<Button
-					onClick={() => router.push("/dashboard")}
-					className="w-full h-11 bg-[#a60202] hover:bg-[#8a0101] text-white"
-				>
-					Return to Dashboard
-				</Button>
-
 				<Button
 					onClick={handleSignOut}
 					variant="ghost"
