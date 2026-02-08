@@ -1,4 +1,8 @@
-import { createORPCClient, createSafeClient } from "@orpc/client";
+import {
+	createORPCClient,
+	createSafeClient,
+	type SafeClient,
+} from "@orpc/client";
 import type { ContractRouterClient } from "@orpc/contract";
 import type { JsonifiedClient } from "@orpc/openapi-client";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
@@ -55,5 +59,5 @@ const link = new OpenAPILink(contract, {
 const jsonApi: JsonifiedClient<ContractRouterClient<Contract>> =
 	createORPCClient(link);
 
-export const api = createSafeClient(jsonApi);
 export const orpc = createTanstackQueryUtils(jsonApi);
+export const api: SafeClient<typeof jsonApi> = createSafeClient(jsonApi);
