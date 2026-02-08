@@ -1,4 +1,3 @@
-import { HttpModule } from "@nestjs/axios";
 import { Global, Module } from "@nestjs/common";
 import { ConfigModule as NestConfigModule } from "@nestjs/config";
 import config from "@/config";
@@ -12,7 +11,6 @@ import { TurnstileService } from "@/lib/turnstile.service";
 		NestConfigModule.forRoot({
 			load: [config],
 		}),
-		HttpModule,
 	],
 	providers: [ConfigService, ResendService, TurnstileService],
 	exports: [ConfigService, ResendService, TurnstileService],

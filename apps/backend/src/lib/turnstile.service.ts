@@ -1,6 +1,4 @@
-import { HttpService } from "@nestjs/axios";
 import { Injectable, Logger } from "@nestjs/common";
-import { firstValueFrom } from "rxjs";
 
 import { ConfigService } from "./config.service";
 
@@ -24,10 +22,7 @@ export class TurnstileService {
 	private readonly secretKey: string;
 	private readonly timeout: number;
 
-	constructor(
-		configService: ConfigService,
-		private readonly httpService: HttpService,
-	) {
+	constructor(configService: ConfigService) {
 		this.secretKey = configService.getOrThrow("turnstile.secretKey");
 		this.timeout = configService.get("turnstile.timeout") ?? 10000;
 	}
@@ -53,32 +48,33 @@ export class TurnstileService {
 		}
 
 		try {
-			const formData = new URLSearchParams();
-			formData.append("secret", this.secretKey);
-			formData.append("response", token);
+			const body = new URLSearchParams();
+			body.append("secret", this.secretKey);
+			body.append("response", token);
 
 			if (remoteIp) {
-				formData.append("remoteip", remoteIp);
+				body.append("remoteip", remoteIp);
 			}
 
-			const response = await firstValueFrom(
-				this.httpService.post<TurnstileVerifyResponse>(
-					"https://challenges.cloudflare.com/turnstile/v0/siteverify",
-					formData,
-					{
-						timeout: this.timeout,
-					},
-				),
+			const response = await fetch(
+				"https://challenges.cloudflare.com/turnstile/v0/siteverify",
+				{
+					method: "POST",
+					body,
+					signal: AbortSignal.timeout(this.timeout),
+				},
 			);
 
-			if (!response.data.success) {
+			const data: TurnstileVerifyResponse = await response.json();
+
+			if (!data.success) {
 				this.logger.warn("Turnstile validation failed", {
-					errorCodes: response.data["error-codes"],
-					hostname: response.data.hostname,
+					errorCodes: data["error-codes"],
+					hostname: data.hostname,
 				});
 			}
 
-			return response.data;
+			return data;
 		} catch (error) {
 			this.logger.error("Turnstile API error", error);
 			return { success: false, "error-codes": ["internal-error"] };
