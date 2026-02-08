@@ -416,7 +416,6 @@ enum InquiryCategory {
 }
 
 enum InquiryStatus {
-  new
   open
   waiting_for_citizen
   resolved

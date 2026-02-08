@@ -48,7 +48,7 @@ export class InquiryTicketService {
 				citizenName: input.citizenName,
 				category: input.category,
 				subject: input.subject,
-				status: "new",
+				status: "open",
 				// create initial inquiry message with optional attachments
 				// https://www.prisma.io/docs/orm/prisma-client/queries/transactions#nested-writes-1
 				inquiryMessages: {

@@ -11,7 +11,6 @@ export const INQUIRY_CATEGORY_VALUES: InquiryCategory[] =
 	Object.values(InquiryCategory);
 
 export const InquiryStatus = {
-	NEW: "new",
 	OPEN: "open",
 	WAITING_FOR_CITIZEN: "waiting_for_citizen",
 	RESOLVED: "resolved",
