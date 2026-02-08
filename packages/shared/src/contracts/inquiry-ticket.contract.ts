@@ -6,7 +6,6 @@ import {
 	GetInquiryTicketByIdSchema,
 	GetInquiryTicketListSchema,
 	InquiryMessageSchema,
-	InquiryTicketListResponseSchema,
 	InquiryTicketListSchema,
 	InquiryTicketSchema,
 	InquiryTicketWithMessagesAndAttachmentsSchema,
@@ -56,8 +55,6 @@ export const trackInquiryTicket = oc
 		},
 	})
 	.input(TrackInquiryTicketSchema)
-	.errors({})
-	// null if not found
 	.output(TrackInquiryTicketResponseSchema);
 
 export const sendInquiryMessage = oc

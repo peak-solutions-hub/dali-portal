@@ -1,9 +1,6 @@
 "use client";
 
-import {
-	INQUIRY_MAX_TOTAL_ATTACHMENTS,
-	type InquiryTicketWithMessagesAndAttachmentsResponse,
-} from "@repo/shared";
+import { type InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent, CardHeader } from "@repo/ui/components/card";
 import {

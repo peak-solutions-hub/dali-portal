@@ -1,6 +1,5 @@
 "use client";
 
-import { isDefinedError } from "@orpc/client";
 import type { TrackInquiryTicketInput } from "@repo/shared";
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api.client";

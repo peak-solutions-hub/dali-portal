@@ -161,6 +161,16 @@ export function useSupabaseUpload({
 				setFilesInternal((prev) => {
 					const newFiles = typeof action === "function" ? action(prev) : action;
 
+					// Revoke object URLs for removed files to prevent memory leaks
+					const removedFiles = prev.filter(
+						(prevFile) => !newFiles.some((newFile) => newFile === prevFile),
+					);
+					for (const file of removedFiles) {
+						if (file.preview) {
+							URL.revokeObjectURL(file.preview);
+						}
+					}
+
 					// If we're now within the max files limit, clear "too-many-files" errors
 					if (newFiles.length <= maxFiles) {
 						return newFiles.map((file) => {

@@ -1,5 +1,4 @@
 import { Module } from "@nestjs/common";
-import { ThrottlerGuard } from "@nestjs/throttler";
 import { CaptchaGuard } from "@/app/captcha/captcha.guard";
 import { InquiryMessageService } from "./inquiry-message.service";
 import { InquiryTicketController } from "./inquiry-ticket.controller";

@@ -4,7 +4,6 @@ import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { Captcha } from "@/app/captcha/captcha.guard";
 import { InquiryTicketService } from "@/app/inquiry-ticket/inquiry-ticket.service";
-import { ConfigService } from "@/lib/config.service";
 import { InquiryMessageService } from "./inquiry-message.service";
 
 @Controller()
@@ -39,7 +38,6 @@ export class InquiryTicketController {
 	@Implement(contract.inquiries.track)
 	track() {
 		return implement(contract.inquiries.track).handler(async ({ input }) => {
-			console.log("Tracking inquiry with input:", input);
 			return await this.inquiryService.track(input);
 		});
 	}
