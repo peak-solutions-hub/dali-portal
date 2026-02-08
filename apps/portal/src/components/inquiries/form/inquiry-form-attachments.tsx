@@ -17,12 +17,10 @@ import { useFileUpload } from "@/hooks/use-file-upload";
 import type { SubmitInquiryFormValues } from "./schema";
 
 export interface InquiryFormAttachmentsRef {
-	/** Upload files and return result */
 	uploadFiles: () => Promise<{
 		successes: { name: string; path: string }[];
 		errors: { name: string; message: string }[];
 	}>;
-	/** Clear all files */
 	clearFiles: () => void;
 }
 
