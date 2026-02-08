@@ -1,15 +1,23 @@
 import { oc } from "@orpc/contract";
+import { ERRORS } from "../constants";
 import {
 	CreateInquiryTicketResponseSchema,
 	CreateInquiryTicketSchema,
 	GetInquiryTicketByIdSchema,
 	GetInquiryTicketListSchema,
+	InquiryMessageSchema,
 	InquiryTicketListSchema,
 	InquiryTicketSchema,
+	InquiryTicketWithMessagesAndAttachmentsSchema,
+	SendInquiryMessageSchema,
+	TrackInquiryTicketResponseSchema,
+	TrackInquiryTicketSchema,
 	UpdateInquiryTicketStatusSchema,
 } from "../schemas/inquiry-ticket.schema";
-
-// sample for now
+import {
+	CreateSignedUploadUrlsSchema,
+	SignedUploadUrlsResponseSchema,
+} from "../schemas/storage.schema";
 
 export const createInquiryTicket = oc
 	.route({
@@ -21,10 +29,73 @@ export const createInquiryTicket = oc
 		tags: ["Inquiry", "Public"],
 	})
 	.errors({
-		// define possible errors here
+		TOO_MANY_REQUESTS: ERRORS.GENERAL.TOO_MANY_REQUESTS,
+		CREATION_FAILED: ERRORS.INQUIRY.CREATION_FAILED,
 	})
 	.input(CreateInquiryTicketSchema)
 	.output(CreateInquiryTicketResponseSchema);
+
+export const trackInquiryTicket = oc
+	.route({
+		method: "GET",
+		path: "/inquiries/track",
+		summary: "Track inquiry status",
+		description:
+			"Citizens track inquiry status using their reference number and email.",
+		tags: ["Inquiry", "Public"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			message: "Inquiry not found.",
+		},
+		TOO_MANY_REQUESTS: {
+			status: 429,
+			message: "Too many requests. Please try again later.",
+		},
+	})
+	.input(TrackInquiryTicketSchema)
+	.output(TrackInquiryTicketResponseSchema);
+
+export const sendInquiryMessage = oc
+	.route({
+		method: "POST",
+		path: "/inquiries/{ticketId}/messages",
+		summary: "Send message on inquiry",
+		description: "Citizens and staff can send messages on an inquiry.",
+		tags: ["Inquiry", "Public", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			message: "Inquiry not found",
+		},
+		TOO_MANY_REQUESTS: {
+			status: 429,
+			message: "Too many requests. Please try again later.",
+		},
+		ATTACHMENT_LIMIT_EXCEEDED: ERRORS.INQUIRY.ATTACHMENT_LIMIT_EXCEEDED,
+	})
+	.input(SendInquiryMessageSchema)
+	.output(InquiryMessageSchema);
+
+export const getInquiryTicketWithMessages = oc
+	.route({
+		method: "GET",
+		path: "/inquiries/{id}/messages",
+		summary: "Get inquiry details with messages and attachment URLs",
+		description:
+			"Citizens and staff retrieve full inquiry details with messages. Attachments include pre-signed download URLs (valid for 1 hour).",
+		tags: ["Inquiry", "Public", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: {
+			status: 404,
+			message: "Inquiry not found",
+		},
+	})
+	.input(GetInquiryTicketByIdSchema)
+	.output(InquiryTicketWithMessagesAndAttachmentsSchema);
 
 export const getInquiryTicketList = oc
 	.route({
@@ -38,7 +109,7 @@ export const getInquiryTicketList = oc
 	.errors({
 		UNAUTHORIZED: {
 			status: 401,
-			description: "Unauthorized access",
+			message: "Unauthorized access",
 		},
 	})
 	.input(GetInquiryTicketListSchema)
@@ -70,10 +141,29 @@ export const updateInquiryTicketStatus = oc
 	.input(UpdateInquiryTicketStatusSchema)
 	.output(InquiryTicketSchema);
 
+export const createInquiryUploadUrls = oc
+	.route({
+		method: "POST",
+		path: "/inquiries/upload-urls",
+		summary: "Generate signed upload URLs for inquiry attachments",
+		description:
+			"Generates pre-signed upload URLs for direct file uploads to Supabase Storage. URLs expire after 60 seconds.",
+		tags: ["Inquiry", "Public"],
+	})
+	.errors({
+		TOO_MANY_REQUESTS: ERRORS.GENERAL.TOO_MANY_REQUESTS,
+		SIGNED_URL_FAILED: ERRORS.STORAGE.SIGNED_URL_FAILED,
+	})
+	.input(CreateSignedUploadUrlsSchema)
+	.output(SignedUploadUrlsResponseSchema);
+
 export const inquiryTicketContract = {
+	sendMessage: sendInquiryMessage,
+	getWithMessages: getInquiryTicketWithMessages,
 	// for public portal
 	create: createInquiryTicket,
-	// TODO: add track, reply,
+	track: trackInquiryTicket,
+	createUploadUrls: createInquiryUploadUrls,
 
 	// for admin
 	getList: getInquiryTicketList,
