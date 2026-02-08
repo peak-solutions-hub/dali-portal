@@ -43,6 +43,11 @@ export const ERRORS = {
 			status: 404,
 			message: "Inquiry not found.",
 		},
+		ATTACHMENT_LIMIT_EXCEEDED: {
+			status: 400,
+			message:
+				"This inquiry has reached the maximum number of attachments. Please send without files.",
+		},
 		MESSAGE_SEND_FAILED: {
 			status: 400,
 			message: "Unable to send the message. Please try again.",

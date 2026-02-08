@@ -9,7 +9,7 @@ import { useCallback, useState } from "react";
 import { api } from "@/lib/api.client";
 
 export interface UseSendInquiryMessageOptions {
-	onSuccess?: (message: InquiryMessageResponse) => void | Promise<void>;
+	onSuccess?: (message: InquiryMessageResponse) => void;
 	onError?: (error: string) => void;
 }
 
@@ -80,7 +80,8 @@ export function useSendInquiryMessage(
 				}
 
 				if (response) {
-					await options?.onSuccess?.(response);
+					options?.onSuccess?.(response);
+					return { success: true, message: response };
 				}
 
 				setError("Unexpected response from server.");

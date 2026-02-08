@@ -19,16 +19,29 @@ import { Input } from "@repo/ui/components/input";
 import {
 	AlertCircle,
 	ArrowRight,
+	Loader2,
 	Mail,
 	Ticket,
 } from "@repo/ui/lib/lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { useTrackInquiry } from "@/hooks/use-track-inquiry";
+import { useTrackInquiry } from "@/hooks/inquiries/use-track-inquiry";
 import { InquiryFormHeader } from "./form/inquiry-form-header";
 
-export function TrackInquiryForm() {
+interface TrackInquiryFormProps {
+	/** Pre-fill reference number from email link */
+	prefillRef?: string;
+	/** Pre-fill email from email link */
+	prefillEmail?: string;
+}
+
+export function TrackInquiryForm({
+	prefillRef,
+	prefillEmail,
+}: TrackInquiryFormProps) {
 	const router = useRouter();
+	const hasAutoTracked = useRef(false);
 
 	// Use the track inquiry hook for API logic
 	const { track, isTracking, error } = useTrackInquiry({
@@ -42,14 +55,46 @@ export function TrackInquiryForm() {
 		mode: "onChange",
 		reValidateMode: "onChange",
 		defaultValues: {
-			referenceNumber: "",
-			citizenEmail: "",
+			referenceNumber: prefillRef ?? "",
+			citizenEmail: prefillEmail ?? "",
 		},
 	});
+
+	// Auto-track when prefill values are provided (from email link)
+	useEffect(() => {
+		if (prefillRef && prefillEmail && !hasAutoTracked.current) {
+			hasAutoTracked.current = true;
+			track({
+				referenceNumber: prefillRef,
+				citizenEmail: prefillEmail,
+			});
+		}
+	}, [prefillRef, prefillEmail, track]);
 
 	const onSubmit = async (data: TrackInquiryTicketInput) => {
 		await track(data);
 	};
+
+	// Show loading state when auto-tracking from email link
+	const isAutoTracking = prefillRef && prefillEmail && isTracking && !error;
+
+	if (isAutoTracking) {
+		return (
+			<Card className="border-none shadow-lg bg-white rounded-2xl rounded-t-none overflow-hidden mt-0 p-0">
+				<InquiryFormHeader>Looking up your inquiry...</InquiryFormHeader>
+				<CardContent className="p-12 flex flex-col items-center justify-center gap-4">
+					<Loader2 className="h-10 w-10 animate-spin text-[#a60202]" />
+					<p className="text-gray-600 text-center">
+						Loading your inquiry details for
+						<br />
+						<span className="font-mono font-semibold text-gray-900">
+							{prefillRef}
+						</span>
+					</p>
+				</CardContent>
+			</Card>
+		);
+	}
 
 	return (
 		<Card className="border-none shadow-lg bg-white rounded-2xl rounded-t-none overflow-hidden mt-0 p-0">
@@ -121,7 +166,7 @@ export function TrackInquiryForm() {
 
 						<Button
 							type="submit"
-							className="w-full h-14 bg-[#a60202] hover:bg-[#8d0202] text-white rounded-xl text-lg font-bold shadow-lg shadow-red-900/10 transition-all hover:-translate-y-0.5"
+							className="w-full h-14 bg-[#a60202] hover:bg-[#8d0202] text-white rounded-xl text-lg font-bold shadow-lg shadow-red-900/10 transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
 							disabled={isTracking}
 						>
 							{isTracking ? (

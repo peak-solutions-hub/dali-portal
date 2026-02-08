@@ -69,4 +69,20 @@ export class InquiryTicketController {
 			},
 		);
 	}
+
+	// 10 reqs per min — generous for multi-file uploads
+	@Throttle({
+		default: {
+			limit: 10,
+			ttl: 60000,
+		},
+	})
+	@Implement(contract.inquiries.createUploadUrls)
+	createUploadUrls() {
+		return implement(contract.inquiries.createUploadUrls).handler(
+			async ({ input }) => {
+				return await this.inquiryService.createSignedUploadUrls(input);
+			},
+		);
+	}
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { isDefinedError } from "@orpc/client";
 import type { CreateInquiryTicketInput } from "@repo/shared";
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api.client";
@@ -18,6 +17,8 @@ export interface UseSendInquiryReturn {
 	) => Promise<{ success: boolean; referenceNumber?: string }>;
 	/** Loading state */
 	isSubmitting: boolean;
+	/** Manually set the submitting state (e.g. before async pre-processing) */
+	setIsSubmitting: (value: boolean) => void;
 	/** Error message */
 	error: string | null;
 	/** Clear error */
@@ -64,9 +65,7 @@ export function useSendInquiry(
 				});
 
 				if (err) {
-					const errorMessage = isDefinedError(err)
-						? err.message
-						: "Failed to submit inquiry. Please try again.";
+					const errorMessage = err.message;
 					setError(errorMessage);
 					options?.onError?.(errorMessage);
 					return { success: false };
@@ -97,6 +96,7 @@ export function useSendInquiry(
 	return {
 		submit,
 		isSubmitting,
+		setIsSubmitting,
 		error,
 		clearError,
 		reset,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TEXT_LIMITS } from "../constants";
+import { FILE_COUNT_LIMITS, TEXT_LIMITS } from "../constants";
 import {
 	INQUIRY_CATEGORY_VALUES,
 	INQUIRY_STATUS_VALUES,
@@ -44,7 +44,8 @@ export const InquiryMessageSchema = z.object({
 	id: z.uuid(),
 	ticketId: z.uuid(),
 	senderName: z.string().min(1).max(TEXT_LIMITS.XS),
-	content: z.string().min(1).max(TEXT_LIMITS.LG),
+	/** Message content - can be empty for attachment-only messages */
+	content: z.string().max(TEXT_LIMITS.LG),
 	attachmentPaths: z.string().array().nullable(),
 	senderType: InquiryMessageSenderTypeEnum,
 	createdAt: z.date(),
@@ -154,7 +155,9 @@ export const CreateInquiryTicketSchema = z.object({
 				.min(1, { message: "Attachment path cannot be empty." })
 				.max(500, { message: "Attachment path is too long." }),
 		)
-		.max(3, { message: "Maximum 3 attachments allowed." })
+		.max(FILE_COUNT_LIMITS.SM, {
+			message: `Maximum ${FILE_COUNT_LIMITS.SM} attachments allowed.`,
+		})
 		.optional(),
 	// captcha token
 	captchaToken: z.string().nullable(),
@@ -188,31 +191,44 @@ export const TrackInquiryTicketResponseSchema = z
 	})
 	.nullable();
 
-export const SendInquiryMessageSchema = z.object({
-	ticketId: z.uuid(),
-	senderName: z
-		.string()
-		.min(1, { message: "Name is required." })
-		.max(TEXT_LIMITS.XS, {
-			message: `Name must be ${TEXT_LIMITS.XS} characters or less.`,
-		}),
-	content: z
-		.string()
-		.min(1, { message: "Message is required." })
-		.max(TEXT_LIMITS.LG, {
-			message: `Message must be ${TEXT_LIMITS.LG} characters or less.`,
-		}),
-	attachmentPaths: z
-		.array(
-			z
-				.string()
-				.min(1, { message: "Attachment path cannot be empty." })
-				.max(500, { message: "Attachment path is too long." }),
-		)
-		.max(3, { message: "Maximum 3 attachments allowed." })
-		.optional(),
-	senderType: InquiryMessageSenderTypeEnum,
-});
+export const SendInquiryMessageSchema = z
+	.object({
+		ticketId: z.uuid(),
+		senderName: z
+			.string()
+			.min(1, { message: "Name is required." })
+			.max(TEXT_LIMITS.XS, {
+				message: `Name must be ${TEXT_LIMITS.XS} characters or less.`,
+			}),
+		/** Message content - can be empty if attachments are present */
+		content: z
+			.string()
+			.max(TEXT_LIMITS.LG, {
+				message: `Message must be ${TEXT_LIMITS.LG} characters or less.`,
+			})
+			.default(""),
+		attachmentPaths: z
+			.array(
+				z
+					.string()
+					.min(1, { message: "Attachment path cannot be empty." })
+					.max(500, { message: "Attachment path is too long." }),
+			)
+			.max(FILE_COUNT_LIMITS.SM, {
+				message: `Maximum ${FILE_COUNT_LIMITS.SM} attachments allowed.`,
+			})
+			.optional(),
+		senderType: InquiryMessageSenderTypeEnum,
+	})
+	.refine(
+		(data) =>
+			data.content.trim().length > 0 ||
+			(data.attachmentPaths && data.attachmentPaths.length > 0),
+		{
+			message: "Please enter a message or attach a file.",
+			path: ["content"],
+		},
+	);
 
 // output types
 

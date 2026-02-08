@@ -53,9 +53,7 @@ export function useTrackInquiry(
 				const [err, response] = await api.inquiries.track(data);
 
 				if (err) {
-					const errorMessage = isDefinedError(err)
-						? err.message
-						: "Failed to track inquiry. Please try again.";
+					const errorMessage = err.message;
 					setError(errorMessage);
 					options?.onError?.(errorMessage);
 					return { success: false };

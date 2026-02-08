@@ -3,11 +3,18 @@ import { InquiryTabs } from "@/components/inquiries/inquiry-tabs";
 type PageProps = {
 	searchParams: Promise<{
 		tab?: string;
+		// for auto filling the track form if user clicks through from email
+		ref?: string;
+		email?: string;
 	}>;
 };
 
 export default async function InquiriesPage({ searchParams }: PageProps) {
 	const params = await searchParams;
+
+	// If ref and email are provided (from email link), auto-switch to track tab
+	const activeTab = params.ref && params.email ? "track" : params.tab;
+
 	return (
 		<div className="min-h-screen bg-gray-50/50 pb-24">
 			<div className="container mx-auto px-6 py-8 max-w-7xl">
@@ -25,7 +32,11 @@ export default async function InquiriesPage({ searchParams }: PageProps) {
 					</div>
 					{/* Tabs & Form Section */}
 					<div className="relative">
-						<InquiryTabs activeTab={params.tab} />
+						<InquiryTabs
+							activeTab={activeTab}
+							prefillRef={params.ref}
+							prefillEmail={params.email}
+						/>
 					</div>
 				</div>
 			</div>

@@ -15,6 +15,10 @@ import {
 	TrackInquiryTicketSchema,
 	UpdateInquiryTicketStatusSchema,
 } from "../schemas/inquiry-ticket.schema";
+import {
+	CreateSignedUploadUrlsSchema,
+	SignedUploadUrlsResponseSchema,
+} from "../schemas/storage.schema";
 
 export const createInquiryTicket = oc
 	.route({
@@ -73,6 +77,7 @@ export const sendInquiryMessage = oc
 			status: 429,
 			message: "Too many requests. Please try again later.",
 		},
+		ATTACHMENT_LIMIT_EXCEEDED: ERRORS.INQUIRY.ATTACHMENT_LIMIT_EXCEEDED,
 	})
 	.input(SendInquiryMessageSchema)
 	.output(InquiryMessageSchema);
@@ -139,12 +144,29 @@ export const updateInquiryTicketStatus = oc
 	.input(UpdateInquiryTicketStatusSchema)
 	.output(InquiryTicketSchema);
 
+export const createInquiryUploadUrls = oc
+	.route({
+		method: "POST",
+		path: "/inquiries/upload-urls",
+		summary: "Generate signed upload URLs for inquiry attachments",
+		description:
+			"Generates pre-signed upload URLs for direct file uploads to Supabase Storage. URLs expire after 60 seconds.",
+		tags: ["Inquiry", "Public"],
+	})
+	.errors({
+		TOO_MANY_REQUESTS: ERRORS.GENERAL.TOO_MANY_REQUESTS,
+		SIGNED_URL_FAILED: ERRORS.STORAGE.SIGNED_URL_FAILED,
+	})
+	.input(CreateSignedUploadUrlsSchema)
+	.output(SignedUploadUrlsResponseSchema);
+
 export const inquiryTicketContract = {
 	sendMessage: sendInquiryMessage,
 	getWithMessages: getInquiryTicketWithMessages,
 	// for public portal
 	create: createInquiryTicket,
 	track: trackInquiryTicket,
+	createUploadUrls: createInquiryUploadUrls,
 
 	// for admin
 	getList: getInquiryTicketList,

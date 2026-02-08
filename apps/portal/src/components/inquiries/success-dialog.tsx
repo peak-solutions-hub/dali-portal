@@ -38,6 +38,7 @@ export function SuccessDialog({
 		const printWindow = window.open("", "_blank");
 		if (!printWindow) return;
 
+		// print content
 		printWindow.document.write(`
       <html>
         <head>

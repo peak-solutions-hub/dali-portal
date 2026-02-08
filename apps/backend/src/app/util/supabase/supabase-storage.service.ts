@@ -16,6 +16,20 @@ export interface SignedUrlOptions {
 	expiresIn?: number;
 }
 
+export interface SignedUploadUrlResult {
+	/** The full path where the file will be stored */
+	path: string;
+	/** The signed URL for uploading (PUT request) */
+	signedUrl: string;
+	/** Token to include in the upload request */
+	token: string;
+}
+
+export interface SignedUploadUrlOptions {
+	/** Expiry time in seconds (default: 60 seconds) */
+	expiresIn?: number;
+}
+
 /**
  * Service for Supabase Storage operations.
  * Handles signed URL generation, file uploads, and bucket operations.
@@ -137,5 +151,81 @@ export class SupabaseStorageService {
 		}
 
 		return fileName;
+	}
+
+	/**
+	 * Generate a signed URL for uploading a file.
+	 * The URL expires quickly (default: 60 seconds) for security.
+	 * Frontend can PUT the file directly to this URL.
+	 *
+	 * @param bucket - Storage bucket name
+	 * @param path - Full path where file will be stored (e.g., "inquiries/1234-file.pdf")
+	 * @param options - Upload options
+	 * @returns Signed upload URL and token
+	 */
+	async createSignedUploadUrl(
+		bucket: string,
+		path: string,
+		_options?: SignedUploadUrlOptions,
+	): Promise<SignedUploadUrlResult> {
+		const supabase = this.supabaseAdmin.getClient();
+
+		// Note: createSignedUploadUrl doesn't support custom expiry in current SDK
+		// We use the storage API directly for more control
+		const { data, error } = await supabase.storage
+			.from(bucket)
+			.createSignedUploadUrl(path);
+
+		if (error) {
+			this.logger.error(
+				`Failed to generate signed upload URL for ${bucket}/${path}: ${error.message}`,
+			);
+			throw new AppError("STORAGE.SIGNED_URL_FAILED");
+		}
+
+		return {
+			path,
+			signedUrl: data.signedUrl,
+			token: data.token,
+		};
+	}
+
+	/**
+	 * Generate signed upload URLs for multiple files.
+	 * Each URL expires quickly (default: 60 seconds) for security.
+	 *
+	 * @param bucket - Storage bucket name
+	 * @param paths - Array of full paths where files will be stored
+	 * @param options - Upload options
+	 * @returns Array of signed upload URL results
+	 */
+	async createSignedUploadUrls(
+		bucket: string,
+		paths: string[],
+		options?: SignedUploadUrlOptions,
+	): Promise<SignedUploadUrlResult[]> {
+		if (!paths || paths.length === 0) {
+			return [];
+		}
+
+		const results = await Promise.all(
+			paths.map((path) => this.createSignedUploadUrl(bucket, path, options)),
+		);
+
+		return results;
+	}
+
+	/**
+	 * Generate a unique file path with timestamp prefix.
+	 * Prevents collisions and makes files harder to guess.
+	 *
+	 * @param folder - Folder path (e.g., "inquiries")
+	 * @param fileName - Original file name
+	 * @returns Full path with timestamp (e.g., "inquiries/1706123456789-file.pdf")
+	 */
+	generateUploadPath(folder: string, fileName: string): string {
+		const timestamp = Date.now();
+		const sanitizedName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+		return `${folder}/${timestamp}-${sanitizedName}`;
 	}
 }

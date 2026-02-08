@@ -10,30 +10,44 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@repo/ui/components/form";
-import { useSupabaseUpload } from "@repo/ui/hooks/use-supabase-upload";
 import { AlertCircle, FileIcon, Paperclip, X } from "@repo/ui/lib/lucide-react";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type { Control, UseFormReturn } from "react-hook-form";
+import { useFileUpload } from "@/hooks/use-file-upload";
 import type { SubmitInquiryFormValues } from "./schema";
+
+export interface InquiryFormAttachmentsRef {
+	/** Upload files and return result */
+	uploadFiles: () => Promise<{
+		successes: { name: string; path: string }[];
+		errors: { name: string; message: string }[];
+	}>;
+	/** Clear all files */
+	clearFiles: () => void;
+}
 
 interface InquiryFormAttachmentsProps {
 	form: UseFormReturn<SubmitInquiryFormValues>;
 	control: Control<SubmitInquiryFormValues>;
 	onUploadComplete?: (paths: string[]) => void;
+	/** Called when file state changes */
+	onFilesChange?: (state: {
+		hasFiles: boolean;
+		hasErrors: boolean;
+		hasExceededLimit: boolean;
+	}) => void;
 }
 
-const { maxFiles, maxFileSize, allowedMimeTypes } =
-	FILE_UPLOAD_PRESETS.ATTACHMENTS;
+const { maxFiles, maxFileSize } = FILE_UPLOAD_PRESETS.ATTACHMENTS;
 
-export function InquiryFormAttachments({
-	form,
-	control,
-	onUploadComplete,
-}: InquiryFormAttachmentsProps) {
-	const supabase = createSupabaseBrowserClient();
-
-	// File upload hook with Supabase integration
+export const InquiryFormAttachments = forwardRef<
+	InquiryFormAttachmentsRef,
+	InquiryFormAttachmentsProps
+>(function InquiryFormAttachments(
+	{ form, control, onUploadComplete, onFilesChange },
+	ref,
+) {
+	// File upload hook using direct Supabase upload
 	const {
 		files,
 		setFiles,
@@ -44,13 +58,9 @@ export function InquiryFormAttachments({
 		errors,
 		hasFileErrors,
 		isMaxFilesReached,
-	} = useSupabaseUpload({
-		supabaseClient: supabase,
-		bucketName: "attachments",
+	} = useFileUpload({
+		preset: "ATTACHMENTS",
 		path: "inquiries",
-		maxFiles,
-		maxFileSize,
-		allowedMimeTypes: [...allowedMimeTypes],
 		onUploadSuccess: (paths) => {
 			onUploadComplete?.(paths);
 			form.clearErrors("files");
@@ -65,6 +75,28 @@ export function InquiryFormAttachments({
 
 	// Track previous error state to detect when errors are cleared
 	const prevHasErrors = useRef(hasFileErrors);
+
+	// Derived state: exceeded limit (not just reached)
+	const hasExceededMaxFiles = files.length > maxFiles;
+
+	// Expose only imperative actions via ref
+	useImperativeHandle(
+		ref,
+		() => ({
+			uploadFiles: onUpload,
+			clearFiles: () => setFiles([]),
+		}),
+		[onUpload, setFiles],
+	);
+
+	// Notify parent of file state changes via props
+	useEffect(() => {
+		onFilesChange?.({
+			hasFiles: files.length > 0,
+			hasErrors: hasFileErrors,
+			hasExceededLimit: hasExceededMaxFiles,
+		});
+	}, [files.length, hasFileErrors, hasExceededMaxFiles, onFilesChange]);
 
 	// Sync file validation errors to form (onChange validation)
 	useEffect(() => {
@@ -92,22 +124,8 @@ export function InquiryFormAttachments({
 	}, [files, errors, hasFileErrors, form]);
 
 	const removeFile = (index: number) => {
-		setFiles((prev) => {
-			const newFiles = prev.filter((_, i) => i !== index);
-			// Clear form errors if no files left
-			if (newFiles.length === 0) {
-				form.clearErrors("files");
-			}
-			return newFiles;
-		});
+		setFiles((prev) => prev.filter((_, i) => i !== index));
 	};
-
-	// Expose onUpload to parent via ref or callback
-	useEffect(() => {
-		// Store upload function in form context for parent component
-		// @ts-expect-error - Adding runtime property for parent component
-		form._uploadFiles = onUpload;
-	}, [onUpload, form]);
 
 	return (
 		<div className="space-y-6 pt-2">
@@ -141,14 +159,21 @@ export function InquiryFormAttachments({
 									</div>
 								)}
 
-								{/* Max files warning */}
-								{isMaxFilesReached && (
-									<div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-xs font-medium flex items-start gap-2">
-										<AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-										<p>
-											Maximum of {maxFiles} files reached. Remove a file to add
-											more.
-										</p>
+								{/* Max files exceeded */}
+								{hasExceededMaxFiles && (
+									<div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl text-sm font-medium flex items-start gap-2">
+										<AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+										<div>
+											<p className="font-bold text-red-900">
+												File limit exceeded
+											</p>
+											<p className="text-xs text-red-700 mt-0.5">
+												Maximum of {maxFiles} files allowed. Remove{" "}
+												{files.length - maxFiles} file
+												{files.length - maxFiles > 1 ? "s" : ""} before
+												submitting.
+											</p>
+										</div>
 									</div>
 								)}
 
@@ -239,7 +264,7 @@ export function InquiryFormAttachments({
 															e.stopPropagation();
 															removeFile(index);
 														}}
-														className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all"
+														className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
 														aria-label={`Remove ${file.name}`}
 													>
 														<X className="h-4 w-4" />
@@ -259,4 +284,4 @@ export function InquiryFormAttachments({
 			/>
 		</div>
 	);
-}
+});

@@ -9,6 +9,27 @@ import type {
 	FileRejection,
 } from "react-dropzone";
 import { useDropzone } from "react-dropzone";
+import { formatBytes } from "../components/dropzone";
+
+/**
+ * Convert dropzone error codes to human-readable messages.
+ */
+function formatFileError(
+	error: DropzoneFileError,
+	maxFileSize: number,
+	maxFiles: number,
+): string {
+	switch (error.code) {
+		case "file-too-large":
+			return `File exceeds the ${formatBytes(maxFileSize)} limit`;
+		case "file-invalid-type":
+			return "This file type is not allowed";
+		case "too-many-files":
+			return `You can only upload up to ${maxFiles} files`;
+		default:
+			return error.message || "Invalid file";
+	}
+}
 
 export interface FileError {
 	code: string;
@@ -27,13 +48,15 @@ export interface UploadError {
 
 export interface UseSupabaseUploadOptions {
 	/**
-	 * Supabase client instance (from app's client setup)
+	 * Supabase client instance (from app's client setup).
+	 * Required when using direct upload mode (no getSignedUploadUrls).
 	 */
-	supabaseClient: SupabaseClient;
+	supabaseClient?: SupabaseClient;
 	/**
-	 * The name of the Supabase Storage bucket to upload to
+	 * The name of the Supabase Storage bucket to upload to.
+	 * Required when using direct upload mode (no getSignedUploadUrls).
 	 */
-	bucketName: string;
+	bucketName?: string;
 	/**
 	 * The path or subfolder to upload the file to
 	 */
@@ -58,6 +81,23 @@ export interface UseSupabaseUploadOptions {
 	 * Callback when upload fails
 	 */
 	onUploadError?: (errors: UploadError[]) => void;
+	/**
+	 * Signed URL provider for server-controlled uploads.
+	 * When provided, uploads use pre-signed URLs from the backend instead of
+	 * direct Supabase client uploads. This is more secure as it doesn't
+	 * require RLS INSERT policies — the backend controls what gets uploaded.
+	 */
+	getSignedUploadUrls?: (
+		folder: string,
+		fileNames: string[],
+	) => Promise<
+		Array<{
+			fileName: string;
+			path: string;
+			signedUrl: string;
+			token: string;
+		}>
+	>;
 }
 
 export interface UseSupabaseUploadReturn {
@@ -101,6 +141,7 @@ export function useSupabaseUpload({
 	maxFileSize = FILE_SIZE_LIMITS.LG,
 	onUploadSuccess,
 	onUploadError,
+	getSignedUploadUrls,
 }: UseSupabaseUploadOptions): UseSupabaseUploadReturn {
 	const [files, setFilesInternal] = useState<FileWithPreview[]>([]);
 	const [loading, setLoading] = useState(false);
@@ -156,23 +197,62 @@ export function useSupabaseUpload({
 				}),
 			);
 
-			// Add rejected files with their errors
+			// Add rejected files with human-readable error messages
 			const rejectedFiles: FileWithPreview[] = fileRejections.map(
 				({ file, errors: rejErrors }) =>
 					Object.assign(file, {
 						preview: "",
 						errors: rejErrors.map((e: DropzoneFileError) => ({
-							message: e.message,
+							message: formatFileError(e, maxFileSize, maxFiles),
 							code: e.code,
 						})),
 					}),
 			);
 
-			setFilesInternal((prev) => [...prev, ...newFiles, ...rejectedFiles]);
+			setFilesInternal((prev) => {
+				const combined = [...prev, ...newFiles, ...rejectedFiles];
+
+				// If cumulative count exceeds maxFiles, tag excess files with error
+				if (combined.length > maxFiles) {
+					const validInPrev = prev.filter((f) => f.errors.length === 0);
+					const slotsRemaining = Math.max(0, maxFiles - validInPrev.length);
+
+					return combined.map((file, index) => {
+						// Only tag newly added files that exceed the limit
+						const isNew = index >= prev.length;
+						const isNewAccepted = isNew && file.errors.length === 0;
+						const newAcceptedIndex = isNewAccepted
+							? combined
+									.slice(prev.length)
+									.filter(
+										(f, i) => i < index - prev.length && f.errors.length === 0,
+									).length
+							: -1;
+
+						if (isNewAccepted && newAcceptedIndex >= slotsRemaining) {
+							return Object.assign(file, {
+								errors: [
+									{
+										code: "too-many-files",
+										message: formatFileError(
+											{ code: "too-many-files", message: "" },
+											maxFileSize,
+											maxFiles,
+										),
+									},
+								],
+							});
+						}
+						return file;
+					});
+				}
+
+				return combined;
+			});
 			setIsSuccess(false);
 			setErrors([]);
 		},
-		[],
+		[maxFileSize, maxFiles],
 	);
 
 	const dropzoneOptions: DropzoneOptions = useMemo(
@@ -221,45 +301,107 @@ export function useSupabaseUpload({
 		const newSuccesses: { name: string; path: string }[] = [];
 		const newErrors: UploadError[] = [];
 
-		for (const file of validFiles) {
+		// --- Signed URL upload mode ---
+		if (getSignedUploadUrls) {
 			try {
-				// Edge case: Validate file object
-				if (!file || !file.name || file.size === 0) {
-					newErrors.push({
-						name: file?.name || "unknown",
-						message: "Invalid or empty file",
-					});
-					continue;
-				}
+				// 1. Get signed upload URLs in batch from the backend
+				const fileNames = validFiles.map((f) => f.name);
+				const signedUrls = await getSignedUploadUrls(path, fileNames);
 
-				const fileExt = file.name.split(".").pop();
-				// Edge case: Missing file extension
-				if (!fileExt) {
-					newErrors.push({
-						name: file.name,
-						message: "File must have an extension",
-					});
-					continue;
-				}
+				// 2. Upload each file to its signed URL
+				for (let i = 0; i < validFiles.length; i++) {
+					const file = validFiles[i] as FileWithPreview;
+					const urlInfo = signedUrls[i];
 
-				const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-				const filePath = path ? `${path}/${fileName}` : fileName;
+					if (!urlInfo) {
+						newErrors.push({
+							name: file.name,
+							message: "Failed to get upload URL",
+						});
+						continue;
+					}
 
-				const { error } = await supabaseClient.storage
-					.from(bucketName)
-					.upload(filePath, file);
+					try {
+						const response = await fetch(urlInfo.signedUrl, {
+							method: "PUT",
+							headers: {
+								"Content-Type": file.type || "application/octet-stream",
+							},
+							body: file,
+						});
 
-				if (error) {
-					newErrors.push({ name: file.name, message: error.message });
-				} else {
-					newSuccesses.push({ name: file.name, path: filePath });
+						if (!response.ok) {
+							newErrors.push({
+								name: file.name,
+								message: `Upload failed (${response.status})`,
+							});
+						} else {
+							newSuccesses.push({ name: file.name, path: urlInfo.path });
+						}
+					} catch (err) {
+						newErrors.push({
+							name: file.name,
+							message:
+								err instanceof Error ? err.message : "Unexpected upload error",
+						});
+					}
 				}
 			} catch (err) {
-				newErrors.push({
-					name: file.name,
-					message:
-						err instanceof Error ? err.message : "Unexpected upload error",
-				});
+				// Batch URL generation failed
+				const message =
+					err instanceof Error ? err.message : "Failed to generate upload URLs";
+				for (const file of validFiles) {
+					newErrors.push({ name: file.name, message });
+				}
+			}
+		} else {
+			// --- Direct Supabase client upload mode (legacy) ---
+			if (!supabaseClient || !bucketName) {
+				throw new Error(
+					"useSupabaseUpload: either provide getSignedUploadUrls or supabaseClient + bucketName",
+				);
+			}
+
+			for (const file of validFiles) {
+				try {
+					// Edge case: Validate file object
+					if (!file || !file.name || file.size === 0) {
+						newErrors.push({
+							name: file?.name || "unknown",
+							message: "Invalid or empty file",
+						});
+						continue;
+					}
+
+					const fileExt = file.name.split(".").pop();
+					// Edge case: Missing file extension
+					if (!fileExt) {
+						newErrors.push({
+							name: file.name,
+							message: "File must have an extension",
+						});
+						continue;
+					}
+
+					const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+					const filePath = path ? `${path}/${fileName}` : fileName;
+
+					const { error } = await supabaseClient.storage
+						.from(bucketName)
+						.upload(filePath, file);
+
+					if (error) {
+						newErrors.push({ name: file.name, message: error.message });
+					} else {
+						newSuccesses.push({ name: file.name, path: filePath });
+					}
+				} catch (err) {
+					newErrors.push({
+						name: file.name,
+						message:
+							err instanceof Error ? err.message : "Unexpected upload error",
+					});
+				}
 			}
 		}
 
@@ -276,7 +418,15 @@ export function useSupabaseUpload({
 		}
 
 		return { successes: newSuccesses, errors: newErrors };
-	}, [files, supabaseClient, bucketName, path, onUploadSuccess, onUploadError]);
+	}, [
+		files,
+		supabaseClient,
+		bucketName,
+		path,
+		onUploadSuccess,
+		onUploadError,
+		getSignedUploadUrls,
+	]);
 
 	const reset = useCallback(() => {
 		// Revoke object URLs to prevent memory leaks

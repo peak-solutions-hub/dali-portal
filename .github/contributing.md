@@ -24,12 +24,24 @@
 dali-portal/
 ├── apps/
 │   ├── portal/              # Next.js — Public Portal (SSR, citizen-facing)
-│   │   └── src/app/         # App Router pages, layouts, components
+│   │   └── src/
+│   │       ├── app/         # App Router pages, layouts
+│   │       ├── components/  # App-specific components
+│   │       │   └── <domain>/
+│   │       │       └── chat/ # Sub-components (bubbles, list, reply box)
+│   │       ├── hooks/       # Custom hooks (use-file-upload, use-send-*)
+│   │       └── lib/         # Utilities, client setup
 │   ├── admin/               # Next.js — Internal Dashboard (CSR, staff-facing)
 │   │   └── src/app/         # App Router pages, layouts, components
 │   └── backend/             # NestJS — REST API
 │       └── src/             # Modules, controllers, services
 ├── packages/
+│   ├── shared/              # Contracts, schemas, constants, utilities
+│   │   └── src/
+│   │       ├── constants/   # Single source of truth for all limits & config
+│   │       ├── contracts/   # oRPC contracts
+│   │       ├── schemas/     # Zod schemas
+│   │       └── lib/         # Shared utilities
 │   ├── ui/                  # Shared UI components (Shadcn, custom)
 │   │   └── src/
 │   │       ├── components/  # Reusable UI components
@@ -543,6 +555,22 @@ The frontend apps use **oRPC with OpenAPILink** for type-safe API communication.
 ---
 
 ## Additional Guidelines
+
+### Constants & Magic Numbers
+
+All reusable limits, thresholds, and configuration values live in `packages/shared/src/constants/`. Never duplicate them or use inline magic numbers for values that could change or are referenced in more than one place.
+
+| Constant Group | Purpose | Example |
+|---|---|---|
+| `TEXT_LIMITS` | Max character lengths | `TEXT_LIMITS.LG` (1000) for chat messages |
+| `FILE_SIZE_LIMITS` | Max file sizes in bytes | `FILE_SIZE_LIMITS.XS` (5 MB) |
+| `FILE_COUNT_LIMITS` | Max number of files per upload | `FILE_COUNT_LIMITS.SM` (3) |
+| `FILE_UPLOAD_PRESETS` | Pre-built upload configs | `FILE_UPLOAD_PRESETS.ATTACHMENTS` |
+| `INQUIRY_MAX_TOTAL_ATTACHMENTS` | Conversation-wide attachment cap | `6` |
+
+**Rules:**
+- Reference `FILE_COUNT_LIMITS` in Zod schema `.max()` calls instead of literal numbers.
+- `FILE_UPLOAD_PRESETS.ATTACHMENTS` is used for **both** initial inquiry attachments and chat reply attachments (identical limits).
 
 ### Avoid Unnecessary Dependencies
 

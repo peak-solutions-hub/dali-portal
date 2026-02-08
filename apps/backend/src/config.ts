@@ -25,5 +25,6 @@ export default () => ({
 		url: process.env.SUPABASE_URL,
 		serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
 	},
+	portalUrl: process.env.PORTAL_URL ?? "http://localhost:3000",
 	adminUrl: process.env.ADMIN_URL ?? "http://localhost:3001",
 });

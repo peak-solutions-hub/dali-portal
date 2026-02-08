@@ -10,9 +10,12 @@ import { AlertCircle } from "@repo/ui/lib/lucide-react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { SuccessDialog } from "@/components/inquiries/success-dialog";
-import { useSendInquiry } from "@/hooks/use-send-inquiry";
+import { useSendInquiry } from "@/hooks/inquiries/use-send-inquiry";
 
-import { InquiryFormAttachments } from "./form/inquiry-form-attachments";
+import {
+	InquiryFormAttachments,
+	type InquiryFormAttachmentsRef,
+} from "./form/inquiry-form-attachments";
 import { InquiryFormDetails } from "./form/inquiry-form-details";
 import { InquiryFormHeader } from "./form/inquiry-form-header";
 import { InquiryFormPersonalDetails } from "./form/inquiry-form-personal-details";
@@ -28,15 +31,26 @@ export function SubmitInquiryForm() {
 	const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 	const [referenceNumber, setReferenceNumber] = useState("");
 	const [citizenEmail, setCitizenEmail] = useState("");
+
+	// Track file state via props (not refs)
+	const [fileState, setFileState] = useState({
+		hasFiles: false,
+		hasErrors: false,
+		hasExceededLimit: false,
+	});
+
+	// turnstile captcha component ref
 	const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
-	// Use the send inquiry hook for API logic
-	const { submit, isSubmitting, error, clearError } = useSendInquiry({
-		onSuccess: (refNumber) => {
-			setReferenceNumber(refNumber);
-			setSuccessDialogOpen(true);
-		},
-	});
+	const attachmentsRef = useRef<InquiryFormAttachmentsRef>(null);
+
+	const { submit, isSubmitting, setIsSubmitting, error, clearError } =
+		useSendInquiry({
+			onSuccess: (refNumber) => {
+				setReferenceNumber(refNumber);
+				setSuccessDialogOpen(true);
+			},
+		});
 
 	const form = useForm<SubmitInquiryFormValues>({
 		resolver: zodResolver(SubmitInquiryFormSchema),
@@ -66,28 +80,47 @@ export function SubmitInquiryForm() {
 	};
 
 	const onSubmit = async (data: SubmitInquiryFormValues) => {
-		const captchaToken = turnstileRef.current?.getToken();
+		// Prevent double-clicks
+		if (isSubmitting) return;
 
-		// Check Turnstile token before submitting
-		if (!captchaToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+		// Block submission if there are file validation errors or max files exceeded
+		if (
+			form.formState.errors.files ||
+			fileState.hasErrors ||
+			fileState.hasExceededLimit
+		) {
 			return;
 		}
 
-		// 1. Upload files via hook (if any files selected)
-		// @ts-expect-error - Runtime property set by child component
-		const uploadFn = form._uploadFiles;
+		const captchaToken = turnstileRef.current?.getToken();
+
+		// Check Turnstile token before submitting
+		if (!captchaToken) {
+			return;
+		}
+
+		setIsSubmitting(true);
+
+		// 1. Upload files via ref (if any files selected)
 		let uploadedPaths: string[] = attachmentPaths;
 
-		if (uploadFn && typeof uploadFn === "function") {
-			const result = await uploadFn();
+		if (fileState.hasFiles) {
+			const result = await attachmentsRef.current?.uploadFiles();
+
+			if (!result) {
+				setIsSubmitting(false);
+				return;
+			}
 
 			if (result.errors && result.errors.length > 0) {
+				// reset captcha so user can try submitting again after fixing upload errors
 				turnstileRef.current?.reset();
+				setIsSubmitting(false);
 				return;
 			}
 
 			if (result.successes && result.successes.length > 0) {
-				uploadedPaths = result.successes.map((s: { path: string }) => s.path);
+				uploadedPaths = result.successes.map((s) => s.path);
 			}
 		}
 
@@ -104,8 +137,10 @@ export function SubmitInquiryForm() {
 			setCitizenEmail(data.citizenEmail);
 			form.reset();
 			setAttachmentPaths([]);
+			attachmentsRef.current?.clearFiles();
 			turnstileRef.current?.reset();
 		} else {
+			// reset captcha so user can try submitting again after fixing any errors
 			turnstileRef.current?.reset();
 		}
 	};
@@ -133,9 +168,11 @@ export function SubmitInquiryForm() {
 							<InquiryFormPersonalDetails control={form.control} />
 							<InquiryFormDetails control={form.control} />
 							<InquiryFormAttachments
+								ref={attachmentsRef}
 								form={form}
 								control={form.control}
 								onUploadComplete={(paths) => setAttachmentPaths(paths)}
+								onFilesChange={setFileState}
 							/>
 							<InquirySecurityCheck
 								ref={turnstileRef}
@@ -146,7 +183,14 @@ export function SubmitInquiryForm() {
 
 							<Separator className="bg-gray-100" />
 
-							<InquirySubmitButton isSubmitting={isSubmitting} />
+							<InquirySubmitButton
+								isSubmitting={isSubmitting}
+								hasErrors={
+									!!form.formState.errors.files ||
+									fileState.hasErrors ||
+									fileState.hasExceededLimit
+								}
+							/>
 						</form>
 					</Form>
 				</CardContent>

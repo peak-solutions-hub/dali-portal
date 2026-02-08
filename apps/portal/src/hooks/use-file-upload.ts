@@ -1,28 +1,19 @@
 "use client";
 
-import {
-	ALLOWED_MIME_TYPES,
-	FILE_COUNT_LIMITS,
-	FILE_SIZE_LIMITS,
-	FILE_UPLOAD_PRESETS,
-} from "@repo/shared";
+import { FILE_UPLOAD_PRESETS } from "@repo/shared";
 import type {
-	FileWithPreview,
 	UploadError,
-	UseSupabaseUploadOptions,
 	UseSupabaseUploadReturn,
 } from "@repo/ui/hooks/use-supabase-upload";
 import { useSupabaseUpload } from "@repo/ui/hooks/use-supabase-upload";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api.client";
 
 export type FileUploadPreset = keyof typeof FILE_UPLOAD_PRESETS;
 
 export interface UseFileUploadOptions {
 	/** Upload preset (uses constants from shared) */
 	preset?: FileUploadPreset;
-	/** Custom bucket name */
-	bucketName?: string;
 	/** Custom path in bucket */
 	path?: string;
 	/** Override max files */
@@ -50,6 +41,8 @@ export interface UseFileUploadReturn extends UseSupabaseUploadReturn {
 	validFileCount: number;
 	/** Is max files reached */
 	isMaxFilesReached: boolean;
+	/** Whether files are currently being uploaded */
+	isUploading: boolean;
 	/** Preset config values */
 	config: {
 		maxFiles: number;
@@ -66,8 +59,7 @@ export function useFileUpload(
 	options: UseFileUploadOptions = {},
 ): UseFileUploadReturn {
 	const {
-		preset = "INQUIRY_ATTACHMENTS",
-		bucketName = "attachments",
+		preset = "ATTACHMENTS",
 		path = "inquiries",
 		onUploadSuccess,
 		onUploadError,
@@ -87,15 +79,34 @@ export function useFileUpload(
 		};
 	}, [preset, options.maxFiles, options.maxFileSize, options.allowedMimeTypes]);
 
-	const supabase = createSupabaseBrowserClient();
+	/**
+	 * Signed URL provider — calls the backend to get pre-signed upload URLs.
+	 * The backend controls the bucket and generates unique paths.
+	 */
+	const getSignedUploadUrls = useCallback(
+		async (folder: string, fileNames: string[]) => {
+			const [err, data] = await api.inquiries.createUploadUrls({
+				folder,
+				fileNames,
+			});
+
+			if (err || !data) {
+				throw new Error(
+					err?.message ?? "Failed to generate upload URLs. Please try again.",
+				);
+			}
+
+			return data.uploads;
+		},
+		[],
+	);
 
 	const uploadHook = useSupabaseUpload({
-		supabaseClient: supabase,
-		bucketName,
 		path,
 		maxFiles: config.maxFiles,
 		maxFileSize: config.maxFileSize,
 		allowedMimeTypes: [...config.allowedMimeTypes],
+		getSignedUploadUrls,
 		onUploadSuccess: (paths) => {
 			setValidationError(null);
 			onUploadSuccess?.(paths);
@@ -105,7 +116,7 @@ export function useFileUpload(
 		},
 	});
 
-	const { files, errors } = uploadHook;
+	const { files, errors, loading: isUploading } = uploadHook;
 
 	// Compute derived values
 	const hasFileErrors = useMemo(
@@ -148,6 +159,7 @@ export function useFileUpload(
 		hasFileErrors,
 		validFileCount,
 		isMaxFilesReached,
+		isUploading,
 		config,
 	};
 }

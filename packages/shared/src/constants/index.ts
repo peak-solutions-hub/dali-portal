@@ -53,22 +53,25 @@ export const ALLOWED_MIME_TYPES = {
 } as const;
 
 /**
- * File upload presets for common use cases
+ * Maximum total attachments allowed across an entire inquiry conversation.
+ * This is a server-enforced limit to prevent abuse.
+ */
+export const INQUIRY_MAX_TOTAL_ATTACHMENTS = 6;
+
+/**
+ * File upload presets for common use cases.
+ *
+ * NOTE: Inquiry initial attachments and chat message attachments share
+ * the same limits — use `ATTACHMENTS` for both.
  */
 export const FILE_UPLOAD_PRESETS = {
-	/** Inquiry attachments: 3 files, 5MB each */
-	INQUIRY_ATTACHMENTS: {
-		maxFiles: FILE_COUNT_LIMITS.SM,
-		maxFileSize: FILE_SIZE_LIMITS.XS,
-		allowedMimeTypes: ALLOWED_MIME_TYPES.ALL,
-	},
-	/** Chat/message replies: 3 files, 5MB each */
+	/** Inquiry & chat attachments: 3 files, 5 MB each */
 	ATTACHMENTS: {
 		maxFiles: FILE_COUNT_LIMITS.SM,
 		maxFileSize: FILE_SIZE_LIMITS.XS,
 		allowedMimeTypes: ALLOWED_MIME_TYPES.ALL,
 	},
-	/** Single document upload: 1 file, 25MB */
+	/** Single document upload: 1 file, 25 MB */
 	SINGLE_DOCUMENT: {
 		maxFiles: FILE_COUNT_LIMITS.XS,
 		maxFileSize: FILE_SIZE_LIMITS.MD,

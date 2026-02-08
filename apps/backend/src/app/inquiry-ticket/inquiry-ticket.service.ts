@@ -1,8 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
 	AppError,
 	type CreateInquiryTicketInput,
 	type CreateInquiryTicketResponse,
+	type CreateSignedUploadUrlsInput,
 	type GetInquiryTicketByIdInput,
 	INQUIRY_CATEGORY_LABELS,
 	type InquiryMessage,
@@ -15,6 +16,7 @@ import {
 import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
+import { ConfigService } from "@/lib/config.service";
 import { ResendService } from "@/lib/resend.service";
 
 /** Storage bucket for inquiry attachments */
@@ -22,10 +24,13 @@ const ATTACHMENTS_BUCKET = "attachments";
 
 @Injectable()
 export class InquiryTicketService {
+	private readonly logger = new Logger(InquiryTicketService.name);
+
 	constructor(
 		private readonly db: DbService,
 		private readonly resend: ResendService,
 		private readonly storageService: SupabaseStorageService,
+		private readonly config: ConfigService,
 	) {}
 
 	async create(
@@ -44,7 +49,7 @@ export class InquiryTicketService {
 				category: input.category,
 				subject: input.subject,
 				status: "new",
-				// create initial inquiry message
+				// create initial inquiry message with optional attachments
 				// https://www.prisma.io/docs/orm/prisma-client/queries/transactions#nested-writes-1
 				inquiryMessages: {
 					create: [
@@ -52,6 +57,7 @@ export class InquiryTicketService {
 							senderName: input.citizenName,
 							content: input.message,
 							senderType: "citizen",
+							attachmentPaths: input.attachmentPaths ?? [],
 						},
 					],
 				},
@@ -59,6 +65,8 @@ export class InquiryTicketService {
 		});
 
 		// send confirmation email
+		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(response.referenceNumber)}&email=${encodeURIComponent(response.citizenEmail)}`;
+
 		const emailRes = await this.resend.send({
 			to: response.citizenEmail,
 			template: {
@@ -69,7 +77,7 @@ export class InquiryTicketService {
 					SUBJECT: response.subject,
 					CATEGORY: INQUIRY_CATEGORY_LABELS[response.category],
 					YEAR: new Date().getFullYear().toString(),
-					PORTAL_URL: "http://localhost:3000",
+					PORTAL_URL: portalUrl,
 				},
 			},
 		});
@@ -156,6 +164,42 @@ export class InquiryTicketService {
 			...message,
 			attachments,
 		};
+	}
+
+	/**
+	 * Generate signed upload URLs for inquiry attachments.
+	 * The backend controls the bucket and generates unique paths for security.
+	 */
+	async createSignedUploadUrls(input: CreateSignedUploadUrlsInput) {
+		const { folder, fileNames } = input;
+
+		try {
+			const paths = fileNames.map((fileName) =>
+				this.storageService.generateUploadPath(folder, fileName),
+			);
+
+			const results = await this.storageService.createSignedUploadUrls(
+				ATTACHMENTS_BUCKET,
+				paths,
+			);
+
+			return {
+				uploads: results.map((result, index) => ({
+					fileName: fileNames[index],
+					path: result.path,
+					signedUrl: result.signedUrl,
+					token: result.token,
+				})),
+			};
+		} catch (error) {
+			this.logger.error("Failed to generate signed upload URLs", error);
+
+			if (error instanceof AppError) {
+				throw error;
+			}
+
+			throw new AppError("STORAGE.SIGNED_URL_FAILED");
+		}
 	}
 
 	private generateReferenceNumber(year: number): string {

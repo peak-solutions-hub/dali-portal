@@ -442,6 +442,22 @@ const getErrorMessage = (error: unknown): string => {
 * **Functions/Variables:** camelCase (`handleSubmit`, `isLoading`)
 * **Constants:** UPPER_SNAKE_CASE (`API_URL`, `MAX_LIMIT`)
 
+### Constants & Magic Numbers
+
+**Single source of truth:** All reusable limits, thresholds, and configuration values MUST live in `packages/shared/src/constants/`. Never duplicate them in individual apps or use inline magic numbers for values that could change or are referenced in more than one place.
+
+| Constant Group | Purpose | Example |
+|---|---|---|
+| `TEXT_LIMITS` | Max character lengths | `TEXT_LIMITS.LG` (1000) for chat messages |
+| `FILE_SIZE_LIMITS` | Max file sizes in bytes | `FILE_SIZE_LIMITS.XS` (5 MB) |
+| `FILE_COUNT_LIMITS` | Max number of files per upload | `FILE_COUNT_LIMITS.SM` (3) |
+| `FILE_UPLOAD_PRESETS` | Pre-built upload configs combining the above | `FILE_UPLOAD_PRESETS.ATTACHMENTS` |
+| `INQUIRY_MAX_TOTAL_ATTACHMENTS` | Conversation-wide attachment cap | `6` |
+
+**Rules:**
+- Reference `FILE_COUNT_LIMITS` in Zod schema `.max()` calls instead of literal numbers.
+- `FILE_UPLOAD_PRESETS.ATTACHMENTS` is used for **both** initial inquiry attachments and chat reply attachments (they share identical limits).
+
 ### Folder Structure
 
 ```bash
@@ -451,6 +467,9 @@ dali-portal/
 │   │   └── src/
 │   │       ├── app/         # App Router pages, layouts
 │   │       ├── components/  # App-specific components
+│   │       │   └── <domain>/
+│   │       │       └── chat/ # Sub-components (bubbles, list, reply box)
+│   │       ├── hooks/       # Custom hooks (use-file-upload, use-send-*)
 │   │       └── lib/         # Utilities, client setup
 │   ├── admin/               # Next.js — Internal Dashboard (CSR)
 │   │   └── src/
