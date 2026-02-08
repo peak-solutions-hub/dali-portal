@@ -57,7 +57,7 @@ export function InquiryConversation({ ticket }: InquiryConversationProps) {
 
 			<div
 				ref={scrollRef}
-				className="conversation-scroll space-y-3 max-h-[500px] overflow-y-auto pr-2"
+				className="conversation-scroll space-y-3 max-h-125 overflow-y-auto pr-2"
 				style={{
 					scrollbarWidth: "thin",
 					scrollbarColor: "hsl(var(--muted-foreground) / 0.3) transparent",

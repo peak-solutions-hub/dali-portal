@@ -57,14 +57,25 @@ export const InquiryTicketWithMessagesResponseSchema =
 		inquiryMessages: InquiryMessageResponseSchema.array(),
 	});
 
-export const InquiryTicketListResponseSchema =
-	InquiryTicketResponseSchema.array();
+export const InquiryPaginationInfoSchema = z.object({
+	currentPage: z.number().int().min(1),
+	totalPages: z.number().int().min(0),
+	totalItems: z.number().int().min(0),
+	itemsPerPage: z.number().int().min(1),
+	hasNextPage: z.boolean(),
+	hasPreviousPage: z.boolean(),
+});
+
+export const InquiryTicketListResponseSchema = z.object({
+	tickets: InquiryTicketResponseSchema.array(),
+	pagination: InquiryPaginationInfoSchema,
+});
 
 export const GetInquiryTicketListSchema = z.object({
 	status: InquiryTicketStatusEnum.optional(),
 	category: InquiryTicketCategoryEnum.optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
-	cursor: z.uuid().optional(),
+	page: z.coerce.number().int().min(1).default(1),
 });
 
 export const GetInquiryTicketByIdSchema = z.object({
@@ -134,6 +145,7 @@ export type InquiryTicketWithMessagesResponse = z.infer<
 export type InquiryTicketListResponse = z.infer<
 	typeof InquiryTicketListResponseSchema
 >;
+export type InquiryPaginationInfo = z.infer<typeof InquiryPaginationInfoSchema>;
 
 // input types
 

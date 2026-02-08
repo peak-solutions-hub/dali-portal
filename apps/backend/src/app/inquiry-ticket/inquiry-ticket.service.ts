@@ -127,25 +127,46 @@ export class InquiryTicketService {
 	async getList(
 		input: GetInquiryTicketListInput,
 	): Promise<InquiryTicketListResponse> {
-		const { status, category, limit, cursor } = input;
+		const { status, category, limit, page } = input;
 
+		const skip = (page - 1) * limit;
+
+		// Build where clause
+		const where = {
+			...(status && { status }),
+			...(category && { category }),
+		};
+
+		// Get total count for pagination
+		const totalItems = await this.db.inquiryTicket.count({ where });
+
+		// Get paginated results
 		const inquiryTickets = await this.db.inquiryTicket.findMany({
-			where: {
-				...(status && { status }),
-				...(category && { category }),
-			},
+			where,
 			take: limit,
-			...(cursor && {
-				skip: 1,
-				cursor: { id: cursor },
-			}),
+			skip,
 			orderBy: { createdAt: "desc" },
 		});
 
-		return inquiryTickets.map((ticket) => ({
-			...ticket,
-			createdAt: ticket.createdAt.toISOString(),
-		}));
+		// Calculate pagination info
+		const totalPages = Math.ceil(totalItems / limit);
+		const hasNextPage = page < totalPages;
+		const hasPreviousPage = page > 1;
+
+		return {
+			tickets: inquiryTickets.map((ticket) => ({
+				...ticket,
+				createdAt: ticket.createdAt.toISOString(),
+			})),
+			pagination: {
+				currentPage: page,
+				totalPages,
+				totalItems,
+				itemsPerPage: limit,
+				hasNextPage,
+				hasPreviousPage,
+			},
+		};
 	}
 
 	async updateStatus(

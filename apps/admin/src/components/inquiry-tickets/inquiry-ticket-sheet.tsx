@@ -176,7 +176,7 @@ export function InquiryTicketSheet({
 	return (
 		<>
 			<Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-				<SheetContent className="w-full sm:max-w-lg p-0 overflow-y-auto">
+				<SheetContent className="w-full sm:max-w-[50vw] p-0 overflow-y-auto">
 					<SheetTitle className="sr-only">Inquiry Ticket</SheetTitle>
 					{isLoading ? (
 						<InquiryTicketSheetSkeleton />

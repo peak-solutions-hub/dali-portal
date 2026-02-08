@@ -2,7 +2,7 @@
 
 import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
-import { RichTextEditor } from "@repo/ui/components/rich-text-editor";
+import { Textarea } from "@repo/ui/components/textarea";
 import { Loader2, Paperclip, Send, X } from "lucide-react";
 
 interface InquiryMessageComposerProps {
@@ -61,9 +61,9 @@ export function InquiryMessageComposer({
 				</div>
 			)}
 
-			<RichTextEditor
-				content={message}
-				onChange={onMessageChange}
+			<Textarea
+				value={message}
+				onChange={(e) => onMessageChange(e.target.value)}
 				placeholder="Type your message..."
 				disabled={isSending}
 				onKeyDown={(e) => {
@@ -72,7 +72,8 @@ export function InquiryMessageComposer({
 						onSend();
 					}
 				}}
-				className="min-h-30"
+				className="min-h-30 resize-none border-gray-300"
+				rows={4}
 			/>
 			<div className="flex justify-between items-center">
 				<label
