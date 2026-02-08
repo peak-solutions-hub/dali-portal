@@ -12,8 +12,8 @@ import {
 	PrismaRustPanicExceptionFilter,
 	PrismaUnknownExceptionFilter,
 	PrismaValidationExceptionFilter,
-	ThrottlerExceptionFilter,
-} from "@/app/exceptions";
+} from "@/app/exceptions/prisma-client-exception.filter";
+import { ThrottlerExceptionFilter } from "@/app/exceptions/throttler-exception.filter";
 import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module";
 import { LegislativeDocumentsModule } from "@/app/legislative-documents/legislative-documents.module";
 import { RolesModule } from "@/app/roles/roles.module";
