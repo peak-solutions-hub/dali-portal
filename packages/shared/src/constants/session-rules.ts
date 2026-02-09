@@ -81,7 +81,7 @@ export const EXTENDED_SIGNED_URL_EXPIRY = 7200;
  * DRAFT (Admin creates session with agenda builder):
  *   - Admin creates new session in "draft" status
  *   - Admin builds agenda by adding:
- *     * Approved documents from document tracker
+ *     * Proposed/approved documents from the Document Tracker that have status 'approved' and purpose 'for_agenda'
  *     * Custom agenda items (Prayer, Roll Call, etc.)
  *   - Admin can reorder, edit, or delete agenda items
  *   - Session is saved as draft (not visible to public)
@@ -89,15 +89,17 @@ export const EXTENDED_SIGNED_URL_EXPIRY = 7200;
  * DRAFT → SCHEDULED (Admin finalizes session):
  *   - Admin reviews and finalizes session agenda
  *   - Session status transitions to "scheduled"
- *   - Session becomes visible to public portal
+ *   - Session agenda becomes visible to the public portal. Public view replaces attached source documents with concise summary labels for each agenda document (e.g., "f.01 DN: 25-06-0915: Proposed ordinance ..."). Agenda attachments are NOT accessible from the public portal.
  *   - Agenda is locked (no more changes allowed)
- *   - Citizens can view upcoming session details
+ *   - Citizens can view upcoming session details; full agenda documents and attachments are available only in Admin Presentation Mode (internal staff view).
  *
  * SCHEDULED → COMPLETED (After session concludes):
  *   - Admin marks session as completed after it takes place
- *   - Optional: Upload minutes and journal files
- *   - Session remains visible to public as historical record
- *   - Documents linked in agenda update their status to "calendared" then "published"
+ *   - Session remains visible to public as a historical record
+ *   - Documents shown in the agenda are "proposed" documents that meet the following rules:
+ *       • status: "approved"
+ *       • purpose: "for_agenda"
+ *   - Attached source documents are NOT available to the public portal. Instead the public portal shows a brief summary label for each agenda document (for example: "f.01 DN: 25-06-0915: Proposed ordinance ..."). Labels are numbered sequentially (f.01, f.02, ...) depending on the number of proposed ordinances, resolutions, and committee reports included in the agenda. Full agenda documents and attachments remain accessible only to internal staff via Admin Presentation Mode.
  *
  * Visual Flow:
  *   DRAFT → SCHEDULED → COMPLETED
@@ -163,3 +165,78 @@ export function isSessionPubliclyVisible(status: SessionStatus): boolean {
 		status === SessionStatus.SCHEDULED || status === SessionStatus.COMPLETED
 	);
 }
+
+// =============================================================================
+// AGENDA DOCUMENT DISPLAY RULES
+// =============================================================================
+
+/**
+ * Documents shown in session agendas on the public portal (including when scheduled) MUST:
+ * - have status 'approved'
+ * - have purpose 'for_agenda'
+ */
+export const AGENDA_DOCUMENT_VISIBLE_STATUS = "approved" as const;
+export const AGENDA_DOCUMENT_PURPOSE_FOR_AGENDA = "for_agenda" as const;
+
+/**
+ * Attached documents are not served to the public portal. Public view shows
+ * a concise label instead (see formatAgendaDocumentPublicLabel).
+ */
+export const ARE_AGENDA_DOCUMENT_ATTACHMENTS_PUBLIC = false;
+
+/**
+ * Internal-only flag: attachments and full source documents are available to admins
+ * when viewing the agenda in Admin Presentation Mode.
+ */
+export const ARE_AGENDA_DOCUMENT_ATTACHMENTS_VISIBLE_TO_ADMIN = true;
+
+/**
+ * Check whether a document should be shown in the public agenda listing.
+ */
+export function isAgendaDocumentPubliclyVisible(
+	status: string,
+	purpose: string,
+): boolean {
+	return (
+		status === AGENDA_DOCUMENT_VISIBLE_STATUS &&
+		purpose === AGENDA_DOCUMENT_PURPOSE_FOR_AGENDA
+	);
+}
+
+/**
+ * Check whether a document should be visible in the public portal for a given
+ * session status. This enforces both the session visibility rule (scheduled or
+ * completed) and the document-level rules (status 'approved' and purpose
+ * 'for_agenda').
+ */
+export function isAgendaDocumentVisibleOnSession(
+	sessionStatus: SessionStatus,
+	docStatus: string,
+	docPurpose: string,
+): boolean {
+	return (
+		isSessionPubliclyVisible(sessionStatus) &&
+		isAgendaDocumentPubliclyVisible(docStatus, docPurpose)
+	);
+}
+
+/**
+ * Check whether a document may be included in a session agenda by admins.
+ * Admins can include proposed/approved documents that have purpose 'for_agenda'.
+ *
+ * NOTE: This rule is intentionally identical to `isAgendaDocumentPubliclyVisible`.
+ * We keep a separate exported function for clarity and to allow future divergence
+ * without changing call sites. Internally delegate to the shared predicate.
+ */
+export function isAgendaDocumentAllowedForAdminBuild(
+	status: string,
+	purpose: string,
+): boolean {
+	// Delegate to the public predicate (approved + for_agenda)
+	return isAgendaDocumentPubliclyVisible(status, purpose);
+}
+
+/**
+ * Public agenda label formatting is provided by a helper in the shared helpers.
+ * Use `formatAgendaDocumentPublicLabel` from `@repo/shared/helpers` (see `session.helper.ts`).
+ */

@@ -48,7 +48,8 @@ export const ADMIN_SESSION_STATUSES: SessionStatus[] = [
 // =============================================================================
 
 /**
- * Format a date to Philippine locale format (e.g., "Wednesday, January 15, 2024")
+ * Format a date to Philippine locale (PHT) using Asia/Manila timezone
+ * Example: "Wednesday, January 15, 2024"
  */
 export function formatSessionDate(date: Date | string): string {
 	if (!date) return "N/A";
@@ -57,7 +58,9 @@ export function formatSessionDate(date: Date | string): string {
 	if (Number.isNaN(dateObj.getTime())) return "N/A";
 
 	try {
+		// Force timezone to Asia/Manila so the displayed date is always in PHT
 		return dateObj.toLocaleDateString("en-US", {
+			timeZone: "Asia/Manila",
 			weekday: "long",
 			year: "numeric",
 			month: "long",
@@ -69,7 +72,8 @@ export function formatSessionDate(date: Date | string): string {
 }
 
 /**
- * Format a time to 12-hour format (e.g., "10:00 AM")
+ * Format a time to 12-hour format in Philippine Time (PHT)
+ * Example: "10:00 AM PHT"
  */
 export function formatSessionTime(date: Date | string): string {
 	if (!date) return "N/A";
@@ -78,14 +82,40 @@ export function formatSessionTime(date: Date | string): string {
 	if (Number.isNaN(dateObj.getTime())) return "N/A";
 
 	try {
-		return dateObj.toLocaleTimeString("en-US", {
+		// Force timezone to Asia/Manila so the displayed time is always in PHT
+		const timeStr = dateObj.toLocaleTimeString("en-US", {
+			timeZone: "Asia/Manila",
 			hour: "numeric",
 			minute: "2-digit",
 			hour12: true,
 		});
+
+		// Append explicit PHT label for clarity (consistent across environments)
+		return `${timeStr} PHT`;
 	} catch {
 		return "N/A";
 	}
+}
+
+/**
+ * Format a concise public label for an agenda document.
+ *
+ * Example:
+ * formatAgendaDocumentPublicLabel(1, '25-06-0915', 'Proposed ordinance on ...')
+ * returns: 'f.01 DN: 25-06-0915: Proposed ordinance on ...'
+ *
+ * The index is 1-based and padded to two digits (f.01, f.02, ...).
+ */
+export function formatAgendaDocumentPublicLabel(
+	index: number,
+	docNumber?: string,
+	title?: string,
+): string {
+	const idx = String(index).padStart(2, "0");
+	const prefix = `f.${idx}`;
+	const dn = docNumber ? ` DN: ${docNumber}` : "";
+	const shortTitle = title ? `: ${title}` : ": Proposed document";
+	return `${prefix}${dn}${shortTitle}`;
 }
 
 // =============================================================================
@@ -275,7 +305,7 @@ export function buildSessionQueryString(
 
 /**
  * Zod schema for validating URL search parameters
- * Aligns with backend GetSessionListSchema but handles array values
+ * Aligns with backend GetSessionListSchema but handles array values and 'all'
  */
 export const sessionSearchParamsSchema = z.object({
 	types: z
@@ -283,7 +313,7 @@ export const sessionSearchParamsSchema = z.object({
 		.optional()
 		.default("")
 		.transform((val) => {
-			if (!val) return undefined;
+			if (!val || val === "all") return "all";
 			return val.split(",").filter((v) => SessionTypeEnum.safeParse(v).success);
 		}),
 	statuses: z
@@ -291,7 +321,7 @@ export const sessionSearchParamsSchema = z.object({
 		.optional()
 		.default("")
 		.transform((val) => {
-			if (!val) return undefined;
+			if (!val || val === "all") return "all";
 			return val
 				.split(",")
 				.filter((v) => PublicSessionStatusEnum.safeParse(v).success);
@@ -341,13 +371,20 @@ export function validateSessionSearchParams(
 
 /**
  * Convert validated search params to API input format
+ * Converts 'all' to undefined so backend doesn't filter
  */
 export function toSessionApiFilters(
 	params: SessionSearchParams,
 ): GetSessionListInput {
 	return {
-		type: params.types as ("regular" | "special")[] | undefined,
-		status: params.statuses as ("scheduled" | "completed")[] | undefined,
+		type:
+			params.types === "all"
+				? undefined
+				: (params.types as ("regular" | "special")[] | undefined),
+		status:
+			params.statuses === "all"
+				? undefined
+				: (params.statuses as ("scheduled" | "completed")[] | undefined),
 		dateFrom: params.dateFrom,
 		dateTo: params.dateTo,
 		sortBy: "date",

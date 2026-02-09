@@ -18,14 +18,14 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { ChevronLeftIcon, ChevronRightIcon } from "@repo/ui/lib/lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import * as React from "react";
 import {
 	getSessionStatusLabel,
 	getSessionTypeBadgeClass,
 	getSessionTypeLabel,
-} from "@/lib/session-ui";
+} from "@repo/ui/lib/session-ui";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import * as React from "react";
 
 interface SessionsCalendarProps {
 	sessions: Session[];
@@ -94,10 +94,10 @@ export function SessionsCalendar({
 		const validatedParams = validationResult.data;
 
 		// Add validated filters
-		if (validatedParams.types && validatedParams.types.length > 0) {
+		if (validatedParams.types && validatedParams.types !== "all") {
 			filters.types = validatedParams.types.join(",");
 		}
-		if (validatedParams.statuses && validatedParams.statuses.length > 0) {
+		if (validatedParams.statuses && validatedParams.statuses !== "all") {
 			filters.statuses = validatedParams.statuses.join(",");
 		}
 		if (validatedParams.dateFrom) {

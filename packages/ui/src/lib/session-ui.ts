@@ -1,5 +1,5 @@
 /**
- * UI-specific constants and helpers for Legislative Sessions (Portal App)
+ * UI-specific constants and helpers for Legislative Sessions (Shared UI package)
  * These are presentation-layer utilities used for display and styling
  */
 
@@ -17,6 +17,7 @@ export const SESSION_TYPE_LABELS: Record<string, string> = {
 export const SESSION_STATUS_LABELS: Record<string, string> = {
 	scheduled: "Scheduled",
 	completed: "Completed",
+	draft: "Draft",
 };
 
 /**
@@ -29,7 +30,6 @@ export const SESSION_SECTION_LABELS: Record<string, string> = {
 		"National Anthem and Pledge of Allegiance",
 	roll_call: "Roll Call",
 	reading_and_or_approval_of_minutes: "Reading and/or Approval of the Minutes",
-	agenda: "Agenda",
 	first_reading_and_references: "First Reading and References",
 	committee_report: "Committee Report",
 	calendar_of_business: "Calendar of Business",
@@ -69,6 +69,7 @@ export const SESSION_TYPE_BADGE_COLORS: Record<string, string> = {
 export const SESSION_STATUS_BADGE_COLORS: Record<string, string> = {
 	completed: "bg-[#16a34a]",
 	scheduled: "bg-[#3b82f6]",
+	draft: "bg-[#f59e0b]",
 };
 
 /**
@@ -104,4 +105,26 @@ export function getSessionStatusBadgeClass(status: string): string {
  */
 export function getSectionLabel(section: string): string {
 	return SESSION_SECTION_LABELS[section] || section;
+}
+
+/**
+ * Document type badge colors for better visual distinction
+ */
+export const DOCUMENT_TYPE_BADGE_COLORS: Record<string, string> = {
+	ordinance: "bg-blue-100 text-blue-800",
+	resolution: "bg-green-100 text-green-800",
+};
+
+/**
+ * Get badge color class for document type
+ */
+export function getDocumentTypeBadgeClass(type: string): string {
+	const typeLower = type.toLowerCase();
+	if (typeLower.includes("ordinance")) {
+		return DOCUMENT_TYPE_BADGE_COLORS.ordinance!;
+	}
+	if (typeLower.includes("resolution")) {
+		return DOCUMENT_TYPE_BADGE_COLORS.resolution!;
+	}
+	return "bg-gray-100 text-gray-700 border-gray-200";
 }
