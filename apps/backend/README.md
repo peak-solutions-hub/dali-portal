@@ -1,98 +1,136 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# DALI Portal — Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS-based REST API for the DALI Portal, using oRPC for type-safe contracts.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 📁 Directory Structure
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ pnpm install
+```
+src/
+├── app/
+│   ├── captcha/             # Cloudflare Turnstile verification
+│   ├── db/                  # Prisma database service
+│   ├── exceptions/          # Global exception filters
+│   │   ├── prisma-client-exception.filter.ts
+│   │   └── throttler-exception.filter.ts
+│   ├── inquiry-ticket/      # Inquiry ticket domain
+│   ├── legislative-documents/
+│   ├── roles/               # Role definitions
+│   ├── session/             # Session management
+│   ├── users/               # User management
+│   └── util/
+│       └── supabase/        # Supabase services
+│           ├── supabase-admin.service.ts    # Admin client
+│           ├── supabase-storage.service.ts  # Storage operations
+│           └── supabase.module.ts
+├── lib/
+│   ├── config.service.ts    # Environment configuration
+│   ├── resend.service.ts    # Email service
+│   ├── turnstile.service.ts # CAPTCHA verification
+│   └── lib.module.ts        # Shared library module
+└── main.ts                  # Application entry point
 ```
 
-## Compile and run the project
+## 📦 Supabase Services
 
-```bash
-# development
-$ pnpm run start
+### SupabaseAdminService
 
-# watch mode
-$ pnpm run start:dev
+Provides the Supabase admin client for privileged operations:
 
-# production mode
-$ pnpm run start:prod
+```typescript
+constructor(private readonly supabaseAdmin: SupabaseAdminService) {}
+
+const client = this.supabaseAdmin.getClient();
 ```
 
-## Run tests
+### SupabaseStorageService
 
-```bash
-# unit tests
-$ pnpm run test
+Handles all storage operations (signed URLs, uploads):
 
-# e2e tests
-$ pnpm run test:e2e
+```typescript
+import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
 
-# test coverage
-$ pnpm run test:cov
+constructor(private readonly storageService: SupabaseStorageService) {}
+
+// Non-throwing (returns null signedUrl on failure)
+const results = await this.storageService.getSignedUrls("bucket", paths);
+
+// Throwing (throws STORAGE.SIGNED_URL_FAILED on failure)
+const result = await this.storageService.getSignedUrlOrThrow("bucket", path);
 ```
 
-## Deployment
+## 🛡️ Error Handling
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### AppError (Business Logic)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Use `AppError` from `@repo/shared` for typed errors:
 
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+```typescript
+import { AppError } from "@repo/shared";
+
+throw new AppError("GENERAL.NOT_FOUND");           // 404
+throw new AppError("GENERAL.UNAUTHORIZED");        // 401
+throw new AppError("GENERAL.FORBIDDEN");           // 403
+throw new AppError("INQUIRY.EMAIL_SEND_FAILED");   // 500
+throw new AppError("STORAGE.SIGNED_URL_FAILED");   // 500
+throw new AppError("STORAGE.UPLOAD_FAILED");       // 500
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Exception Filters
 
-## Resources
+Global filters in `src/app/exceptions/` handle:
 
-Check out a few resources that may come in handy when working with NestJS:
+| Filter | Handles | Status |
+|--------|---------|--------|
+| `PrismaClientExceptionFilter` | Known Prisma errors (P2xxx) | Varies |
+| `PrismaValidationExceptionFilter` | Validation errors | 400 |
+| `PrismaInitializationExceptionFilter` | Connection failures | 503 |
+| `ThrottlerExceptionFilter` | Rate limit exceeded | 429 |
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Common Prisma Errors
 
-## Support
+| Code | Status | Description |
+|------|--------|-------------|
+| P2002 | 409 | Unique constraint violation |
+| P2025 | 404 | Record not found |
+| P2003 | 400 | Foreign key violation |
+| P2024 | 503 | Connection pool timeout |
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## ⏱️ Rate Limiting
 
-## Stay in touch
+Default throttling configuration:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- **Short burst**: 3 requests per second
+- **Standard**: 60 requests per minute
 
-## License
+Override per endpoint:
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```typescript
+import { Throttle, SkipThrottle } from "@nestjs/throttler";
+
+@Throttle({ default: { limit: 5, ttl: 60000 } })
+@Implement(contract.inquiries.create)
+create() { ... }
+
+@SkipThrottle()
+@Implement(contract.inquiries.getById)
+getById() { ... }
+```
+
+## 🚀 Running
+
+```bash
+# Development
+pnpm dev
+
+# Production build
+pnpm build
+pnpm start:prod
+```
+
+## 🧪 Testing
+
+```bash
+pnpm test        # Unit tests
+pnpm test:e2e    # E2E tests
+pnpm test:cov    # Coverage
+```

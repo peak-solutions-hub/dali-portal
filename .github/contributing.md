@@ -24,12 +24,24 @@
 dali-portal/
 ├── apps/
 │   ├── portal/              # Next.js — Public Portal (SSR, citizen-facing)
-│   │   └── src/app/         # App Router pages, layouts, components
+│   │   └── src/
+│   │       ├── app/         # App Router pages, layouts
+│   │       ├── components/  # App-specific components
+│   │       │   └── <domain>/
+│   │       │       └── chat/ # Sub-components (bubbles, list, reply box)
+│   │       ├── hooks/       # Custom hooks (use-file-upload, use-send-*)
+│   │       └── lib/         # Utilities, client setup
 │   ├── admin/               # Next.js — Internal Dashboard (CSR, staff-facing)
 │   │   └── src/app/         # App Router pages, layouts, components
 │   └── backend/             # NestJS — REST API
 │       └── src/             # Modules, controllers, services
 ├── packages/
+│   ├── shared/              # Contracts, schemas, constants, utilities
+│   │   └── src/
+│   │       ├── constants/   # Single source of truth for all limits & config
+│   │       ├── contracts/   # oRPC contracts
+│   │       ├── schemas/     # Zod schemas
+│   │       └── lib/         # Shared utilities
 │   ├── ui/                  # Shared UI components (Shadcn, custom)
 │   │   └── src/
 │   │       ├── components/  # Reusable UI components
@@ -297,6 +309,10 @@ apps/backend/src/
 │   ├── db/                    # Database module (Prisma)
 │   │   ├── db.service.ts
 │   │   └── db.module.ts
+│   ├── exceptions/            # Global exception filters
+│   │   ├── index.ts
+│   │   ├── prisma-client-exception.filter.ts
+│   │   └── throttler-exception.filter.ts
 │   ├── <domain>/              # Feature modules
 │   │   ├── <domain>.controller.ts
 │   │   ├── <domain>.service.ts
@@ -335,22 +351,118 @@ export class DomainController {
 }
 ```
 
-### Service Pattern (use ORPCError)
+### Service Pattern (use AppError)
 
 ```typescript
 import { Injectable } from "@nestjs/common";
-import { ORPCError } from "@orpc/nest";
+import { AppError } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 
 @Injectable()
 export class DomainService {
   constructor(private readonly db: DbService) {}
 
-  async create(input) {
-    // Use ORPCError for typed errors
-    throw new ORPCError("NOT_FOUND", { message: "Record not found" });
+  async getById(id: string) {
+    const record = await this.db.entity.findFirst({ where: { id } });
+    
+    if (!record) {
+      // Use AppError with domain-specific error codes
+      throw new AppError("GENERAL.NOT_FOUND");
+    }
+    
+    return record;
   }
 }
+```
+
+### Error Handling
+
+The backend uses a comprehensive error handling system with global exception filters.
+
+#### AppError (Typed Application Errors)
+
+Use `AppError` from `@repo/shared` for business logic errors:
+
+```typescript
+import { AppError } from "@repo/shared";
+
+// Throw with error code (uses default message from ERRORS constant)
+throw new AppError("INQUIRY.NOT_FOUND");
+
+// Throw with custom message
+throw new AppError("INQUIRY.EMAIL_SEND_FAILED", "Custom error message");
+
+// Throw with additional data
+throw AppError.withData("GENERAL.BAD_REQUEST", { field: "email" });
+```
+
+Available error codes are defined in `packages/shared/src/constants/errors.ts`:
+
+| Domain | Error Code | Status | Description |
+|--------|------------|--------|-------------|
+| GENERAL | TOO_MANY_REQUESTS | 429 | Rate limit exceeded |
+| GENERAL | UNAUTHORIZED | 401 | Authentication required |
+| GENERAL | FORBIDDEN | 403 | Permission denied |
+| GENERAL | NOT_FOUND | 404 | Resource not found |
+| GENERAL | BAD_REQUEST | 400 | Invalid input |
+| GENERAL | CONFLICT | 409 | Resource conflict |
+| GENERAL | INTERNAL_SERVER_ERROR | 500 | Unexpected error |
+| INQUIRY | NOT_FOUND | 404 | Inquiry not found |
+| INQUIRY | MESSAGE_SEND_FAILED | 400 | Message send failed |
+| INQUIRY | EMAIL_SEND_FAILED | 500 | Email delivery failed |
+| STORAGE | SIGNED_URL_FAILED | 500 | Signed URL generation failed |
+| STORAGE | UPLOAD_FAILED | 500 | File upload failed |
+| STORAGE | FILE_NOT_FOUND | 404 | File not found |
+| STORAGE | BUCKET_NOT_FOUND | 404 | Storage bucket not found |
+
+#### Exception Filters
+
+Global exception filters are registered in `AppModule` and transform errors into oRPC-compatible responses:
+
+| Filter | Catches | Description |
+|--------|---------|-------------|
+| `ThrottlerExceptionFilter` | Rate limit errors | Returns 429 with standardized message |
+| `PrismaClientExceptionFilter` | Prisma known errors (P2xxx) | Maps Prisma codes to HTTP status |
+| `PrismaValidationExceptionFilter` | Prisma validation errors | Returns 400 Bad Request |
+| `PrismaInitializationExceptionFilter` | Database connection failures | Returns 503 Service Unavailable |
+| `PrismaUnknownExceptionFilter` | Unknown Prisma errors | Returns 500 with generic message |
+| `PrismaRustPanicExceptionFilter` | Critical engine panics | Returns 500, logs critical error |
+
+#### Common Prisma Error Codes
+
+| Code | HTTP Status | Meaning |
+|------|-------------|---------|
+| P2002 | 409 Conflict | Unique constraint violation |
+| P2025 | 404 Not Found | Record not found |
+| P2003 | 400 Bad Request | Foreign key constraint violation |
+| P2024 | 503 Service Unavailable | Connection pool timeout |
+| P2034 | 409 Conflict | Transaction write conflict |
+
+### Rate Limiting
+
+Global rate limiting is configured in `AppModule`:
+
+```typescript
+ThrottlerModule.forRoot([
+  { name: "short", ttl: 1000, limit: 3 },     // 3 req/sec (bot protection)
+  { name: "default", ttl: 60000, limit: 60 }, // 60 req/min (user protection)
+])
+```
+
+Override per-endpoint using decorators:
+
+```typescript
+import { Throttle, SkipThrottle } from "@nestjs/throttler";
+
+// Custom rate limit: 5 requests per minute
+@Throttle({ default: { limit: 5, ttl: 60000 } })
+@Implement(contract.inquiries.create)
+create() { ... }
+
+// Skip rate limiting entirely
+@SkipThrottle()
+@Implement(contract.inquiries.getById)
+getById() { ... }
 ```
 
 ### Adding a New Feature Module
@@ -363,6 +475,36 @@ export class DomainService {
    - `<domain>.service.ts` (inject `DbService` and other relevant services)
    - `<domain>.module.ts` (connect controller & service)
 5. Import module in `apps/backend/src/app/app.module.ts`
+
+### Supabase Services
+
+Supabase services are in `apps/backend/src/app/util/supabase/` and are globally available.
+
+#### SupabaseAdminService
+
+Provides the Supabase admin client for privileged operations:
+
+```typescript
+constructor(private readonly supabaseAdmin: SupabaseAdminService) {}
+
+const client = this.supabaseAdmin.getClient();
+```
+
+#### SupabaseStorageService
+
+Handles storage operations (signed URLs, uploads). Use this instead of direct Supabase client calls:
+
+```typescript
+import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
+
+constructor(private readonly storageService: SupabaseStorageService) {}
+
+// Non-throwing: returns null signedUrl on failure
+const results = await this.storageService.getSignedUrls("bucket", paths);
+
+// Throwing: throws STORAGE.SIGNED_URL_FAILED on failure
+const result = await this.storageService.getSignedUrlOrThrow("bucket", path);
+```
 
 ---
 
@@ -413,6 +555,22 @@ The frontend apps use **oRPC with OpenAPILink** for type-safe API communication.
 ---
 
 ## Additional Guidelines
+
+### Constants & Magic Numbers
+
+All reusable limits, thresholds, and configuration values live in `packages/shared/src/constants/`. Never duplicate them or use inline magic numbers for values that could change or are referenced in more than one place.
+
+| Constant Group | Purpose | Example |
+|---|---|---|
+| `TEXT_LIMITS` | Max character lengths | `TEXT_LIMITS.LG` (1000) for chat messages |
+| `FILE_SIZE_LIMITS` | Max file sizes in bytes | `FILE_SIZE_LIMITS.XS` (5 MB) |
+| `FILE_COUNT_LIMITS` | Max number of files per upload | `FILE_COUNT_LIMITS.SM` (3) |
+| `FILE_UPLOAD_PRESETS` | Pre-built upload configs | `FILE_UPLOAD_PRESETS.ATTACHMENTS` |
+| `INQUIRY_MAX_TOTAL_ATTACHMENTS` | Conversation-wide attachment cap | `6` |
+
+**Rules:**
+- Reference `FILE_COUNT_LIMITS` in Zod schema `.max()` calls instead of literal numbers.
+- `FILE_UPLOAD_PRESETS.ATTACHMENTS` is used for **both** initial inquiry attachments and chat reply attachments (identical limits).
 
 ### Avoid Unnecessary Dependencies
 
