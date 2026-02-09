@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import type { EnrichedUser } from "@/app/auth";
+import type { EnrichedUser } from "@/app/auth/guards/roles.guard";
 
 /**
  * Extended Express Request with authenticated user

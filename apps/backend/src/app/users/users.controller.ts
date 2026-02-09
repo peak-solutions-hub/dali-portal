@@ -1,7 +1,7 @@
 import { Controller } from "@nestjs/common";
 import { Implement, implement } from "@orpc/nest";
 import { ALL_ROLES, AppError, contract, ROLE_PERMISSIONS } from "@repo/shared";
-import { Roles } from "@/app/auth";
+import { Roles } from "@/app/auth/decorators/roles.decorator";
 import type { ORPCContext } from "@/app/types";
 import { UsersService } from "./users.service";
 

@@ -6,9 +6,12 @@ import {
 import { Reflector } from "@nestjs/core";
 import { AppError, type RoleType } from "@repo/shared";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DbService } from "@/app/db/db.service";
-import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
+import { ConfigService } from "@/lib/config.service";
 import { ROLES_KEY } from "../decorators/roles.decorator";
+
+let supabaseClient: SupabaseClient | null = null;
 
 /**
  * In-memory cache for user data to avoid database queries on every request.
@@ -28,10 +31,31 @@ const CACHE_TTL_MS = 60_000; // 1 minute
 
 @Injectable()
 export class RolesGuard implements CanActivate {
+	private readonly supabase: SupabaseClient;
+
 	constructor(
 		private readonly reflector: Reflector,
+		private readonly configService: ConfigService,
 		private readonly db: DbService,
-	) {}
+	) {
+		// Use cached client or create new one
+		if (!supabaseClient) {
+			const supabaseUrl = this.configService.getOrThrow(
+				"supabase.url",
+			) as string;
+			const serviceRoleKey = this.configService.getOrThrow(
+				"supabase.serviceRoleKey",
+			) as string;
+
+			supabaseClient = createClient(supabaseUrl, serviceRoleKey, {
+				auth: {
+					autoRefreshToken: false,
+					persistSession: false,
+				},
+			});
+		}
+		this.supabase = supabaseClient;
+	}
 
 	/**
 	 * Get user data from cache or database.
@@ -94,22 +118,36 @@ export class RolesGuard implements CanActivate {
 	}
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
-		// Check if route is marked as public
-		const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-			context.getHandler(),
-			context.getClass(),
-		]);
+		// Get required roles from decorator
+		const requiredRoles = this.reflector.getAllAndOverride<RoleType[]>(
+			ROLES_KEY,
+			[context.getHandler(), context.getClass()],
+		);
 
-		if (isPublic) {
+		// If no roles are required, allow access (public route)
+		if (!requiredRoles || requiredRoles.length === 0) {
 			return true;
 		}
 
-		// Get the authenticated Supabase user from the request (set by AuthGuard)
+		// Roles are required - authenticate the user
 		const request = context.switchToHttp().getRequest();
-		const supabaseUser = request.user as SupabaseUser | undefined;
 
-		if (!supabaseUser?.id) {
-			throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+		// Extract Bearer token from Authorization header
+		const authHeader = request.headers.authorization;
+		if (!authHeader?.startsWith("Bearer ")) {
+			throw new AppError("AUTH.MISSING_TOKEN");
+		}
+
+		const token = authHeader.substring(7);
+
+		// Verify the token using Supabase's getUser() API
+		const {
+			data: { user: supabaseUser },
+			error: authError,
+		} = await this.supabase.auth.getUser(token);
+
+		if (authError || !supabaseUser) {
+			throw new AppError("AUTH.INVALID_TOKEN");
 		}
 
 		// Get user data from cache or database
@@ -135,17 +173,6 @@ export class RolesGuard implements CanActivate {
 			role: userData.roleName,
 			status: userData.status,
 		};
-
-		// Get required roles from decorator
-		const requiredRoles = this.reflector.getAllAndOverride<RoleType[]>(
-			ROLES_KEY,
-			[context.getHandler(), context.getClass()],
-		);
-
-		// If no roles are required, allow access (authentication is still required via AuthGuard)
-		if (!requiredRoles || requiredRoles.length === 0) {
-			return true;
-		}
 
 		// Check if user has one of the required roles
 		const hasRequiredRole = requiredRoles.some(

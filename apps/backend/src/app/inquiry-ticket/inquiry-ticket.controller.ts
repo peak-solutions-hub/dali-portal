@@ -2,7 +2,6 @@ import { Controller } from "@nestjs/common";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
-import { Public } from "@/app/auth";
 import { Captcha } from "@/app/captcha/captcha.guard";
 import { InquiryMessageService } from "./inquiry-message.service";
 import { InquiryTicketService } from "./inquiry-ticket.service";
@@ -14,7 +13,6 @@ export class InquiryTicketController {
 		private readonly messageService: InquiryMessageService,
 	) {}
 
-	@Public()
 	// 5 reqs per min
 	@Throttle({
 		default: {
@@ -30,7 +28,6 @@ export class InquiryTicketController {
 		});
 	}
 
-	@Public()
 	// 5 reqs per min
 	@Throttle({
 		default: {
@@ -45,7 +42,6 @@ export class InquiryTicketController {
 		});
 	}
 
-	@Public()
 	@SkipThrottle()
 	@Implement(contract.inquiries.getWithMessages)
 	getWithMessages() {
@@ -56,7 +52,6 @@ export class InquiryTicketController {
 		);
 	}
 
-	@Public()
 	// 5 reqs per min
 	@Throttle({
 		default: {
@@ -73,7 +68,6 @@ export class InquiryTicketController {
 		);
 	}
 
-	@Public()
 	// 10 reqs per min — generous for multi-file uploads
 	@Throttle({
 		default: {
