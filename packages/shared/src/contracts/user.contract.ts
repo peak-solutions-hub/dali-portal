@@ -1,5 +1,7 @@
 import { oc } from "@orpc/contract";
+import { ERRORS } from "../constants";
 import {
+	ActivateUserSchema,
 	DeleteUserSchema,
 	GetUserByIdSchema,
 	GetUserListSchema,
@@ -10,7 +12,21 @@ import {
 	UserWithRoleSchema,
 } from "../schemas/user.schema";
 
-// Get users list
+export const getCurrentUserContract = oc
+	.route({
+		method: "GET",
+		path: "/users/me",
+		summary: "Get current user profile",
+		description:
+			"Retrieve the authenticated user's profile including their role information",
+		tags: ["Users", "Auth"],
+	})
+	.output(UserWithRoleSchema)
+	.errors({
+		NOT_AUTHENTICATED: ERRORS.USER.NOT_AUTHENTICATED,
+		NOT_FOUND: ERRORS.USER.NOT_FOUND,
+	});
+
 export const getUserListContract = oc
 	.route({
 		method: "GET",
@@ -23,15 +39,10 @@ export const getUserListContract = oc
 	.input(GetUserListSchema)
 	.output(UserListResponseSchema)
 	.errors({
-		UNAUTHORIZED: {
-			message: "User not authorized to access users",
-		},
-		BAD_REQUEST: {
-			message: "Invalid query parameters",
-		},
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
 	});
 
-// Deactivate user
 export const deactivateUserContract = oc
 	.route({
 		method: "PATCH",
@@ -43,18 +54,10 @@ export const deactivateUserContract = oc
 	.input(DeleteUserSchema)
 	.output(UserWithRoleSchema)
 	.errors({
-		NOT_FOUND: {
-			message: "User not found",
-		},
-		UNAUTHORIZED: {
-			message: "User not authorized to deactivate users",
-		},
-		BAD_REQUEST: {
-			message: "Cannot deactivate this user",
-		},
+		NOT_FOUND: ERRORS.USER.NOT_FOUND,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	});
 
-// Get user by ID
 export const getUserByIdContract = oc
 	.route({
 		method: "GET",
@@ -66,15 +69,10 @@ export const getUserByIdContract = oc
 	.input(GetUserByIdSchema)
 	.output(UserWithRoleSchema)
 	.errors({
-		NOT_FOUND: {
-			message: "User not found",
-		},
-		UNAUTHORIZED: {
-			message: "User not authorized to access user details",
-		},
+		NOT_FOUND: ERRORS.USER.NOT_FOUND,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	});
 
-// Update user
 export const updateUserContract = oc
 	.route({
 		method: "PATCH",
@@ -86,18 +84,12 @@ export const updateUserContract = oc
 	.input(UpdateUserSchema)
 	.output(UserWithRoleSchema)
 	.errors({
-		NOT_FOUND: {
-			message: "User not found",
-		},
-		UNAUTHORIZED: {
-			message: "User not authorized to update users",
-		},
-		BAD_REQUEST: {
-			message: "Invalid update data",
-		},
+		NOT_FOUND: ERRORS.USER.NOT_FOUND,
+		INVALID_ROLE: ERRORS.USER.INVALID_ROLE,
+		SELF_DEMOTION: ERRORS.USER.SELF_DEMOTION,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	});
 
-// Invite user
 export const inviteUserContract = oc
 	.route({
 		method: "POST",
@@ -110,21 +102,36 @@ export const inviteUserContract = oc
 	.input(InviteUserSchema)
 	.output(InviteUserResponseSchema)
 	.errors({
-		UNAUTHORIZED: {
-			message: "User not authorized to invite users",
-		},
-		BAD_REQUEST: {
-			message: "Invalid invite data or email already exists",
-		},
-		INTERNAL_SERVER_ERROR: {
-			message: "Failed to send invitation email",
-		},
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+		INVALID_ROLE: ERRORS.USER.INVALID_ROLE,
+		EMAIL_ALREADY_EXISTS: ERRORS.USER.EMAIL_ALREADY_EXISTS,
+		DEACTIVATED_SUGGEST_REACTIVATION:
+			ERRORS.USER.DEACTIVATED_SUGGEST_REACTIVATION,
+		INVITE_FAILED: ERRORS.USER.INVITE_FAILED,
+		DB_CREATE_FAILED: ERRORS.USER.DB_CREATE_FAILED,
 	});
 
-// Export user contract
+export const activateUserContract = oc
+	.route({
+		method: "PATCH",
+		path: "/users/activate/{id}",
+		summary: "Activate user account",
+		description:
+			"Activate a user account by changing status from 'invited' to 'active', or reactivate a deactivated account",
+		tags: ["Users", "Auth"],
+	})
+	.input(ActivateUserSchema)
+	.output(UserWithRoleSchema)
+	.errors({
+		NOT_FOUND: ERRORS.USER.NOT_FOUND,
+		ALREADY_ACTIVE: ERRORS.USER.ALREADY_ACTIVE,
+	});
+
 export const userContract = {
+	me: getCurrentUserContract,
 	list: getUserListContract,
 	deactivate: deactivateUserContract,
+	activate: activateUserContract,
 	getById: getUserByIdContract,
 	update: updateUserContract,
 	invite: inviteUserContract,

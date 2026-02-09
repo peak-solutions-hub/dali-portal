@@ -5,6 +5,7 @@ import { ORPCError, ORPCModule, onError } from "@orpc/nest";
 import { experimental_RethrowHandlerPlugin as RethrowHandlerPlugin } from "@orpc/server/plugins";
 import { Request } from "express";
 import { AppController } from "@/app/app.controller";
+import { RolesGuard } from "@/app/auth/guards/roles.guard";
 import { DbModule } from "@/app/db/db.module";
 import {
 	PrismaClientExceptionFilter,
@@ -83,6 +84,13 @@ declare module "@orpc/nest" {
 	controllers: [AppController],
 	providers: [
 		AppService,
+		// Global guards - applied to all routes
+		// RolesGuard handles both authentication and authorization
+		// Routes without @Roles() decorator are public (no authentication required)
+		{
+			provide: APP_GUARD,
+			useClass: RolesGuard,
+		},
 		// Global rate limiting guard
 		{
 			provide: APP_GUARD,

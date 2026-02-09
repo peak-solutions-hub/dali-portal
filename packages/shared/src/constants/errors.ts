@@ -79,6 +79,76 @@ export const ERRORS = {
 			message: "Storage bucket not found.",
 		},
 	},
+	AUTH: {
+		MISSING_TOKEN: {
+			status: 401,
+			message: "Missing or invalid Authorization header.",
+		},
+		INVALID_TOKEN: {
+			status: 401,
+			message: "Invalid or expired token.",
+		},
+		DEACTIVATED_ACCOUNT: {
+			status: 401,
+			message: "User account is deactivated.",
+		},
+		TOKEN_VERIFICATION_FAILED: {
+			status: 401,
+			message: "Token verification failed.",
+		},
+		AUTHENTICATION_REQUIRED: {
+			status: 401,
+			message: "Authentication required.",
+		},
+		INSUFFICIENT_PERMISSIONS: {
+			status: 403,
+			message: "Access denied. Insufficient permissions.",
+		},
+	},
+	USER: {
+		NOT_FOUND: {
+			status: 404,
+			message: "User not found.",
+		},
+		NOT_AUTHENTICATED: {
+			status: 401,
+			message: "User not authenticated.",
+		},
+		INVALID_ROLE: {
+			status: 400,
+			message: "Invalid role specified.",
+		},
+		SELF_DEMOTION: {
+			status: 403,
+			message:
+				"You cannot change your own IT Admin role. Ask another IT Admin to update your role.",
+		},
+		ALREADY_ACTIVE: {
+			status: 400,
+			message: "User is already active or cannot be activated.",
+		},
+		DEACTIVATED_SUGGEST_REACTIVATION: {
+			status: 400,
+			message:
+				"This email belongs to a deactivated user. Please reactivate their account instead.",
+		},
+		EMAIL_ALREADY_EXISTS: {
+			status: 409,
+			message: "User with this email already exists and is active.",
+		},
+		INVITE_FAILED: {
+			status: 500,
+			message: "Failed to create or invite user. Please try again.",
+		},
+		DB_CREATE_FAILED: {
+			status: 500,
+			message: "Failed to create user in database.",
+		},
+		RESET_EMAIL_FAILED: {
+			status: 500,
+			message: "Failed to send password reset email. Please try again.",
+		},
+	},
 } as const;
 
 /**
