@@ -1,7 +1,7 @@
 "use client";
 
 import { AUTH_DEBOUNCE, PROFILE_CACHE } from "@repo/shared";
-import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import {

@@ -11,7 +11,7 @@ import {
 	Mail,
 	Send,
 } from "@repo/ui/lib/lucide-react";
-import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";

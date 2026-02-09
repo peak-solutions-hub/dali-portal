@@ -1,5 +1,4 @@
 import { Injectable } from "@nestjs/common";
-import { ORPCError } from "@orpc/nest";
 import type {
 	ActivateUserInput,
 	GetUserListInput,
@@ -9,6 +8,7 @@ import type {
 	UserListResponse,
 	UserWithRole,
 } from "@repo/shared";
+import { AppError } from "@repo/shared";
 import { Prisma } from "generated/prisma/client";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
 import { DbService } from "@/app/db/db.service";
@@ -103,7 +103,7 @@ export class UsersService {
 		});
 
 		if (!user) {
-			throw new ORPCError("NOT_FOUND", { message: "User not found" });
+			throw new AppError("USER.NOT_FOUND");
 		}
 
 		return user as UserWithRole;
@@ -122,7 +122,7 @@ export class UsersService {
 		});
 
 		if (!existingUser) {
-			throw new ORPCError("NOT_FOUND", { message: "User not found" });
+			throw new AppError("USER.NOT_FOUND");
 		}
 
 		// If updating roleId, validate role exists and check for self-demotion
@@ -132,9 +132,7 @@ export class UsersService {
 			});
 
 			if (!newRole) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "Invalid role specified",
-				});
+				throw new AppError("USER.INVALID_ROLE");
 			}
 
 			// Prevent IT_ADMIN from demoting themselves
@@ -144,10 +142,7 @@ export class UsersService {
 				existingUser.role.name === "it_admin" &&
 				newRole.name !== "it_admin"
 			) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						"You cannot change your own IT Admin role. Ask another IT Admin to update your role.",
-				});
+				throw new AppError("USER.SELF_DEMOTION");
 			}
 		}
 
@@ -174,7 +169,7 @@ export class UsersService {
 		});
 
 		if (!existingUser) {
-			throw new ORPCError("NOT_FOUND", { message: "User not found" });
+			throw new AppError("USER.NOT_FOUND");
 		}
 
 		// If the user isn't already deactivated, mark them as deactivated in the DB.
@@ -209,14 +204,12 @@ export class UsersService {
 		});
 
 		if (!existingUser) {
-			throw new ORPCError("NOT_FOUND", { message: "User not found" });
+			throw new AppError("USER.NOT_FOUND");
 		}
 
 		// Only activate if status is 'invited' or 'deactivated'
 		if (existingUser.status === "active") {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "User is already active or cannot be activated",
-			});
+			throw new AppError("USER.ALREADY_ACTIVE");
 		}
 
 		const activatedUser = await this.db.user.update({
@@ -243,9 +236,7 @@ export class UsersService {
 		});
 
 		if (!role) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Invalid role specified",
-			});
+			throw new AppError("USER.INVALID_ROLE");
 		}
 
 		const existingUser = await this.db.user.findFirst({
@@ -254,17 +245,12 @@ export class UsersService {
 
 		// If user exists and is DEACTIVATED, suggest reactivation instead
 		if (existingUser && existingUser.status === "deactivated") {
-			throw new ORPCError("BAD_REQUEST", {
-				message:
-					"This email belongs to a deactivated user. Please reactivate their account instead.",
-			});
+			throw new AppError("USER.DEACTIVATED_SUGGEST_REACTIVATION");
 		}
 
 		// If user exists and is ACTIVE, fail
 		if (existingUser && existingUser.status === "active") {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "User with this email already exists and is active",
-			});
+			throw new AppError("USER.EMAIL_ALREADY_EXISTS");
 		}
 
 		// If user exists and is INVITED, Proceed to re-send invite logic (fall through)
@@ -306,9 +292,7 @@ export class UsersService {
 
 					if (resetError) {
 						console.error("Failed to send password reset email:", resetError);
-						throw new ORPCError("INTERNAL_SERVER_ERROR", {
-							message: `Failed to send password reset email: ${resetError.message}`,
-						});
+						throw new AppError("USER.RESET_EMAIL_FAILED", resetError.message);
 					}
 
 					// If we already have a DB user, update their status to `invited` and apply updates
@@ -335,22 +319,16 @@ export class UsersService {
 				} catch (e: unknown) {
 					console.error("Reinvite handling failed:", e);
 					const errorMessage = e instanceof Error ? e.message : String(e);
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: `Failed to process existing user: ${errorMessage}`,
-					});
+					throw new AppError("USER.INVITE_FAILED", errorMessage);
 				}
 			}
 
 			// Fallback: other auth errors should still fail loudly
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: `Failed to create/invite user in Supabase: ${authError.message}`,
-			});
+			throw new AppError("USER.INVITE_FAILED", authError.message);
 		}
 
 		if (!authData.user) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "No user returned from Supabase Auth",
-			});
+			throw new AppError("USER.INVITE_FAILED");
 		}
 
 		// If user didn't exist in our DB, create them
@@ -376,9 +354,7 @@ export class UsersService {
 				// Hard to know if auth user was just created or existed, but cleaner to leave auth than have inconsistent state?
 				// Actually, better to delete auth user if we can't create DB record to keep consistency
 				await supabase.auth.admin.deleteUser(authData.user.id);
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to create user in database",
-				});
+				throw new AppError("USER.DB_CREATE_FAILED");
 			}
 		} else {
 			// User existed (e.g. re-invite), update their info if needed

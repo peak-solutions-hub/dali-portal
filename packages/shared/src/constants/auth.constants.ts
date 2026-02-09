@@ -29,6 +29,7 @@ export const AUTH_ONLY_ROUTES = ["/login", "/forgot-password"] as const;
  * Used to prevent open redirect vulnerabilities.
  */
 export const ALLOWED_REDIRECT_PATHS = [
+	"/",
 	"/dashboard",
 	"/document-tracker",
 	"/caller-slips",

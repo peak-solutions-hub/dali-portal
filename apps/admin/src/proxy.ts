@@ -1,7 +1,9 @@
 import {
 	DEFAULT_REDIRECT_PATH,
+	getRedirectPath,
 	isAuthOnlyRoute,
 	isPublicRoute,
+	type RoleType,
 } from "@repo/shared";
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
@@ -36,16 +38,16 @@ export async function proxy(request: NextRequest) {
 		},
 	);
 
-	// Refresh session if expired - this will automatically refresh the session token
-	// Per Supabase SSR docs: getSession() triggers automatic token refresh
+	// Use getUser() instead of getSession() to validate the JWT with Supabase servers
+	// getSession() only reads from cookies without validation (triggers a security warning)
 	const {
-		data: { session },
-	} = await supabase.auth.getSession();
+		data: { user },
+	} = await supabase.auth.getUser();
 
 	const pathname = request.nextUrl.pathname;
 
-	// If no session and not on a public route, redirect to login
-	if (!session && !isPublicRoute(pathname)) {
+	// If no user and not on a public route, redirect to login
+	if (!user && !isPublicRoute(pathname)) {
 		const redirectUrl = new URL("/login", request.url);
 		redirectUrl.searchParams.set(
 			"message",
@@ -55,9 +57,51 @@ export async function proxy(request: NextRequest) {
 		return NextResponse.redirect(redirectUrl);
 	}
 
-	// If has session and on an auth-only route (login, etc.), redirect to dashboard
-	if (session && isAuthOnlyRoute(pathname)) {
-		return NextResponse.redirect(new URL(DEFAULT_REDIRECT_PATH, request.url));
+	// If authenticated and on an auth-only route (login, etc.) or root, redirect based on role
+	if (user && (isAuthOnlyRoute(pathname) || pathname === "/")) {
+		let redirectPath: string = DEFAULT_REDIRECT_PATH;
+
+		try {
+			const { data: sessionData } = await supabase.auth.getSession();
+			const accessToken = sessionData?.session?.access_token;
+
+			if (!accessToken) {
+				console.error(
+					"No access token available for backend request — cannot determine role for redirect",
+				);
+			} else {
+				const apiBase =
+					process.env.NEXT_PUBLIC_API_URL ?? new URL("/", request.url).origin;
+				try {
+					const res = await fetch(new URL("/users/me", apiBase).toString(), {
+						headers: { Authorization: `Bearer ${accessToken}` },
+						cache: "no-store",
+					});
+
+					if (res.ok) {
+						const profile = await res.json();
+						if (profile?.role?.name) {
+							redirectPath = getRedirectPath(profile.role.name as RoleType);
+						} else {
+							console.error("Backend returned profile without role:", profile);
+						}
+					} else {
+						const text = await res.text();
+						console.error(
+							"Backend /users/me returned non-OK status:",
+							res.status,
+							text,
+						);
+					}
+				} catch (err) {
+					console.error("Error calling backend /users/me for redirect:", err);
+				}
+			}
+		} catch (error) {
+			console.error("Unexpected error determining redirect:", error);
+		}
+
+		return NextResponse.redirect(new URL(redirectPath, request.url));
 	}
 
 	return response;

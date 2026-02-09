@@ -8,7 +8,7 @@ import { Button } from "@repo/ui/components/button";
 import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@repo/ui/hooks";
 import { getDocumentPdfUrl } from "@repo/ui/lib/documents";
 import { Download, FileText, Loader2, X } from "@repo/ui/lib/lucide-react";
-import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadFile } from "@/utils/download-utils";
 

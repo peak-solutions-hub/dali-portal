@@ -9,7 +9,7 @@
  * @example
  * ```tsx
  * 'use client';
- * import { createBrowserClient } from '@repo/ui/lib/supabase/browser-client';
+ * import { createBrowserClient } from '@repo/ui/lib/supabase/client';
  *
  * const supabase = createBrowserClient();
  * const { data: { user } } = await supabase.auth.getUser();
@@ -48,12 +48,4 @@ export function createBrowserClient(): SupabaseClient {
 	browserClient = createSupabaseBrowserClient(supabaseUrl, supabaseAnonKey);
 
 	return browserClient;
-}
-
-/**
- * Reset the browser client singleton.
- * Useful for testing or when you need a fresh client.
- */
-export function resetBrowserClient(): void {
-	browserClient = null;
 }

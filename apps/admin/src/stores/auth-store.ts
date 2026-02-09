@@ -1,7 +1,7 @@
 "use client";
 
 import { type RoleType } from "@repo/shared";
-import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { create } from "zustand";
 import { api, setAuthToken } from "@/lib/api.client";

@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Shield } from "@repo/ui/lib/lucide-react";
-import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthCard } from "@/components/auth";
@@ -72,7 +72,8 @@ export default function AuthConfirmPage() {
 						) {
 							router.push("/set-password");
 						} else {
-							router.push("/dashboard");
+							// Redirect to / so proxy handles role-based routing
+							router.push("/");
 						}
 						return;
 					}
@@ -119,7 +120,8 @@ export default function AuthConfirmPage() {
 					) {
 						router.push("/set-password");
 					} else {
-						router.push("/dashboard");
+						// Redirect to / so proxy handles role-based routing
+						router.push("/");
 					}
 					return;
 				}
@@ -132,7 +134,8 @@ export default function AuthConfirmPage() {
 				if (session) {
 					// console.log("[AuthConfirm] Existing session found, redirecting");
 					setStatus("success");
-					router.push("/dashboard");
+					// Redirect to / so proxy handles role-based routing
+					router.push("/");
 					return;
 				}
 

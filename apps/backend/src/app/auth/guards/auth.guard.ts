@@ -2,9 +2,9 @@ import {
 	type CanActivate,
 	type ExecutionContext,
 	Injectable,
-	UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { AppError } from "@repo/shared";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DbService } from "@/app/db/db.service";
@@ -57,9 +57,7 @@ export class AuthGuard implements CanActivate {
 		// Extract Bearer token from Authorization header
 		const authHeader = request.headers.authorization;
 		if (!authHeader?.startsWith("Bearer ")) {
-			throw new UnauthorizedException(
-				"Missing or invalid Authorization header",
-			);
+			throw new AppError("AUTH.MISSING_TOKEN");
 		}
 
 		const token = authHeader.substring(7);
@@ -72,7 +70,7 @@ export class AuthGuard implements CanActivate {
 			} = await this.supabase.auth.getUser(token);
 
 			if (error || !user) {
-				throw new UnauthorizedException("Invalid or expired token");
+				throw new AppError("AUTH.INVALID_TOKEN");
 			}
 
 			// Check DB status to prevent deactivated users from authenticating
@@ -83,12 +81,12 @@ export class AuthGuard implements CanActivate {
 				});
 
 				if (dbUser?.status === "deactivated") {
-					throw new UnauthorizedException("User account is deactivated");
+					throw new AppError("AUTH.DEACTIVATED_ACCOUNT");
 				}
 			} catch (err) {
-				if (err instanceof UnauthorizedException) throw err;
+				if (err instanceof AppError) throw err;
 				console.error("AuthGuard DB check error:", err);
-				throw new UnauthorizedException("Token verification failed");
+				throw new AppError("AUTH.TOKEN_VERIFICATION_FAILED");
 			}
 
 			// Attach the Supabase user to the request
@@ -97,10 +95,10 @@ export class AuthGuard implements CanActivate {
 
 			return true;
 		} catch (error) {
-			if (error instanceof UnauthorizedException) {
+			if (error instanceof AppError) {
 				throw error;
 			}
-			throw new UnauthorizedException("Token verification failed");
+			throw new AppError("AUTH.TOKEN_VERIFICATION_FAILED");
 		}
 	}
 }

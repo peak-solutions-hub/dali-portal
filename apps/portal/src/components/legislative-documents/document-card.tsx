@@ -18,7 +18,7 @@ import {
 	FileText,
 	Loader2,
 } from "@repo/ui/lib/lucide-react";
-import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { downloadFile } from "@/utils/download-utils";

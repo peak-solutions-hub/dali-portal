@@ -1,12 +1,10 @@
 import {
 	type CanActivate,
 	type ExecutionContext,
-	ForbiddenException,
 	Injectable,
-	UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import type { RoleType } from "@repo/shared";
+import { AppError, type RoleType } from "@repo/shared";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { DbService } from "@/app/db/db.service";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
@@ -111,21 +109,21 @@ export class RolesGuard implements CanActivate {
 		const supabaseUser = request.user as SupabaseUser | undefined;
 
 		if (!supabaseUser?.id) {
-			throw new UnauthorizedException("Authentication required");
+			throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
 		}
 
 		// Get user data from cache or database
 		const userData = await this.getUserData(supabaseUser.id);
 
 		if (!userData) {
-			throw new UnauthorizedException("User not found in database");
+			throw new AppError("USER.NOT_FOUND");
 		}
 
 		// Check if user is deactivated
 		if (userData.status === "deactivated") {
 			// Invalidate cache for deactivated user
 			userCache.delete(supabaseUser.id);
-			throw new ForbiddenException("User account is deactivated");
+			throw new AppError("AUTH.DEACTIVATED_ACCOUNT");
 		}
 
 		// Enrich the request.user with cached data for use in controllers
@@ -155,7 +153,7 @@ export class RolesGuard implements CanActivate {
 		);
 
 		if (!hasRequiredRole) {
-			throw new ForbiddenException("Access denied. Insufficient permissions.");
+			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
 		}
 
 		return true;

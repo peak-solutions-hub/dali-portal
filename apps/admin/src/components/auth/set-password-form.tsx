@@ -8,7 +8,7 @@ import {
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Key, Loader2 } from "@repo/ui/lib/lucide-react";
-import { createBrowserClient } from "@repo/ui/lib/supabase/browser-client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
