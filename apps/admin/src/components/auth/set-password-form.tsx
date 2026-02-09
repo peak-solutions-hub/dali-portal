@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isDefinedError } from "@orpc/client";
 import {
 	getRedirectPath,
 	type SetPasswordInput,
@@ -115,17 +116,28 @@ export function SetPasswordForm() {
 			setSession(session);
 			setAuthToken(session.access_token);
 
-			try {
-				const supabaseUserId = updateData.user.id;
-				const [activateError] = await api.users.activate({
-					id: supabaseUserId,
-				});
+			// Activate user (change status from 'invited' to 'active')
+			const supabaseUserId = updateData.user.id;
+			const [activateError] = await api.users.activate({
+				id: supabaseUserId,
+			});
 
-				if (activateError) {
+			if (activateError) {
+				// If user is already active, that's okay - continue
+				if (
+					isDefinedError(activateError) &&
+					activateError.code === "ALREADY_ACTIVE"
+				) {
+					console.log("User is already active, proceeding...");
+				} else {
 					console.error("Failed to activate user:", activateError);
+					toast.error(
+						"Failed to activate your account. Please contact support.",
+					);
+					await supabase.auth.signOut();
+					setSession(null);
+					return;
 				}
-			} catch (activateErr) {
-				console.error("Activation error:", activateErr);
 			}
 
 			try {

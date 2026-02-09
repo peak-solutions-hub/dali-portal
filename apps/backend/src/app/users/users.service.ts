@@ -256,8 +256,7 @@ export class UsersService {
 		// If user exists and is INVITED, Proceed to re-send invite logic (fall through)
 		// If user does not exist, Proceed to create logic
 
-		const adminUrl = this.configService.get("adminUrl") as string;
-		const redirectTo = `${adminUrl}/auth/confirm`;
+		const redirectTo = `${this.configService.getOrThrow("adminUrl")}/auth/confirm`;
 		const supabase = this.supabaseAdmin.getClient();
 
 		// Supabase Invite (Idempotent-ish: resends email if exists)
