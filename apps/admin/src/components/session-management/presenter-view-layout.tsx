@@ -1,30 +1,22 @@
 "use client";
 
 import type { SessionPresentationSlide } from "@repo/shared";
-import { formatSessionDate, formatSessionTime } from "@repo/shared";
-import { Button } from "@repo/ui/components/button";
-import {
-	ChevronDown,
-	ChevronLeft,
-	ChevronRight,
-	Eraser,
-	FileText,
-	Maximize2,
-	Menu,
-	Minimize2,
-	Minus,
-	Pencil,
-	Plus,
-	Trash2,
-	X,
-} from "@repo/ui/lib/lucide-react";
+import { Clock, Pencil, Timer } from "@repo/ui/lib/lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DrawingCanvas } from "./drawing-canvas";
+import { useFullscreen, usePresentationTimer } from "./presentation/hooks";
+import {
+	PresenterBottomBar,
+	PresenterNavDrawer,
+	PresenterSidePanel,
+	PresenterTopBar,
+} from "./presenter";
+import {
+	usePresenterDrawing,
+	usePresenterNotes,
+	usePresenterPointer,
+} from "./presenter/hooks";
 import { AgendaSlide, CoverSlide } from "./slides";
-
-function stripAgendaNumber(title: string): string {
-	return title.replace(/^\d+\.?\s*[-–—]?\s*/, "");
-}
 
 export function PresenterViewLayout({
 	currentSlide,
@@ -51,109 +43,72 @@ export function PresenterViewLayout({
 	onPrev?: () => void;
 	onGoto?: (index: number) => void;
 }) {
-	const [drawingMode, setDrawingMode] = useState(false);
-	const [isEraser, setIsEraser] = useState(false);
-	const [showNavMenu, setShowNavMenu] = useState(false);
-	const [showDrawingTools, setShowDrawingTools] = useState(false);
-	const [isFullscreen, setIsFullscreen] = useState(false);
-	const [externalDrawingActive, setExternalDrawingActive] = useState(false);
-	const [barsVisible, setBarsVisible] = useState(true);
-	const [currentTime, setCurrentTime] = useState(new Date());
-	const [notes, setNotes] = useState("");
-	const [fontSize, setFontSize] = useState(14);
-	const notesLimit = 5000;
-	const drawingButtonRef = useRef<HTMLButtonElement>(null);
-
-	// Current time tracker
-	useEffect(() => {
-		const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-		return () => clearInterval(timer);
-	}, []);
-
-	// Notes storage
-	const notesStorageKey = useMemo(
-		() => `dali-presenter-notes-${sessionNumber ?? "unknown"}`,
-		[sessionNumber],
-	);
-	const slideNotesKey = useMemo(
-		() => currentSlide.id ?? String(currentSlideIndex),
-		[currentSlide.id, currentSlideIndex],
-	);
-
-	useEffect(() => {
-		try {
-			const raw = localStorage.getItem(notesStorageKey);
-			const parsed: Record<string, string> = raw ? JSON.parse(raw) : {};
-			setNotes((parsed[slideNotesKey] ?? "").slice(0, notesLimit));
-		} catch {
-			setNotes("");
-		}
-	}, [notesLimit, notesStorageKey, slideNotesKey]);
-
-	const saveNotes = useCallback(
-		(value: string) => {
-			setNotes(value);
-			try {
-				const raw = localStorage.getItem(notesStorageKey);
-				const parsed: Record<string, string> = raw ? JSON.parse(raw) : {};
-				parsed[slideNotesKey] = value;
-				localStorage.setItem(notesStorageKey, JSON.stringify(parsed));
-			} catch {
-				// ignore
-			}
-		},
-		[notesStorageKey, slideNotesKey],
-	);
-
 	const drawingChannelName = useMemo(() => {
 		if (!sessionNumber) return undefined;
 		return `dali-session-${sessionNumber}`;
 	}, [sessionNumber]);
 
-	const postPresenterDrawing = useCallback(
-		(nextActive: boolean) => {
-			if (!drawingChannelName) return;
-			const bc = new BroadcastChannel(drawingChannelName);
-			bc.postMessage({
-				type: "presenter-drawing",
-				active: nextActive,
-				origin: "presenter",
-			});
-			if (!nextActive) {
-				bc.postMessage({
-					type: "drawing-clear",
-					sourceId: `presenter-${sessionNumber ?? "unknown"}-toggle-off`,
-				});
-			}
-			bc.close();
-		},
-		[drawingChannelName, sessionNumber],
+	// --- Hooks ---
+	const { currentTime, elapsedSeconds, formatElapsed } = usePresentationTimer();
+	const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen();
+	const {
+		drawingMode,
+		setDrawingMode,
+		isEraser,
+		setIsEraser,
+		showDrawingTools,
+		setShowDrawingTools,
+		externalDrawingActive,
+		setExternalDrawingActive,
+		drawingButtonRef,
+		postPresenterDrawing,
+		clearCanvas,
+		stopDrawing,
+		startDrawing,
+	} = usePresenterDrawing(drawingChannelName, sessionNumber);
+	const {
+		pointerMode,
+		setPointerMode,
+		externalPointerActive,
+		setExternalPointerActive,
+		pointerPosition,
+		setPointerPosition,
+		slideContainerRef,
+		handlePresenterPointerMove,
+		handlePresenterPointerLeave,
+		togglePresenterPointerMode,
+		deactivatePointer,
+	} = usePresenterPointer(drawingChannelName);
+
+	const slideNotesKey = useMemo(
+		() => currentSlide.id ?? String(currentSlideIndex),
+		[currentSlide.id, currentSlideIndex],
+	);
+	const { notes, saveNotes, notesLimit } = usePresenterNotes(
+		sessionNumber,
+		slideNotesKey,
 	);
 
-	const enterFullscreen = useCallback(async () => {
-		try {
-			await document.documentElement.requestFullscreen();
-			setIsFullscreen(true);
-		} catch {
-			// ignore
-		}
-	}, []);
+	const [showNavMenu, setShowNavMenu] = useState(false);
+	const [barsVisible, setBarsVisible] = useState(true);
 
-	const exitFullscreen = useCallback(async () => {
-		try {
-			if (document.fullscreenElement) await document.exitFullscreen();
-			setIsFullscreen(false);
-		} catch {
-			// ignore
-		}
-	}, []);
-
+	// Dynamic slide scale
 	useEffect(() => {
-		const onFull = () => setIsFullscreen(!!document.fullscreenElement);
-		document.addEventListener("fullscreenchange", onFull);
-		return () => document.removeEventListener("fullscreenchange", onFull);
-	}, []);
+		const el = slideContainerRef.current;
+		if (!el) return;
+		const update = () => {
+			const w = el.clientWidth;
+			const h = el.clientHeight;
+			const scale = Math.min(w / 1920, h / 1080);
+			el.style.setProperty("--slide-scale", String(scale));
+		};
+		update();
+		const ro = new ResizeObserver(update);
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, [slideContainerRef]);
 
+	// --- BroadcastChannel listener ---
 	useEffect(() => {
 		if (!drawingChannelName) return;
 		const bc = new BroadcastChannel(drawingChannelName);
@@ -173,13 +128,48 @@ export function PresenterViewLayout({
 					setIsEraser(false);
 				}
 			}
+			if (msg.type === "pointer-move") {
+				if (pointerMode) return;
+				const { x, y } = msg;
+				if (x < 0 || y < 0 || x > 1 || y > 1) {
+					setPointerPosition(null);
+				} else {
+					setPointerPosition({ x, y });
+				}
+			}
+			if (msg.type === "pointer-active") {
+				if (msg.origin === "presenter") return;
+				if (msg.active) {
+					if (pointerMode) {
+						setPointerMode(false);
+						setPointerPosition(null);
+					}
+					setExternalPointerActive(true);
+				} else {
+					if (pointerMode) {
+						setPointerMode(false);
+						setPointerPosition(null);
+					}
+					setExternalPointerActive(false);
+					setPointerPosition(null);
+				}
+			}
 		};
 		bc.addEventListener("message", onMessage);
 		return () => {
 			bc.removeEventListener("message", onMessage);
 			bc.close();
 		};
-	}, [drawingChannelName]);
+	}, [
+		drawingChannelName,
+		pointerMode,
+		setDrawingMode,
+		setIsEraser,
+		setExternalDrawingActive,
+		setPointerMode,
+		setPointerPosition,
+		setExternalPointerActive,
+	]);
 
 	// Auto-hide bars
 	useEffect(() => {
@@ -203,6 +193,7 @@ export function PresenterViewLayout({
 		};
 	}, [showNavMenu, drawingMode]);
 
+	// --- Keyboard shortcuts ---
 	useEffect(() => {
 		const isTypingTarget = (t: EventTarget | null) => {
 			const el = t as HTMLElement | null;
@@ -220,9 +211,7 @@ export function PresenterViewLayout({
 			if (drawingMode) {
 				if (e.key.toLowerCase() === "d") {
 					e.preventDefault();
-					postPresenterDrawing(false);
-					setDrawingMode(false);
-					setIsEraser(false);
+					stopDrawing();
 					return;
 				}
 				if (e.key.toLowerCase() === "e") {
@@ -232,9 +221,26 @@ export function PresenterViewLayout({
 				}
 				if (e.key === "Escape") {
 					e.preventDefault();
-					postPresenterDrawing(false);
-					setDrawingMode(false);
-					setIsEraser(false);
+					stopDrawing();
+					return;
+				}
+				return;
+			}
+
+			if (pointerMode) {
+				if (e.key.toLowerCase() === "l" || e.key === "Escape") {
+					e.preventDefault();
+					togglePresenterPointerMode({ drawingMode, stopDrawing });
+					return;
+				}
+				if (e.key === "ArrowRight" || e.key === " ") {
+					e.preventDefault();
+					onNext?.();
+					return;
+				}
+				if (e.key === "ArrowLeft") {
+					e.preventDefault();
+					onPrev?.();
 					return;
 				}
 				return;
@@ -257,9 +263,12 @@ export function PresenterViewLayout({
 					break;
 				}
 				case "d": {
-					setDrawingMode(true);
-					setIsEraser(false);
-					postPresenterDrawing(true);
+					if (pointerMode) deactivatePointer();
+					startDrawing();
+					break;
+				}
+				case "l": {
+					togglePresenterPointerMode({ drawingMode, stopDrawing });
 					break;
 				}
 				case "f": {
@@ -282,14 +291,55 @@ export function PresenterViewLayout({
 		return () => document.removeEventListener("keydown", onKeyDown);
 	}, [
 		drawingMode,
+		pointerMode,
 		enterFullscreen,
 		exitFullscreen,
 		isFullscreen,
 		onNext,
 		onPrev,
-		postPresenterDrawing,
+		stopDrawing,
+		startDrawing,
+		togglePresenterPointerMode,
+		deactivatePointer,
 		showNavMenu,
+		setIsEraser,
 	]);
+
+	// Cleanup on window close
+	const handleCloseWindow = useCallback(() => {
+		if (drawingMode) stopDrawing();
+		if (pointerMode) deactivatePointer();
+		window.close();
+	}, [drawingMode, pointerMode, stopDrawing, deactivatePointer]);
+
+	useEffect(() => {
+		const handleBeforeUnload = () => {
+			if (drawingMode) postPresenterDrawing(false);
+			if (pointerMode && drawingChannelName) {
+				const bc = new BroadcastChannel(drawingChannelName);
+				bc.postMessage({
+					type: "pointer-active",
+					active: false,
+					origin: "presenter",
+				});
+				bc.close();
+			}
+		};
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+			if (drawingMode) postPresenterDrawing(false);
+			if (pointerMode && drawingChannelName) {
+				const bc = new BroadcastChannel(drawingChannelName);
+				bc.postMessage({
+					type: "pointer-active",
+					active: false,
+					origin: "presenter",
+				});
+				bc.close();
+			}
+		};
+	}, [drawingMode, pointerMode, postPresenterDrawing, drawingChannelName]);
 
 	const slidesForNav = useMemo(() => {
 		if (slides && slides.length > 0) return slides;
@@ -300,213 +350,116 @@ export function PresenterViewLayout({
 		}));
 	}, [slides, totalSlides]);
 
-	const documents = currentSlide.documents ?? [];
-
-	const handleClearCanvas = useCallback(() => {
-		// Broadcast clear to all canvases
-		if (drawingChannelName) {
-			const bc = new BroadcastChannel(drawingChannelName);
-			bc.postMessage({
-				type: "drawing-clear",
-				sourceId: `presenter-${sessionNumber ?? "unknown"}-clear`,
-			});
-			bc.close();
-		}
-	}, [drawingChannelName, sessionNumber]);
-
-	const handleCloseWindow = useCallback(() => {
-		// Turn off drawing mode before closing
-		if (drawingMode) {
-			postPresenterDrawing(false);
-			setDrawingMode(false);
-			setIsEraser(false);
-			setShowDrawingTools(false);
-		}
-		window.close();
-	}, [drawingMode, postPresenterDrawing]);
-
-	// Turn off drawing when window is closed/unloaded
-	useEffect(() => {
-		const handleBeforeUnload = () => {
-			if (drawingMode) {
-				postPresenterDrawing(false);
-			}
-		};
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-			// Also cleanup on unmount
-			if (drawingMode) {
-				postPresenterDrawing(false);
-			}
-		};
-	}, [drawingMode, postPresenterDrawing]);
-
 	return (
 		<div className="fixed inset-0 w-full h-full overflow-hidden bg-black flex">
 			{/* Left Panel - Slide and Controls */}
 			<div className="flex-1 flex flex-col min-w-0">
-				{/* Top Bar - OUTSIDE slide area */}
-				<div
-					className={`shrink-0 h-14 bg-black/60 backdrop-blur-lg border-b border-white/10 flex items-center justify-between px-4 transition-opacity duration-300 z-50 relative ${!barsVisible ? "opacity-50" : "opacity-100"}`}
-				>
-					<div className="flex items-center gap-3">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleCloseWindow}
-							className="gap-1.5 cursor-pointer text-white hover:text-white hover:bg-white/20 transition-all font-medium text-xs h-8"
-						>
-							<X className="h-3.5 w-3.5" />
-							Close
-						</Button>
-						<div className="h-5 w-px bg-white/20" />
-						<span className="text-xs text-white/90 font-medium">
-							#{sessionNumber} • {formatSessionDate(sessionDate)}
-						</span>
-					</div>
-					<div className="flex items-center gap-1.5">
-						{isFullscreen ? (
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => void exitFullscreen()}
-								className="cursor-pointer bg-white/10 text-white/90 hover:text-white hover:bg-white/20 transition-all h-8 text-xs"
-							>
-								<Minimize2 className="h-3.5 w-3.5" />
-							</Button>
-						) : (
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => void enterFullscreen()}
-								className="cursor-pointer bg-orange-500/10 text-orange-400 hover:text-white hover:bg-orange-500 transition-all h-8 text-xs"
-							>
-								<Maximize2 className="h-3.5 w-3.5" />
-							</Button>
-						)}
-						<div className="relative">
-							<Button
-								ref={drawingButtonRef}
-								variant="ghost"
-								size="sm"
-								onClick={() => {
-									if (externalDrawingActive) {
-										postPresenterDrawing(false);
-										setDrawingMode(false);
-										setExternalDrawingActive(false);
-										setIsEraser(false);
-										setShowDrawingTools(false);
-										return;
-									}
-									if (!drawingMode) {
-										setDrawingMode(true);
-										setIsEraser(false);
-										postPresenterDrawing(true);
-										setShowDrawingTools(true);
-									} else {
-										setShowDrawingTools((p) => !p);
-									}
-								}}
-								className={`cursor-pointer gap-1.5 transition-all h-8 text-xs ${drawingMode && !externalDrawingActive ? "bg-blue-500 text-white hover:bg-blue-400" : externalDrawingActive ? "bg-blue-500/40 text-blue-200 hover:bg-blue-500/60" : "bg-white/10 text-white/90 hover:text-white hover:bg-white/20"}`}
-							>
-								<Pencil className="h-3.5 w-3.5" />
-								{drawingMode
-									? externalDrawingActive
-										? "Drawing (Presentation)"
-										: "Drawing"
-									: "Draw"}
-								{drawingMode && !externalDrawingActive && (
-									<ChevronDown className="h-3 w-3" />
-								)}
-							</Button>
-
-							{/* Drawing Tools Dropdown - only show when presenter activated drawing */}
-							{showDrawingTools && drawingMode && !externalDrawingActive && (
-								<div className="absolute top-full left-0 mt-1 bg-black/95 border border-white/10 rounded-lg shadow-xl z-60 min-w-40 py-1">
-									<button
-										type="button"
-										onClick={() => setIsEraser(false)}
-										className={`w-full flex items-center gap-2 px-3 py-2 text-xs cursor-pointer transition-colors ${!isEraser ? "bg-blue-500/20 text-blue-400" : "text-white/80 hover:bg-white/10"}`}
-									>
-										<Pencil className="h-3.5 w-3.5" />
-										Pen
-									</button>
-									<button
-										type="button"
-										onClick={() => setIsEraser(true)}
-										className={`w-full flex items-center gap-2 px-3 py-2 text-xs cursor-pointer transition-colors ${isEraser ? "bg-blue-500/20 text-blue-400" : "text-white/80 hover:bg-white/10"}`}
-									>
-										<Eraser className="h-3.5 w-3.5" />
-										Eraser
-									</button>
-									<div className="h-px bg-white/10 my-1" />
-									<button
-										type="button"
-										onClick={handleClearCanvas}
-										className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors"
-									>
-										<Trash2 className="h-3.5 w-3.5" />
-										Clear All
-									</button>
-									<div className="h-px bg-white/10 my-1" />
-									<button
-										type="button"
-										onClick={() => {
-											postPresenterDrawing(false);
-											setDrawingMode(false);
-											setIsEraser(false);
-											setShowDrawingTools(false);
-										}}
-										className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/80 hover:bg-white/10 cursor-pointer transition-colors"
-									>
-										<X className="h-3.5 w-3.5" />
-										Exit Drawing
-									</button>
-								</div>
-							)}
-						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setShowNavMenu((p) => !p)}
-							className={`cursor-pointer gap-1.5 transition-all h-8 text-xs ${showNavMenu ? "bg-yellow-500 text-gray-900 hover:bg-yellow-400" : "bg-white/10 text-white/90 hover:text-white hover:bg-white/20"}`}
-						>
-							<Menu className="h-3.5 w-3.5" />
-							Menu
-						</Button>
-					</div>
-				</div>
+				{/* Top Bar */}
+				<PresenterTopBar
+					sessionNumber={sessionNumber}
+					sessionDate={sessionDate}
+					isFullscreen={isFullscreen}
+					barsVisible={barsVisible}
+					onEnterFullscreen={() => void enterFullscreen()}
+					onExitFullscreen={() => void exitFullscreen()}
+					onCloseWindow={handleCloseWindow}
+					drawingMode={drawingMode}
+					externalDrawingActive={externalDrawingActive}
+					isEraser={isEraser}
+					showDrawingTools={showDrawingTools}
+					drawingButtonRef={drawingButtonRef}
+					onToggleDrawing={() => {
+						if (externalDrawingActive) {
+							postPresenterDrawing(false);
+							setDrawingMode(false);
+							setExternalDrawingActive(false);
+							setIsEraser(false);
+							setShowDrawingTools(false);
+							return;
+						}
+						if (!drawingMode) {
+							if (pointerMode) deactivatePointer();
+							startDrawing();
+						} else {
+							setShowDrawingTools((p) => !p);
+						}
+					}}
+					onSetEraser={setIsEraser}
+					onClearCanvas={clearCanvas}
+					onExitDrawing={stopDrawing}
+					onToggleDrawingTools={() => setShowDrawingTools((p) => !p)}
+					pointerMode={pointerMode}
+					externalPointerActive={externalPointerActive}
+					onTogglePointer={() =>
+						togglePresenterPointerMode({ drawingMode, stopDrawing })
+					}
+					showNavMenu={showNavMenu}
+					onToggleMenu={() => setShowNavMenu((p) => !p)}
+				/>
 
 				{/* Slide Area - 16:9 aspect ratio */}
 				<div className="flex-1 flex items-center justify-center p-4 bg-black relative">
+					{/* Persistent Timer/Clock */}
+					<div className="absolute top-6 right-6 z-30 flex items-center gap-2.5 bg-black/70 backdrop-blur-md rounded-full px-3 py-1.5 shadow-lg border border-white/10">
+						<div className="flex items-center gap-1.5 text-xs text-white/80">
+							<Timer className="h-3 w-3" />
+							<span className="tabular-nums font-medium">
+								{formatElapsed(elapsedSeconds)}
+							</span>
+						</div>
+						<div className="h-3.5 w-px bg-white/20" />
+						<div className="flex items-center gap-1.5 text-xs text-white font-medium">
+							<Clock className="h-3 w-3" />
+							<span className="tabular-nums">
+								{currentTime.toLocaleTimeString("en-US", {
+									hour: "2-digit",
+									minute: "2-digit",
+									second: "2-digit",
+									hour12: true,
+									timeZone: "Asia/Manila",
+								})}
+							</span>
+						</div>
+					</div>
+
 					<div
-						className="relative bg-red-700 overflow-hidden"
+						ref={slideContainerRef}
+						className={`relative bg-red-700 overflow-hidden ${pointerMode ? "cursor-none" : ""}`}
 						style={{
 							aspectRatio: "16 / 9",
-							width: "min(100%, calc((100% - 2rem) * 16 / 9))",
+							width: "100%",
 							maxHeight: "100%",
+							maxWidth: "calc((100vh - 7rem) * 16 / 9)",
 						}}
+						onMouseMove={pointerMode ? handlePresenterPointerMove : undefined}
+						onMouseLeave={pointerMode ? handlePresenterPointerLeave : undefined}
 					>
-						{/* Slide content */}
-						<div className="absolute inset-0 flex items-center justify-center p-8">
-							{currentSlide.type === "cover" ? (
-								<CoverSlide
-									title={currentSlide.title}
-									subtitle={currentSlide.subtitle ?? ""}
-									date={sessionDate}
-									time={sessionTime}
-								/>
-							) : (
-								<AgendaSlide
-									agendaNumber={currentSlide.agendaNumber ?? ""}
-									title={currentSlide.title}
-									documents={currentSlide.documents}
-								/>
-							)}
+						{/* Slide content — scaled */}
+						<div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+							<div
+								className="w-480 h-270 origin-center flex items-center justify-center"
+								style={{
+									transform: "scale(var(--slide-scale, 0.5))",
+								}}
+							>
+								{currentSlide.type === "cover" ? (
+									<CoverSlide
+										title={currentSlide.title}
+										subtitle={currentSlide.subtitle ?? ""}
+										date={sessionDate}
+										time={sessionTime}
+									/>
+								) : (
+									<AgendaSlide
+										agendaNumber={currentSlide.agendaNumber ?? ""}
+										title={currentSlide.title}
+										documents={currentSlide.documents}
+									/>
+								)}
+							</div>
 						</div>
 
-						{/* Drawing Canvas - covers entire slide */}
+						{/* Drawing Canvas */}
 						{(drawingMode || externalDrawingActive) && (
 							<DrawingCanvas
 								channelName={drawingChannelName}
@@ -515,17 +468,8 @@ export function PresenterViewLayout({
 								onToggleEraser={
 									drawingMode ? () => setIsEraser((p) => !p) : undefined
 								}
-								onClear={drawingMode ? handleClearCanvas : undefined}
-								onExit={
-									drawingMode
-										? () => {
-												postPresenterDrawing(false);
-												setDrawingMode(false);
-												setIsEraser(false);
-												setShowDrawingTools(false);
-											}
-										: undefined
-								}
+								onClear={drawingMode ? clearCanvas : undefined}
+								onExit={drawingMode ? stopDrawing : undefined}
 								insetTop={0}
 								insetBottom={0}
 								insetLeft={0}
@@ -539,241 +483,95 @@ export function PresenterViewLayout({
 								Drawing active (from presentation)
 							</div>
 						)}
+
+						{/* Laser Pointer dot */}
+						{(pointerMode || externalPointerActive) && pointerPosition && (
+							<div
+								className="absolute w-3 h-3 rounded-full bg-cyan-400/90 pointer-events-none z-50"
+								style={{
+									left: `${pointerPosition.x * 100}%`,
+									top: `${pointerPosition.y * 100}%`,
+									transform: "translate(-50%, -50%)",
+									boxShadow:
+										"0 0 8px 3px rgba(34, 211, 238, 0.6), 0 0 16px 6px rgba(34, 211, 238, 0.3)",
+								}}
+							/>
+						)}
 					</div>
 
-					{/* Nav Drawer - overlays the slide area */}
-					{showNavMenu && (
-						<div className="absolute right-0 top-0 bottom-0 w-64 bg-black/95 backdrop-blur-md border-l border-white/10 shadow-2xl z-40 flex flex-col">
-							<div className="flex items-center justify-between p-3 border-b border-white/10">
-								<h3 className="text-sm font-semibold text-white">Navigation</h3>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => setShowNavMenu(false)}
-									className="cursor-pointer text-white/60 hover:text-white hover:bg-white/10 h-6 w-6 p-0"
-								>
-									<X className="h-3.5 w-3.5" />
-								</Button>
-							</div>
-							<div className="flex-1 overflow-auto p-3">
-								<div className="space-y-1.5">
-									{slidesForNav.map((slide, index) => (
-										<button
-											key={slide.id}
-											type="button"
-											onClick={() => {
-												onGoto?.(index);
-												setShowNavMenu(false);
-											}}
-											disabled={!onGoto}
-											className={`w-full text-left px-3 py-2 rounded-md transition-all cursor-pointer text-xs ${
-												index === currentSlideIndex
-													? "bg-yellow-500 text-gray-900 font-medium shadow-lg"
-													: "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
-											}`}
-										>
-											<span className="block truncate">
-												{slide.type === "cover"
-													? "Cover"
-													: stripAgendaNumber(slide.title)}
-											</span>
-										</button>
-									))}
-								</div>
-							</div>
-							<div className="p-3 border-t border-white/10 bg-black/30">
-								<div className="text-xs text-white/50 space-y-1">
-									<div className="font-semibold text-white/60">Shortcuts:</div>
-									<div>←/→ Navigate • D Draw • M Menu • F Fullscreen</div>
-								</div>
-							</div>
-						</div>
-					)}
-				</div>
-
-				{/* Bottom Bar - OUTSIDE slide area */}
-				<div
-					className={`shrink-0 h-14 bg-black/60 backdrop-blur-lg border-t border-white/10 flex items-center justify-center px-4 transition-opacity duration-300 ${!barsVisible ? "opacity-50" : "opacity-100"}`}
-				>
-					<div className="flex items-center justify-between w-full max-w-2xl">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onPrev}
-							disabled={!onPrev || currentSlideIndex === 0}
-							className="cursor-pointer text-white/90 hover:text-white hover:bg-white/10 disabled:text-white/30 disabled:hover:bg-transparent transition-colors h-9 px-4"
-						>
-							<ChevronLeft className="h-4 w-4 mr-1" />
-							Prev
-						</Button>
-						<div className="flex items-center gap-4">
-							<span className="text-base font-semibold text-white min-w-16 text-center">
-								{currentSlideIndex + 1} / {totalSlides}
-							</span>
-							<button
-								type="button"
-								onClick={() => setShowNavMenu((p) => !p)}
-								className="flex items-center gap-2 px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 transition-colors text-sm text-white/90 hover:text-white cursor-pointer font-medium max-w-52"
-							>
-								<span className="truncate">
-									{currentSlide.type === "cover"
-										? "Cover"
-										: stripAgendaNumber(currentSlide.title)}
-								</span>
-								<ChevronDown className="h-4 w-4 shrink-0" />
-							</button>
-							<div className="flex items-center gap-1.5">
-								{slidesForNav.slice(0, 8).map((_, index) => (
-									<button
-										key={index}
-										type="button"
-										onClick={() => onGoto?.(index)}
-										disabled={!onGoto}
-										className={`cursor-pointer h-2 rounded-full transition-all ${index === currentSlideIndex ? "w-6 bg-white" : "w-2 bg-white/30 hover:bg-white/50"}`}
-										aria-label={`Go to slide ${index + 1}`}
-									/>
-								))}
-								{slidesForNav.length > 8 && (
-									<span className="text-xs text-white/50 ml-1">
-										+{slidesForNav.length - 8}
-									</span>
-								)}
-							</div>
-						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onNext}
-							disabled={!onNext || currentSlideIndex >= totalSlides - 1}
-							className="cursor-pointer text-white/90 hover:text-white hover:bg-white/10 disabled:text-white/30 disabled:hover:bg-transparent transition-colors h-9 px-4"
-						>
-							Next
-							<ChevronRight className="h-4 w-4 ml-1" />
-						</Button>
-					</div>
-				</div>
-			</div>
-
-			{/* Right Side Panel - Notes, Next Slide, Documents */}
-			<div className="w-80 shrink-0 bg-black/60 backdrop-blur-lg border-l border-white/10 flex flex-col h-full">
-				{/* Header with time */}
-				<div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-					<span className="text-sm text-white/60">
-						Slide {currentSlideIndex + 1} of {totalSlides}
-					</span>
-					<span className="text-lg font-semibold text-white">
-						{currentTime.toLocaleTimeString("en-US", {
-							hour: "2-digit",
-							minute: "2-digit",
-							hour12: true,
-						})}
-					</span>
-				</div>
-
-				{/* Next Slide Preview */}
-				<div className="p-4 border-b border-white/10">
-					<div className="text-sm text-white/60 mb-2">Next slide</div>
-					{nextSlide ? (
-						<div
-							className="bg-red-700 rounded-lg overflow-hidden"
-							style={{ aspectRatio: "16/9" }}
-						>
-							<div className="w-full h-full flex items-center justify-center overflow-hidden">
-								{nextSlide.type === "cover" ? (
-									<CoverSlide
-										title={nextSlide.title}
-										subtitle={nextSlide.subtitle ?? ""}
-										date={sessionDate}
-										time={sessionTime}
-										compact
-									/>
-								) : (
-									<AgendaSlide
-										agendaNumber={nextSlide.agendaNumber ?? ""}
-										title={nextSlide.title}
-										documents={nextSlide.documents}
-										compact
-									/>
-								)}
-							</div>
-						</div>
-					) : (
-						<div
-							className="flex items-center justify-center text-sm text-white/50 bg-white/5 rounded-lg"
-							style={{ aspectRatio: "16/9" }}
-						>
-							End of presentation
-						</div>
-					)}
-				</div>
-
-				{/* Documents for discussion (if any) */}
-				{documents.length > 0 && (
-					<div className="p-4 border-b border-white/10">
-						<div className="text-sm text-white/60 mb-2">
-							Documents for Discussion
-						</div>
-						<div className="space-y-2 max-h-32 overflow-y-auto">
-							{documents.map((doc, idx) => (
-								<div
-									key={idx}
-									className="flex items-start gap-2 bg-white/5 rounded-lg p-2"
-								>
-									<FileText className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
-									<div className="min-w-0">
-										<div className="text-xs font-medium text-white truncate">
-											{doc.key}
-										</div>
-										<div className="text-xs text-white/60 truncate">
-											{doc.title}
-										</div>
-									</div>
-								</div>
-							))}
-						</div>
-					</div>
-				)}
-
-				{/* Notes Section */}
-				<div className="flex-1 flex flex-col min-h-0 p-4">
-					<div className="text-sm text-white/60 mb-2">Speaker Notes</div>
-					<textarea
-						value={notes}
-						onChange={(e) => {
-							const value = e.target.value.slice(0, notesLimit);
-							saveNotes(value);
-						}}
-						className="flex-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 p-3 text-gray-200 outline-none focus:ring-1 focus:ring-red-500 min-h-0"
-						style={{ fontSize: `${fontSize}px` }}
-						placeholder="Add speaker notes for this slide…"
+					{/* Nav Drawer */}
+					<PresenterNavDrawer
+						open={showNavMenu}
+						onClose={() => setShowNavMenu(false)}
+						slides={slidesForNav}
+						currentSlideIndex={currentSlideIndex}
+						onGoto={onGoto}
 					/>
-					<div className="mt-2 text-xs text-white/50 text-right">
-						{notes.length}/{notesLimit}
-					</div>
+
+					{/* Drawing info bar overlay */}
+					{drawingMode && !externalDrawingActive && (
+						<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-blue-600/90 text-white text-xs px-4 py-1.5 rounded-lg flex items-center gap-3 shadow-lg">
+							<Pencil className="h-3.5 w-3.5" />
+							<span className="font-semibold">Drawing Mode Active</span>
+							<span className="opacity-80">
+								Press{" "}
+								<kbd className="px-1 py-0.5 bg-blue-700/50 rounded text-[10px]">
+									D
+								</kbd>{" "}
+								to exit •{" "}
+								<kbd className="px-1 py-0.5 bg-blue-700/50 rounded text-[10px]">
+									E
+								</kbd>{" "}
+								toggle eraser
+							</span>
+						</div>
+					)}
+
+					{/* Pointer info bar overlay */}
+					{pointerMode && (
+						<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-cyan-600/90 text-white text-xs px-4 py-1.5 rounded-lg flex items-center gap-3 shadow-lg">
+							<div className="w-2.5 h-2.5 rounded-full bg-cyan-300 shadow-[0_0_6px_rgba(103,232,249,0.8)]" />
+							<span className="font-semibold">Laser Pointer Active</span>
+							<span className="opacity-80">
+								Press{" "}
+								<kbd className="px-1 py-0.5 bg-cyan-700/50 rounded text-[10px]">
+									L
+								</kbd>{" "}
+								to exit
+							</span>
+						</div>
+					)}
 				</div>
 
-				{/* Font size controls */}
-				<div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-white/10">
-					<button
-						type="button"
-						onClick={() => setFontSize((s) => Math.max(10, s - 2))}
-						className="flex items-center justify-center h-8 w-8 rounded bg-white/10 text-white/60 hover:text-white hover:bg-white/20 cursor-pointer"
-						title="Decrease font size"
-					>
-						<span className="text-lg font-serif">A</span>
-						<Minus className="h-2 w-2 ml-0.5" />
-					</button>
-					<button
-						type="button"
-						onClick={() => setFontSize((s) => Math.min(24, s + 2))}
-						className="flex items-center justify-center h-8 w-8 rounded bg-white/10 text-white/60 hover:text-white hover:bg-white/20 cursor-pointer"
-						title="Increase font size"
-					>
-						<span className="text-xl font-serif">A</span>
-						<Plus className="h-2 w-2 ml-0.5" />
-					</button>
-				</div>
+				{/* Bottom Bar */}
+				<PresenterBottomBar
+					currentSlideIndex={currentSlideIndex}
+					totalSlides={totalSlides}
+					currentSlide={currentSlide}
+					slides={slidesForNav}
+					barsVisible={barsVisible}
+					onPrev={onPrev}
+					onNext={onNext}
+					onGoto={onGoto}
+					onToggleMenu={() => setShowNavMenu((p) => !p)}
+				/>
 			</div>
+
+			{/* Right Side Panel */}
+			<PresenterSidePanel
+				currentSlideIndex={currentSlideIndex}
+				totalSlides={totalSlides}
+				currentSlide={currentSlide}
+				nextSlide={nextSlide}
+				sessionDate={sessionDate}
+				sessionTime={sessionTime}
+				currentTime={currentTime}
+				elapsedSeconds={elapsedSeconds}
+				formatElapsed={formatElapsed}
+				notes={notes}
+				notesLimit={notesLimit}
+				onSaveNotes={saveNotes}
+			/>
 		</div>
 	);
 }

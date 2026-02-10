@@ -41,6 +41,7 @@ export function DrawingCanvas({
 		Array<{ points: Array<{ x: number; y: number }>; isEraser: boolean }>
 	>([]);
 	const receivedInitialStateRef = useRef(false);
+	const cleanupRef = useRef<(() => void) | null>(null);
 
 	useEffect(() => {
 		activeRef.current = active;
@@ -91,7 +92,16 @@ export function DrawingCanvas({
 
 	const canvasRef = useCallback(
 		(canvas: HTMLCanvasElement | null) => {
-			if (!canvas) return;
+			// Cleanup previous instance
+			if (cleanupRef.current) {
+				cleanupRef.current();
+				cleanupRef.current = null;
+			}
+
+			if (!canvas) {
+				canvasElRef.current = null;
+				return;
+			}
 			canvasElRef.current = canvas;
 
 			const ctx = canvas.getContext("2d");
@@ -99,10 +109,10 @@ export function DrawingCanvas({
 
 			const resize = () => {
 				if (containedMode && canvas.parentElement) {
-					// Use parent container dimensions for contained mode
-					const parent = canvas.parentElement;
-					canvas.width = parent.clientWidth;
-					canvas.height = parent.clientHeight;
+					// Use getBoundingClientRect for precise floating-point dimensions
+					const parentRect = canvas.parentElement.getBoundingClientRect();
+					canvas.width = Math.round(parentRect.width);
+					canvas.height = Math.round(parentRect.height);
 				} else {
 					canvas.width = Math.max(
 						0,
@@ -118,6 +128,13 @@ export function DrawingCanvas({
 			};
 			resize();
 
+			// Use ResizeObserver in containedMode to keep canvas in sync with parent
+			let ro: ResizeObserver | undefined;
+			if (containedMode && canvas.parentElement) {
+				ro = new ResizeObserver(resize);
+				ro.observe(canvas.parentElement);
+			}
+
 			let isDrawing = false;
 
 			let pendingStroke: Array<{ x: number; y: number }> = [];
@@ -127,22 +144,17 @@ export function DrawingCanvas({
 				isDrawing = true;
 				ctx.beginPath();
 
-				let x: number, y: number;
-				if (containedMode) {
-					const rect = canvas.getBoundingClientRect();
-					x = e.clientX - rect.left;
-					y = e.clientY - rect.top;
-				} else {
-					x = e.clientX - insetLeft;
-					y = e.clientY - insetTop;
-				}
+				// Always use getBoundingClientRect for accurate coordinates
+				const rect = canvas.getBoundingClientRect();
+				const x = e.clientX - rect.left;
+				const y = e.clientY - rect.top;
 
 				ctx.moveTo(x, y);
 				pendingStroke = [];
-				if (canvas.width > 0 && canvas.height > 0) {
+				if (rect.width > 0 && rect.height > 0) {
 					pendingStroke.push({
-						x: x / canvas.width,
-						y: y / canvas.height,
+						x: x / rect.width,
+						y: y / rect.height,
 					});
 				}
 			};
@@ -151,15 +163,9 @@ export function DrawingCanvas({
 				if (!activeRef.current) return;
 				if (!isDrawing) return;
 
-				let x: number, y: number;
-				if (containedMode) {
-					const rect = canvas.getBoundingClientRect();
-					x = e.clientX - rect.left;
-					y = e.clientY - rect.top;
-				} else {
-					x = e.clientX - insetLeft;
-					y = e.clientY - insetTop;
-				}
+				const rect = canvas.getBoundingClientRect();
+				const x = e.clientX - rect.left;
+				const y = e.clientY - rect.top;
 
 				ctx.lineTo(x, y);
 				const currentIsEraser = canvas.dataset.isEraser === "true";
@@ -179,10 +185,10 @@ export function DrawingCanvas({
 				ctx.stroke();
 				ctx.beginPath();
 				ctx.moveTo(x, y);
-				if (canvas.width > 0 && canvas.height > 0) {
+				if (rect.width > 0 && rect.height > 0) {
 					pendingStroke.push({
-						x: x / canvas.width,
-						y: y / canvas.height,
+						x: x / rect.width,
+						y: y / rect.height,
 					});
 				}
 			};
@@ -218,12 +224,13 @@ export function DrawingCanvas({
 			(canvas as ClearableCanvas).clearCanvas = () =>
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-			return () => {
+			cleanupRef.current = () => {
 				canvas.removeEventListener("mousedown", startDrawing);
 				canvas.removeEventListener("mousemove", draw);
 				canvas.removeEventListener("mouseup", stopDrawing);
 				canvas.removeEventListener("mouseleave", stopDrawing);
 				window.removeEventListener("resize", resize);
+				ro?.disconnect();
 			};
 		},
 		[

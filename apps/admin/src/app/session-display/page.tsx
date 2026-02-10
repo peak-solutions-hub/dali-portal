@@ -1,7 +1,8 @@
 "use client";
 
+import { formatSessionTime } from "@repo/shared";
 import { useSearchParams } from "next/navigation";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DrawingCanvas } from "@/components/session-management/drawing-canvas";
 import {
 	AgendaSlide,
@@ -17,6 +18,16 @@ type Slide = {
 	documents?: Array<{ key: string; title: string }>;
 };
 
+function formatElapsed(seconds: number): string {
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	const s = seconds % 60;
+	if (h > 0) {
+		return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+	}
+	return `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
 export default function SessionDisplayPage() {
 	const params = useSearchParams();
 	const sessionId = params.get("session") ?? "unknown";
@@ -29,6 +40,22 @@ export default function SessionDisplayPage() {
 	const [sessionTime, setSessionTime] = useState<string>(
 		new Date().toISOString().slice(11, 16),
 	);
+
+	// Current clock and elapsed time
+	const [currentClock, setCurrentClock] = useState(new Date());
+	const sessionStartRef = useRef<Date>(new Date());
+	const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+	useEffect(() => {
+		const timer = setInterval(() => {
+			const now = new Date();
+			setCurrentClock(now);
+			setElapsedSeconds(
+				Math.floor((now.getTime() - sessionStartRef.current.getTime()) / 1000),
+			);
+		}, 1000);
+		return () => clearInterval(timer);
+	}, []);
 
 	const channelName = useMemo(() => `dali-session-${sessionId}`, [sessionId]);
 
@@ -123,6 +150,41 @@ export default function SessionDisplayPage() {
 					Waiting for presentation…
 				</div>
 			)}
+
+			{/* Time Overlay for Viewers */}
+			{currentSlide && (
+				<div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+					<div className="flex items-center justify-between px-6 py-3 bg-linear-to-t from-black/70 to-transparent">
+						<div className="flex items-center gap-4">
+							<div className="flex items-center gap-2">
+								<div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+								<span className="text-sm font-medium text-white/90">LIVE</span>
+							</div>
+							<div className="h-4 w-px bg-white/30" />
+							<span className="text-sm text-white/80">
+								Elapsed: {formatElapsed(elapsedSeconds)}
+							</span>
+						</div>
+						<div className="flex items-center gap-4">
+							<span className="text-sm text-white/70">
+								Session started:{" "}
+								{formatSessionTime(`${sessionDate}T${sessionTime}`)}
+							</span>
+							<div className="h-4 w-px bg-white/30" />
+							<span className="text-lg font-semibold text-white tabular-nums">
+								{currentClock.toLocaleTimeString("en-US", {
+									hour: "2-digit",
+									minute: "2-digit",
+									second: "2-digit",
+									hour12: true,
+									timeZone: "Asia/Manila",
+								})}
+							</span>
+						</div>
+					</div>
+				</div>
+			)}
+
 			<DrawingCanvas
 				channelName={channelName}
 				active={false}

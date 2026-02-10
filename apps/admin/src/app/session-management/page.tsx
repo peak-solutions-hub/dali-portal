@@ -8,7 +8,6 @@ import {
 	CreateSessionDialog,
 	DocumentsPanel,
 	PresentationMode,
-	PublishSessionDialog,
 } from "@/components/session-management";
 import { MOCK_DOCUMENTS, MOCK_SESSIONS } from "@/lib/mock-data";
 
@@ -33,11 +32,10 @@ export default function SessionManagement() {
 }
 
 function AgendaBuilderPage() {
-	const [sessions] = useState(MOCK_SESSIONS);
+	const [sessions, setSessions] = useState(MOCK_SESSIONS);
 	const [selectedSession, setSelectedSession] = useState<string | null>(null);
 	const [availableDocuments] = useState(MOCK_DOCUMENTS);
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
-	const [showPublishDialog, setShowPublishDialog] = useState(false);
 	const [showPresentationMode, setShowPresentationMode] = useState(false);
 
 	const handleSessionChange = (sessionId: string) => {
@@ -55,11 +53,31 @@ function AgendaBuilderPage() {
 	};
 
 	const handlePublish = () => {
-		setShowPublishDialog(true);
+		// Update session status to scheduled
+		setSessions((prev) =>
+			prev.map((s) =>
+				s.id === selectedSession ? { ...s, status: "scheduled" as const } : s,
+			),
+		);
 	};
 
 	const handleStartPresentation = () => {
 		setShowPresentationMode(true);
+	};
+
+	const handleUnpublish = () => {
+		// Revert session from "scheduled" back to "draft"
+		setSessions((prev) =>
+			prev.map((s) =>
+				s.id === selectedSession ? { ...s, status: "draft" as const } : s,
+			),
+		);
+	};
+
+	const handleDeleteDraft = () => {
+		// Remove draft session from list
+		setSessions((prev) => prev.filter((s) => s.id !== selectedSession));
+		setSelectedSession(null);
 	};
 
 	const selectedSessionData = sessions.find((s) => s.id === selectedSession);
@@ -121,6 +139,8 @@ function AgendaBuilderPage() {
 							onPublish={handlePublish}
 							onStartPresentation={handleStartPresentation}
 							onSessionChange={handleSessionChange}
+							onUnpublish={handleUnpublish}
+							onDeleteDraft={handleDeleteDraft}
 						/>
 					</div>
 				</div>
@@ -131,15 +151,6 @@ function AgendaBuilderPage() {
 					onOpenChange={setShowCreateDialog}
 					onSessionCreated={(id) => {
 						handleSessionChange(id);
-					}}
-				/>
-				<PublishSessionDialog
-					open={showPublishDialog}
-					onOpenChange={setShowPublishDialog}
-					sessionId={selectedSession || ""}
-					agendaItemCount={DEFAULT_AGENDA_ITEMS.length}
-					onPublished={() => {
-						alert("Session published successfully!");
 					}}
 				/>
 			</div>

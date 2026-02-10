@@ -79,6 +79,12 @@ export function PresentationNavDrawer({
 							</kbd>
 							Toggle drawing
 						</span>
+						<span className="flex items-center gap-2">
+							<kbd className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-white/70">
+								L
+							</kbd>
+							Pointer
+						</span>
 					</div>
 					<div className="flex justify-between">
 						<span className="flex items-center gap-2">
@@ -87,8 +93,6 @@ export function PresentationNavDrawer({
 							</kbd>
 							Toggle menu
 						</span>
-					</div>
-					<div className="flex justify-between">
 						<span className="flex items-center gap-2">
 							<kbd className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-white/70">
 								P

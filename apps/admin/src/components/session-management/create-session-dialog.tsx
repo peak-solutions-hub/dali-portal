@@ -10,7 +10,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/dialog";
-import { Input } from "@repo/ui/components/input";
 import {
 	Popover,
 	PopoverContent,
@@ -23,8 +22,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
+import { TimePicker } from "@repo/ui/components/time-picker";
 import { Calendar, Plus } from "@repo/ui/lib/lucide-react";
-import { format } from "date-fns";
+import { format, isAfter, isBefore, startOfDay } from "date-fns";
 import { useState } from "react";
 
 interface CreateSessionDialogProps {
@@ -55,6 +55,29 @@ export function CreateSessionDialog({
 				setError("Please select a session date");
 				setIsSubmitting(false);
 				return;
+			}
+
+			// Validate date is not in the past
+			const today = startOfDay(new Date());
+			if (isBefore(startOfDay(sessionDate), today)) {
+				setError("Session date cannot be in the past");
+				setIsSubmitting(false);
+				return;
+			}
+
+			// Validate time if date is today
+			const isToday = startOfDay(sessionDate).getTime() === today.getTime();
+			if (isToday) {
+				const [hours, minutes] = sessionTime.split(":").map(Number);
+				const selectedDateTime = new Date();
+				selectedDateTime.setHours(hours ?? 0, minutes ?? 0, 0, 0);
+				const now = new Date();
+
+				if (isBefore(selectedDateTime, now)) {
+					setError("Session time cannot be in the past for today's date");
+					setIsSubmitting(false);
+					return;
+				}
 			}
 
 			// TODO: Call API to create session
@@ -149,6 +172,9 @@ export function CreateSessionDialog({
 										mode="single"
 										selected={sessionDate}
 										onSelect={setSessionDate}
+										disabled={(date) =>
+											isBefore(startOfDay(date), startOfDay(new Date()))
+										}
 										classNames={{
 											today: "bg-transparent text-yellow-400 font-normal",
 											day_selected:
@@ -158,7 +184,7 @@ export function CreateSessionDialog({
 								</PopoverContent>
 							</Popover>{" "}
 							<p className="text-xs text-gray-500">
-								Select the desired session date
+								Only today and future dates can be selected
 							</p>
 						</div>
 
@@ -170,12 +196,10 @@ export function CreateSessionDialog({
 							>
 								Session Time
 							</label>
-							<Input
-								id="session-time"
-								type="time"
+							<TimePicker
 								value={sessionTime}
-								onChange={(e) => setSessionTime(e.target.value)}
-								className="cursor-pointer"
+								onChange={setSessionTime}
+								placeholder="Select session time"
 							/>
 							<p className="text-xs text-gray-500">
 								Default: 10:00 AM (regular sessions)

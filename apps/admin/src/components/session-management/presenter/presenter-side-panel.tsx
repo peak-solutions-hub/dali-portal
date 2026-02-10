@@ -1,88 +1,76 @@
 "use client";
 
-import type {
-	SessionPresentationSlide,
-	SessionPresentationSlideDocument,
-} from "@repo/shared";
-import { FileText, Minus, Plus } from "@repo/ui/lib/lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import type { SessionPresentationSlide } from "@repo/shared";
+import { FileText, Minus, Plus, Timer } from "@repo/ui/lib/lucide-react";
+import { useState } from "react";
 import { AgendaSlide, CoverSlide } from "../slides";
 
-export function PresenterSidePanel({
-	currentSlide,
-	nextSlide,
-	sessionDate,
-	sessionTime,
-	currentSlideIndex,
-	totalSlides,
-	sessionNumber,
-	elapsedTime,
-}: {
+interface PresenterSidePanelProps {
+	currentSlideIndex: number;
+	totalSlides: number;
 	currentSlide: SessionPresentationSlide;
 	nextSlide?: SessionPresentationSlide;
 	sessionDate: string;
 	sessionTime: string;
-	currentSlideIndex: number;
-	totalSlides: number;
-	sessionNumber?: string;
-	elapsedTime?: string;
-}) {
-	const [currentTime, setCurrentTime] = useState(new Date());
-	const [notes, setNotes] = useState("");
+	currentTime: Date;
+	elapsedSeconds: number;
+	formatElapsed: (seconds: number) => string;
+	notes: string;
+	notesLimit: number;
+	onSaveNotes: (value: string) => void;
+}
+
+export function PresenterSidePanel({
+	currentSlideIndex,
+	totalSlides,
+	nextSlide,
+	sessionDate,
+	sessionTime,
+	currentTime,
+	elapsedSeconds,
+	formatElapsed,
+	notes,
+	notesLimit,
+	onSaveNotes,
+	currentSlide,
+}: PresenterSidePanelProps) {
 	const [fontSize, setFontSize] = useState(14);
-	const notesLimit = 5000;
-
-	const notesStorageKey = useMemo(
-		() => `dali-presenter-notes-${sessionNumber ?? "unknown"}`,
-		[sessionNumber],
-	);
-	const slideNotesKey = useMemo(
-		() => currentSlide.id ?? String(currentSlideIndex),
-		[currentSlide.id, currentSlideIndex],
-	);
-
-	useEffect(() => {
-		const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-		return () => clearInterval(timer);
-	}, []);
-
-	useEffect(() => {
-		try {
-			const raw = localStorage.getItem(notesStorageKey);
-			const parsed: Record<string, string> = raw ? JSON.parse(raw) : {};
-			setNotes((parsed[slideNotesKey] ?? "").slice(0, notesLimit));
-		} catch {
-			setNotes("");
-		}
-	}, [notesLimit, notesStorageKey, slideNotesKey]);
-
 	const documents = currentSlide.documents ?? [];
 
 	return (
-		<div className="flex flex-col h-full bg-gray-900">
+		<div className="w-80 shrink-0 bg-black/60 backdrop-blur-lg border-l border-white/10 flex flex-col h-full">
 			{/* Header with time */}
-			<div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-				<span className="text-sm text-gray-400">
-					{elapsedTime ?? "0:00:00"}
+			<div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+				<span className="text-sm text-white/60">
+					Slide {currentSlideIndex + 1} of {totalSlides}
 				</span>
-				<span className="text-lg font-semibold text-white">
-					{currentTime.toLocaleTimeString("en-US", {
-						hour: "2-digit",
-						minute: "2-digit",
-						hour12: true,
-					})}
-				</span>
+				<div className="flex items-center gap-3">
+					<div className="flex items-center gap-1.5 text-sm text-white/70">
+						<Timer className="h-3.5 w-3.5" />
+						<span className="tabular-nums">
+							{formatElapsed(elapsedSeconds)}
+						</span>
+					</div>
+					<span className="text-lg font-semibold text-white">
+						{currentTime.toLocaleTimeString("en-US", {
+							hour: "2-digit",
+							minute: "2-digit",
+							hour12: true,
+							timeZone: "Asia/Manila",
+						})}
+					</span>
+				</div>
 			</div>
 
 			{/* Next Slide Preview */}
-			<div className="p-4 border-b border-gray-800">
-				<div className="text-sm text-gray-400 mb-2">Next slide</div>
+			<div className="p-4 border-b border-white/10">
+				<div className="text-sm text-white/60 mb-2">Next slide</div>
 				{nextSlide ? (
 					<div
-						className="bg-red-700 rounded overflow-hidden"
+						className="bg-red-700 rounded-lg overflow-hidden"
 						style={{ aspectRatio: "16/9" }}
 					>
-						<div className="w-full h-full flex items-center justify-center scale-75">
+						<div className="w-full h-full flex items-center justify-center overflow-hidden">
 							{nextSlide.type === "cover" ? (
 								<CoverSlide
 									title={nextSlide.title}
@@ -103,7 +91,7 @@ export function PresenterSidePanel({
 					</div>
 				) : (
 					<div
-						className="flex items-center justify-center text-sm text-gray-500 bg-gray-800 rounded"
+						className="flex items-center justify-center text-sm text-white/50 bg-white/5 rounded-lg"
 						style={{ aspectRatio: "16/9" }}
 					>
 						End of presentation
@@ -111,24 +99,24 @@ export function PresenterSidePanel({
 				)}
 			</div>
 
-			{/* Documents for discussion (if any) */}
+			{/* Documents for discussion */}
 			{documents.length > 0 && (
-				<div className="p-4 border-b border-gray-800">
-					<div className="text-sm text-gray-400 mb-2">
+				<div className="p-4 border-b border-white/10">
+					<div className="text-sm text-white/60 mb-2">
 						Documents for Discussion
 					</div>
 					<div className="space-y-2 max-h-32 overflow-y-auto">
 						{documents.map((doc, idx) => (
 							<div
 								key={idx}
-								className="flex items-start gap-2 bg-gray-800 rounded-lg p-2"
+								className="flex items-start gap-2 bg-white/5 rounded-lg p-2"
 							>
 								<FileText className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
 								<div className="min-w-0">
 									<div className="text-xs font-medium text-white truncate">
 										{doc.key}
 									</div>
-									<div className="text-xs text-gray-400 truncate">
+									<div className="text-xs text-white/60 truncate">
 										{doc.title}
 									</div>
 								</div>
@@ -138,47 +126,30 @@ export function PresenterSidePanel({
 				</div>
 			)}
 
-			{/* Notes Section - Expands to fill remaining space */}
+			{/* Notes Section */}
 			<div className="flex-1 flex flex-col min-h-0 p-4">
-				<div className="flex-1 min-h-0 overflow-auto">
-					{notes ? (
-						<p
-							className="text-gray-300 whitespace-pre-wrap"
-							style={{ fontSize: `${fontSize}px` }}
-						>
-							{notes}
-						</p>
-					) : (
-						<p className="text-gray-500 text-lg">No Notes.</p>
-					)}
-				</div>
-
-				{/* Notes input (hidden by default, toggle to edit) */}
+				<div className="text-sm text-white/60 mb-2">Speaker Notes</div>
 				<textarea
 					value={notes}
 					onChange={(e) => {
 						const value = e.target.value.slice(0, notesLimit);
-						setNotes(value);
-						try {
-							const raw = localStorage.getItem(notesStorageKey);
-							const parsed: Record<string, string> = raw ? JSON.parse(raw) : {};
-							parsed[slideNotesKey] = value;
-							localStorage.setItem(notesStorageKey, JSON.stringify(parsed));
-						} catch {
-							// ignore storage errors
-						}
+						onSaveNotes(value);
 					}}
-					className="sr-only"
-					placeholder="Add speaker notes..."
+					className="flex-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 p-3 text-gray-200 outline-none focus:ring-1 focus:ring-red-500 min-h-0"
+					style={{ fontSize: `${fontSize}px` }}
+					placeholder="Add speaker notes for this slide…"
 				/>
+				<div className="mt-2 text-xs text-white/50 text-right">
+					{notes.length}/{notesLimit}
+				</div>
 			</div>
 
 			{/* Font size controls */}
-			<div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-800">
+			<div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-white/10">
 				<button
 					type="button"
 					onClick={() => setFontSize((s) => Math.max(10, s - 2))}
-					className="flex items-center justify-center h-8 w-8 rounded bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer"
+					className="flex items-center justify-center h-8 w-8 rounded bg-white/10 text-white/60 hover:text-white hover:bg-white/20 cursor-pointer"
 					title="Decrease font size"
 				>
 					<span className="text-lg font-serif">A</span>
@@ -187,7 +158,7 @@ export function PresenterSidePanel({
 				<button
 					type="button"
 					onClick={() => setFontSize((s) => Math.min(24, s + 2))}
-					className="flex items-center justify-center h-8 w-8 rounded bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer"
+					className="flex items-center justify-center h-8 w-8 rounded bg-white/10 text-white/60 hover:text-white hover:bg-white/20 cursor-pointer"
 					title="Increase font size"
 				>
 					<span className="text-xl font-serif">A</span>

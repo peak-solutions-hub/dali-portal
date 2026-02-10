@@ -209,7 +209,6 @@
 
 html {
 	font-size: var(--font-size);
-	scrollbar-gutter: stable;
 }
 
 html body[data-scroll-locked] {

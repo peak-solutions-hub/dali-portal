@@ -2,16 +2,24 @@
 
 import type { SessionPresentationSlide } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { Pencil } from "@repo/ui/lib/lucide-react";
+import { Clock, Pencil, Timer } from "@repo/ui/lib/lucide-react";
 import { getSessionTypeLabel } from "@repo/ui/lib/session-ui";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DrawingCanvas } from "./drawing-canvas";
 import {
 	PresentationBottomBar,
 	PresentationNavDrawer,
-	PresentationSlideViewport,
 	PresentationTopBar,
 } from "./presentation";
+import {
+	useAutoHideBars,
+	useFullscreen,
+	usePresentationDrawing,
+	usePresentationPointer,
+	usePresentationTimer,
+	usePresenterWindow,
+} from "./presentation/hooks";
+import { AgendaSlide, CoverSlide } from "./slides";
 
 interface PresentationModeProps {
 	sessionNumber: string;
@@ -38,112 +46,53 @@ export function PresentationMode({
 		() => `dali-session-${sessionNumber}`,
 		[sessionNumber],
 	);
+
+	// --- Hooks ---
+	const { currentTime, elapsedSeconds, formatElapsed } = usePresentationTimer();
+	const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen();
+	const {
+		presenterView,
+		setPresenterView,
+		presenterWindow,
+		setPresenterWindow,
+		presenterAckedRef,
+		togglePresenterWindow,
+	} = usePresenterWindow(sessionNumber, drawingChannelName);
+	const {
+		drawingMode,
+		setDrawingMode,
+		isEraser,
+		setIsEraser,
+		drawingController,
+		setDrawingController,
+		postPresentationDrawing,
+		clearCanvas,
+		stopDrawing,
+		startDrawing,
+	} = usePresentationDrawing(drawingChannelName, sessionNumber);
+	const {
+		pointerMode,
+		setPointerMode,
+		externalPointerActive,
+		setExternalPointerActive,
+		pointerPosition,
+		setPointerPosition,
+		slideAreaRef,
+		handleSlidePointerMove,
+		handleSlidePointerLeave,
+		togglePointerMode,
+		deactivatePointer,
+	} = usePresentationPointer(drawingChannelName);
+
+	// --- Slide state ---
 	const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 	const [showNavMenu, setShowNavMenu] = useState(false);
-	const [isFullscreen, setIsFullscreen] = useState(false);
-	const [presenterView, setPresenterView] = useState(false);
-	const [presenterWindow, setPresenterWindow] = useState<Window | null>(null);
-	const presenterAckedRef = useRef(false);
 	const [showExitConfirm, setShowExitConfirm] = useState(false);
 
-	// Auto-hide state for bars (hover-based)
-	const [topBarHovered, setTopBarHovered] = useState(false);
-	const [bottomBarHovered, setBottomBarHovered] = useState(false);
-	const topBarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const bottomBarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-	const openPresenterWindow = useCallback(() => {
-		presenterAckedRef.current = false;
-		const url = `/session-presenter?session=${encodeURIComponent(sessionNumber)}`;
-		console.debug("openPresenterWindow: attempting to open", url);
-
-		// Open with 16:9 aspect ratio (1280x720)
-		let w: Window | null = null;
-		try {
-			w = window.open(
-				url,
-				`dali-presenter-${sessionNumber}`,
-				"noopener,noreferrer,width=1280,height=720",
-			);
-		} catch (err) {
-			console.debug("popup open attempt failed:", err);
-		}
-
-		if (w && !w.closed) {
-			setPresenterWindow(w);
-			setPresenterView(true);
-			presenterAckedRef.current = true;
-			return;
-		}
-
-		// Try without features (sometimes less restrictive)
-		try {
-			w = window.open(url, `_blank`);
-		} catch (err) {
-			console.debug("popup open attempt without features failed:", err);
-		}
-
-		if (w && !w.closed) {
-			setPresenterWindow(w);
-			setPresenterView(true);
-			presenterAckedRef.current = true;
-			return;
-		}
-	}, [sessionNumber]);
-
-	const togglePresenterWindow = useCallback(() => {
-		if (document.fullscreenElement) {
-			try {
-				document.exitFullscreen();
-			} catch {
-				// ignore
-			}
-		}
-		if (presenterWindow && !presenterWindow.closed) {
-			presenterWindow.close();
-			setPresenterWindow(null);
-			setPresenterView(false);
-			return;
-		}
-		if (presenterView) {
-			try {
-				const bc = new BroadcastChannel(drawingChannelName);
-				bc.postMessage({ type: "presenter-window-close-request" });
-				bc.close();
-			} catch {
-				// ignore
-			}
-			setPresenterView(false);
-			setPresenterWindow(null);
-			presenterAckedRef.current = false;
-			return;
-		}
-		openPresenterWindow();
-	}, [drawingChannelName, openPresenterWindow, presenterView, presenterWindow]);
-	const [drawingMode, setDrawingMode] = useState(false);
-	const [isEraser, setIsEraser] = useState(false);
-	const [drawingController, setDrawingController] = useState<
-		"presentation" | "presenter" | null
-	>(null);
-
-	const postPresentationDrawing = useCallback(
-		(nextActive: boolean) => {
-			const bc = new BroadcastChannel(drawingChannelName);
-			bc.postMessage({
-				type: "presenter-drawing",
-				active: nextActive,
-				origin: "presentation",
-			});
-			if (!nextActive) {
-				bc.postMessage({
-					type: "drawing-clear",
-					sourceId: `presentation-${sessionNumber}-toggle-off`,
-				});
-			}
-			bc.close();
-		},
-		[drawingChannelName, sessionNumber],
-	);
+	const { topBarHovered, bottomBarHovered } = useAutoHideBars({
+		showNavMenu,
+		drawingMode,
+	});
 
 	const slides: SessionPresentationSlide[] = useMemo(
 		() => [
@@ -179,23 +128,7 @@ export function PresentationMode({
 		setShowNavMenu(false);
 	};
 
-	const enterFullscreen = useCallback(async () => {
-		try {
-			await document.documentElement.requestFullscreen();
-			setIsFullscreen(true);
-		} catch (err) {
-			console.error(err);
-		}
-	}, []);
-	const exitFullscreen = useCallback(async () => {
-		try {
-			if (document.fullscreenElement) await document.exitFullscreen();
-			setIsFullscreen(false);
-		} catch (err) {
-			console.error(err);
-		}
-	}, []);
-
+	// --- Keyboard shortcuts ---
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (showExitConfirm) {
@@ -204,14 +137,28 @@ export function PresentationMode({
 			}
 			if (drawingMode) {
 				if (e.key.toLowerCase() === "d") {
-					setDrawingMode(false);
-					setIsEraser(false);
-					setDrawingController(null);
-					postPresentationDrawing(false);
+					stopDrawing();
 					return;
 				}
 				if (e.key.toLowerCase() === "e") {
 					setIsEraser((p) => !p);
+					return;
+				}
+				return;
+			}
+			if (pointerMode) {
+				if (e.key.toLowerCase() === "l" || e.key === "Escape") {
+					deactivatePointer();
+					return;
+				}
+				if (e.key === "ArrowRight" || e.key === " ") {
+					e.preventDefault();
+					goToNextSlide();
+					return;
+				}
+				if (e.key === "ArrowLeft") {
+					e.preventDefault();
+					goToPrevSlide();
 					return;
 				}
 				return;
@@ -237,10 +184,11 @@ export function PresentationMode({
 					togglePresenterWindow();
 					break;
 				case "d":
-					setDrawingMode(true);
-					setIsEraser(false);
-					setDrawingController("presentation");
-					postPresentationDrawing(true);
+					if (pointerMode) deactivatePointer();
+					startDrawing("presentation");
+					break;
+				case "l":
+					togglePointerMode({ drawingMode, stopDrawing });
 					break;
 				case "Escape":
 					if (showNavMenu) setShowNavMenu(false);
@@ -256,94 +204,24 @@ export function PresentationMode({
 		showNavMenu,
 		showExitConfirm,
 		drawingMode,
-		postPresentationDrawing,
+		pointerMode,
+		stopDrawing,
+		startDrawing,
+		deactivatePointer,
+		togglePointerMode,
 		isFullscreen,
 		enterFullscreen,
 		exitFullscreen,
 		togglePresenterWindow,
+		setIsEraser,
 	]);
 
-	const handleExitPresentation = async () => {
-		await exitFullscreen();
-		onExit();
-	};
-
-	useEffect(() => {
-		const onFull = () => setIsFullscreen(!!document.fullscreenElement);
-		document.addEventListener("fullscreenchange", onFull);
-		return () => document.removeEventListener("fullscreenchange", onFull);
-	}, []);
-
+	// --- Auto-enter fullscreen ---
 	useEffect(() => {
 		enterFullscreen();
 	}, []);
 
-	// Track mouse position for edge detection
-	useEffect(() => {
-		const EDGE_THRESHOLD = 50;
-		const HIDE_DELAY = 1000; // 1 seconds
-
-		const handleMouseMove = (e: MouseEvent) => {
-			const windowHeight = window.innerHeight;
-
-			// Top bar logic
-			if (e.clientY <= EDGE_THRESHOLD) {
-				// Clear any pending hide timeout
-				if (topBarTimeoutRef.current) {
-					clearTimeout(topBarTimeoutRef.current);
-					topBarTimeoutRef.current = null;
-				}
-				setTopBarHovered(true);
-			} else if (
-				e.clientY > EDGE_THRESHOLD + 10 &&
-				!showNavMenu &&
-				!drawingMode
-			) {
-				// Add 10px buffer to prevent flickering
-				if (topBarTimeoutRef.current) {
-					clearTimeout(topBarTimeoutRef.current);
-				}
-				topBarTimeoutRef.current = setTimeout(() => {
-					setTopBarHovered(false);
-				}, HIDE_DELAY);
-			}
-
-			// Bottom bar logic
-			if (e.clientY >= windowHeight - EDGE_THRESHOLD) {
-				if (bottomBarTimeoutRef.current) {
-					clearTimeout(bottomBarTimeoutRef.current);
-					bottomBarTimeoutRef.current = null;
-				}
-				setBottomBarHovered(true);
-			} else if (
-				e.clientY < windowHeight - EDGE_THRESHOLD - 10 &&
-				!showNavMenu &&
-				!drawingMode
-			) {
-				// Add 10px buffer to prevent flickering
-				if (bottomBarTimeoutRef.current) {
-					clearTimeout(bottomBarTimeoutRef.current);
-				}
-				bottomBarTimeoutRef.current = setTimeout(() => {
-					setBottomBarHovered(false);
-				}, HIDE_DELAY);
-			}
-		};
-
-		document.addEventListener("mousemove", handleMouseMove);
-		return () => {
-			document.removeEventListener("mousemove", handleMouseMove);
-			// Clean up timeouts
-			if (topBarTimeoutRef.current) {
-				clearTimeout(topBarTimeoutRef.current);
-			}
-			if (bottomBarTimeoutRef.current) {
-				clearTimeout(bottomBarTimeoutRef.current);
-			}
-		};
-	}, [showNavMenu, drawingMode]);
-
-	// Broadcast each slide change
+	// --- Broadcast slide changes ---
 	useEffect(() => {
 		const bc = new BroadcastChannel(`dali-session-${sessionNumber}`);
 		bc.postMessage({
@@ -358,6 +236,7 @@ export function PresentationMode({
 		bc.close();
 	}, [currentSlideIndex, sessionNumber, slides, sessionDate, sessionTime]);
 
+	// Clear drawing on slide change
 	useEffect(() => {
 		const bc = new BroadcastChannel(drawingChannelName);
 		bc.postMessage({
@@ -367,7 +246,7 @@ export function PresentationMode({
 		bc.close();
 	}, [currentSlideIndex, drawingChannelName, sessionNumber]);
 
-	// Listen for control commands from presenter window and for init requests
+	// --- Listen for control commands from presenter window ---
 	useEffect(() => {
 		const bc = new BroadcastChannel(`dali-session-${sessionNumber}`);
 		const onMessage = (ev: MessageEvent) => {
@@ -415,16 +294,46 @@ export function PresentationMode({
 				presenterAckedRef.current = true;
 			}
 
+			// Handle pointer from presenter view
+			if (msg.type === "pointer-move" && msg.origin === "presenter") {
+				if (pointerMode) return;
+				const { x, y } = msg;
+				if (x < 0 || y < 0 || x > 1 || y > 1) {
+					setPointerPosition(null);
+				} else {
+					setPointerPosition({ x, y });
+				}
+			}
+
+			if (msg.type === "pointer-active" && msg.origin === "presenter") {
+				if (msg.active) {
+					if (pointerMode) {
+						setPointerMode(false);
+						setPointerPosition(null);
+					}
+					setExternalPointerActive(true);
+				} else {
+					if (pointerMode) {
+						setPointerMode(false);
+						setPointerPosition(null);
+					}
+					setExternalPointerActive(false);
+					setPointerPosition(null);
+				}
+			}
+
 			if (msg.type === "request-init") {
 				setPresenterView(true);
 				presenterAckedRef.current = true;
-				// Send drawing state first
 				if (drawingMode) {
 					bc.postMessage({
 						type: "presenter-drawing",
 						active: true,
 						origin: "presentation",
 					});
+				}
+				if (pointerMode) {
+					bc.postMessage({ type: "pointer-active", active: true });
 				}
 				bc.postMessage({
 					type: "init",
@@ -436,6 +345,7 @@ export function PresentationMode({
 					sessionDate,
 					sessionTime,
 					drawingMode,
+					pointerMode,
 				});
 			}
 		};
@@ -448,12 +358,22 @@ export function PresentationMode({
 	}, [
 		currentSlideIndex,
 		drawingMode,
+		pointerMode,
 		slides,
 		sessionNumber,
 		sessionDate,
 		sessionTime,
 		goToNextSlide,
 		goToPrevSlide,
+		setPresenterView,
+		setPresenterWindow,
+		presenterAckedRef,
+		setDrawingMode,
+		setIsEraser,
+		setDrawingController,
+		setPointerMode,
+		setPointerPosition,
+		setExternalPointerActive,
 	]);
 
 	// Monitor presenter window close
@@ -466,16 +386,22 @@ export function PresentationMode({
 					setPresenterWindow(null);
 				}
 			} catch {
-				// ignore cross-origin or other access errors
+				// ignore
 			}
 		}, 500);
 		return () => clearInterval(timer);
-	}, [presenterWindow]);
+	}, [presenterWindow, setPresenterView, setPresenterWindow]);
+
+	const handleExitPresentation = async () => {
+		await exitFullscreen();
+		onExit();
+	};
 
 	if (!currentSlide) return null;
 
 	return (
 		<div className="fixed inset-0 w-full h-full overflow-hidden bg-white z-50">
+			{/* Exit Confirmation Dialog */}
 			{showExitConfirm && (
 				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100">
 					<div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4">
@@ -505,6 +431,7 @@ export function PresentationMode({
 				</div>
 			)}
 
+			{/* Top Bar */}
 			<PresentationTopBar
 				sessionNumber={sessionNumber}
 				sessionDate={sessionDate}
@@ -520,13 +447,10 @@ export function PresentationMode({
 				}
 				onToggleDrawing={() => {
 					if (drawingMode && drawingController === "presenter") {
-						setDrawingMode(false);
-						setIsEraser(false);
-						setDrawingController(null);
-						postPresentationDrawing(false);
+						stopDrawing();
 						return;
 					}
-
+					if (pointerMode) deactivatePointer();
 					setDrawingMode((p) => {
 						const next = !p;
 						if (next) setDrawingController("presentation");
@@ -537,14 +461,10 @@ export function PresentationMode({
 					setIsEraser(false);
 				}}
 				onToggleEraser={() => setIsEraser((p) => !p)}
-				onClearCanvas={() => {
-					const bc = new BroadcastChannel(drawingChannelName);
-					bc.postMessage({
-						type: "drawing-clear",
-						sourceId: `presentation-${sessionNumber}-clear`,
-					});
-					bc.close();
-				}}
+				onClearCanvas={clearCanvas}
+				pointerMode={pointerMode}
+				externalPointerActive={externalPointerActive}
+				onTogglePointer={() => togglePointerMode({ drawingMode, stopDrawing })}
 				presenterView={presenterView}
 				onTogglePresenter={togglePresenterWindow}
 				onToggleMenu={() => setShowNavMenu(!showNavMenu)}
@@ -552,32 +472,71 @@ export function PresentationMode({
 				showNavMenu={showNavMenu}
 			/>
 
-			<PresentationSlideViewport
-				slide={currentSlide}
-				sessionDate={sessionDate}
-				sessionTime={sessionTime}
-			/>
-
-			{drawingMode && (
-				<DrawingCanvas
-					channelName={drawingChannelName}
-					active={drawingController === "presentation"}
-					isEraser={isEraser}
-					onToggleEraser={() => setIsEraser(!isEraser)}
-					onClear={() => {
-						/* noop */
+			{/* Slide viewport */}
+			<div
+				className={`h-screen w-screen flex items-center justify-center bg-red-700 ${pointerMode ? "cursor-none" : ""}`}
+			>
+				<div
+					ref={slideAreaRef}
+					className="relative overflow-hidden"
+					style={{
+						aspectRatio: "16 / 9",
+						width: "100%",
+						maxHeight: "100%",
+						maxWidth: "calc(100vh * 16 / 9)",
 					}}
-					onExit={() => {
-						setDrawingMode(false);
-						setIsEraser(false);
-						setDrawingController(null);
-						postPresentationDrawing(false);
-					}}
-					insetTop={56}
-					insetBottom={64}
-				/>
-			)}
+					onMouseMove={pointerMode ? handleSlidePointerMove : undefined}
+					onMouseLeave={pointerMode ? handleSlidePointerLeave : undefined}
+				>
+					<div className="absolute inset-0 flex items-center justify-center">
+						{currentSlide.type === "cover" ? (
+							<CoverSlide
+								title={currentSlide.title}
+								subtitle={currentSlide.subtitle ?? ""}
+								date={sessionDate}
+								time={sessionTime}
+							/>
+						) : (
+							<AgendaSlide
+								agendaNumber={currentSlide.agendaNumber ?? ""}
+								title={currentSlide.title}
+								documents={currentSlide.documents}
+							/>
+						)}
+					</div>
 
+					{/* Drawing Canvas */}
+					{drawingMode && (
+						<DrawingCanvas
+							channelName={drawingChannelName}
+							active={drawingController === "presentation"}
+							isEraser={isEraser}
+							onToggleEraser={() => setIsEraser(!isEraser)}
+							onClear={() => {
+								/* noop */
+							}}
+							onExit={stopDrawing}
+							containedMode
+						/>
+					)}
+
+					{/* Laser Pointer dot */}
+					{(pointerMode || externalPointerActive) && pointerPosition && (
+						<div
+							className="absolute w-4 h-4 rounded-full bg-cyan-400/90 pointer-events-none z-50"
+							style={{
+								left: `${pointerPosition.x * 100}%`,
+								top: `${pointerPosition.y * 100}%`,
+								transform: "translate(-50%, -50%)",
+								boxShadow:
+									"0 0 12px 4px rgba(34, 211, 238, 0.6), 0 0 24px 8px rgba(34, 211, 238, 0.3)",
+							}}
+						/>
+					)}
+				</div>
+			</div>
+
+			{/* Bottom Bar */}
 			<PresentationBottomBar
 				currentSlideIndex={currentSlideIndex}
 				totalSlides={slides.length}
@@ -591,6 +550,30 @@ export function PresentationMode({
 				isVisible={bottomBarHovered || showNavMenu || drawingMode}
 			/>
 
+			{/* Persistent Timer/Clock */}
+			<div className="fixed top-4 right-4 z-40 flex items-center gap-3 bg-black/70 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border border-white/10">
+				<div className="flex items-center gap-1.5 text-sm text-white/80">
+					<Timer className="h-3.5 w-3.5" />
+					<span className="tabular-nums font-medium">
+						{formatElapsed(elapsedSeconds)}
+					</span>
+				</div>
+				<div className="h-4 w-px bg-white/20" />
+				<div className="flex items-center gap-1.5 text-sm text-white font-medium">
+					<Clock className="h-3.5 w-3.5" />
+					<span className="tabular-nums">
+						{currentTime.toLocaleTimeString("en-US", {
+							hour: "2-digit",
+							minute: "2-digit",
+							second: "2-digit",
+							hour12: true,
+							timeZone: "Asia/Manila",
+						})}
+					</span>
+				</div>
+			</div>
+
+			{/* Navigation Drawer */}
 			<PresentationNavDrawer
 				open={showNavMenu}
 				onClose={() => setShowNavMenu(false)}
@@ -599,9 +582,11 @@ export function PresentationMode({
 				onGoto={goToSlide}
 			/>
 
+			{/* Keyboard Shortcuts Hint */}
 			{!showNavMenu &&
 				!presenterView &&
 				!drawingMode &&
+				!pointerMode &&
 				!topBarHovered &&
 				!bottomBarHovered && (
 					<div className="fixed bottom-6 right-6 bg-gray-900/95 text-white text-xs px-4 py-3 rounded-lg shadow-2xl">
@@ -643,6 +628,12 @@ export function PresentationMode({
 								</kbd>
 								<span>Draw</span>
 								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
+									L
+								</kbd>
+								<span>Pointer</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">
 									ESC
 								</kbd>
 								<span>Exit</span>
@@ -651,7 +642,8 @@ export function PresentationMode({
 					</div>
 				)}
 
-			{drawingMode && (
+			{/* Drawing instruction bar */}
+			{drawingMode && drawingController === "presentation" && (
 				<div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-blue-600/90 text-white text-sm px-4 py-2 rounded-lg">
 					<div className="flex items-center gap-3">
 						<Pencil className="h-4 w-4" />
@@ -666,6 +658,23 @@ export function PresentationMode({
 								E
 							</kbd>{" "}
 							to toggle eraser
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Pointer instruction bar */}
+			{pointerMode && (
+				<div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-cyan-600/90 text-white text-sm px-4 py-2 rounded-lg">
+					<div className="flex items-center gap-3">
+						<div className="w-3 h-3 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.8)]" />
+						<div className="font-semibold">Laser Pointer Active</div>
+						<div className="text-xs opacity-90">
+							Press{" "}
+							<kbd className="px-1.5 py-0.5 bg-cyan-700/50 rounded text-xs">
+								L
+							</kbd>{" "}
+							to exit pointer
 						</div>
 					</div>
 				</div>

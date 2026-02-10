@@ -9,7 +9,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/dialog";
-import { AlertCircle, CheckCircle2, Info } from "@repo/ui/lib/lucide-react";
+import { CheckCircle2, Info } from "@repo/ui/lib/lucide-react";
 
 interface MarkCompleteDialogProps {
 	open: boolean;
@@ -33,8 +33,8 @@ export function MarkCompleteDialog({
 			<DialogContent className="max-w-md">
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
-						<div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-							<AlertCircle className="h-5 w-5 text-amber-600" />
+						<div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+							<CheckCircle2 className="h-5 w-5 text-green-600" />
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -50,14 +50,14 @@ export function MarkCompleteDialog({
 				{/* Content */}
 				<div className="space-y-4">
 					{/* Session Info Card */}
-					<div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+					<div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
 						<div className="flex items-center gap-2">
-							<Info className="h-4 w-4 text-blue-600 shrink-0" />
+							<Info className="h-4 w-4 text-green-600 shrink-0" />
 							<div>
-								<p className="text-sm font-semibold text-blue-900">
+								<p className="text-sm font-semibold text-green-900">
 									Session #{sessionNumber}
 								</p>
-								<p className="text-xs text-blue-700">
+								<p className="text-xs text-green-700">
 									{sessionType} • {sessionDate}
 								</p>
 							</div>

@@ -23,8 +23,15 @@ import {
 import {
 	CheckCircle2,
 	ChevronDown,
+	FileText,
+	Lock,
 	Monitor,
+	Save,
 	Search,
+	Send,
+	Trash2,
+	Undo2,
+	Upload,
 	X,
 } from "@repo/ui/lib/lucide-react";
 import {
@@ -32,14 +39,19 @@ import {
 	getSessionStatusLabel,
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AgendaItemCard } from "./agenda-item-card";
+import { DeleteSessionDialog } from "./delete-session-dialog";
 import { MarkCompleteDialog } from "./mark-complete-dialog";
+import { PublishSessionDialog } from "./publish-session-dialog";
+import { SaveDraftDialog } from "./save-draft-dialog";
+import { UnpublishSessionDialog } from "./unpublish-session-dialog";
 
 interface AttachedDocument {
 	id: string;
 	key: string;
 	title: string;
+	summary?: string;
 }
 
 export function AgendaPanel({
@@ -51,10 +63,14 @@ export function AgendaPanel({
 	onPublish,
 	onStartPresentation,
 	onSessionChange,
+	onUnpublish,
+	onDeleteDraft,
 }: AgendaPanelProps & {
 	onStartPresentation?: () => void;
 	sessions: Session[];
 	onSessionChange: (sessionId: string) => void;
+	onUnpublish?: () => void;
+	onDeleteDraft?: () => void;
 }) {
 	const [documentsByAgendaItem, setDocumentsByAgendaItem] = useState<
 		Record<string, AttachedDocument[]>
@@ -62,8 +78,14 @@ export function AgendaPanel({
 	const [typeFilter, setTypeFilter] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
 	const [showMarkCompleteDialog, setShowMarkCompleteDialog] = useState(false);
+	const [showUnpublishDialog, setShowUnpublishDialog] = useState(false);
+	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [showSaveDraftDialog, setShowSaveDraftDialog] = useState(false);
+	const [showPublishDialog, setShowPublishDialog] = useState(false);
 	const [showSessionDropdown, setShowSessionDropdown] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [agendaFile, setAgendaFile] = useState<File | null>(null);
+	const agendaFileInputRef = useRef<HTMLInputElement>(null);
 
 	const handleAddDocument = (agendaItemId: string) => {
 		onAddDocument(agendaItemId);
@@ -87,6 +109,19 @@ export function AgendaPanel({
 			...prev,
 			[agendaItemId]: (prev[agendaItemId] || []).filter(
 				(doc) => doc.id !== documentId,
+			),
+		}));
+	};
+
+	const handleUpdateDocumentSummary = (
+		agendaItemId: string,
+		documentId: string,
+		summary: string,
+	) => {
+		setDocumentsByAgendaItem((prev) => ({
+			...prev,
+			[agendaItemId]: (prev[agendaItemId] || []).map((doc) =>
+				doc.id === documentId ? { ...doc, summary } : doc,
 			),
 		}));
 	};
@@ -126,6 +161,7 @@ export function AgendaPanel({
 
 	const isScheduled = selectedSession?.status === "scheduled";
 	const isCompleted = selectedSession?.status === "completed";
+	const isDraft = selectedSession?.status === "draft";
 
 	// Filter sessions based on type, status, and search query
 	const filteredSessions = sessions.filter((session) => {
@@ -159,9 +195,9 @@ export function AgendaPanel({
 		typeFilter !== "all" || statusFilter !== "all" || searchQuery;
 
 	return (
-		<div className="flex h-full w-full flex-col gap-6 rounded-xl border border-gray-200 bg-white p-6">
+		<div className="flex h-full w-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5">
 			{/* Session Selector Dropdown */}
-			<div className="border-b border-gray-200 pb-4">
+			<div className="border-b border-gray-200 pb-3">
 				<label className="block text-sm font-medium text-gray-700 mb-2">
 					Current Session
 				</label>
@@ -469,40 +505,119 @@ export function AgendaPanel({
 				<>
 					{/* Presentation Buttons for Scheduled Sessions */}
 					{isScheduled && onStartPresentation && (
-						<div className="flex gap-2 border-b border-gray-200 pb-4">
+						<div className="space-y-2.5 border-b border-gray-200 pb-3">
+							{/* Agenda PDF Upload — prominent, above actions */}
+							<div className="rounded-lg border border-blue-200 bg-blue-50/60 p-2.5">
+								<label className="flex items-center gap-2 text-sm font-semibold text-blue-800 mb-1.5">
+									<FileText className="h-4 w-4 text-blue-600" />
+									Agenda PDF (Public)
+								</label>
+								<input
+									ref={agendaFileInputRef}
+									type="file"
+									accept=".pdf"
+									className="hidden"
+									onChange={(e) => {
+										const file = e.target.files?.[0];
+										if (file) setAgendaFile(file);
+									}}
+								/>
+								{agendaFile ? (
+									<div className="flex items-center gap-2 p-2.5 bg-white border border-blue-200 rounded-lg">
+										<FileText className="h-4 w-4 text-blue-600 shrink-0" />
+										<div className="flex-1 min-w-0">
+											<p className="text-sm font-medium text-blue-800 truncate">
+												{agendaFile.name}
+											</p>
+											<p className="text-xs text-blue-600">
+												{(agendaFile.size / 1024 / 1024).toFixed(2)} MB
+											</p>
+										</div>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="cursor-pointer text-blue-600 hover:text-red-600 hover:bg-red-50"
+											onClick={() => {
+												setAgendaFile(null);
+												if (agendaFileInputRef.current)
+													agendaFileInputRef.current.value = "";
+											}}
+										>
+											<X className="h-4 w-4" />
+										</Button>
+									</div>
+								) : (
+									<Button
+										variant="outline"
+										className="w-full cursor-pointer border-dashed border-blue-300 bg-white text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+										onClick={() => agendaFileInputRef.current?.click()}
+									>
+										<Upload className="h-4 w-4 mr-2" />
+										Upload Agenda PDF
+									</Button>
+								)}
+								<p className="text-xs text-blue-600/70 mt-1.5">
+									This agenda will be publicly available for viewing.
+								</p>
+							</div>
+
+							{/* Action Buttons */}
+							<div className="flex gap-2">
+								<Button
+									className="flex-1 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
+									onClick={onStartPresentation}
+								>
+									<Monitor className="h-4 w-4 mr-2" />
+									Start Presentation
+								</Button>
+								<Button
+									className="flex-1 cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+									onClick={() => setShowMarkCompleteDialog(true)}
+								>
+									<CheckCircle2 className="h-4 w-4 mr-2" />
+									Mark as Completed
+								</Button>
+							</div>
 							<Button
-								className="flex-1 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
-								onClick={onStartPresentation}
+								variant="outline"
+								className="w-full cursor-pointer border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+								onClick={() => setShowUnpublishDialog(true)}
 							>
-								<Monitor className="h-4 w-4 mr-2" />
-								Start Presentation
+								<Undo2 className="h-4 w-4 mr-2" />
+								Unpublish to Draft
 							</Button>
-							<Button
-								className="flex-1 cursor-pointer bg-green-600 hover:bg-green-700 text-white"
-								onClick={() => setShowMarkCompleteDialog(true)}
-							>
-								<CheckCircle2 className="h-4 w-4 mr-2" />
-								Mark as Completed
-							</Button>
+						</div>
+					)}
+					{isCompleted && (
+						<div className="flex items-center gap-2 p-3 bg-gray-100 border border-gray-200 rounded-lg">
+							<Lock className="h-4 w-4 text-gray-500 shrink-0" />
+							<p className="text-sm text-gray-600">
+								This session is completed and locked from editing.
+							</p>
 						</div>
 					)}
 
 					{/* Agenda Items */}
-					<div className="flex-1 overflow-y-auto">
-						<div className="flex flex-col gap-4">
+					<div className="flex-1 overflow-y-auto min-h-0">
+						<div className="flex flex-col gap-3">
 							{agendaItems.map((item) => (
 								<div
 									key={item.id}
-									onDragOver={(e) => handleDragOver(e, item.id)}
-									onDragLeave={handleDragLeave}
-									onDrop={(e) => handleDrop(e, item.id)}
-									className="transition-colors rounded-lg"
+									onDragOver={(e) => isDraft && handleDragOver(e, item.id)}
+									onDragLeave={isDraft ? handleDragLeave : undefined}
+									onDrop={(e) => isDraft && handleDrop(e, item.id)}
+									className={`transition-colors rounded-lg ${isCompleted ? "opacity-75" : ""}`}
 								>
 									<AgendaItemCard
 										item={item}
 										documents={documentsByAgendaItem[item.id]}
-										onAddDocument={handleAddDocument}
-										onRemoveDocument={handleRemoveDocument}
+										onAddDocument={isDraft ? handleAddDocument : undefined}
+										onRemoveDocument={
+											isCompleted ? undefined : handleRemoveDocument
+										}
+										onUpdateDocumentSummary={
+											isDraft ? handleUpdateDocumentSummary : undefined
+										}
 									/>
 								</div>
 							))}
@@ -511,19 +626,30 @@ export function AgendaPanel({
 
 					{/* Action Buttons - Only for Draft Sessions */}
 					{!isScheduled && !isCompleted && (
-						<div className="flex gap-2 border-t border-gray-200 pt-4">
+						<div className="space-y-2 border-t border-gray-200 pt-3">
+							<div className="flex gap-2">
+								<Button
+									className="flex-1 cursor-pointer bg-amber-500 text-white hover:bg-amber-600"
+									onClick={() => setShowSaveDraftDialog(true)}
+								>
+									<Save className="h-4 w-4 mr-2" />
+									Save as Draft
+								</Button>
+								<Button
+									className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+									onClick={() => setShowPublishDialog(true)}
+								>
+									<Send className="h-4 w-4 mr-2" />
+									Finalize & Publish
+								</Button>
+							</div>
 							<Button
 								variant="outline"
-								className="flex-1 cursor-pointer"
-								onClick={onSaveDraft}
+								className="w-full cursor-pointer border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+								onClick={() => setShowDeleteDialog(true)}
 							>
-								Save as Draft
-							</Button>
-							<Button
-								className="flex-1 bg-[#dc2626] hover:bg-[#b91c1c] text-white cursor-pointer"
-								onClick={onPublish}
-							>
-								Finalize & Publish
+								<Trash2 className="h-4 w-4 mr-2" />
+								Delete Draft
 							</Button>
 						</div>
 					)}
@@ -551,6 +677,60 @@ export function AgendaPanel({
 					sessionDate={formatSessionDate(selectedSession.date)}
 					onConfirm={handleMarkComplete}
 					onCancel={() => setShowMarkCompleteDialog(false)}
+				/>
+			)}
+
+			{/* Unpublish Dialog */}
+			{selectedSession && (
+				<UnpublishSessionDialog
+					open={showUnpublishDialog}
+					onOpenChange={setShowUnpublishDialog}
+					sessionId={selectedSession.id}
+					sessionNumber={selectedSession.sessionNumber.toString()}
+					onUnpublished={() => {
+						setShowUnpublishDialog(false);
+						onUnpublish?.();
+					}}
+				/>
+			)}
+
+			{/* Delete Draft Dialog */}
+			{selectedSession && (
+				<DeleteSessionDialog
+					open={showDeleteDialog}
+					onOpenChange={setShowDeleteDialog}
+					sessionId={selectedSession.id}
+					sessionNumber={selectedSession.sessionNumber.toString()}
+					onDeleted={() => {
+						setShowDeleteDialog(false);
+						onDeleteDraft?.();
+					}}
+				/>
+			)}
+
+			{/* Save Draft Dialog */}
+			{selectedSession && (
+				<SaveDraftDialog
+					open={showSaveDraftDialog}
+					onOpenChange={setShowSaveDraftDialog}
+					sessionNumber={selectedSession.sessionNumber.toString()}
+					onConfirm={() => {
+						setShowSaveDraftDialog(false);
+						onSaveDraft?.();
+					}}
+				/>
+			)}
+
+			{/* Publish Session Dialog */}
+			{selectedSession && (
+				<PublishSessionDialog
+					open={showPublishDialog}
+					onOpenChange={setShowPublishDialog}
+					sessionNumber={selectedSession.sessionNumber.toString()}
+					onConfirm={() => {
+						setShowPublishDialog(false);
+						onPublish?.();
+					}}
 				/>
 			)}
 		</div>

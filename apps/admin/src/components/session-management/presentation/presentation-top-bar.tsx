@@ -9,6 +9,7 @@ import {
 	Maximize2,
 	Menu,
 	Minimize2,
+	MousePointer2,
 	Pencil,
 	Trash2,
 	X,
@@ -27,6 +28,9 @@ export function PresentationTopBar({
 	onToggleDrawing,
 	onToggleEraser,
 	onClearCanvas,
+	pointerMode,
+	externalPointerActive,
+	onTogglePointer,
 	presenterView,
 	onTogglePresenter,
 	showNavMenu,
@@ -46,6 +50,9 @@ export function PresentationTopBar({
 	onToggleDrawing: () => void;
 	onToggleEraser?: () => void;
 	onClearCanvas?: () => void;
+	pointerMode?: boolean;
+	externalPointerActive?: boolean;
+	onTogglePointer?: () => void;
 	presenterView: boolean;
 	onTogglePresenter: () => void;
 	showNavMenu: boolean;
@@ -56,6 +63,7 @@ export function PresentationTopBar({
 }) {
 	const [showDrawingTools, setShowDrawingTools] = useState(false);
 	const drawingButtonRef = useRef<HTMLButtonElement>(null);
+
 	return (
 		<div
 			className={`fixed top-0 left-0 right-0 h-14 bg-black/60 backdrop-blur-lg border-b shadow-2xl flex items-center justify-between px-6 z-50 transition-transform duration-300 ${!isVisible ? "-translate-y-full" : "translate-y-0"}`}
@@ -168,6 +176,19 @@ export function PresentationTopBar({
 						</div>
 					)}
 				</div>
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={onTogglePointer}
+					className={`cursor-pointer gap-2 transition-all ${pointerMode ? "bg-cyan-600 text-white hover:bg-cyan-500" : externalPointerActive ? "bg-cyan-600 text-white hover:bg-cyan-500" : "bg-white/10 text-white/90 hover:text-white hover:bg-white/20"}`}
+				>
+					<MousePointer2 className="h-4 w-4" />
+					{pointerMode
+						? "Pointer: ON"
+						: externalPointerActive
+							? "Pointer (Presenter)"
+							: "Pointer"}
+				</Button>
 				<Button
 					variant="ghost"
 					size="sm"
