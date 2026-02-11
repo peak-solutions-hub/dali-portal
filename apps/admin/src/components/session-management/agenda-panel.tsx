@@ -24,6 +24,7 @@ import {
 	CheckCircle2,
 	ChevronDown,
 	FileText,
+	Loader2,
 	Lock,
 	Monitor,
 	Save,
@@ -47,11 +48,12 @@ import { PublishSessionDialog } from "./publish-session-dialog";
 import { SaveDraftDialog } from "./save-draft-dialog";
 import { UnpublishSessionDialog } from "./unpublish-session-dialog";
 
-interface AttachedDocument {
+export interface AttachedDocument {
 	id: string;
 	key: string;
 	title: string;
 	summary?: string;
+	classification?: string;
 }
 
 export function AgendaPanel({
@@ -61,20 +63,32 @@ export function AgendaPanel({
 	onAddDocument,
 	onSaveDraft,
 	onPublish,
+	onMarkComplete,
 	onStartPresentation,
 	onSessionChange,
 	onUnpublish,
 	onDeleteDraft,
+	actionInFlight,
+	contentTextMap,
+	onContentTextChange,
+	documentsByAgendaItem,
+	onDocumentsByAgendaItemChange,
+	onViewDocument,
 }: AgendaPanelProps & {
 	onStartPresentation?: () => void;
 	sessions: Session[];
 	onSessionChange: (sessionId: string) => void;
 	onUnpublish?: () => void;
 	onDeleteDraft?: () => void;
+	actionInFlight?: string | null;
+	contentTextMap?: Record<string, string>;
+	onContentTextChange?: (itemId: string, text: string) => void;
+	documentsByAgendaItem: Record<string, AttachedDocument[]>;
+	onDocumentsByAgendaItemChange: (
+		docs: Record<string, AttachedDocument[]>,
+	) => void;
+	onViewDocument?: (documentId: string) => void;
 }) {
-	const [documentsByAgendaItem, setDocumentsByAgendaItem] = useState<
-		Record<string, AttachedDocument[]>
-	>({});
 	const [typeFilter, setTypeFilter] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
 	const [showMarkCompleteDialog, setShowMarkCompleteDialog] = useState(false);
@@ -92,25 +106,32 @@ export function AgendaPanel({
 	};
 
 	const handleDropDocument = (agendaItemId: string, document: Document) => {
+		// Prevent duplicate documents in the same section
+		const existing = documentsByAgendaItem[agendaItemId] || [];
+		if (existing.some((doc) => doc.id === document.id)) {
+			return; // Already attached to this section
+		}
+
 		const attachedDoc: AttachedDocument = {
 			id: document.id,
 			key: document.number,
 			title: document.title,
+			classification: document.classification,
 		};
 
-		setDocumentsByAgendaItem((prev) => ({
-			...prev,
-			[agendaItemId]: [...(prev[agendaItemId] || []), attachedDoc],
-		}));
+		onDocumentsByAgendaItemChange({
+			...documentsByAgendaItem,
+			[agendaItemId]: [...existing, attachedDoc],
+		});
 	};
 
 	const handleRemoveDocument = (agendaItemId: string, documentId: string) => {
-		setDocumentsByAgendaItem((prev) => ({
-			...prev,
-			[agendaItemId]: (prev[agendaItemId] || []).filter(
+		onDocumentsByAgendaItemChange({
+			...documentsByAgendaItem,
+			[agendaItemId]: (documentsByAgendaItem[agendaItemId] || []).filter(
 				(doc) => doc.id !== documentId,
 			),
-		}));
+		});
 	};
 
 	const handleUpdateDocumentSummary = (
@@ -118,12 +139,12 @@ export function AgendaPanel({
 		documentId: string,
 		summary: string,
 	) => {
-		setDocumentsByAgendaItem((prev) => ({
-			...prev,
-			[agendaItemId]: (prev[agendaItemId] || []).map((doc) =>
+		onDocumentsByAgendaItemChange({
+			...documentsByAgendaItem,
+			[agendaItemId]: (documentsByAgendaItem[agendaItemId] || []).map((doc) =>
 				doc.id === documentId ? { ...doc, summary } : doc,
 			),
-		}));
+		});
 	};
 
 	const handleDragOver = (e: React.DragEvent, agendaItemId: string) => {
@@ -144,11 +165,6 @@ export function AgendaPanel({
 			const document: Document = JSON.parse(documentData);
 			handleDropDocument(agendaItemId, document);
 		}
-	};
-
-	const handleMarkComplete = () => {
-		setShowMarkCompleteDialog(false);
-		// Additional logic to mark session as complete would go here
 	};
 
 	const handleSelectSession = (sessionId: string) => {
@@ -566,25 +582,40 @@ export function AgendaPanel({
 								<Button
 									className="flex-1 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
 									onClick={onStartPresentation}
+									disabled={!!actionInFlight}
 								>
 									<Monitor className="h-4 w-4 mr-2" />
-									Start Presentation
+									View Presentation
 								</Button>
 								<Button
 									className="flex-1 cursor-pointer bg-green-600 hover:bg-green-700 text-white"
 									onClick={() => setShowMarkCompleteDialog(true)}
+									disabled={!!actionInFlight}
 								>
-									<CheckCircle2 className="h-4 w-4 mr-2" />
-									Mark as Completed
+									{actionInFlight === "completing" ? (
+										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									) : (
+										<CheckCircle2 className="h-4 w-4 mr-2" />
+									)}
+									{actionInFlight === "completing"
+										? "Completing..."
+										: "Mark as Completed"}
 								</Button>
 							</div>
 							<Button
 								variant="outline"
 								className="w-full cursor-pointer border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
 								onClick={() => setShowUnpublishDialog(true)}
+								disabled={!!actionInFlight}
 							>
-								<Undo2 className="h-4 w-4 mr-2" />
-								Unpublish to Draft
+								{actionInFlight === "unpublishing" ? (
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								) : (
+									<Undo2 className="h-4 w-4 mr-2" />
+								)}
+								{actionInFlight === "unpublishing"
+									? "Unpublishing..."
+									: "Unpublish to Draft"}
 							</Button>
 						</div>
 					)}
@@ -611,6 +642,12 @@ export function AgendaPanel({
 									<AgendaItemCard
 										item={item}
 										documents={documentsByAgendaItem[item.id]}
+										sessions={sessions}
+										selectedSessionId={selectedSession?.id}
+										contentText={contentTextMap?.[item.id]}
+										onContentTextChange={
+											isDraft ? onContentTextChange : undefined
+										}
 										onAddDocument={isDraft ? handleAddDocument : undefined}
 										onRemoveDocument={
 											isCompleted ? undefined : handleRemoveDocument
@@ -618,6 +655,7 @@ export function AgendaPanel({
 										onUpdateDocumentSummary={
 											isDraft ? handleUpdateDocumentSummary : undefined
 										}
+										onViewDocument={onViewDocument}
 									/>
 								</div>
 							))}
@@ -631,25 +669,42 @@ export function AgendaPanel({
 								<Button
 									className="flex-1 cursor-pointer bg-amber-500 text-white hover:bg-amber-600"
 									onClick={() => setShowSaveDraftDialog(true)}
+									disabled={!!actionInFlight}
 								>
-									<Save className="h-4 w-4 mr-2" />
-									Save as Draft
+									{actionInFlight === "saving" ? (
+										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									) : (
+										<Save className="h-4 w-4 mr-2" />
+									)}
+									{actionInFlight === "saving" ? "Saving..." : "Save as Draft"}
 								</Button>
 								<Button
 									className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"
 									onClick={() => setShowPublishDialog(true)}
+									disabled={!!actionInFlight}
 								>
-									<Send className="h-4 w-4 mr-2" />
-									Finalize & Publish
+									{actionInFlight === "publishing" ? (
+										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									) : (
+										<Send className="h-4 w-4 mr-2" />
+									)}
+									{actionInFlight === "publishing"
+										? "Publishing..."
+										: "Finalize & Publish"}
 								</Button>
 							</div>
 							<Button
 								variant="outline"
 								className="w-full cursor-pointer border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
 								onClick={() => setShowDeleteDialog(true)}
+								disabled={!!actionInFlight}
 							>
-								<Trash2 className="h-4 w-4 mr-2" />
-								Delete Draft
+								{actionInFlight === "deleting" ? (
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								) : (
+									<Trash2 className="h-4 w-4 mr-2" />
+								)}
+								{actionInFlight === "deleting" ? "Deleting..." : "Delete Draft"}
 							</Button>
 						</div>
 					)}
@@ -672,11 +727,11 @@ export function AgendaPanel({
 			{selectedSession && (
 				<MarkCompleteDialog
 					open={showMarkCompleteDialog}
+					onOpenChange={setShowMarkCompleteDialog}
 					sessionNumber={selectedSession.sessionNumber.toString()}
 					sessionType={getSessionTypeLabel(selectedSession.type)}
 					sessionDate={formatSessionDate(selectedSession.date)}
-					onConfirm={handleMarkComplete}
-					onCancel={() => setShowMarkCompleteDialog(false)}
+					onConfirm={onMarkComplete}
 				/>
 			)}
 
@@ -687,10 +742,7 @@ export function AgendaPanel({
 					onOpenChange={setShowUnpublishDialog}
 					sessionId={selectedSession.id}
 					sessionNumber={selectedSession.sessionNumber.toString()}
-					onUnpublished={() => {
-						setShowUnpublishDialog(false);
-						onUnpublish?.();
-					}}
+					onUnpublished={onUnpublish}
 				/>
 			)}
 
@@ -701,10 +753,7 @@ export function AgendaPanel({
 					onOpenChange={setShowDeleteDialog}
 					sessionId={selectedSession.id}
 					sessionNumber={selectedSession.sessionNumber.toString()}
-					onDeleted={() => {
-						setShowDeleteDialog(false);
-						onDeleteDraft?.();
-					}}
+					onDeleted={onDeleteDraft}
 				/>
 			)}
 
@@ -714,10 +763,7 @@ export function AgendaPanel({
 					open={showSaveDraftDialog}
 					onOpenChange={setShowSaveDraftDialog}
 					sessionNumber={selectedSession.sessionNumber.toString()}
-					onConfirm={() => {
-						setShowSaveDraftDialog(false);
-						onSaveDraft?.();
-					}}
+					onConfirm={onSaveDraft}
 				/>
 			)}
 
@@ -727,10 +773,7 @@ export function AgendaPanel({
 					open={showPublishDialog}
 					onOpenChange={setShowPublishDialog}
 					sessionNumber={selectedSession.sessionNumber.toString()}
-					onConfirm={() => {
-						setShowPublishDialog(false);
-						onPublish?.();
-					}}
+					onConfirm={onPublish}
 				/>
 			)}
 		</div>

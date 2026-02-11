@@ -3,7 +3,11 @@
 import type { SessionPresentationSlide } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Clock, Pencil, Timer } from "@repo/ui/lib/lucide-react";
-import { getSessionTypeLabel } from "@repo/ui/lib/session-ui";
+import {
+	formatAgendaItemNumber,
+	getSectionLetter,
+	getSessionTypeLabel,
+} from "@repo/ui/lib/session-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DrawingCanvas } from "./drawing-canvas";
 import {
@@ -29,6 +33,7 @@ interface PresentationModeProps {
 	agendaItems: Array<{
 		id: string;
 		title: string;
+		section: string;
 		documents?: Array<{ key: string; title: string }>;
 	}>;
 	onExit: () => void;
@@ -94,24 +99,46 @@ export function PresentationMode({
 		drawingMode,
 	});
 
-	const slides: SessionPresentationSlide[] = useMemo(
-		() => [
+	const slides: SessionPresentationSlide[] = useMemo(() => {
+		// Group agenda items by section to properly number sub-items
+		const itemsBySection: Record<string, typeof agendaItems> = {};
+		for (const item of agendaItems) {
+			if (!itemsBySection[item.section]) {
+				itemsBySection[item.section] = [];
+			}
+			itemsBySection[item.section]!.push(item);
+		}
+
+		return [
 			{
 				id: "cover",
 				type: "cover",
 				title: "Sangguniang Panlungsod ng Iloilo",
 				subtitle: `${getSessionTypeLabel(sessionType)} #${sessionNumber}`,
 			},
-			...agendaItems.map((item, index) => ({
-				id: item.id,
-				type: "agenda-item" as const,
-				title: item.title,
-				agendaNumber: String(index + 1).padStart(2, "0"),
-				documents: item.documents,
-			})),
-		],
-		[agendaItems, sessionNumber, sessionType],
-	);
+			...agendaItems.map((item, globalIndex) => {
+				// Find the index within the section
+				const sectionItems = itemsBySection[item.section] || [];
+				const indexInSection = sectionItems.indexOf(item);
+
+				// Generate agenda number based on section rules
+				const agendaNumber = formatAgendaItemNumber(
+					item.section,
+					indexInSection,
+					false,
+				);
+
+				return {
+					id: item.id,
+					type: "agenda-item" as const,
+					title: item.title,
+					agendaNumber,
+					section: item.section,
+					documents: item.documents,
+				};
+			}),
+		];
+	}, [agendaItems, sessionNumber, sessionType]);
 
 	const currentSlide = slides[currentSlideIndex];
 

@@ -9,14 +9,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/dialog";
-import { CheckCircle2, Send } from "@repo/ui/lib/lucide-react";
+import { CheckCircle2, Loader2, Send } from "@repo/ui/lib/lucide-react";
 import { useState } from "react";
 
 interface PublishSessionDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	sessionNumber: string;
-	onConfirm?: () => void;
+	onConfirm?: () => void | Promise<void>;
 }
 
 export function PublishSessionDialog({
@@ -28,15 +28,17 @@ export function PublishSessionDialog({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const handlePublish = () => {
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (isSubmitting) return;
+		onOpenChange(nextOpen);
+	};
+
+	const handlePublish = async () => {
 		setError(null);
 		setIsSubmitting(true);
 
 		try {
-			if (onConfirm) {
-				onConfirm();
-			}
-
+			if (onConfirm) await onConfirm();
 			onOpenChange(false);
 		} catch {
 			setError("Failed to publish session. Please try again.");
@@ -46,8 +48,17 @@ export function PublishSessionDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-md">
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent
+				className="max-w-md"
+				showCloseButton={!isSubmitting}
+				onInteractOutside={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+				onEscapeKeyDown={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+			>
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -113,7 +124,7 @@ export function PublishSessionDialog({
 					<Button
 						type="button"
 						variant="outline"
-						onClick={() => onOpenChange(false)}
+						onClick={() => handleOpenChange(false)}
 						disabled={isSubmitting}
 						className="cursor-pointer"
 					>
@@ -124,7 +135,11 @@ export function PublishSessionDialog({
 						disabled={isSubmitting}
 						className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
 					>
-						<Send className="h-4 w-4 mr-2" />
+						{isSubmitting ? (
+							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						) : (
+							<Send className="h-4 w-4 mr-2" />
+						)}
 						{isSubmitting ? "Publishing..." : "Publish Session"}
 					</Button>
 				</DialogFooter>

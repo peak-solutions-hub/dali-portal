@@ -130,15 +130,20 @@ export function SessionsCalendar({
 
 	// Calculate year range from session data
 	const yearRange = React.useMemo(() => {
+		const currentYear = new Date().getFullYear();
+
 		if (sessions.length === 0) {
-			return { minYear: year, maxYear: year };
+			return {
+				minYear: Math.min(year, currentYear),
+				maxYear: Math.max(year, currentYear),
+			};
 		}
 
 		const years = sessions.map((session) =>
 			new Date(session.scheduleDate).getFullYear(),
 		);
-		const minYear = Math.min(...years);
-		const maxYear = Math.max(...years);
+		const minYear = Math.min(...years, currentYear);
+		const maxYear = Math.max(...years, currentYear);
 
 		return { minYear, maxYear };
 	}, [sessions, year]);

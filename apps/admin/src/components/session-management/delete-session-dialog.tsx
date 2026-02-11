@@ -9,7 +9,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/dialog";
-import { AlertTriangle, Trash2 } from "@repo/ui/lib/lucide-react";
+import { AlertTriangle, Loader2, Trash2 } from "@repo/ui/lib/lucide-react";
 import { useState } from "react";
 
 interface DeleteSessionDialogProps {
@@ -17,7 +17,7 @@ interface DeleteSessionDialogProps {
 	onOpenChange: (open: boolean) => void;
 	sessionId: string;
 	sessionNumber: string;
-	onDeleted?: () => void;
+	onDeleted?: () => void | Promise<void>;
 }
 
 export function DeleteSessionDialog({
@@ -30,23 +30,18 @@ export function DeleteSessionDialog({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (isSubmitting) return;
+		onOpenChange(nextOpen);
+	};
+
 	const handleDelete = async () => {
 		setError(null);
 		setIsSubmitting(true);
 
 		try {
-			// TODO: Call API to delete session
-			// const [err, data] = await api.sessions.delete({
-			//   id: sessionId,
-			// })
-
-			// Mock success
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-
+			if (onDeleted) await onDeleted();
 			onOpenChange(false);
-			if (onDeleted) {
-				onDeleted();
-			}
 		} catch {
 			setError("Failed to delete session. Please try again.");
 		} finally {
@@ -55,8 +50,17 @@ export function DeleteSessionDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-md">
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent
+				className="max-w-md"
+				showCloseButton={!isSubmitting}
+				onInteractOutside={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+				onEscapeKeyDown={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+			>
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
@@ -107,7 +111,7 @@ export function DeleteSessionDialog({
 					<Button
 						type="button"
 						variant="outline"
-						onClick={() => onOpenChange(false)}
+						onClick={() => handleOpenChange(false)}
 						disabled={isSubmitting}
 						className="cursor-pointer"
 					>
@@ -118,7 +122,11 @@ export function DeleteSessionDialog({
 						disabled={isSubmitting}
 						className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
 					>
-						<Trash2 className="h-4 w-4 mr-2" />
+						{isSubmitting ? (
+							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						) : (
+							<Trash2 className="h-4 w-4 mr-2" />
+						)}
 						{isSubmitting ? "Deleting..." : "Delete Draft"}
 					</Button>
 				</DialogFooter>

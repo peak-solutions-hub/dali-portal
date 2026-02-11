@@ -79,6 +79,36 @@ export const ERRORS = {
 			message: "Storage bucket not found.",
 		},
 	},
+	SESSION: {
+		NOT_FOUND: {
+			status: 404,
+			message: "Session not found.",
+		},
+		DUPLICATE_DATE: {
+			status: 409,
+			message: "A session already exists for this date.",
+		},
+		INVALID_STATUS_TRANSITION: {
+			status: 400,
+			message: "This status transition is not allowed.",
+		},
+		NOT_DRAFT: {
+			status: 400,
+			message: "Session must be in draft status for this operation.",
+		},
+		NOT_SCHEDULED: {
+			status: 400,
+			message: "Session must be in scheduled status for this operation.",
+		},
+		DELETE_NOT_DRAFT: {
+			status: 400,
+			message: "Only draft sessions can be deleted.",
+		},
+		CREATION_FAILED: {
+			status: 500,
+			message: "Failed to create session. Please try again.",
+		},
+	},
 } as const;
 
 /**

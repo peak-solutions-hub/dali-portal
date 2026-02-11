@@ -1,12 +1,34 @@
 import type { SessionManagementDocument as Document } from "@repo/shared";
-import { getDocumentTypeBadgeClass } from "@repo/ui/lib/session-ui";
-import { FileText, GripVertical } from "lucide-react";
+import {
+	getClassificationLabel,
+	getDocumentTypeBadgeClass,
+} from "@repo/ui/lib/session-ui";
+import {
+	Calendar,
+	ExternalLink,
+	FileText,
+	GripVertical,
+	Tag,
+	User,
+	Users,
+} from "lucide-react";
 
 interface DocumentCardProps {
 	document: Document;
+	onViewDocument?: (documentId: string) => void;
 }
 
-export function DocumentCard({ document }: DocumentCardProps) {
+/** Format ISO date to short readable */
+function formatDate(iso: string): string {
+	const d = new Date(iso);
+	return d.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	});
+}
+
+export function DocumentCard({ document, onViewDocument }: DocumentCardProps) {
 	const handleDragStart = (e: React.DragEvent) => {
 		e.dataTransfer.effectAllowed = "copy";
 		e.dataTransfer.setData("application/json", JSON.stringify(document));
@@ -46,10 +68,57 @@ export function DocumentCard({ document }: DocumentCardProps) {
 						{/* Title */}
 						<h3
 							id={`doc-title-${document.id}`}
-							className="text-base font-semibold text-gray-900 line-clamp-2 group-hover:text-[#a60202] transition-colors"
+							className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-[#a60202] transition-colors"
 						>
 							{document.title}
 						</h3>
+
+						{/* Details row */}
+						<div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+							{/* Classification */}
+							<span className="inline-flex items-center gap-1">
+								<Tag className="w-3 h-3" aria-hidden="true" />
+								{getClassificationLabel(document.classification)}
+							</span>
+
+							{/* Date received */}
+							<span className="inline-flex items-center gap-1">
+								<Calendar className="w-3 h-3" aria-hidden="true" />
+								{formatDate(document.receivedAt)}
+							</span>
+
+							{/* Authors */}
+							{document.authors.length > 0 && (
+								<span className="inline-flex items-center gap-1">
+									<User className="w-3 h-3" aria-hidden="true" />
+									{document.authors.join(", ")}
+								</span>
+							)}
+
+							{/* Sponsors */}
+							{document.sponsors.length > 0 && (
+								<span className="inline-flex items-center gap-1">
+									<Users className="w-3 h-3" aria-hidden="true" />
+									{document.sponsors.join(", ")}
+								</span>
+							)}
+						</div>
+
+						{/* View link */}
+						<button
+							type="button"
+							className="inline-flex items-center gap-1 mt-1.5 text-xs text-[#a60202] hover:underline font-medium cursor-pointer"
+							onClick={(e) => {
+								e.stopPropagation();
+								if (onViewDocument) {
+									onViewDocument(document.id);
+								}
+							}}
+							onMouseDown={(e) => e.stopPropagation()}
+						>
+							<ExternalLink className="w-3 h-3" />
+							View Document
+						</button>
 					</div>
 				</div>
 			</article>

@@ -13,6 +13,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import {
 	SessionFilters,
 	SessionListView,
@@ -76,9 +77,12 @@ export default async function Sessions({
 	const view = validatedParams.view;
 
 	return (
-		<Suspense fallback={<SessionLoading view={view} />}>
-			<SessionContent params={validatedParams} />
-		</Suspense>
+		<>
+			<ScrollToTop />
+			<Suspense fallback={<SessionLoading view={view} />}>
+				<SessionContent params={validatedParams} />
+			</Suspense>
+		</>
 	);
 }
 

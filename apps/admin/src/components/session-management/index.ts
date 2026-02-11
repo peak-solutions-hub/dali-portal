@@ -3,6 +3,7 @@ export { AgendaPanel } from "./agenda-panel";
 export { CreateSessionDialog } from "./create-session-dialog";
 export { DeleteSessionDialog } from "./delete-session-dialog";
 export { DocumentCard } from "./document-card";
+export { DocumentViewerDialog } from "./document-viewer-dialog";
 export { DocumentsPanel } from "./documents-panel";
 export { EmptyState } from "./empty-state";
 export { PresentationMode } from "./presentation-mode";

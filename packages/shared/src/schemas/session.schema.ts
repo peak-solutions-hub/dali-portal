@@ -62,10 +62,34 @@ export const SessionAgendaItemSchema = z.object({
 });
 
 /**
+ * Linked document summary (embedded in agenda items for public/admin detail views)
+ */
+export const LinkedDocumentSchema = z.object({
+	id: z.string().uuid(),
+	codeNumber: z.string(),
+	title: z.string(),
+	type: z.string(),
+	status: z.string(),
+	purpose: z.string(),
+	classification: z.string().nullable().optional(),
+	receivedAt: z.string().optional(),
+	authors: z.array(z.string()).optional(),
+	sponsors: z.array(z.string()).optional(),
+});
+
+/**
+ * Session Agenda Item with nested document data
+ */
+export const SessionAgendaItemWithDocumentSchema =
+	SessionAgendaItemSchema.extend({
+		document: LinkedDocumentSchema.nullable(),
+	});
+
+/**
  * Session with agenda items (for detail view)
  */
 export const SessionWithAgendaSchema = SessionSchema.extend({
-	agendaItems: z.array(SessionAgendaItemSchema),
+	agendaItems: z.array(SessionAgendaItemWithDocumentSchema),
 });
 
 /**
@@ -126,6 +150,10 @@ export const GetSessionListSchema = z.object({
 
 export type Session = z.infer<typeof SessionSchema>;
 export type SessionAgendaItem = z.infer<typeof SessionAgendaItemSchema>;
+export type LinkedDocument = z.infer<typeof LinkedDocumentSchema>;
+export type SessionAgendaItemWithDocument = z.infer<
+	typeof SessionAgendaItemWithDocumentSchema
+>;
 export type SessionWithAgenda = z.infer<typeof SessionWithAgendaSchema>;
 export type SortDirection = z.infer<typeof SortDirectionEnum>;
 export type GetSessionListInput = z.infer<typeof GetSessionListSchema>;
@@ -179,6 +207,7 @@ export const SessionPresentationSlideSchema = z.object({
 	title: z.string(),
 	subtitle: z.string().optional(),
 	agendaNumber: z.string().optional(),
+	section: SessionSectionEnum.optional(),
 	documents: z.array(SessionPresentationSlideDocumentSchema).optional(),
 });
 
@@ -188,6 +217,8 @@ export const SessionPresentationSlideSchema = z.object({
 export const SessionManagementAgendaItemSchema = z.object({
 	id: z.string(),
 	title: z.string(),
+	section: SessionSectionEnum,
+	orderIndex: z.number(),
 	documentId: z.string().optional(),
 	description: z.string().optional(),
 });
@@ -200,6 +231,12 @@ export const SessionManagementDocumentSchema = z.object({
 	title: z.string(),
 	type: z.string(),
 	number: z.string(),
+	classification: z.string(),
+	status: z.string(),
+	purpose: z.string(),
+	receivedAt: z.string(),
+	authors: z.array(z.string()),
+	sponsors: z.array(z.string()),
 });
 
 /**
@@ -212,6 +249,99 @@ export const SessionManagementSessionSchema = z.object({
 	time: z.string(),
 	type: z.enum(["regular", "special"]),
 	status: z.enum(["draft", "scheduled", "completed"]),
+});
+
+/* ============================
+   Admin CRUD Schemas
+   ============================ */
+
+/**
+ * Create session input schema
+ */
+export const CreateSessionSchema = z.object({
+	scheduleDate: z.coerce.date(),
+	type: SessionTypeEnum,
+});
+
+/**
+ * Admin session agenda item input (for saving agenda items with session)
+ */
+export const AdminAgendaItemInputSchema = z.object({
+	section: SessionSectionEnum,
+	orderIndex: z.number().int().min(0),
+	contentText: z.string().nullable().optional(),
+	linkedDocument: z.string().uuid().nullable().optional(),
+	attachmentPath: z.string().nullable().optional(),
+	attachmentName: z.string().nullable().optional(),
+});
+
+/**
+ * Save session draft input
+ */
+export const SaveSessionDraftSchema = z.object({
+	id: z.string().uuid(),
+	agendaItems: z.array(AdminAgendaItemInputSchema),
+});
+
+/**
+ * Publish session (set to scheduled)
+ */
+export const PublishSessionSchema = z.object({
+	id: z.string().uuid(),
+});
+
+/**
+ * Unpublish session (revert to draft)
+ */
+export const UnpublishSessionSchema = z.object({
+	id: z.string().uuid(),
+});
+
+/**
+ * Mark session as completed
+ */
+export const MarkSessionCompleteSchema = z.object({
+	id: z.string().uuid(),
+});
+
+/**
+ * Delete session (draft only)
+ */
+export const DeleteSessionSchema = z.object({
+	id: z.string().uuid(),
+});
+
+/**
+ * Admin session response (returned from create/update)
+ */
+export const AdminSessionResponseSchema = SessionSchema;
+
+/**
+ * Admin session with agenda items
+ */
+export const AdminSessionWithAgendaSchema = SessionSchema.extend({
+	agendaItems: z.array(SessionAgendaItemWithDocumentSchema),
+});
+
+/**
+ * Admin session list response
+ */
+export const AdminSessionListResponseSchema = z.object({
+	sessions: z.array(SessionSchema),
+	pagination: SessionPaginationInfoSchema,
+});
+
+/**
+ * Approved document for session agenda linking
+ * Same shape as SessionManagementDocumentSchema
+ */
+export const ApprovedDocumentSchema = SessionManagementDocumentSchema;
+
+/**
+ * Approved documents list response
+ */
+export const ApprovedDocumentListResponseSchema = z.object({
+	documents: z.array(ApprovedDocumentSchema),
 });
 
 /* ============================
@@ -237,6 +367,28 @@ export type SessionManagementSession = z.infer<
 	typeof SessionManagementSessionSchema
 >;
 
+/* Admin CRUD types */
+export type CreateSessionInput = z.infer<typeof CreateSessionSchema>;
+export type AdminAgendaItemInput = z.infer<typeof AdminAgendaItemInputSchema>;
+export type SaveSessionDraftInput = z.infer<typeof SaveSessionDraftSchema>;
+export type PublishSessionInput = z.infer<typeof PublishSessionSchema>;
+export type UnpublishSessionInput = z.infer<typeof UnpublishSessionSchema>;
+export type MarkSessionCompleteInput = z.infer<
+	typeof MarkSessionCompleteSchema
+>;
+export type DeleteSessionInput = z.infer<typeof DeleteSessionSchema>;
+export type AdminSessionResponse = z.infer<typeof AdminSessionResponseSchema>;
+export type AdminSessionWithAgenda = z.infer<
+	typeof AdminSessionWithAgendaSchema
+>;
+export type AdminSessionListResponse = z.infer<
+	typeof AdminSessionListResponseSchema
+>;
+export type ApprovedDocument = z.infer<typeof ApprovedDocumentSchema>;
+export type ApprovedDocumentListResponse = z.infer<
+	typeof ApprovedDocumentListResponseSchema
+>;
+
 /* ============================
    Admin UI Component Props
    ============================ */
@@ -253,6 +405,7 @@ export type SessionManagementAgendaPanelProps = {
 	onAddDocument: (itemId: string) => void;
 	onSaveDraft: () => void;
 	onPublish: () => void;
+	onMarkComplete?: () => void;
 };
 
 export type SessionManagementDocumentsPanelProps = {

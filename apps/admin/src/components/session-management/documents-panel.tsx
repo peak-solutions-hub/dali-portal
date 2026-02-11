@@ -11,10 +11,18 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { FileText, Search } from "@repo/ui/lib/lucide-react";
+import { getClassificationLabel } from "@repo/ui/lib/session-ui";
 import { useMemo, useState } from "react";
 import { DocumentCard } from "./document-card";
 
-export function DocumentsPanel({ documents }: DocumentsPanelProps) {
+interface DocumentsPanelPropsExtended extends DocumentsPanelProps {
+	onViewDocument?: (documentId: string) => void;
+}
+
+export function DocumentsPanel({
+	documents,
+	onViewDocument,
+}: DocumentsPanelPropsExtended) {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [typeFilter, setTypeFilter] = useState<string>("all");
 
@@ -34,6 +42,12 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 				) {
 					return false;
 				}
+				if (
+					typeFilter === "committee_report" &&
+					!doc.type.toLowerCase().includes("committee")
+				) {
+					return false;
+				}
 			}
 
 			// Search filter
@@ -41,7 +55,8 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 				const searchLower = searchQuery.toLowerCase();
 				if (
 					!doc.title.toLowerCase().includes(searchLower) &&
-					!doc.number.toLowerCase().includes(searchLower)
+					!doc.number.toLowerCase().includes(searchLower) &&
+					!doc.classification.toLowerCase().includes(searchLower)
 				) {
 					return false;
 				}
@@ -56,6 +71,9 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 	const resolutionCount = documents.filter((d) =>
 		d.type.toLowerCase().includes("resolution"),
 	).length;
+	const committeeReportCount = documents.filter((d) =>
+		d.type.toLowerCase().includes("committee"),
+	).length;
 
 	return (
 		<div className="flex h-full w-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4">
@@ -67,7 +85,7 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 						Ready for Agenda
 					</h3>
 				</div>
-				<div className="flex gap-1">
+				<div className="flex gap-1 flex-wrap">
 					<Badge
 						variant="outline"
 						className="text-xs bg-blue-100 text-blue-800"
@@ -80,11 +98,19 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 					>
 						{resolutionCount} Res.
 					</Badge>
+					{committeeReportCount > 0 && (
+						<Badge
+							variant="outline"
+							className="text-xs bg-purple-100 text-purple-800"
+						>
+							{committeeReportCount} CR
+						</Badge>
+					)}
 				</div>
 			</div>
 
 			<p className="text-sm text-gray-500 -mt-2">
-				Drag documents to agenda sections
+				Approved &amp; for-agenda documents. Drag to agenda sections.
 			</p>
 
 			{/* Filters */}
@@ -112,6 +138,9 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 						<SelectItem className="cursor-pointer" value="resolution">
 							Resolutions
 						</SelectItem>
+						<SelectItem className="cursor-pointer" value="committee_report">
+							Committee Reports
+						</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
@@ -121,7 +150,11 @@ export function DocumentsPanel({ documents }: DocumentsPanelProps) {
 				<div className="flex flex-col gap-2">
 					{filteredDocuments.length > 0 ? (
 						filteredDocuments.map((doc) => (
-							<DocumentCard key={doc.id} document={doc} />
+							<DocumentCard
+								key={doc.id}
+								document={doc}
+								onViewDocument={onViewDocument}
+							/>
 						))
 					) : (
 						<div className="flex flex-col items-center justify-center py-8 text-gray-500">

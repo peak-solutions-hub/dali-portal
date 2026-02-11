@@ -9,28 +9,57 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/dialog";
-import { CheckCircle2, Info } from "@repo/ui/lib/lucide-react";
+import { CheckCircle2, Info, Loader2 } from "@repo/ui/lib/lucide-react";
+import { useState } from "react";
 
 interface MarkCompleteDialogProps {
 	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	sessionNumber: string;
 	sessionType: string;
 	sessionDate: string;
-	onConfirm: () => void;
-	onCancel: () => void;
+	onConfirm?: () => void | Promise<void>;
 }
 
 export function MarkCompleteDialog({
 	open,
+	onOpenChange,
 	sessionNumber,
 	sessionType,
 	sessionDate,
 	onConfirm,
-	onCancel,
 }: MarkCompleteDialogProps) {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (isSubmitting) return;
+		onOpenChange(nextOpen);
+	};
+
+	const handleConfirm = async () => {
+		setIsSubmitting(true);
+		try {
+			if (onConfirm) await onConfirm();
+			onOpenChange(false);
+		} catch {
+			// Error handled by parent via toast
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
 	return (
-		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
-			<DialogContent className="max-w-md">
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent
+				className="max-w-md"
+				showCloseButton={!isSubmitting}
+				onInteractOutside={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+				onEscapeKeyDown={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+			>
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -90,17 +119,23 @@ export function MarkCompleteDialog({
 					<Button
 						type="button"
 						variant="outline"
-						onClick={onCancel}
+						onClick={() => handleOpenChange(false)}
+						disabled={isSubmitting}
 						className="cursor-pointer"
 					>
 						Cancel
 					</Button>
 					<Button
-						onClick={onConfirm}
+						onClick={handleConfirm}
+						disabled={isSubmitting}
 						className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
 					>
-						<CheckCircle2 className="h-4 w-4 mr-2" />
-						Mark Complete
+						{isSubmitting ? (
+							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						) : (
+							<CheckCircle2 className="h-4 w-4 mr-2" />
+						)}
+						{isSubmitting ? "Completing..." : "Mark Complete"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

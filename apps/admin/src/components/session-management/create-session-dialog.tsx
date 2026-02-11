@@ -1,5 +1,6 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import { Button } from "@repo/ui/components/button";
 import { Calendar as CalendarComponent } from "@repo/ui/components/calendar";
 import {
@@ -23,9 +24,10 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { TimePicker } from "@repo/ui/components/time-picker";
-import { Calendar, Plus } from "@repo/ui/lib/lucide-react";
+import { Calendar, Loader2, Plus } from "@repo/ui/lib/lucide-react";
 import { format, isAfter, isBefore, startOfDay } from "date-fns";
 import { useState } from "react";
+import { api } from "@/lib/api.client";
 
 interface CreateSessionDialogProps {
 	open: boolean;
@@ -43,6 +45,21 @@ export function CreateSessionDialog({
 	const [sessionType, setSessionType] = useState("regular");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	const resetForm = () => {
+		setSessionDate(undefined);
+		setSessionTime("10:00");
+		setSessionType("regular");
+		setError(null);
+		setIsSubmitting(false);
+	};
+
+	const handleOpenChange = (nextOpen: boolean) => {
+		// Block closing while submitting
+		if (isSubmitting) return;
+		if (!nextOpen) resetForm();
+		onOpenChange(nextOpen);
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -80,30 +97,51 @@ export function CreateSessionDialog({
 				}
 			}
 
-			// TODO: Call API to create session
-			// const [err, data] = await api.sessions.create({
-			//   scheduleDate: new Date(sessionDate),
-			//   sessionTime,
-			//   type: sessionType,
-			// })
+			// Combine date + time into a single ISO-8601 datetime
+			const [hours, minutes] = sessionTime.split(":").map(Number);
+			const scheduleDate = new Date(sessionDate);
+			scheduleDate.setHours(hours ?? 10, minutes ?? 0, 0, 0);
 
-			// Mock success
-			await new Promise((resolve) => setTimeout(resolve, 1000));
+			const [err, data] = await api.sessions.create({
+				scheduleDate: scheduleDate.toISOString(),
+				type: sessionType as "regular" | "special",
+			});
 
-			onOpenChange(false);
-			if (onSessionCreated) {
-				onSessionCreated("mock-session-id");
+			if (err) {
+				// Always try to use server error message (e.g. "A session already exists for this date.")
+				const serverMessage = isDefinedError(err)
+					? err.message
+					: (err as { message?: string })?.message;
+				setError(
+					serverMessage || "Failed to create session. Please try again.",
+				);
+				setIsSubmitting(false);
+				return;
 			}
+
+			// Notify parent before closing so fetchSessions runs while dialog is still mounted
+			if (onSessionCreated && data) {
+				onSessionCreated(data.id);
+			}
+			handleOpenChange(false);
 		} catch {
 			setError("Failed to create session. Please try again.");
-		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-lg">
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent
+				className="max-w-lg"
+				showCloseButton={!isSubmitting}
+				onInteractOutside={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+				onEscapeKeyDown={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+			>
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -218,7 +256,7 @@ export function CreateSessionDialog({
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => onOpenChange(false)}
+							onClick={() => handleOpenChange(false)}
 							disabled={isSubmitting}
 							className="cursor-pointer"
 						>
@@ -229,7 +267,11 @@ export function CreateSessionDialog({
 							disabled={isSubmitting}
 							className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
 						>
-							<Plus className="h-4 w-4 mr-2" />
+							{isSubmitting ? (
+								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							) : (
+								<Plus className="h-4 w-4 mr-2" />
+							)}
 							{isSubmitting ? "Creating..." : "Create Session"}
 						</Button>
 					</DialogFooter>

@@ -448,17 +448,17 @@ enum RoomBookingStatus {
 }
 
 enum SessionSection {
-  intro
+  call_to_order
   opening_prayer_invocation
   national_anthem_and_pledge_of_allegiance
   roll_call
-  reading_and_or_approval_of_minutes
-  first_reading_and_references
-  committee_report
+  reading_and_or_approval_of_the_minutes
+  first_reading_and_reference_of_business
+  committee_reports
   calendar_of_business
   third_reading
   other_matters
-  closing_prayer
+  closing_prayers
   adjournment
 
   @@map("session_section")

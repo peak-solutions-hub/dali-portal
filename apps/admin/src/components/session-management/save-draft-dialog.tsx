@@ -9,14 +9,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/dialog";
-import { Save } from "@repo/ui/lib/lucide-react";
+import { Loader2, Save } from "@repo/ui/lib/lucide-react";
 import { useState } from "react";
 
 interface SaveDraftDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	sessionNumber: string;
-	onConfirm?: () => void;
+	onConfirm?: () => void | Promise<void>;
 }
 
 export function SaveDraftDialog({
@@ -28,15 +28,17 @@ export function SaveDraftDialog({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const handleSave = () => {
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (isSubmitting) return;
+		onOpenChange(nextOpen);
+	};
+
+	const handleSave = async () => {
 		setError(null);
 		setIsSubmitting(true);
 
 		try {
-			if (onConfirm) {
-				onConfirm();
-			}
-
+			if (onConfirm) await onConfirm();
 			onOpenChange(false);
 		} catch {
 			setError("Failed to save draft. Please try again.");
@@ -46,8 +48,17 @@ export function SaveDraftDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-md">
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent
+				className="max-w-md"
+				showCloseButton={!isSubmitting}
+				onInteractOutside={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+				onEscapeKeyDown={(e) => {
+					if (isSubmitting) e.preventDefault();
+				}}
+			>
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
@@ -98,7 +109,7 @@ export function SaveDraftDialog({
 					<Button
 						type="button"
 						variant="outline"
-						onClick={() => onOpenChange(false)}
+						onClick={() => handleOpenChange(false)}
 						disabled={isSubmitting}
 						className="cursor-pointer"
 					>
@@ -109,7 +120,11 @@ export function SaveDraftDialog({
 						disabled={isSubmitting}
 						className="bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
 					>
-						<Save className="h-4 w-4 mr-2" />
+						{isSubmitting ? (
+							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						) : (
+							<Save className="h-4 w-4 mr-2" />
+						)}
 						{isSubmitting ? "Saving..." : "Save Draft"}
 					</Button>
 				</DialogFooter>
