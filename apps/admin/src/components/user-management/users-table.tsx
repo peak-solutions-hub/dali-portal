@@ -25,9 +25,12 @@ import {
 } from "@repo/ui/components/table";
 import { Mail, MoreHorizontal, Pencil, UserX } from "@repo/ui/lib/lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
-import { api } from "@/lib/api.client";
-import { ActivateUserDialog, DeactivateUserDialog, UpdateUserDialog } from ".";
+import {
+	DeactivateUserDialog,
+	ReactivateUserDialog,
+	ReinviteUserDialog,
+	UpdateUserDialog,
+} from ".";
 
 interface UsersTableProps {
 	users: UserWithRole[];
@@ -54,7 +57,8 @@ export function UsersTable({
 }: UsersTableProps) {
 	const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
 	const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-	const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+	const [reinviteDialogOpen, setReinviteDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	return (
@@ -137,18 +141,8 @@ export function UsersTable({
 												<DropdownMenuItem
 													className="text-blue-600 focus:text-blue-600"
 													onClick={() => {
-														const promise = api.users.invite({
-															email: user.email,
-															fullName: user.fullName,
-															roleId: user.role.id,
-														});
-
-														toast.promise(promise, {
-															loading: "Sending invitation...",
-															success: "Invitation email sent successfully",
-															error: (err) =>
-																`Failed to send invitation: ${err.message}`,
-														});
+														setSelectedUser(user);
+														setTimeout(() => setReinviteDialogOpen(true), 0);
 													}}
 												>
 													<Mail className="w-4 h-4 mr-2 text-blue-600" />
@@ -160,7 +154,7 @@ export function UsersTable({
 													className="text-green-600 focus:text-green-600"
 													onClick={() => {
 														setSelectedUser(user);
-														setTimeout(() => setActivateDialogOpen(true), 0);
+														setTimeout(() => setReactivateDialogOpen(true), 0);
 													}}
 												>
 													<Pencil className="w-4 h-4 mr-2 text-green-600" />
@@ -223,11 +217,21 @@ export function UsersTable({
 				/>
 			)}
 
-			{/* Activate User Dialog */}
+			{/* Reactivate User Dialog */}
 			{selectedUser && (
-				<ActivateUserDialog
-					open={activateDialogOpen}
-					onOpenChange={setActivateDialogOpen}
+				<ReactivateUserDialog
+					open={reactivateDialogOpen}
+					onOpenChange={setReactivateDialogOpen}
+					user={selectedUser}
+					onRefresh={onRefresh}
+				/>
+			)}
+
+			{/* Reinvite User Dialog */}
+			{selectedUser && (
+				<ReinviteUserDialog
+					open={reinviteDialogOpen}
+					onOpenChange={setReinviteDialogOpen}
 					user={selectedUser}
 					onRefresh={onRefresh}
 				/>
