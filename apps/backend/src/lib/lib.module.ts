@@ -1,7 +1,9 @@
 import { Global, Module } from "@nestjs/common";
 import { ConfigModule as NestConfigModule } from "@nestjs/config";
 import config from "@/config";
-import { ConfigService } from "./config.service";
+import { ConfigService } from "@/lib/config.service";
+import { ResendService } from "@/lib/resend.service";
+import { TurnstileService } from "@/lib/turnstile.service";
 
 @Global()
 @Module({
@@ -10,7 +12,7 @@ import { ConfigService } from "./config.service";
 			load: [config],
 		}),
 	],
-	providers: [ConfigService],
-	exports: [ConfigService],
+	providers: [ConfigService, ResendService, TurnstileService],
+	exports: [ConfigService, ResendService, TurnstileService],
 })
 export class LibModule {}

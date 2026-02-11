@@ -10,7 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *
  * @example
  * ```typescript
- * const supabase = createSupabaseBrowserClient();
+ * const supabase = createBrowserClient();
  * const url = await getSignedUrl(supabase, "documents", "2024/file.pdf");
  * ```
  */
@@ -41,7 +41,7 @@ export async function getSignedUrl(
  *
  * @example
  * ```typescript
- * const supabase = createSupabaseBrowserClient();
+ * const supabase = createBrowserClient();
  * const results = await getSignedUrls(supabase, "documents", ["file1.pdf", "file2.pdf"]);
  * ```
  */
@@ -70,7 +70,7 @@ export async function getSignedUrls(
  *
  * @example
  * ```typescript
- * const supabase = createSupabaseBrowserClient();
+ * const supabase = createBrowserClient();
  * const url = getPublicUrl(supabase, "public-files", "logo.png");
  * ```
  */
