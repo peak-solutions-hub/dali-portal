@@ -15,6 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
+import { TimePicker } from "@repo/ui/components/time-picker";
 import { cn } from "@repo/ui/lib/utils";
 import { CalendarIcon, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -211,13 +212,10 @@ export function BookingModal({
 							>
 								Start Time <span className="text-red-500">*</span>
 							</label>
-							<input
-								id="startTime"
-								type="time"
+							<TimePicker
 								value={startTime}
-								onChange={(e) => setStartTime(e.target.value)}
-								className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								required
+								onChange={(value) => setStartTime(value)}
+								placeholder="Select start time"
 							/>
 						</div>
 						<div>
@@ -227,13 +225,10 @@ export function BookingModal({
 							>
 								End Time <span className="text-red-500">*</span>
 							</label>
-							<input
-								id="endTime"
-								type="time"
+							<TimePicker
 								value={endTime}
-								onChange={(e) => setEndTime(e.target.value)}
-								className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								required
+								onChange={(value) => setEndTime(value)}
+								placeholder="Select end time"
 							/>
 						</div>
 					</div>
