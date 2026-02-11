@@ -89,7 +89,9 @@ export class InquiryTicketService {
 		const inquiryTicketWithMessages = await this.db.inquiryTicket.findFirst({
 			where: { id: input.id },
 			include: {
-				inquiryMessages: true,
+				inquiryMessages: {
+					orderBy: { createdAt: "asc" },
+				},
 			},
 		});
 
