@@ -89,29 +89,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			if (error) {
 				console.error("[AuthProvider] Failed to fetch user profile:", error);
 
-				// If the backend indicates the account is deactivated, sign out and redirect
+				// Sign out and redirect on ANY error (401/403/500)
 				const errStatus = (error as { status?: number })?.status;
-				const errMessage = (error as { message?: string })?.message ?? "";
-				if (
-					errStatus === 401 ||
-					errStatus === 403 ||
-					(typeof errMessage === "string" &&
-						errMessage.toLowerCase().includes("deactivated"))
-				) {
-					console.warn(
-						"[AuthProvider] Account deactivated or unauthorized — signing out",
-					);
-					await supabase.auth.signOut();
-					setAuthToken(null);
-					setUserProfile(null);
-					setIsLoading(false);
-					router.push("/unauthorized");
-					return null;
-				}
+				const errCode = (error as { code?: string })?.code;
 
-				// Network or other errors - don't partial load
+				console.warn("[AuthProvider] Auth error — signing out", {
+					status: errStatus,
+					code: errCode,
+				});
+				await supabase.auth.signOut();
+				setAuthToken(null);
 				setUserProfile(null);
 				setIsLoading(false);
+
+				// Hard redirect based on error code (SINGLE SOURCE OF TRUTH)
+				if (errCode === "AUTH.DEACTIVATED_ACCOUNT") {
+					window.location.href = "/unauthorized";
+				} else {
+					// Invalid token, expired session, 500 errors, etc. → login
+					window.location.href = "/login";
+				}
 				return null;
 			}
 
@@ -210,8 +207,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					setIsLoading(false);
 					profileCacheRef.current = null;
 
-					// Only redirect if not already on auth pages
-					if (!window.location.pathname.startsWith("/auth/")) {
+					// Only redirect if not already on auth pages or unauthorized
+					const path = window.location.pathname;
+					if (
+						!path.startsWith("/auth/") &&
+						path !== "/unauthorized" &&
+						path !== "/login" &&
+						path !== "/forgot-password" &&
+						path !== "/set-password"
+					) {
 						router.push(
 							"/login?message=Your session has expired. Please sign in again.",
 						);

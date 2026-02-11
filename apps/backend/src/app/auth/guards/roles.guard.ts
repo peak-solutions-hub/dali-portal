@@ -5,13 +5,13 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { AppError, type RoleType } from "@repo/shared";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type {
+	SupabaseClient,
+	User as SupabaseUser,
+} from "@supabase/supabase-js";
 import { DbService } from "@/app/db/db.service";
-import { ConfigService } from "@/lib/config.service";
+import { SupabaseAdminService } from "@/app/util/supabase/supabase-admin.service";
 import { ROLES_KEY } from "../decorators/roles.decorator";
-
-let supabaseClient: SupabaseClient | null = null;
 
 /**
  * In-memory cache for user data to avoid database queries on every request.
@@ -35,26 +35,10 @@ export class RolesGuard implements CanActivate {
 
 	constructor(
 		private readonly reflector: Reflector,
-		private readonly configService: ConfigService,
+		private readonly supabaseAdmin: SupabaseAdminService,
 		private readonly db: DbService,
 	) {
-		// Use cached client or create new one
-		if (!supabaseClient) {
-			const supabaseUrl = this.configService.getOrThrow(
-				"supabase.url",
-			) as string;
-			const serviceRoleKey = this.configService.getOrThrow(
-				"supabase.serviceRoleKey",
-			) as string;
-
-			supabaseClient = createClient(supabaseUrl, serviceRoleKey, {
-				auth: {
-					autoRefreshToken: false,
-					persistSession: false,
-				},
-			});
-		}
-		this.supabase = supabaseClient;
+		this.supabase = this.supabaseAdmin.getClient();
 	}
 
 	/**

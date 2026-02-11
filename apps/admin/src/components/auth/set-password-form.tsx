@@ -56,11 +56,57 @@ export function SetPasswordForm() {
 			} = await supabase.auth.getSession();
 
 			if (session) {
-				// console.log("[SetPassword] Session found, allowing password setup");
+				// Check if user is deactivated before allowing password setup
+				setAuthToken(session.access_token);
+				try {
+					const [error, data] = await api.users.me({});
+
+					if (error) {
+						const errStatus = (error as { status?: number })?.status;
+						const errCode = (error as { code?: string })?.code;
+
+						// Handle 401/403 errors
+						if (errStatus === 401 || errStatus === 403) {
+							await supabase.auth.signOut();
+							setAuthToken(null);
+
+							// Redirect based on error code
+							if (errCode === "AUTH.DEACTIVATED_ACCOUNT") {
+								router.push("/unauthorized");
+							} else {
+								// Invalid token, expired session → request new invite
+								router.push(
+									"/login?error=session_expired&message=Your session has expired. Please request a new invite link.",
+								);
+							}
+							return;
+						}
+
+						// Other errors - block access
+						await supabase.auth.signOut();
+						setAuthToken(null);
+						router.push("/unauthorized");
+						return;
+					}
+
+					// Check if user is deactivated
+					if (data && (data as { status?: string }).status === "deactivated") {
+						await supabase.auth.signOut();
+						setAuthToken(null);
+						router.push("/unauthorized");
+						return;
+					}
+				} catch {
+					// Unexpected error - block access
+					await supabase.auth.signOut();
+					setAuthToken(null);
+					router.push("/unauthorized");
+					return;
+				}
+
 				setHasSession(true);
 				setIsChecking(false);
 			} else {
-				// console.log("[SetPassword] No session found, redirecting to sign-in");
 				setHasSession(false);
 				router.push(
 					"/login?error=session_expired&message=Your session has expired. Please request a new invite link.",
@@ -152,11 +198,9 @@ export function SetPasswordForm() {
 				}
 
 				if (profile.status === "deactivated") {
-					toast.error(
-						"Your account has been deactivated. Please contact an administrator.",
-					);
 					await supabase.auth.signOut();
 					setSession(null);
+					router.push("/unauthorized");
 					return;
 				}
 
@@ -166,11 +210,9 @@ export function SetPasswordForm() {
 			} catch (profileError: unknown) {
 				const error = profileError as { status?: number; message?: string };
 				if (error.status === 403) {
-					toast.error(
-						"Your account has been deactivated. Please contact an administrator.",
-					);
 					await supabase.auth.signOut();
 					setSession(null);
+					router.push("/unauthorized");
 					return;
 				}
 
@@ -178,6 +220,7 @@ export function SetPasswordForm() {
 				toast.error("Failed to load user profile. Please try again.");
 				await supabase.auth.signOut();
 				setSession(null);
+				router.push("/login");
 			}
 		} catch (err) {
 			console.error("Set password error:", err);

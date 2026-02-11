@@ -23,12 +23,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
-import {
-	Mail,
-	MoreHorizontal,
-	Pencil,
-	Trash2,
-} from "@repo/ui/lib/lucide-react";
+import { Mail, MoreHorizontal, Pencil, UserX } from "@repo/ui/lib/lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
@@ -156,7 +151,7 @@ export function UsersTable({
 														});
 													}}
 												>
-													<Mail className="w-4 h-4 mr-2" />
+													<Mail className="w-4 h-4 mr-2 text-blue-600" />
 													Re-invite
 												</DropdownMenuItem>
 											)}
@@ -168,7 +163,7 @@ export function UsersTable({
 														setTimeout(() => setActivateDialogOpen(true), 0);
 													}}
 												>
-													<Pencil className="w-4 h-4 mr-2" />
+													<Pencil className="w-4 h-4 mr-2 text-green-600" />
 													Reactivate
 												</DropdownMenuItem>
 											) : (
@@ -179,34 +174,12 @@ export function UsersTable({
 														setTimeout(() => setDeleteDialogOpen(true), 0);
 													}}
 												>
-													<Trash2 className="w-4 h-4 mr-2" />
+													<UserX className="w-4 h-4 mr-2 text-red-600" />
 													Deactivate
 												</DropdownMenuItem>
 											)}
 										</DropdownMenuContent>
 									</DropdownMenu>
-								</TableCell>
-							</TableRow>
-						))}
-
-						{Array.from({
-							length: Math.max(0, itemsPerPage - users.length),
-						}).map((_, i) => (
-							<TableRow
-								key={`empty-${i}`}
-								className={`border-b border-[#e5e7eb] ${(users.length + i) % 2 === 1 ? "bg-gray-50/30" : "bg-white"}`}
-							>
-								<TableCell className="px-6 py-5">
-									<div className="h-6" />
-								</TableCell>
-								<TableCell className="px-6 py-5">
-									<div className="h-6" />
-								</TableCell>
-								<TableCell className="px-6 py-5">
-									<div className="h-6" />
-								</TableCell>
-								<TableCell className="px-6 py-5">
-									<div className="h-6" />
 								</TableCell>
 							</TableRow>
 						))}

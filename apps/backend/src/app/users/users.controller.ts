@@ -43,12 +43,22 @@ export class UsersController {
 		});
 	}
 
-	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
+	@Roles(...ALL_ROLES)
 	@Implement(contract.users.activate)
 	activateUser() {
 		return implement(contract.users.activate).handler(async ({ input }) => {
 			return await this.usersService.activateUser(input);
 		});
+	}
+
+	// Public endpoint (no @Roles decorator) - used for password reset validation
+	@Implement(contract.users.checkEmailStatus)
+	checkEmailStatus() {
+		return implement(contract.users.checkEmailStatus).handler(
+			async ({ input }) => {
+				return await this.usersService.checkEmailStatus(input);
+			},
+		);
 	}
 
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)

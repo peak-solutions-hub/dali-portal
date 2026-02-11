@@ -1,7 +1,8 @@
 "use client";
 
 import { ROLE_DISPLAY_NAMES } from "@repo/shared";
-import { ChevronRight } from "@repo/ui/lib/lucide-react";
+import { Button } from "@repo/ui/components/button";
+import { ChevronRight, LogOut } from "@repo/ui/lib/lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,12 +12,16 @@ import { useAuth } from "@/contexts/auth-context";
 
 export function Sidebar() {
 	const pathname = usePathname();
-	const { userProfile } = useAuth();
+	const { userProfile, signOut } = useAuth();
 
 	// Filter navigation items based on user role
 	const filteredNavItems = useMemo(() => {
 		return getFilteredNavItems(userProfile?.role?.name);
 	}, [userProfile?.role?.name]);
+
+	const handleLogout = async () => {
+		await signOut();
+	};
 
 	return (
 		<aside className="w-64 bg-white border-r border-[#e5e7eb] flex flex-col h-screen overflow-hidden">
@@ -86,6 +91,18 @@ export function Sidebar() {
 					);
 				})}
 			</nav>
+
+			{/* Logout Button */}
+			<div className="px-4 pb-4 pt-2 border-t border-[#e5e7eb]">
+				<Button
+					onClick={handleLogout}
+					variant="ghost"
+					className="w-full justify-start gap-3 text-[14px] font-medium text-[#0a0a0a] hover:bg-gray-100 hover:text-[#dc2626]"
+				>
+					<LogOut className="size-4.5 text-[#4a5565]" />
+					<span>Logout</span>
+				</Button>
+			</div>
 		</aside>
 	);
 }

@@ -71,11 +71,10 @@ export function LoginForm() {
 
 				if (profile) {
 					if (profile.status === "deactivated") {
-						toast.error(
-							"Your account has been deactivated. Please contact an administrator.",
-						);
+						// Double-check deactivation status (shouldn't reach here since backend throws 401)
 						await supabase.auth.signOut();
 						setSession(null);
+						router.push("/unauthorized");
 						return;
 					}
 
@@ -85,13 +84,16 @@ export function LoginForm() {
 					router.refresh();
 					return;
 				}
+
+				// Profile is null — auth-context/auth-store already handled redirect
+				// Just wait for redirect to complete
+				console.log("[LoginForm] Profile is null, waiting for redirect...");
+				return;
 			} catch (err) {
 				console.error("Profile fetch error:", err);
+				// Auth-context/auth-store already handled the error and redirect
+				return;
 			}
-
-			toast.success("Login successful");
-			router.push("/dashboard");
-			router.refresh();
 		} catch (err) {
 			console.error("Login error:", err);
 			toast.error("An unexpected error occurred");

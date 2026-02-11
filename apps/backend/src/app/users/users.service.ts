@@ -1,6 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import type {
 	ActivateUserInput,
+	CheckEmailStatusInput,
+	CheckEmailStatusResponse,
 	GetUserListInput,
 	InviteUserInput,
 	InviteUserResponse,
@@ -17,6 +19,8 @@ import { ConfigService } from "@/lib/config.service";
 
 @Injectable()
 export class UsersService {
+	private readonly logger = new Logger(UsersService.name);
+
 	constructor(
 		private readonly db: DbService,
 		private readonly supabaseAdmin: SupabaseAdminService,
@@ -228,6 +232,28 @@ export class UsersService {
 		return activatedUser as UserWithRole;
 	}
 
+	async checkEmailStatus(
+		input: CheckEmailStatusInput,
+	): Promise<CheckEmailStatusResponse> {
+		const { email } = input;
+
+		const user = await this.db.user.findFirst({
+			where: { email },
+		});
+
+		if (!user) {
+			return {
+				exists: false,
+				isDeactivated: false,
+			};
+		}
+
+		return {
+			exists: true,
+			isDeactivated: user.status === "deactivated",
+		};
+	}
+
 	async inviteUser(input: InviteUserInput): Promise<InviteUserResponse> {
 		const { email, fullName, roleId } = input;
 
@@ -259,7 +285,26 @@ export class UsersService {
 		const redirectTo = `${this.configService.getOrThrow("adminUrl")}/auth/confirm`;
 		const supabase = this.supabaseAdmin.getClient();
 
-		// Supabase Invite (Idempotent-ish: resends email if exists)
+		// For reinvites (user exists with "invited" status), delete only the old
+		// Supabase auth user so inviteUserByEmail can create a fresh one.
+		// We keep the DB record and update it with the new auth user ID to avoid
+		// foreign key constraint violations from related tables.
+		const isReinvite = !!existingUser && existingUser.status === "invited";
+
+		if (isReinvite) {
+			this.logger.log(
+				`Reinviting user ${email}: deleting old auth user (keeping DB record)`,
+			);
+			try {
+				await supabase.auth.admin.deleteUser(existingUser.id);
+			} catch (e) {
+				this.logger.warn(`Failed to delete old auth user for reinvite: ${e}`);
+				// Continue — auth user may not exist or was already cleaned up
+			}
+			RolesGuard.invalidateUserCache(existingUser.id);
+		}
+
+		// Supabase Invite — creates auth user and sends invite email
 		const { data: authData, error: authError } =
 			await supabase.auth.admin.inviteUserByEmail(email, {
 				redirectTo,
@@ -270,59 +315,7 @@ export class UsersService {
 			});
 
 		if (authError) {
-			console.error("Supabase Auth Error:", authError);
-
-			// If the user already exists in Supabase Auth, inviteUserByEmail returns
-			// an `email_exists` error. In that case we should not fail hard — instead
-			// we send a password reset (recovery) email so the user can set their
-			// password / complete account setup. If we already have a DB record for
-			// this email, update its status to `invited`.
-			const isEmailExists =
-				(authError as { code?: string })?.code === "email_exists" ||
-				(authError as { status?: number })?.status === 422;
-
-			if (isEmailExists) {
-				try {
-					// Send password reset (recovery) email which lets the user set a password.
-					const { error: resetError } =
-						await supabase.auth.resetPasswordForEmail(email, {
-							redirectTo,
-						});
-
-					if (resetError) {
-						console.error("Failed to send password reset email:", resetError);
-						throw new AppError("USER.RESET_EMAIL_FAILED", resetError.message);
-					}
-
-					// If we already have a DB user, update their status to `invited` and apply updates
-					if (existingUser) {
-						await this.db.user.update({
-							where: { id: existingUser.id },
-							data: {
-								fullName,
-								roleId,
-								status: "invited",
-							},
-						});
-
-						// Invalidate user cache for re-invite
-						RolesGuard.invalidateUserCache(existingUser.id);
-					}
-
-					return {
-						success: true,
-						message:
-							"User already exists in Auth; password reset (recovery) email sent.",
-						userId: existingUser?.id ?? null,
-					} as InviteUserResponse;
-				} catch (e: unknown) {
-					console.error("Reinvite handling failed:", e);
-					const errorMessage = e instanceof Error ? e.message : String(e);
-					throw new AppError("USER.INVITE_FAILED", errorMessage);
-				}
-			}
-
-			// Fallback: other auth errors should still fail loudly
+			this.logger.error("Supabase Auth Error:", authError);
 			throw new AppError("USER.INVITE_FAILED", authError.message);
 		}
 
@@ -330,15 +323,16 @@ export class UsersService {
 			throw new AppError("USER.INVITE_FAILED");
 		}
 
-		// If user didn't exist in our DB, create them
-		if (!existingUser) {
-			try {
-				const newUser = await this.db.user.create({
+		// For reinvites, update the existing DB record with the new auth user ID.
+		// For fresh invites, create a new DB record.
+		try {
+			if (isReinvite && existingUser) {
+				await this.db.user.update({
+					where: { id: existingUser.id },
 					data: {
 						id: authData.user.id,
-						roleId: roleId,
-						fullName: fullName,
-						email: email,
+						roleId,
+						fullName,
 						status: "invited",
 					},
 					include: {
@@ -346,39 +340,37 @@ export class UsersService {
 					},
 				});
 
-				console.log("✓ User created in database:", newUser.id);
-			} catch (dbError) {
-				console.error("Database Error:", dbError);
-				// If DB create fails, try to cleanup auth user (only if it was just created)
-				// Hard to know if auth user was just created or existed, but cleaner to leave auth than have inconsistent state?
-				// Actually, better to delete auth user if we can't create DB record to keep consistency
-				await supabase.auth.admin.deleteUser(authData.user.id);
-				throw new AppError("USER.DB_CREATE_FAILED");
+				this.logger.log(
+					`Reinvite: updated DB user ${existingUser.id} → ${authData.user.id}`,
+				);
+			} else {
+				await this.db.user.create({
+					data: {
+						id: authData.user.id,
+						roleId,
+						fullName,
+						email,
+						status: "invited",
+					},
+					include: {
+						role: true,
+					},
+				});
+
+				this.logger.log(`User created in database: ${authData.user.id}`);
 			}
-		} else {
-			// User existed (e.g. re-invite), update their info if needed
-			// Update name/role in case they changed in the re-invite
-			await this.db.user.update({
-				where: { id: existingUser.id },
-				data: {
-					fullName,
-					roleId,
-					// Ensure status is invited
-					status: "invited",
-				},
-			});
-
-			// Invalidate user cache for re-invite
-			RolesGuard.invalidateUserCache(existingUser.id);
+		} catch (dbError) {
+			this.logger.error("Database Error:", dbError);
+			// Delete auth user to keep consistency if DB create fails
+			await supabase.auth.admin.deleteUser(authData.user.id);
+			throw new AppError("USER.DB_CREATE_FAILED");
 		}
-
-		const emailSent = authData.user.invited_at !== null;
 
 		return {
 			success: true,
-			message: emailSent
-				? "Invitation email sent successfully."
-				: "User processed but email might not have been sent.",
+			message: isReinvite
+				? "Reinvitation email sent successfully."
+				: "Invitation email sent successfully.",
 			userId: authData.user.id,
 		};
 	}

@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthCard, AuthHeader } from "@/components/auth";
+import { api } from "@/lib/api.client";
 
 /**
  * Forgot password form with inline auth logic
@@ -37,8 +38,33 @@ function ForgotPasswordForm() {
 
 	const onSubmit = async (data: ResetPasswordInput) => {
 		try {
+			// First, check if the email exists and is deactivated
+			const [checkError, checkResult] = await api.users.checkEmailStatus({
+				email: data.email,
+			});
+
+			if (checkError) {
+				console.error("Failed to check email status:", checkError);
+				toast.error("Failed to process request");
+				return;
+			}
+
+			// If email doesn't exist, still show success (security: prevent account enumeration)
+			if (!checkResult?.exists) {
+				setSubmittedEmail(data.email);
+				setEmailSent(true);
+				return;
+			}
+
+			// If email exists but account is deactivated, redirect to unauthorized
+			if (checkResult.isDeactivated) {
+				toast.error("Your account has been deactivated");
+				router.push("/unauthorized");
+				return;
+			}
+
+			// Email exists and is active, proceed with password reset
 			const supabase = createBrowserClient();
-			// Use /auth/callback for code exchange and redirect to update password page
 			const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
 				redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
 			});
