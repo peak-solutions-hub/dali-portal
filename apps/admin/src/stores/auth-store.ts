@@ -4,7 +4,7 @@ import { type RoleType } from "@repo/shared";
 import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { create } from "zustand";
-import { api, setAuthToken } from "@/lib/api.client";
+import { setAuthToken } from "@/lib/api.client";
 
 /**
  * User profile type as returned from the API (JSON serialized)
@@ -30,7 +30,7 @@ export interface UserProfile {
 interface AuthState {
 	/** Supabase session containing the JWT token */
 	session: Session | null;
-	/** User profile from public.users table with role information */
+	/** User profile from public.users table with role information (synced by AuthProvider) */
 	userProfile: UserProfile | null;
 	/** Whether the user is authenticated */
 	isAuthenticated: boolean;
@@ -42,11 +42,6 @@ interface AuthState {
 interface AuthActions {
 	/** Set the Supabase session and update auth token for API calls */
 	setSession: (session: Session | null) => void;
-	/** Fetch user profile from NestJS backend */
-	fetchProfile: () => Promise<{
-		profile: UserProfile | null;
-		errorCode?: string;
-	}>;
 	/** Clear auth state and sign out from Supabase */
 	logout: () => Promise<void>;
 }
@@ -57,7 +52,9 @@ interface AuthActions {
 type AuthStore = AuthState & AuthActions;
 
 /**
- * Zustand auth store for managing authentication state
+ * Zustand auth store — passive mirror of auth state.
+ * AuthProvider (auth-context) is the single source of truth for profile fetching.
+ * This store is synced by AuthProvider and used by non-component code.
  *
  * @example
  * ```tsx
@@ -91,27 +88,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 			// Clear profile if session is cleared
 			userProfile: session ? get().userProfile : null,
 		});
-	},
-
-	fetchProfile: async () => {
-		const { session } = get();
-
-		if (!session) {
-			set({ userProfile: null });
-			return { profile: null };
-		}
-
-		const [error, data] = await api.users.me({});
-
-		if (error) {
-			const errCode = (error as { code?: string })?.code;
-
-			set({ userProfile: null });
-			return { profile: null, errorCode: errCode };
-		}
-
-		set({ userProfile: data });
-		return { profile: data, errorCode: undefined };
 	},
 
 	logout: async () => {

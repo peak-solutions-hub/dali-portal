@@ -1,7 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type ResetPasswordInput, ResetPasswordSchema } from "@repo/shared";
+import {
+	DEACTIVATED_MESSAGE,
+	type ResetPasswordInput,
+	ResetPasswordSchema,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
 import {
@@ -57,9 +61,7 @@ function ForgotPasswordForm() {
 
 			// If email exists but account is deactivated, show error toast
 			if (checkResult.isDeactivated) {
-				toast.error(
-					"Your account has been deactivated. Please contact a system administrator.",
-				);
+				toast.error(DEACTIVATED_MESSAGE);
 				return;
 			}
 

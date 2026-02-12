@@ -1,6 +1,11 @@
 "use client";
 
-import { AUTH_DEBOUNCE, PROFILE_CACHE } from "@repo/shared";
+import {
+	AUTH_DEBOUNCE,
+	DEACTIVATED_MESSAGE,
+	getRedirectPath,
+	PROFILE_CACHE,
+} from "@repo/shared";
 import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -12,9 +17,19 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { toast } from "sonner";
 import { api, setAuthToken } from "@/lib/api.client";
 import type { UserProfile } from "@/stores/auth-store";
 import { useAuthStore } from "@/stores/auth-store";
+
+/**
+ * Discriminated union returned by fetchProfile.
+ * Callers decide what UI action to take based on the status.
+ */
+export type FetchProfileResult =
+	| { status: "ok"; profile: UserProfile }
+	| { status: "deactivated" }
+	| { status: "error"; message?: string };
 
 type AuthContextType = {
 	user: User | null;
@@ -22,11 +37,11 @@ type AuthContextType = {
 	userProfile: UserProfile | null;
 	isLoading: boolean;
 	signOut: () => Promise<void>;
-	/** Fetch user profile - returns the profile or null */
+	/** Fetch user profile — returns a discriminated result, never throws */
 	fetchProfile: (
 		accessToken: string,
 		userEmail?: string,
-	) => Promise<UserProfile | null>;
+	) => Promise<FetchProfileResult>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -61,13 +76,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	} | null>(null);
 
 	/**
-	 * Fetch user profile from backend.
-	 * Returns the profile directly for immediate use.
+	 * Pure profile fetcher — calls /users/me, detects deactivated accounts,
+	 * signs out on failure. Does NOT show toasts or redirect.
+	 * Callers (onAuthStateChange handlers, set-password-form) own UI actions.
 	 */
 	const fetchProfile = async (
 		accessToken: string,
 		userEmail?: string,
-	): Promise<UserProfile | null> => {
+	): Promise<FetchProfileResult> => {
 		// Check cache first
 		if (profileCacheRef.current) {
 			const { token, profile, timestamp } = profileCacheRef.current;
@@ -75,14 +91,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				token === accessToken &&
 				Date.now() - timestamp < PROFILE_CACHE.TTL_MS
 			) {
-				// console.log("[AuthProvider] Using cached profile");
 				setUserProfile(profile);
+				useAuthStore.setState({ userProfile: profile });
 				setIsLoading(false);
-				return profile;
+				return { status: "ok", profile };
 			}
 		}
-
-		// console.log("[AuthProvider] Fetching profile from API");
 
 		// Ensure token is set before making API call
 		setAuthToken(accessToken);
@@ -91,12 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			const [error, data] = await api.users.me({});
 
 			if (error) {
-				// Sign out and redirect on ANY error (401/403/500)
 				const errCode = (error as { code?: string })?.code;
 				let isDeactivated =
 					errCode === "AUTH.DEACTIVATED_ACCOUNT" ||
 					errCode === "DEACTIVATED_ACCOUNT";
 
+				// Fallback: ORPCError from NestJS guard arrives as INTERNAL_SERVER_ERROR
 				if (
 					!isDeactivated &&
 					errCode === "INTERNAL_SERVER_ERROR" &&
@@ -105,29 +119,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					const [checkError, checkResult] = await api.users.checkEmailStatus({
 						email: userEmail,
 					});
-
 					if (!checkError && checkResult?.isDeactivated) {
 						isDeactivated = true;
 					}
 				}
 
+				// Sign out — caller will handle UI
 				await supabase.auth.signOut();
 				setAuthToken(null);
 				setUserProfile(null);
+				useAuthStore.setState({ userProfile: null });
 				setIsLoading(false);
 
-				// Hard redirect based on error code
 				if (isDeactivated) {
-					window.location.href =
-						"/login?error=deactivated_account&message=Your%20account%20has%20been%20deactivated.%20Please%20contact%20a%20system%20administrator.";
-				} else {
-					// Invalid token, expired session, 500 errors, etc. → login
-					window.location.href = "/login";
+					return { status: "deactivated" };
 				}
-				return null;
+				return { status: "error" };
 			}
-
-			// console.log("[AuthProvider] Profile fetched successfully:", data?.email);
 
 			// Cache the profile
 			if (data) {
@@ -139,13 +147,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			}
 
 			setUserProfile(data);
+			useAuthStore.setState({ userProfile: data });
 			setIsLoading(false);
-			return data;
+			return { status: "ok", profile: data };
 		} catch (_error) {
-			// Catch any unexpected errors during API call
 			setUserProfile(null);
+			useAuthStore.setState({ userProfile: null });
 			setIsLoading(false);
-			return null;
+			return { status: "error" };
 		}
 	};
 
@@ -166,55 +175,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 			debounceTimer = setTimeout(async () => {
 				if (!isSubscribed) return;
-				// console.log("[AuthProvider] Auth event:", event, session?.user?.id);
 
 				setSession(session);
 				setUser(session?.user ?? null);
 
-				// Update Zustand store as well to keep in sync
+				// Update Zustand store to keep in sync
 				useAuthStore.getState().setSession(session);
 
-				// Prevent INITIAL_SESSION and SIGNED_IN conflicts:
-				// Only fetch profile on INITIAL_SESSION (once) or SIGNED_IN (user login)
-				// Skip profile fetch on SIGNED_IN if we already handled INITIAL_SESSION
 				if (event === "INITIAL_SESSION") {
 					hasInitialized = true;
 
 					if (session?.access_token) {
-						try {
-							await fetchProfile(session.access_token, session.user?.email);
-						} catch (_error) {
-							setUserProfile(null);
-							setIsLoading(false);
+						const result = await fetchProfile(
+							session.access_token,
+							session.user?.email,
+						);
+
+						if (result.status === "deactivated") {
+							toast.error(DEACTIVATED_MESSAGE);
+						} else if (result.status === "error") {
+							// Silent — proxy.ts will handle the redirect for protected pages
 						}
 					} else {
-						// console.log("[AuthProvider] No session found");
 						setUserProfile(null);
 						setIsLoading(false);
 					}
 				} else if (event === "SIGNED_IN" && hasInitialized) {
-					// User explicitly signed in after initialization - refetch profile
+					// User explicitly signed in — own the success/error flow
 					if (session?.access_token) {
-						try {
-							await fetchProfile(session.access_token, session.user?.email);
-						} catch (_error) {
-							setUserProfile(null);
-							setIsLoading(false);
+						const path = window.location.pathname;
+						const isAuthPage =
+							path === "/" ||
+							path === "/login" ||
+							path === "/forgot-password" ||
+							path === "/set-password" ||
+							path.startsWith("/auth/");
+
+						// Only show global loading for real login flows from auth pages.
+						// Supabase may emit SIGNED_IN while already authenticated (e.g. tab focus/session recovery).
+						if (isAuthPage) {
+							setIsLoading(true);
+						}
+
+						const result = await fetchProfile(
+							session.access_token,
+							session.user?.email,
+						);
+
+						if (result.status === "ok") {
+							// IMPORTANT: Supabase can emit SIGNED_IN more than once.
+							// Only redirect/show login success when user is on auth routes.
+							if (isAuthPage) {
+								const redirectPath = getRedirectPath(result.profile.role.name);
+								if (path !== redirectPath) {
+									router.push(redirectPath);
+								}
+								toast.success("Login successful");
+							}
+						} else if (result.status === "deactivated") {
+							toast.error(DEACTIVATED_MESSAGE);
+							// No redirect — user is already on /login or /set-password
+						} else {
+							toast.error("An error occurred. Please try again.");
 						}
 					}
 				}
 
 				// TOKEN_REFRESHED: just update the token, no profile fetch needed
 				if (event === "TOKEN_REFRESHED" && session?.access_token) {
-					// console.log("[AuthProvider] Token refreshed, updating auth token");
 					setAuthToken(session.access_token);
 					setIsLoading(false);
 				}
 
 				// SIGNED_OUT: user signed out or session expired
 				if (event === "SIGNED_OUT") {
-					// console.log("[AuthProvider] User signed out, clearing state");
 					setUserProfile(null);
+					useAuthStore.setState({ userProfile: null });
 					setAuthToken(null);
 					setIsLoading(false);
 					profileCacheRef.current = null;
@@ -227,9 +263,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 						path !== "/forgot-password" &&
 						path !== "/set-password"
 					) {
-						router.push(
-							"/login?message=Your session has expired. Please sign in again.",
-						);
+						toast.info("Your session has expired. Please sign in again.");
+						router.push("/login");
 					}
 				}
 			}, AUTH_DEBOUNCE.DELAY_MS);
@@ -242,14 +277,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			}
 			subscription.unsubscribe();
 		};
-		// Note: Only depend on router and supabase (now stable via useState)
-		// Removed isInitialized to prevent premature unsubscription
 	}, [router, supabase]);
 
 	const signOut = async () => {
 		await supabase.auth.signOut();
 		setAuthToken(null);
 		setUserProfile(null);
+		useAuthStore.setState({ userProfile: null });
 		profileCacheRef.current = null;
 		router.push("/login");
 	};
