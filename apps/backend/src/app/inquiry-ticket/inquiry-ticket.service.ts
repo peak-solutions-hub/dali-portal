@@ -1,26 +1,40 @@
-import { Injectable } from "@nestjs/common";
-import { ORPCError } from "@orpc/nest";
+import { Injectable, Logger } from "@nestjs/common";
 import {
+	AppError,
 	type CreateInquiryTicketInput,
 	type CreateInquiryTicketResponse,
+	type CreateSignedUploadUrlsInput,
 	type GetInquiryTicketByIdInput,
 	type GetInquiryTicketListInput,
+	INQUIRY_CATEGORY_LABELS,
+	type InquiryMessage,
+	type InquiryMessageWithAttachments,
+	type InquiryTicket,
 	type InquiryTicketListResponse,
 	type InquiryTicketResponse,
-	type InquiryTicketWithMessagesResponse,
-	TrackInquiryTicketInput,
-	TrackInquiryTicketResponse,
+	type InquiryTicketWithMessagesAndAttachments,
+	type TrackInquiryTicketInput,
+	type TrackInquiryTicketResponse,
 	type UpdateInquiryTicketStatusInput,
 } from "@repo/shared";
 import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
+import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
+import { ConfigService } from "@/lib/config.service";
 import { ResendService } from "@/lib/resend.service";
+
+/** Storage bucket for inquiry attachments */
+const ATTACHMENTS_BUCKET = "attachments";
 
 @Injectable()
 export class InquiryTicketService {
+	private readonly logger = new Logger(InquiryTicketService.name);
+
 	constructor(
 		private readonly db: DbService,
 		private readonly resend: ResendService,
+		private readonly storageService: SupabaseStorageService,
+		private readonly config: ConfigService,
 	) {}
 
 	async create(
@@ -39,7 +53,7 @@ export class InquiryTicketService {
 				category: input.category,
 				subject: input.subject,
 				status: "new",
-				// create initial inquiry message
+				// create initial inquiry message with optional attachments
 				// https://www.prisma.io/docs/orm/prisma-client/queries/transactions#nested-writes-1
 				inquiryMessages: {
 					create: [
@@ -47,13 +61,17 @@ export class InquiryTicketService {
 							senderName: input.citizenName,
 							content: input.message,
 							senderType: "citizen",
+							attachmentPaths: input.attachmentPaths ?? [],
 						},
 					],
 				},
 			},
 		});
 
-		this.resend.send({
+		// send confirmation email
+		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(response.referenceNumber)}&email=${encodeURIComponent(response.citizenEmail)}`;
+
+		const emailRes = await this.resend.send({
 			to: response.citizenEmail,
 			template: {
 				id: "inquiry-confirmation",
@@ -61,12 +79,17 @@ export class InquiryTicketService {
 					CITIZEN_NAME: response.citizenName,
 					REFERENCE_NUMBER: response.referenceNumber,
 					SUBJECT: response.subject,
-					CATEGORY: response.category,
-					YEAR: new Date().getFullYear(),
-					PORTAL_URL: "http://localhost:3000",
+					CATEGORY: INQUIRY_CATEGORY_LABELS[response.category],
+					YEAR: new Date().getFullYear().toString(),
+					PORTAL_URL: portalUrl,
 				},
 			},
 		});
+
+		if (emailRes.error) {
+			// override error message to be more user-friendly
+			throw new AppError("INQUIRY.EMAIL_SEND_FAILED", emailRes.error.message);
+		}
 
 		return { referenceNumber };
 	}
@@ -83,29 +106,37 @@ export class InquiryTicketService {
 		return ticketId;
 	}
 
+	/**
+	 * Get inquiry ticket with all messages and pre-signed attachment URLs.
+	 * Signed URLs are valid for 1 hour and generated server-side.
+	 */
 	async getWithMessages(
 		input: GetInquiryTicketByIdInput,
-	): Promise<InquiryTicketWithMessagesResponse> {
-		const inquiryTicketWithMessages = await this.db.inquiryTicket.findFirst({
-			where: { id: input.id },
-			include: {
-				inquiryMessages: {
-					orderBy: { createdAt: "asc" },
+	): Promise<InquiryTicketWithMessagesAndAttachments> {
+		const inquiryTicketWithMessages =
+			await this.db.inquiryTicket.findFirstOrThrow({
+				where: { id: input.id },
+				include: {
+					inquiryMessages: {
+						orderBy: { createdAt: "asc" },
+					},
 				},
-			},
-		});
+			});
 
 		if (!inquiryTicketWithMessages) {
-			throw new ORPCError("NOT_FOUND");
+			throw new AppError("INQUIRY.NOT_FOUND");
 		}
+
+		// Generate signed URLs for all message attachments
+		const messagesWithAttachments = await Promise.all(
+			inquiryTicketWithMessages.inquiryMessages.map(async (message) =>
+				this.addAttachmentUrlsToMessage(message),
+			),
+		);
 
 		return {
 			...inquiryTicketWithMessages,
-			createdAt: inquiryTicketWithMessages.createdAt.toISOString(),
-			inquiryMessages: inquiryTicketWithMessages.inquiryMessages.map((msg) => ({
-				...msg,
-				createdAt: msg.createdAt.toISOString(),
-			})),
+			inquiryMessages: messagesWithAttachments,
 		};
 	}
 
@@ -117,7 +148,7 @@ export class InquiryTicketService {
 		});
 
 		if (!inquiryTicket) {
-			throw new ORPCError("NOT_FOUND");
+			throw new AppError("INQUIRY.NOT_FOUND");
 		}
 
 		return {
@@ -181,7 +212,7 @@ export class InquiryTicketService {
 		});
 
 		if (!inquiryTicket) {
-			throw new ORPCError("NOT_FOUND");
+			throw new AppError("INQUIRY.NOT_FOUND");
 		}
 
 		const updated = await this.db.inquiryTicket.update({
@@ -196,6 +227,60 @@ export class InquiryTicketService {
 			...updated,
 			createdAt: updated.createdAt.toISOString(),
 		};
+	}
+
+	/**
+	 * Add signed attachment URLs to a message.
+	 * Delegates to SupabaseStorageService for URL generation.
+	 */
+	private async addAttachmentUrlsToMessage(
+		message: InquiryMessage,
+	): Promise<InquiryMessageWithAttachments> {
+		const attachments = await this.storageService.getSignedUrls(
+			ATTACHMENTS_BUCKET,
+			message.attachmentPaths ?? [],
+		);
+
+		return {
+			...message,
+			attachments,
+		};
+	}
+
+	/**
+	 * Generate signed upload URLs for inquiry attachments.
+	 * The backend controls the bucket and generates unique paths for security.
+	 */
+	async createSignedUploadUrls(input: CreateSignedUploadUrlsInput) {
+		const { folder, fileNames } = input;
+
+		try {
+			const paths = fileNames.map((fileName) =>
+				this.storageService.generateUploadPath(folder, fileName),
+			);
+
+			const results = await this.storageService.createSignedUploadUrls(
+				ATTACHMENTS_BUCKET,
+				paths,
+			);
+
+			return {
+				uploads: results.map((result, index) => ({
+					fileName: fileNames[index],
+					path: result.path,
+					signedUrl: result.signedUrl,
+					token: result.token,
+				})),
+			};
+		} catch (error) {
+			this.logger.error("Failed to generate signed upload URLs", error);
+
+			if (error instanceof AppError) {
+				throw error;
+			}
+
+			throw new AppError("STORAGE.SIGNED_URL_FAILED");
+		}
 	}
 
 	private generateReferenceNumber(year: number): string {

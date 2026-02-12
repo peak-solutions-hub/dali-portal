@@ -7,7 +7,7 @@ import type {
 } from "@repo/shared";
 import { ScrollArea } from "@repo/ui/components/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@repo/ui/components/sheet";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api.client";
 import { createTicketHelpers } from "@/utils/inquiry-ticket-helpers";
@@ -107,7 +107,7 @@ export function InquiryTicketSheet({
 	const uploadFiles = async (): Promise<string[]> => {
 		if (files.length === 0) return [];
 
-		const supabase = createSupabaseBrowserClient();
+		const supabase = createBrowserClient();
 		const paths: string[] = [];
 
 		for (const file of files) {

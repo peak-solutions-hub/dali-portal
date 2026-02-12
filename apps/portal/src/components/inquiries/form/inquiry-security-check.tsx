@@ -1,11 +1,10 @@
 "use client";
 
-import { forwardRef } from "react";
-
 import {
 	TurnstileWidget,
 	type TurnstileWidgetRef,
-} from "@/components/turnstile/turnstile-widget";
+} from "@repo/ui/components/turnstile-widget";
+import { forwardRef } from "react";
 
 interface InquirySecurityCheckProps {
 	onVerify?: (token: string) => void;

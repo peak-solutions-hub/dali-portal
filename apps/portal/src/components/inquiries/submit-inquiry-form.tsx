@@ -1,19 +1,21 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Form } from "@repo/ui/components/form";
 import { Separator } from "@repo/ui/components/separator";
+import type { TurnstileWidgetRef } from "@repo/ui/components/turnstile-widget";
 import { AlertCircle } from "@repo/ui/lib/lucide-react";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-
 import { SuccessDialog } from "@/components/inquiries/success-dialog";
-import type { TurnstileWidgetRef } from "@/components/turnstile";
-import { api } from "@/lib/api.client";
+import { useSendInquiry } from "@/hooks/inquiries/use-send-inquiry";
 
-import { InquiryFormAttachments } from "./form/inquiry-form-attachments";
+import {
+	InquiryFormAttachments,
+	type InquiryFormAttachmentsRef,
+} from "./form/inquiry-form-attachments";
 import { InquiryFormDetails } from "./form/inquiry-form-details";
 import { InquiryFormHeader } from "./form/inquiry-form-header";
 import { InquiryFormPersonalDetails } from "./form/inquiry-form-personal-details";
@@ -25,16 +27,35 @@ import {
 } from "./form/schema";
 
 export function SubmitInquiryForm() {
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+	const [attachmentPaths, setAttachmentPaths] = useState<string[]>([]);
 	const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 	const [referenceNumber, setReferenceNumber] = useState("");
 	const [citizenEmail, setCitizenEmail] = useState("");
+
+	// Track file state via props (not refs)
+	const [fileState, setFileState] = useState({
+		hasFiles: false,
+		hasErrors: false,
+		hasExceededLimit: false,
+	});
+
+	// turnstile captcha component ref
 	const turnstileRef = useRef<TurnstileWidgetRef>(null);
+
+	const attachmentsRef = useRef<InquiryFormAttachmentsRef>(null);
+
+	const { submit, isSubmitting, setIsSubmitting, error, clearError } =
+		useSendInquiry({
+			onSuccess: (refNumber) => {
+				setReferenceNumber(refNumber);
+				setSuccessDialogOpen(true);
+			},
+		});
 
 	const form = useForm<SubmitInquiryFormValues>({
 		resolver: zodResolver(SubmitInquiryFormSchema),
+		mode: "onChange",
+		reValidateMode: "onChange",
 		defaultValues: {
 			citizenName: "",
 			citizenEmail: "",
@@ -45,37 +66,13 @@ export function SubmitInquiryForm() {
 		},
 	});
 
-	const uploadFiles = async (files: File[]): Promise<string[]> => {
-		const supabase = createSupabaseBrowserClient();
-		const paths: string[] = [];
-
-		for (const file of files) {
-			const fileExt = file.name.split(".").pop();
-			const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-			const filePath = `inquiries/${fileName}`;
-
-			const { error: uploadError } = await supabase.storage
-				.from("attachments") // Ensure this bucket exists in Supabase
-				.upload(filePath, file);
-
-			if (uploadError) {
-				console.error("Upload error:", uploadError);
-				throw new Error(`Failed to upload ${file.name}`);
-			}
-
-			paths.push(filePath);
-		}
-		return paths;
-	};
-
 	const handleTurnstileVerify = (token: string) => {
 		form.setValue("captchaToken", token);
-		setError(null);
+		clearError();
 	};
 
 	const handleTurnstileError = () => {
 		form.setValue("captchaToken", null);
-		setError("Security verification failed. Please try again.");
 	};
 
 	const handleTurnstileExpire = () => {
@@ -83,65 +80,68 @@ export function SubmitInquiryForm() {
 	};
 
 	const onSubmit = async (data: SubmitInquiryFormValues) => {
-		// Get token from ref (more reliable than state)
+		// Prevent double-clicks
+		if (isSubmitting) return;
+
+		// Block submission if there are file validation errors or max files exceeded
+		if (
+			form.formState.errors.files ||
+			fileState.hasErrors ||
+			fileState.hasExceededLimit
+		) {
+			return;
+		}
+
 		const captchaToken = turnstileRef.current?.getToken();
 
 		// Check Turnstile token before submitting
-		if (!captchaToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
-			setError("Please complete the security verification.");
+		if (!captchaToken) {
 			return;
 		}
 
 		setIsSubmitting(true);
-		setError(null);
 
-		try {
-			// 1. Upload files
-			let attachmentPaths: string[] = [];
-			if (uploadedFiles.length > 0) {
-				attachmentPaths = await uploadFiles(uploadedFiles);
-			}
+		// 1. Upload files via ref (if any files selected)
+		let uploadedPaths: string[] = attachmentPaths;
 
-			// 2. Call API with captcha token from ref
-			const [err, response] = await api.inquiries.create({
-				...data,
-				captchaToken: captchaToken ?? "",
-				attachmentPaths:
-					attachmentPaths.length > 0 ? attachmentPaths : undefined,
-			});
+		if (fileState.hasFiles) {
+			const result = await attachmentsRef.current?.uploadFiles();
 
-			if (err) {
-				// Reset captcha on error so user can retry
-				turnstileRef.current?.reset();
-
-				// Extract error message
-				const error = err as unknown;
-				const errorMessage =
-					error instanceof Error
-						? error.message
-						: typeof error === "object" && error !== null && "message" in error
-							? String((error as { message: unknown }).message)
-							: "Failed to submit inquiry. Please try again.";
-
-				setError(errorMessage);
+			if (!result) {
 				setIsSubmitting(false);
 				return;
 			}
 
-			if (response?.referenceNumber) {
-				setCitizenEmail(data.citizenEmail);
-				form.reset();
-				setUploadedFiles([]);
+			if (result.errors && result.errors.length > 0) {
+				// reset captcha so user can try submitting again after fixing upload errors
 				turnstileRef.current?.reset();
-				setReferenceNumber(response.referenceNumber);
-				setSuccessDialogOpen(true);
+				setIsSubmitting(false);
+				return;
 			}
-		} catch (e) {
-			console.error(e);
+
+			if (result.successes && result.successes.length > 0) {
+				uploadedPaths = result.successes.map((s) => s.path);
+			}
+		}
+
+		// 2. Submit via hook
+		const { success } = await submit(
+			{
+				...data,
+				captchaToken: captchaToken ?? "",
+			},
+			uploadedPaths,
+		);
+
+		if (success) {
+			setCitizenEmail(data.citizenEmail);
+			form.reset();
+			setAttachmentPaths([]);
+			attachmentsRef.current?.clearFiles();
 			turnstileRef.current?.reset();
-			setError("An unexpected error occurred during submission.");
-		} finally {
-			setIsSubmitting(false);
+		} else {
+			// reset captcha so user can try submitting again after fixing any errors
+			turnstileRef.current?.reset();
 		}
 	};
 
@@ -168,10 +168,11 @@ export function SubmitInquiryForm() {
 							<InquiryFormPersonalDetails control={form.control} />
 							<InquiryFormDetails control={form.control} />
 							<InquiryFormAttachments
+								ref={attachmentsRef}
 								form={form}
 								control={form.control}
-								uploadedFiles={uploadedFiles}
-								setUploadedFiles={setUploadedFiles}
+								onUploadComplete={(paths) => setAttachmentPaths(paths)}
+								onFilesChange={setFileState}
 							/>
 							<InquirySecurityCheck
 								ref={turnstileRef}
@@ -182,7 +183,14 @@ export function SubmitInquiryForm() {
 
 							<Separator className="bg-gray-100" />
 
-							<InquirySubmitButton isSubmitting={isSubmitting} />
+							<InquirySubmitButton
+								isSubmitting={isSubmitting}
+								hasErrors={
+									!!form.formState.errors.files ||
+									fileState.hasErrors ||
+									fileState.hasExceededLimit
+								}
+							/>
 						</form>
 					</Form>
 				</CardContent>

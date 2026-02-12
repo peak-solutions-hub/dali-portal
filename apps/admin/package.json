@@ -11,17 +11,20 @@
 		"check-types": "next typegen && tsc --noEmit"
 	},
 	"dependencies": {
+		"@hookform/resolvers": "^5.2.2",
 		"@orpc/client": "1.13.4",
 		"@orpc/openapi-client": "1.13.4",
+		"@orpc/tanstack-query": "^1.13.4",
 		"@repo/shared": "workspace:*",
 		"@repo/ui": "workspace:*",
-		"@tiptap/pm": "^3.17.0",
-		"@tiptap/react": "^3.17.0",
-		"@tiptap/starter-kit": "^3.17.0",
+		"@supabase/ssr": "^0.8.0",
+		"@tanstack/react-query": "^5.90.20",
 		"next": "16.0.10",
 		"react": "19.2.1",
 		"react-dom": "19.2.1",
-		"sonner": "^2.0.7"
+		"react-hook-form": "^7.71.1",
+		"sonner": "^2.0.7",
+		"zustand": "^5.0.10"
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
@@ -29,6 +32,7 @@
 		"@types/node": "^22.10.7",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
+		"baseline-browser-mapping": "^2.9.19",
 		"tailwindcss": "^4.1.18",
 		"typescript": "5.9.3"
 	}

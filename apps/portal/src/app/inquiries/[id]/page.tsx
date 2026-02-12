@@ -10,6 +10,7 @@ interface PageProps {
 export default async function InquiryPage({ params }: PageProps) {
 	const { id } = await params;
 
+	// Fetch inquiry with messages - signed URLs are now included in the response
 	const [err, data] = await api.inquiries.getWithMessages({ id });
 
 	if (err) {

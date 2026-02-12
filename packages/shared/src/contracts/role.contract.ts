@@ -1,7 +1,7 @@
 import { oc } from "@orpc/contract";
+import { ERRORS } from "../constants";
 import { RoleListResponseSchema } from "../schemas/role.schema";
 
-// Get roles list
 export const getRolesListContract = oc
 	.route({
 		method: "GET",
@@ -12,12 +12,10 @@ export const getRolesListContract = oc
 	})
 	.output(RoleListResponseSchema)
 	.errors({
-		UNAUTHORIZED: {
-			message: "User not authorized to access roles",
-		},
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	});
 
-// Export role contract
 export const roleContract = {
 	list: getRolesListContract,
 };

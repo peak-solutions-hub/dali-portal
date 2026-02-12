@@ -1,62 +1,128 @@
 "use client";
 
-import { FILE_COUNT_LIMITS, FILE_SIZE_LIMITS } from "@repo/shared";
+import { FILE_UPLOAD_PRESETS } from "@repo/shared";
+import { formatBytes } from "@repo/ui/components/dropzone";
 import {
 	FormControl,
+	FormDescription,
 	FormField,
 	FormItem,
 	FormLabel,
 	FormMessage,
 } from "@repo/ui/components/form";
-import { Input } from "@repo/ui/components/input";
-import { FileText, Paperclip, X } from "@repo/ui/lib/lucide-react";
+import { AlertCircle, FileIcon, Paperclip, X } from "@repo/ui/lib/lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type { Control, UseFormReturn } from "react-hook-form";
+import { useFileUpload } from "@/hooks/use-file-upload";
 import type { SubmitInquiryFormValues } from "./schema";
 
-interface InquiryFormAttachmentsProps {
-	form: UseFormReturn<SubmitInquiryFormValues>; // Need full form for errors
-	control: Control<SubmitInquiryFormValues>;
-	uploadedFiles: File[];
-	setUploadedFiles: React.Dispatch<React.SetStateAction<File[]>>;
+export interface InquiryFormAttachmentsRef {
+	uploadFiles: () => Promise<{
+		successes: { name: string; path: string }[];
+		errors: { name: string; message: string }[];
+	}>;
+	clearFiles: () => void;
 }
 
-export function InquiryFormAttachments({
-	form,
-	control,
-	uploadedFiles,
-	setUploadedFiles,
-}: InquiryFormAttachmentsProps) {
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files) {
-			const newFiles = Array.from(e.target.files);
-			const totalFiles = uploadedFiles.length + newFiles.length;
+interface InquiryFormAttachmentsProps {
+	form: UseFormReturn<SubmitInquiryFormValues>;
+	control: Control<SubmitInquiryFormValues>;
+	onUploadComplete?: (paths: string[]) => void;
+	/** Called when file state changes */
+	onFilesChange?: (state: {
+		hasFiles: boolean;
+		hasErrors: boolean;
+		hasExceededLimit: boolean;
+	}) => void;
+}
 
-			if (totalFiles > FILE_COUNT_LIMITS.MD) {
-				form.setError("files", {
-					type: "manual",
-					message: `You can only upload a maximum of ${FILE_COUNT_LIMITS.MD} files.`,
-				});
-				return;
-			}
+const { maxFiles, maxFileSize } = FILE_UPLOAD_PRESETS.ATTACHMENTS;
 
-			const invalidFiles = newFiles.filter(
-				(file) => file.size > FILE_COUNT_LIMITS.MD,
-			);
-			if (invalidFiles.length > 0) {
-				form.setError("files", {
-					type: "manual",
-					message: "Some files exceed the 50MB limit.",
-				});
-				return;
-			}
-
+export const InquiryFormAttachments = forwardRef<
+	InquiryFormAttachmentsRef,
+	InquiryFormAttachmentsProps
+>(function InquiryFormAttachments(
+	{ form, control, onUploadComplete, onFilesChange },
+	ref,
+) {
+	// File upload hook using direct Supabase upload
+	const {
+		files,
+		setFiles,
+		getRootProps,
+		getInputProps,
+		isDragActive,
+		onUpload,
+		errors,
+		hasFileErrors,
+		isMaxFilesReached,
+	} = useFileUpload({
+		preset: "ATTACHMENTS",
+		path: "inquiries",
+		onUploadSuccess: (paths) => {
+			onUploadComplete?.(paths);
 			form.clearErrors("files");
-			setUploadedFiles((prev) => [...prev, ...newFiles]);
+		},
+		onUploadError: (uploadErrors) => {
+			form.setError("files", {
+				type: "manual",
+				message: uploadErrors[0]?.message || "Upload failed",
+			});
+		},
+	});
+
+	// Track previous error state to detect when errors are cleared
+	const prevHasErrors = useRef(hasFileErrors);
+
+	// Derived state: exceeded limit (not just reached)
+	const hasExceededMaxFiles = files.length > maxFiles;
+
+	// Expose only imperative actions via ref
+	useImperativeHandle(
+		ref,
+		() => ({
+			uploadFiles: onUpload,
+			clearFiles: () => setFiles([]),
+		}),
+		[onUpload, setFiles],
+	);
+
+	// Notify parent of file state changes via props
+	useEffect(() => {
+		onFilesChange?.({
+			hasFiles: files.length > 0,
+			hasErrors: hasFileErrors,
+			hasExceededLimit: hasExceededMaxFiles,
+		});
+	}, [files.length, hasFileErrors, hasExceededMaxFiles, onFilesChange]);
+
+	// Sync file validation errors to form (onChange validation)
+	useEffect(() => {
+		// Check if errors were just cleared (files removed to within limit)
+		const errorsJustCleared = prevHasErrors.current && !hasFileErrors;
+		prevHasErrors.current = hasFileErrors;
+
+		if (hasFileErrors) {
+			// Find first file with error to display
+			const errorFile = files.find((f) => f.errors && f.errors.length > 0);
+			form.setError("files", {
+				type: "manual",
+				message: errorFile?.errors?.[0]?.message || "Invalid file",
+			});
+		} else if (errors.length > 0) {
+			// Check for upload errors
+			form.setError("files", {
+				type: "manual",
+				message: errors[0]?.message || "Upload failed",
+			});
+		} else if (errorsJustCleared || files.length > 0) {
+			// Clear errors if files are now valid or errors were just cleared
+			form.clearErrors("files");
 		}
-	};
+	}, [files, errors, hasFileErrors, form]);
 
 	const removeFile = (index: number) => {
-		setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+		setFiles((prev) => prev.filter((_, i) => i !== index));
 	};
 
 	return (
@@ -70,75 +136,140 @@ export function InquiryFormAttachments({
 
 			<FormField
 				control={control}
-				name="files" // Virtual field for validation
+				name="files"
 				render={() => (
 					<FormItem>
 						<FormLabel className="text-gray-700 font-medium group flex items-center justify-between">
 							<span>Supporting Documents (Optional)</span>
 							<span className="text-xs text-gray-400 font-normal bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
-								Max {FILE_SIZE_LIMITS.LG} files, 50MB each
+								Max {maxFiles} files, {formatBytes(maxFileSize)} each
 							</span>
 						</FormLabel>
+						<FormDescription className="text-xs text-gray-500">
+							Accepted formats: PDF, DOC, DOCX, JPG, PNG
+						</FormDescription>
 						<FormControl>
 							<div className="space-y-4">
+								{/* Drop zone indicator */}
+								{isDragActive && (
+									<div className="border-2 border-dashed border-primary bg-primary/10 rounded-lg p-3 text-center text-sm text-primary">
+										Drop files here...
+									</div>
+								)}
+
+								{/* Max files exceeded */}
+								{hasExceededMaxFiles && (
+									<div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl text-sm font-medium flex items-start gap-2">
+										<AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+										<div>
+											<p className="font-bold text-red-900">
+												File limit exceeded
+											</p>
+											<p className="text-xs text-red-700 mt-0.5">
+												Maximum of {maxFiles} files allowed. Remove{" "}
+												{files.length - maxFiles} file
+												{files.length - maxFiles > 1 ? "s" : ""} before
+												submitting.
+											</p>
+										</div>
+									</div>
+								)}
+
+								{/* Dropzone area */}
 								<div
-									className={`relative border-2 border-dashed rounded-2xl p-8 transition-all text-center
-                        ${
-													uploadedFiles.length >= FILE_COUNT_LIMITS.MD
-														? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
-														: "bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer"
-												}`}
+									{...getRootProps({
+										className: `relative border-2 border-dashed rounded-2xl p-8 transition-all text-center ${
+											isMaxFilesReached
+												? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
+												: "bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer"
+										} ${isDragActive ? "border-primary bg-primary/10" : ""}`,
+									})}
 								>
-									<Input
-										type="file"
-										multiple
-										accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-										className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-										onChange={handleFileChange}
-										disabled={uploadedFiles.length >= FILE_COUNT_LIMITS.MD}
+									<input
+										{...getInputProps()}
+										disabled={isMaxFilesReached}
+										aria-label="Upload supporting documents"
 									/>
 									<div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
 										<div className="p-3 bg-white rounded-full shadow-sm border border-gray-100 mb-1">
 											<Paperclip className="h-6 w-6 text-[#a60202]" />
 										</div>
 										<p className="text-sm font-medium text-gray-900">
-											Click to upload or drag and drop
+											{isMaxFilesReached
+												? `Maximum ${maxFiles} files reached`
+												: "Click to upload or drag and drop"}
 										</p>
 										<p className="text-xs text-gray-500">
-											Supported: PDF, DOC, JPG, PNG
+											PDF, DOC, DOCX, JPG, PNG • Max {formatBytes(maxFileSize)}{" "}
+											each
 										</p>
 									</div>
 								</div>
 
-								{uploadedFiles.length > 0 && (
+								{/* File list */}
+								{files.length > 0 && (
 									<div className="grid gap-3 animate-in fade-in slide-in-from-top-1">
-										{uploadedFiles.map((file, index) => (
-											<div
-												key={index}
-												className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-200 shadow-sm group hover:border-[#a60202]/30 transition-all"
-											>
-												<div className="flex items-center gap-3 overflow-hidden">
-													<div className="bg-red-50 p-2.5 rounded-lg text-[#a60202]">
-														<FileText className="h-4 w-4" />
-													</div>
-													<div className="flex flex-col min-w-0">
-														<span className="text-sm font-medium text-gray-700 truncate group-hover:text-[#a60202] transition-colors">
-															{file.name}
-														</span>
-														<span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-															{(file.size / 1024 / 1024).toFixed(2)} MB
-														</span>
-													</div>
-												</div>
-												<button
-													type="button"
-													onClick={() => removeFile(index)}
-													className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all"
+										{files.map((file, index) => {
+											const hasError = file.errors && file.errors.length > 0;
+											return (
+												<div
+													key={`${file.name}-${index}`}
+													className={`flex items-center justify-between p-3 rounded-xl border shadow-sm group transition-all ${
+														hasError
+															? "bg-red-50 border-red-200 hover:border-red-300"
+															: "bg-white border-gray-200 hover:border-[#a60202]/30"
+													}`}
 												>
-													<X className="h-4 w-4" />
-												</button>
-											</div>
-										))}
+													<div className="flex items-center gap-3 overflow-hidden">
+														<div
+															className={`p-2.5 rounded-lg ${
+																hasError
+																	? "bg-red-100 text-red-600"
+																	: "bg-red-50 text-[#a60202]"
+															}`}
+														>
+															{hasError ? (
+																<AlertCircle className="h-4 w-4" />
+															) : (
+																<FileIcon className="h-4 w-4" />
+															)}
+														</div>
+														<div className="flex flex-col min-w-0">
+															<span
+																className={`text-sm font-medium truncate transition-colors ${
+																	hasError
+																		? "text-red-700"
+																		: "text-gray-700 group-hover:text-[#a60202]"
+																}`}
+															>
+																{file.name}
+															</span>
+															<div className="flex items-center gap-2">
+																<span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+																	{formatBytes(file.size, 2)}
+																</span>
+																{hasError && (
+																	<span className="text-[10px] text-red-600 font-medium">
+																		{file.errors[0]?.message || "Invalid file"}
+																	</span>
+																)}
+															</div>
+														</div>
+													</div>
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															removeFile(index);
+														}}
+														className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
+														aria-label={`Remove ${file.name}`}
+													>
+														<X className="h-4 w-4" />
+													</button>
+												</div>
+											);
+										})}
 									</div>
 								)}
 								<FormMessage>
@@ -151,4 +282,4 @@ export function InquiryFormAttachments({
 			/>
 		</div>
 	);
-}
+});

@@ -1,5 +1,5 @@
 import { Controller } from "@nestjs/common";
-import { Throttle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { Captcha } from "@/app/captcha/captcha.guard";
@@ -13,7 +13,14 @@ export class InquiryTicketController {
 		private readonly messageService: InquiryMessageService,
 	) {}
 
-	@Captcha()
+	// 5 reqs per min
+	@Throttle({
+		default: {
+			limit: 5,
+			ttl: 60000,
+		},
+	})
+	@Captcha({ skip: process.env.NODE_ENV === "test" })
 	@Implement(contract.inquiries.create)
 	create() {
 		return implement(contract.inquiries.create).handler(async ({ input }) => {
@@ -35,6 +42,7 @@ export class InquiryTicketController {
 		});
 	}
 
+	@SkipThrottle()
 	@Implement(contract.inquiries.getWithMessages)
 	getWithMessages() {
 		return implement(contract.inquiries.getWithMessages).handler(
@@ -60,6 +68,25 @@ export class InquiryTicketController {
 		);
 	}
 
+	// 10 reqs per min — generous for multi-file uploads
+	@Throttle({
+		default: {
+			limit: 10,
+			ttl: 60000,
+		},
+	})
+	@Implement(contract.inquiries.createUploadUrls)
+	createUploadUrls() {
+		return implement(contract.inquiries.createUploadUrls).handler(
+			async ({ input }) => {
+				return await this.inquiryService.createSignedUploadUrls(input);
+			},
+		);
+	}
+
+	// Admin endpoints
+
+	@SkipThrottle()
 	@Implement(contract.inquiries.getList)
 	getList() {
 		return implement(contract.inquiries.getList).handler(async ({ input }) => {
@@ -67,6 +94,7 @@ export class InquiryTicketController {
 		});
 	}
 
+	@SkipThrottle()
 	@Implement(contract.inquiries.getById)
 	getById() {
 		return implement(contract.inquiries.getById).handler(async ({ input }) => {
@@ -74,6 +102,7 @@ export class InquiryTicketController {
 		});
 	}
 
+	@SkipThrottle()
 	@Implement(contract.inquiries.updateStatus)
 	updateStatus() {
 		return implement(contract.inquiries.updateStatus).handler(

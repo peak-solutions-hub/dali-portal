@@ -1,6 +1,6 @@
 import type { InquiryTicketWithMessagesResponse } from "@repo/shared";
 import { ScrollArea } from "@repo/ui/components/scroll-area";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { CheckCircle, MessageSquare, Paperclip, XCircle } from "lucide-react";
 import { useEffect, useRef } from "react";
 
@@ -99,7 +99,7 @@ export function InquiryConversation({ ticket }: InquiryConversationProps) {
 						{msg.attachmentPaths && msg.attachmentPaths.length > 0 && (
 							<div className="mt-2 space-y-2">
 								{msg.attachmentPaths.map((path, i) => {
-									const supabase = createSupabaseBrowserClient();
+									const supabase = createBrowserClient();
 									const { data } = supabase.storage
 										.from("attachments")
 										.getPublicUrl(path);

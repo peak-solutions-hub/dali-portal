@@ -1,6 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { ORPCError } from "@orpc/nest";
-import { InquiryMessageResponse, SendInquiryMessageInput } from "@repo/shared";
+import {
+	AppError,
+	INQUIRY_MAX_TOTAL_ATTACHMENTS,
+	type InquiryMessageResponse,
+	type SendInquiryMessageInput,
+} from "@repo/shared";
 import { ResendService } from "@/lib/resend.service";
 import { DbService } from "../db/db.service";
 
@@ -12,13 +16,24 @@ export class InquiryMessageService {
 	) {}
 
 	async send(input: SendInquiryMessageInput): Promise<InquiryMessageResponse> {
+		const newAttachmentCount = input.attachmentPaths?.length ?? 0;
+
+		// Server-side validation for max attachments per inquiry conversation
+		if (newAttachmentCount > 0) {
+			const existingCount = await this.countAttachments(input.ticketId);
+
+			if (existingCount + newAttachmentCount > INQUIRY_MAX_TOTAL_ATTACHMENTS) {
+				throw new AppError("INQUIRY.ATTACHMENT_LIMIT_EXCEEDED");
+			}
+		}
+
 		// Get inquiry ticket details (need citizen email and info)
 		const inquiryTicket = await this.db.inquiryTicket.findUnique({
 			where: { id: input.ticketId },
 		});
 
 		if (!inquiryTicket) {
-			throw new ORPCError("NOT_FOUND", { message: "Inquiry ticket not found" });
+			throw new AppError("INQUIRY.NOT_FOUND");
 		}
 
 		// Create the message
@@ -83,5 +98,20 @@ export class InquiryMessageService {
 			...message,
 			createdAt: message.createdAt.toISOString(),
 		};
+	}
+
+	/**
+	 * Count total attachments across all messages in an inquiry conversation.
+	 */
+	async countAttachments(ticketId: string): Promise<number> {
+		const messages = await this.db.inquiryMessage.findMany({
+			where: { ticketId },
+			select: { attachmentPaths: true },
+		});
+
+		return messages.reduce(
+			(total, msg) => total + (msg.attachmentPaths?.length ?? 0),
+			0,
+		);
 	}
 }
