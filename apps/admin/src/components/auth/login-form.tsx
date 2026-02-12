@@ -38,6 +38,18 @@ export function LoginForm() {
 		const error = searchParams.get("error");
 		const message = searchParams.get("message");
 
+		if (error === "deactivated_account") {
+			toast.error(
+				message ||
+					"Your account has been deactivated. Please contact a system administrator.",
+			);
+			setErrorMessage(
+				message ||
+					"Your account has been deactivated. Please contact a system administrator.",
+			);
+			return;
+		}
+
 		if ((error === "invalid_link" || error === "auth_code_error") && message) {
 			setErrorMessage(message);
 		}
@@ -66,15 +78,28 @@ export function LoginForm() {
 			setSession(authData.session);
 
 			try {
-				await fetchProfile();
-				const profile = useAuthStore.getState().userProfile;
+				const { profile, errorCode } = await fetchProfile();
+				if (errorCode) {
+					console.log("[LoginForm] fetchProfile error code:", errorCode);
+				}
+
+				if (
+					errorCode === "AUTH.DEACTIVATED_ACCOUNT" ||
+					errorCode === "DEACTIVATED_ACCOUNT"
+				) {
+					toast.error(
+						"Your account has been deactivated. Please contact a system administrator.",
+					);
+					setSession(null);
+					return;
+				}
 
 				if (profile) {
 					if (profile.status === "deactivated") {
-						// Double-check deactivation status (shouldn't reach here since backend throws 401)
-						await supabase.auth.signOut();
+						toast.error(
+							"Your account has been deactivated. Please contact a system administrator.",
+						);
 						setSession(null);
-						router.push("/unauthorized");
 						return;
 					}
 

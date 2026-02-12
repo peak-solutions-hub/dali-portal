@@ -44,7 +44,6 @@ function ForgotPasswordForm() {
 			});
 
 			if (checkError) {
-				console.error("Failed to check email status:", checkError);
 				toast.error("Failed to process request");
 				return;
 			}
@@ -56,10 +55,11 @@ function ForgotPasswordForm() {
 				return;
 			}
 
-			// If email exists but account is deactivated, redirect to unauthorized
+			// If email exists but account is deactivated, show error toast
 			if (checkResult.isDeactivated) {
-				toast.error("Your account has been deactivated");
-				router.push("/unauthorized");
+				toast.error(
+					"Your account has been deactivated. Please contact a system administrator.",
+				);
 				return;
 			}
 
@@ -76,8 +76,7 @@ function ForgotPasswordForm() {
 
 			setSubmittedEmail(data.email);
 			setEmailSent(true);
-		} catch (err) {
-			console.error("Reset password error:", err);
+		} catch (_err) {
 			toast.error("Failed to send reset email");
 		}
 	};

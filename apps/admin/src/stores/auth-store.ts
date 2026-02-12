@@ -43,7 +43,10 @@ interface AuthActions {
 	/** Set the Supabase session and update auth token for API calls */
 	setSession: (session: Session | null) => void;
 	/** Fetch user profile from NestJS backend */
-	fetchProfile: () => Promise<void>;
+	fetchProfile: () => Promise<{
+		profile: UserProfile | null;
+		errorCode?: string;
+	}>;
 	/** Clear auth state and sign out from Supabase */
 	logout: () => Promise<void>;
 }
@@ -95,19 +98,20 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
 		if (!session) {
 			set({ userProfile: null });
-			return;
+			return { profile: null };
 		}
 
 		const [error, data] = await api.users.me({});
 
 		if (error) {
-			console.error("[AuthStore] Failed to fetch user profile:", error);
-			// Just set state - auth-context handles redirects
+			const errCode = (error as { code?: string })?.code;
+
 			set({ userProfile: null });
-			return;
+			return { profile: null, errorCode: errCode };
 		}
 
 		set({ userProfile: data });
+		return { profile: data, errorCode: undefined };
 	},
 
 	logout: async () => {

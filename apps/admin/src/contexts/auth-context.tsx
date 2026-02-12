@@ -23,7 +23,10 @@ type AuthContextType = {
 	isLoading: boolean;
 	signOut: () => Promise<void>;
 	/** Fetch user profile - returns the profile or null */
-	fetchProfile: (accessToken: string) => Promise<UserProfile | null>;
+	fetchProfile: (
+		accessToken: string,
+		userEmail?: string,
+	) => Promise<UserProfile | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -63,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	 */
 	const fetchProfile = async (
 		accessToken: string,
+		userEmail?: string,
 	): Promise<UserProfile | null> => {
 		// Check cache first
 		if (profileCacheRef.current) {
@@ -87,24 +91,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			const [error, data] = await api.users.me({});
 
 			if (error) {
-				console.error("[AuthProvider] Failed to fetch user profile:", error);
-
 				// Sign out and redirect on ANY error (401/403/500)
-				const errStatus = (error as { status?: number })?.status;
 				const errCode = (error as { code?: string })?.code;
+				let isDeactivated =
+					errCode === "AUTH.DEACTIVATED_ACCOUNT" ||
+					errCode === "DEACTIVATED_ACCOUNT";
 
-				console.warn("[AuthProvider] Auth error — signing out", {
-					status: errStatus,
-					code: errCode,
-				});
+				if (
+					!isDeactivated &&
+					errCode === "INTERNAL_SERVER_ERROR" &&
+					userEmail
+				) {
+					const [checkError, checkResult] = await api.users.checkEmailStatus({
+						email: userEmail,
+					});
+
+					if (!checkError && checkResult?.isDeactivated) {
+						isDeactivated = true;
+					}
+				}
+
 				await supabase.auth.signOut();
 				setAuthToken(null);
 				setUserProfile(null);
 				setIsLoading(false);
 
-				// Hard redirect based on error code (SINGLE SOURCE OF TRUTH)
-				if (errCode === "AUTH.DEACTIVATED_ACCOUNT") {
-					window.location.href = "/unauthorized";
+				// Hard redirect based on error code
+				if (isDeactivated) {
+					window.location.href =
+						"/login?error=deactivated_account&message=Your%20account%20has%20been%20deactivated.%20Please%20contact%20a%20system%20administrator.";
 				} else {
 					// Invalid token, expired session, 500 errors, etc. → login
 					window.location.href = "/login";
@@ -126,9 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			setUserProfile(data);
 			setIsLoading(false);
 			return data;
-		} catch (error) {
+		} catch (_error) {
 			// Catch any unexpected errors during API call
-			console.error("[AuthProvider] Unexpected error fetching profile:", error);
 			setUserProfile(null);
 			setIsLoading(false);
 			return null;
@@ -168,9 +182,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 					if (session?.access_token) {
 						try {
-							await fetchProfile(session.access_token);
-						} catch (error) {
-							console.error("[AuthProvider] Failed to fetch profile:", error);
+							await fetchProfile(session.access_token, session.user?.email);
+						} catch (_error) {
 							setUserProfile(null);
 							setIsLoading(false);
 						}
@@ -183,9 +196,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					// User explicitly signed in after initialization - refetch profile
 					if (session?.access_token) {
 						try {
-							await fetchProfile(session.access_token);
-						} catch (error) {
-							console.error("[AuthProvider] Failed to fetch profile:", error);
+							await fetchProfile(session.access_token, session.user?.email);
+						} catch (_error) {
 							setUserProfile(null);
 							setIsLoading(false);
 						}
@@ -207,11 +219,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					setIsLoading(false);
 					profileCacheRef.current = null;
 
-					// Only redirect if not already on auth pages or unauthorized
+					// Only redirect if not already on auth pages
 					const path = window.location.pathname;
 					if (
 						!path.startsWith("/auth/") &&
-						path !== "/unauthorized" &&
 						path !== "/login" &&
 						path !== "/forgot-password" &&
 						path !== "/set-password"

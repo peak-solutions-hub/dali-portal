@@ -2,8 +2,10 @@ import {
 	type CanActivate,
 	type ExecutionContext,
 	Injectable,
+	Logger,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { ORPCError } from "@orpc/nest";
 import { AppError, type RoleType } from "@repo/shared";
 import type {
 	SupabaseClient,
@@ -31,6 +33,7 @@ const CACHE_TTL_MS = 60_000; // 1 minute
 
 @Injectable()
 export class RolesGuard implements CanActivate {
+	private readonly logger = new Logger(RolesGuard.name);
 	private readonly supabase: SupabaseClient;
 
 	constructor(
@@ -119,6 +122,7 @@ export class RolesGuard implements CanActivate {
 		// Extract Bearer token from Authorization header
 		const authHeader = request.headers.authorization;
 		if (!authHeader?.startsWith("Bearer ")) {
+			this.logger.warn("Auth failed: missing Bearer token");
 			throw new AppError("AUTH.MISSING_TOKEN");
 		}
 
@@ -131,6 +135,7 @@ export class RolesGuard implements CanActivate {
 		} = await this.supabase.auth.getUser(token);
 
 		if (authError || !supabaseUser) {
+			this.logger.warn("Auth failed: invalid or expired Supabase token");
 			throw new AppError("AUTH.INVALID_TOKEN");
 		}
 
@@ -138,6 +143,9 @@ export class RolesGuard implements CanActivate {
 		const userData = await this.getUserData(supabaseUser.id);
 
 		if (!userData) {
+			this.logger.warn(
+				`Auth failed: user not found for supabaseId=${supabaseUser.id}`,
+			);
 			throw new AppError("USER.NOT_FOUND");
 		}
 
@@ -145,7 +153,13 @@ export class RolesGuard implements CanActivate {
 		if (userData.status === "deactivated") {
 			// Invalidate cache for deactivated user
 			userCache.delete(supabaseUser.id);
-			throw new AppError("AUTH.DEACTIVATED_ACCOUNT");
+			this.logger.warn(
+				`Auth blocked: deactivated account userId=${userData.id} email=${userData.email}`,
+			);
+			throw new ORPCError("DEACTIVATED_ACCOUNT", {
+				status: 401,
+				message: "User account is deactivated.",
+			});
 		}
 
 		// Enrich the request.user with cached data for use in controllers
@@ -164,6 +178,9 @@ export class RolesGuard implements CanActivate {
 		);
 
 		if (!hasRequiredRole) {
+			this.logger.warn(
+				`Auth blocked: insufficient permissions userId=${userData.id} role=${userData.roleName}`,
+			);
 			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
 		}
 

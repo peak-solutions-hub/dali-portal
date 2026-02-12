@@ -27,6 +27,7 @@ export const getCurrentUserContract = oc
 	.errors({
 		NOT_AUTHENTICATED: ERRORS.USER.NOT_AUTHENTICATED,
 		NOT_FOUND: ERRORS.USER.NOT_FOUND,
+		DEACTIVATED_ACCOUNT: ERRORS.AUTH.DEACTIVATED_ACCOUNT,
 	});
 
 export const getUserListContract = oc
