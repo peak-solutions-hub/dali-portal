@@ -110,14 +110,25 @@ export const InquiryTicketWithMessagesAndAttachmentsResponseSchema =
 		inquiryMessages: InquiryMessageWithAttachmentsResponseSchema.array(),
 	});
 
-export const InquiryTicketListResponseSchema =
-	InquiryTicketResponseSchema.array();
+export const PaginationResponseSchema = z.object({
+	currentPage: z.number(),
+	totalPages: z.number(),
+	totalItems: z.number(),
+	itemsPerPage: z.number(),
+	hasNextPage: z.boolean(),
+	hasPreviousPage: z.boolean(),
+});
+
+export const InquiryTicketListResponseSchema = z.object({
+	tickets: InquiryTicketResponseSchema.array(),
+	pagination: PaginationResponseSchema,
+});
 
 export const GetInquiryTicketListSchema = z.object({
 	status: InquiryTicketStatusEnum.optional(),
 	category: InquiryTicketCategoryEnum.optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
-	cursor: z.uuid().optional(),
+	page: z.coerce.number().int().min(1).default(1),
 });
 
 export const GetInquiryTicketByIdSchema = z.object({
@@ -288,3 +299,16 @@ export type TrackInquiryTicketResponse = z.infer<
 	typeof TrackInquiryTicketResponseSchema
 >;
 export type SendInquiryMessageInput = z.infer<typeof SendInquiryMessageSchema>;
+
+// Status counts
+
+export const InquiryStatusCountsSchema = z.object({
+	all: z.number().int().min(0),
+	new: z.number().int().min(0),
+	open: z.number().int().min(0),
+	waiting_for_citizen: z.number().int().min(0),
+	resolved: z.number().int().min(0),
+	rejected: z.number().int().min(0),
+});
+
+export type InquiryStatusCounts = z.infer<typeof InquiryStatusCountsSchema>;

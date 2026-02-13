@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
+		"@orpc/client": "1.13.4",
 		"@orpc/openapi-client": "1.13.4",
 		"@orpc/tanstack-query": "^1.13.4",
 		"@repo/shared": "workspace:*",

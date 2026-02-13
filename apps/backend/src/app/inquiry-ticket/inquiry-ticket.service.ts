@@ -5,13 +5,18 @@ import {
 	type CreateInquiryTicketResponse,
 	type CreateSignedUploadUrlsInput,
 	type GetInquiryTicketByIdInput,
+	type GetInquiryTicketListInput,
 	INQUIRY_CATEGORY_LABELS,
 	type InquiryMessage,
 	type InquiryMessageWithAttachments,
+	type InquiryStatusCounts,
 	type InquiryTicket,
+	type InquiryTicketListResponse,
+	type InquiryTicketResponse,
 	type InquiryTicketWithMessagesAndAttachments,
 	type TrackInquiryTicketInput,
 	type TrackInquiryTicketResponse,
+	type UpdateInquiryTicketStatusInput,
 } from "@repo/shared";
 import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
@@ -48,7 +53,7 @@ export class InquiryTicketService {
 				citizenName: input.citizenName,
 				category: input.category,
 				subject: input.subject,
-				status: "open",
+				status: "new",
 				// create initial inquiry message with optional attachments
 				// https://www.prisma.io/docs/orm/prisma-client/queries/transactions#nested-writes-1
 				inquiryMessages: {
@@ -136,7 +141,9 @@ export class InquiryTicketService {
 		};
 	}
 
-	async getById(input: GetInquiryTicketByIdInput): Promise<InquiryTicket> {
+	async getById(
+		input: GetInquiryTicketByIdInput,
+	): Promise<InquiryTicketResponse> {
 		const inquiryTicket = await this.db.inquiryTicket.findFirst({
 			where: { id: input.id },
 		});
@@ -145,7 +152,106 @@ export class InquiryTicketService {
 			throw new AppError("INQUIRY.NOT_FOUND");
 		}
 
-		return inquiryTicket;
+		return {
+			...inquiryTicket,
+			createdAt: inquiryTicket.createdAt.toISOString(),
+		};
+	}
+
+	async getList(
+		input: GetInquiryTicketListInput,
+	): Promise<InquiryTicketListResponse> {
+		const { status, category, limit, page } = input;
+
+		const skip = (page - 1) * limit;
+
+		// Build where clause
+		const where = {
+			...(status && { status }),
+			...(category && { category }),
+		};
+
+		// Get total count for pagination
+		const totalItems = await this.db.inquiryTicket.count({ where });
+
+		// Get paginated results
+		const inquiryTickets = await this.db.inquiryTicket.findMany({
+			where,
+			take: limit,
+			skip,
+			orderBy: { createdAt: "desc" },
+		});
+
+		// Calculate pagination info
+		const totalPages = Math.ceil(totalItems / limit);
+		const hasNextPage = page < totalPages;
+		const hasPreviousPage = page > 1;
+
+		return {
+			tickets: inquiryTickets.map((ticket) => ({
+				...ticket,
+				createdAt: ticket.createdAt.toISOString(),
+			})),
+			pagination: {
+				currentPage: page,
+				totalPages,
+				totalItems,
+				itemsPerPage: limit,
+				hasNextPage,
+				hasPreviousPage,
+			},
+		};
+	}
+
+	async getStatusCounts(): Promise<InquiryStatusCounts> {
+		// Get all counts in parallel for maximum efficiency
+		const [all, newCount, open, waiting, resolved, rejected] =
+			await Promise.all([
+				this.db.inquiryTicket.count(),
+				this.db.inquiryTicket.count({ where: { status: "new" } }),
+				this.db.inquiryTicket.count({ where: { status: "open" } }),
+				this.db.inquiryTicket.count({
+					where: { status: "waiting_for_citizen" },
+				}),
+				this.db.inquiryTicket.count({ where: { status: "resolved" } }),
+				this.db.inquiryTicket.count({ where: { status: "rejected" } }),
+			]);
+
+		return {
+			all,
+			new: newCount,
+			open,
+			waiting_for_citizen: waiting,
+			resolved,
+			rejected,
+		};
+	}
+
+	async updateStatus(
+		input: UpdateInquiryTicketStatusInput,
+	): Promise<InquiryTicketResponse> {
+		const { id, status, closureRemarks } = input;
+
+		const inquiryTicket = await this.db.inquiryTicket.findFirst({
+			where: { id },
+		});
+
+		if (!inquiryTicket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id },
+			data: {
+				status,
+				...(closureRemarks && { closureRemarks }),
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
 	}
 
 	/**

@@ -3,8 +3,8 @@ import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { Captcha } from "@/app/captcha/captcha.guard";
+import { InquiryTicketService } from "@/app/inquiry-ticket/inquiry-ticket.service";
 import { InquiryMessageService } from "./inquiry-message.service";
-import { InquiryTicketService } from "./inquiry-ticket.service";
 
 @Controller()
 export class InquiryTicketController {
@@ -28,10 +28,10 @@ export class InquiryTicketController {
 		});
 	}
 
-	// 5 reqs per min
+	// 10 reqs per min
 	@Throttle({
 		default: {
-			limit: 5,
+			limit: 10,
 			ttl: 60000,
 		},
 	})
@@ -42,7 +42,7 @@ export class InquiryTicketController {
 		});
 	}
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.inquiries.getWithMessages)
 	getWithMessages() {
 		return implement(contract.inquiries.getWithMessages).handler(
@@ -80,6 +80,42 @@ export class InquiryTicketController {
 		return implement(contract.inquiries.createUploadUrls).handler(
 			async ({ input }) => {
 				return await this.inquiryService.createSignedUploadUrls(input);
+			},
+		);
+	}
+
+	// Admin endpoints
+
+	@SkipThrottle({ short: true, default: true })
+	@Implement(contract.inquiries.getList)
+	getList() {
+		return implement(contract.inquiries.getList).handler(async ({ input }) => {
+			return await this.inquiryService.getList(input);
+		});
+	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Implement(contract.inquiries.getStatusCounts)
+	getStatusCounts() {
+		return implement(contract.inquiries.getStatusCounts).handler(async () => {
+			return await this.inquiryService.getStatusCounts();
+		});
+	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Implement(contract.inquiries.getById)
+	getById() {
+		return implement(contract.inquiries.getById).handler(async ({ input }) => {
+			return await this.inquiryService.getById(input);
+		});
+	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Implement(contract.inquiries.updateStatus)
+	updateStatus() {
+		return implement(contract.inquiries.updateStatus).handler(
+			async ({ input }) => {
+				return await this.inquiryService.updateStatus(input);
 			},
 		);
 	}
