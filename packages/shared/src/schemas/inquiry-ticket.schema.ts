@@ -299,3 +299,16 @@ export type TrackInquiryTicketResponse = z.infer<
 	typeof TrackInquiryTicketResponseSchema
 >;
 export type SendInquiryMessageInput = z.infer<typeof SendInquiryMessageSchema>;
+
+// Status counts
+
+export const InquiryStatusCountsSchema = z.object({
+	all: z.number().int().min(0),
+	new: z.number().int().min(0),
+	open: z.number().int().min(0),
+	waiting_for_citizen: z.number().int().min(0),
+	resolved: z.number().int().min(0),
+	rejected: z.number().int().min(0),
+});
+
+export type InquiryStatusCounts = z.infer<typeof InquiryStatusCountsSchema>;

@@ -28,12 +28,14 @@ interface InquiryTicketSheetProps {
 	ticketId: string | null;
 	isOpen: boolean;
 	onClose: () => void;
+	onStatusUpdate?: () => void;
 }
 
 export function InquiryTicketSheet({
 	ticketId,
 	isOpen,
 	onClose,
+	onStatusUpdate,
 }: InquiryTicketSheetProps) {
 	const [ticket, setTicket] =
 		useState<InquiryTicketWithMessagesResponse | null>(null);
@@ -135,6 +137,7 @@ export function InquiryTicketSheet({
 		onMessageClear: () => setMessage(""),
 		onLoadingChange: setIsSending,
 		onStatusLoadingChange: setIsUpdatingStatus,
+		onStatusUpdate,
 	});
 
 	const {

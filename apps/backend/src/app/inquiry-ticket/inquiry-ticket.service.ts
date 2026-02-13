@@ -9,6 +9,7 @@ import {
 	INQUIRY_CATEGORY_LABELS,
 	type InquiryMessage,
 	type InquiryMessageWithAttachments,
+	type InquiryStatusCounts,
 	type InquiryTicket,
 	type InquiryTicketListResponse,
 	type InquiryTicketResponse,
@@ -199,6 +200,30 @@ export class InquiryTicketService {
 				hasNextPage,
 				hasPreviousPage,
 			},
+		};
+	}
+
+	async getStatusCounts(): Promise<InquiryStatusCounts> {
+		// Get all counts in parallel for maximum efficiency
+		const [all, newCount, open, waiting, resolved, rejected] =
+			await Promise.all([
+				this.db.inquiryTicket.count(),
+				this.db.inquiryTicket.count({ where: { status: "new" } }),
+				this.db.inquiryTicket.count({ where: { status: "open" } }),
+				this.db.inquiryTicket.count({
+					where: { status: "waiting_for_citizen" },
+				}),
+				this.db.inquiryTicket.count({ where: { status: "resolved" } }),
+				this.db.inquiryTicket.count({ where: { status: "rejected" } }),
+			]);
+
+		return {
+			all,
+			new: newCount,
+			open,
+			waiting_for_citizen: waiting,
+			resolved,
+			rejected,
 		};
 	}
 

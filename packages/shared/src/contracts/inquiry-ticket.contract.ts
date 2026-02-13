@@ -7,6 +7,7 @@ import {
 	GetInquiryTicketListSchema,
 	InquiryMessageResponseSchema,
 	InquiryMessageSchema,
+	InquiryStatusCountsSchema,
 	InquiryTicketListResponseSchema,
 	InquiryTicketResponseSchema,
 	InquiryTicketSchema,
@@ -134,6 +135,21 @@ export const updateInquiryTicketStatus = oc
 	.input(UpdateInquiryTicketStatusSchema)
 	.output(InquiryTicketResponseSchema);
 
+export const getInquiryStatusCounts = oc
+	.route({
+		method: "GET",
+		path: "/inquiries/status-counts",
+		summary: "Get inquiry status counts",
+		description:
+			"Get counts of inquiries grouped by status in a single request.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+	})
+	.output(InquiryStatusCountsSchema);
+
 export const createInquiryUploadUrls = oc
 	.route({
 		method: "POST",
@@ -162,4 +178,5 @@ export const inquiryTicketContract = {
 	getList: getInquiryTicketList,
 	getById: getInquiryTicketById,
 	updateStatus: updateInquiryTicketStatus,
+	getStatusCounts: getInquiryStatusCounts,
 };

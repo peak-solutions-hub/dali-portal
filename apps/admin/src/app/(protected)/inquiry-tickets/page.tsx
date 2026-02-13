@@ -46,83 +46,69 @@ export default function InquiryTicketsPage() {
 	});
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [isLoadingCounts, setIsLoadingCounts] = useState(true);
 
-	// Fetch status counts (refreshes with tickets)
+	// Fetch status counts independently
 	const fetchStatusCounts = async () => {
-		const statuses: (InquiryStatus | "all")[] = [
-			"all",
-			"new",
-			"open",
-			"waiting_for_citizen",
-			"resolved",
-			"rejected",
-		];
+		setIsLoadingCounts(true);
 
-		const counts = {
-			all: 0,
-			new: 0,
-			open: 0,
-			waiting_for_citizen: 0,
-			resolved: 0,
-			rejected: 0,
-		};
+		try {
+			const [err, result] = await api.inquiries.getStatusCounts();
 
-		// Fetch all counts in parallel for better performance
-		const results = await Promise.all(
-			statuses.map((status) =>
-				api.inquiries.getList({
-					limit: 1,
-					page: 1,
-					...(status !== "all" && { status: status as InquiryStatus }),
-				}),
-			),
-		);
-
-		results.forEach(([err, result], index) => {
-			const status = statuses[index];
-			if (!err && result && status) {
-				counts[status] = result.pagination.totalItems;
+			if (err) {
+				console.error("Error fetching status counts:", err);
+			} else if (result) {
+				setStatusCounts(result);
 			}
+		} catch (error) {
+			console.error("Error fetching status counts:", error);
+		}
+
+		setIsLoadingCounts(false);
+	};
+
+	// Fetch status counts on mount only
+	useEffect(() => {
+		fetchStatusCounts();
+	}, []);
+
+	// Fetch tickets function (extracted for reuse)
+	const fetchTickets = async () => {
+		setIsLoading(true);
+		setError(null);
+
+		const [err, result] = await api.inquiries.getList({
+			limit: 20,
+			page: currentPage,
+			...(selectedStatus !== "all" && {
+				status: selectedStatus as InquiryStatus,
+			}),
 		});
 
-		setStatusCounts(counts);
+		if (err) {
+			if (isDefinedError(err)) {
+				setError(err.message);
+			} else {
+				setError("Failed to fetch inquiry tickets");
+			}
+			setIsLoading(false);
+			return;
+		}
+
+		setTickets(result?.tickets || []);
+		setPagination(result?.pagination || pagination);
+		setIsLoading(false);
 	};
 
 	// Fetch tickets when status or page changes
 	useEffect(() => {
-		async function fetchTickets() {
-			setIsLoading(true);
-			setError(null);
-
-			const [err, result] = await api.inquiries.getList({
-				limit: 20,
-				page: currentPage,
-				...(selectedStatus !== "all" && {
-					status: selectedStatus as InquiryStatus,
-				}),
-			});
-
-			if (err) {
-				if (isDefinedError(err)) {
-					setError(err.message);
-				} else {
-					setError("Failed to fetch inquiry tickets");
-				}
-				setIsLoading(false);
-				return;
-			}
-
-			setTickets(result?.tickets || []);
-			setPagination(result?.pagination || pagination);
-
-			// Refresh status counts after fetching tickets
-			await fetchStatusCounts();
-
-			setIsLoading(false);
-		}
-
 		fetchTickets();
 	}, [selectedStatus, currentPage]); // Re-fetch when status or page changes
+
+	// Handle status updates from ticket sheet
+	const handleTicketUpdate = async () => {
+		await Promise.all([fetchStatusCounts(), fetchTickets()]);
+	};
 
 	// Filter tickets by search query only (status filtering is server-side)
 	const filteredTickets = tickets.filter((ticket) => {
@@ -159,17 +145,27 @@ export default function InquiryTicketsPage() {
 				<div className="sticky top-0 z-10 p-6 pb-4 pt-0">
 					<Tabs value={selectedStatus} onValueChange={handleStatusChange}>
 						<TabsList>
-							<TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
-							<TabsTrigger value="new">New ({statusCounts.new})</TabsTrigger>
-							<TabsTrigger value="open">Open ({statusCounts.open})</TabsTrigger>
-							<TabsTrigger value="waiting_for_citizen">
-								Waiting ({statusCounts.waiting_for_citizen})
+							<TabsTrigger value="all" disabled={isLoadingCounts}>
+								All ({isLoadingCounts ? "..." : statusCounts.all})
 							</TabsTrigger>
-							<TabsTrigger value="resolved">
-								Resolved ({statusCounts.resolved})
+							<TabsTrigger value="new" disabled={isLoadingCounts}>
+								New ({isLoadingCounts ? "..." : statusCounts.new})
 							</TabsTrigger>
-							<TabsTrigger value="rejected">
-								Rejected ({statusCounts.rejected})
+							<TabsTrigger value="open" disabled={isLoadingCounts}>
+								Open ({isLoadingCounts ? "..." : statusCounts.open})
+							</TabsTrigger>
+							<TabsTrigger
+								value="waiting_for_citizen"
+								disabled={isLoadingCounts}
+							>
+								Waiting (
+								{isLoadingCounts ? "..." : statusCounts.waiting_for_citizen})
+							</TabsTrigger>
+							<TabsTrigger value="resolved" disabled={isLoadingCounts}>
+								Resolved ({isLoadingCounts ? "..." : statusCounts.resolved})
+							</TabsTrigger>
+							<TabsTrigger value="rejected" disabled={isLoadingCounts}>
+								Rejected ({isLoadingCounts ? "..." : statusCounts.rejected})
 							</TabsTrigger>
 						</TabsList>
 					</Tabs>
@@ -314,6 +310,7 @@ export default function InquiryTicketsPage() {
 				ticketId={selectedTicket}
 				isOpen={!!selectedTicket}
 				onClose={() => setSelectedTicket(null)}
+				onStatusUpdate={handleTicketUpdate}
 			/>
 		</>
 	);

@@ -42,7 +42,7 @@ export class InquiryTicketController {
 		});
 	}
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.inquiries.getWithMessages)
 	getWithMessages() {
 		return implement(contract.inquiries.getWithMessages).handler(
@@ -86,7 +86,7 @@ export class InquiryTicketController {
 
 	// Admin endpoints
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.inquiries.getList)
 	getList() {
 		return implement(contract.inquiries.getList).handler(async ({ input }) => {
@@ -94,7 +94,15 @@ export class InquiryTicketController {
 		});
 	}
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
+	@Implement(contract.inquiries.getStatusCounts)
+	getStatusCounts() {
+		return implement(contract.inquiries.getStatusCounts).handler(async () => {
+			return await this.inquiryService.getStatusCounts();
+		});
+	}
+
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.inquiries.getById)
 	getById() {
 		return implement(contract.inquiries.getById).handler(async ({ input }) => {
@@ -102,7 +110,7 @@ export class InquiryTicketController {
 		});
 	}
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.inquiries.updateStatus)
 	updateStatus() {
 		return implement(contract.inquiries.updateStatus).handler(

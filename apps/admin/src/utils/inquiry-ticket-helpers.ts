@@ -12,6 +12,7 @@ export interface TicketHelperCallbacks {
 	onStatusLoadingChange: (loading: boolean) => void;
 	onFilesClear: () => void;
 	onUploadProgress: (progress: number) => void;
+	onStatusUpdate?: () => void;
 }
 
 export const createTicketHelpers = (
@@ -28,6 +29,7 @@ export const createTicketHelpers = (
 		onStatusLoadingChange,
 		onFilesClear,
 		onUploadProgress,
+		onStatusUpdate,
 	} = callbacks;
 
 	const refreshTicketData = async () => {
@@ -116,6 +118,11 @@ export const createTicketHelpers = (
 		// Refresh ticket data
 		await refreshTicketData();
 		onStatusLoadingChange(false);
+
+		// Notify parent to refresh status counts
+		if (onStatusUpdate) {
+			onStatusUpdate();
+		}
 	};
 
 	const handleAssignToMe = (onOpenDialog: () => void) => {
