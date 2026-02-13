@@ -23,16 +23,14 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
-import {
-	Mail,
-	MoreHorizontal,
-	Pencil,
-	Trash2,
-} from "@repo/ui/lib/lucide-react";
+import { Mail, MoreHorizontal, Pencil, UserX } from "@repo/ui/lib/lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
-import { api } from "@/lib/api.client";
-import { ActivateUserDialog, DeactivateUserDialog, UpdateUserDialog } from ".";
+import {
+	DeactivateUserDialog,
+	ReactivateUserDialog,
+	ReinviteUserDialog,
+	UpdateUserDialog,
+} from ".";
 
 interface UsersTableProps {
 	users: UserWithRole[];
@@ -59,7 +57,8 @@ export function UsersTable({
 }: UsersTableProps) {
 	const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
 	const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-	const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+	const [reinviteDialogOpen, setReinviteDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	return (
@@ -142,21 +141,11 @@ export function UsersTable({
 												<DropdownMenuItem
 													className="text-blue-600 focus:text-blue-600"
 													onClick={() => {
-														const promise = api.users.invite({
-															email: user.email,
-															fullName: user.fullName,
-															roleId: user.role.id,
-														});
-
-														toast.promise(promise, {
-															loading: "Sending invitation...",
-															success: "Invitation email sent successfully",
-															error: (err) =>
-																`Failed to send invitation: ${err.message}`,
-														});
+														setSelectedUser(user);
+														setTimeout(() => setReinviteDialogOpen(true), 0);
 													}}
 												>
-													<Mail className="w-4 h-4 mr-2" />
+													<Mail className="w-4 h-4 mr-2 text-blue-600" />
 													Re-invite
 												</DropdownMenuItem>
 											)}
@@ -165,10 +154,10 @@ export function UsersTable({
 													className="text-green-600 focus:text-green-600"
 													onClick={() => {
 														setSelectedUser(user);
-														setTimeout(() => setActivateDialogOpen(true), 0);
+														setTimeout(() => setReactivateDialogOpen(true), 0);
 													}}
 												>
-													<Pencil className="w-4 h-4 mr-2" />
+													<Pencil className="w-4 h-4 mr-2 text-green-600" />
 													Reactivate
 												</DropdownMenuItem>
 											) : (
@@ -179,34 +168,12 @@ export function UsersTable({
 														setTimeout(() => setDeleteDialogOpen(true), 0);
 													}}
 												>
-													<Trash2 className="w-4 h-4 mr-2" />
+													<UserX className="w-4 h-4 mr-2 text-red-600" />
 													Deactivate
 												</DropdownMenuItem>
 											)}
 										</DropdownMenuContent>
 									</DropdownMenu>
-								</TableCell>
-							</TableRow>
-						))}
-
-						{Array.from({
-							length: Math.max(0, itemsPerPage - users.length),
-						}).map((_, i) => (
-							<TableRow
-								key={`empty-${i}`}
-								className={`border-b border-[#e5e7eb] ${(users.length + i) % 2 === 1 ? "bg-gray-50/30" : "bg-white"}`}
-							>
-								<TableCell className="px-6 py-5">
-									<div className="h-6" />
-								</TableCell>
-								<TableCell className="px-6 py-5">
-									<div className="h-6" />
-								</TableCell>
-								<TableCell className="px-6 py-5">
-									<div className="h-6" />
-								</TableCell>
-								<TableCell className="px-6 py-5">
-									<div className="h-6" />
 								</TableCell>
 							</TableRow>
 						))}
@@ -250,11 +217,21 @@ export function UsersTable({
 				/>
 			)}
 
-			{/* Activate User Dialog */}
+			{/* Reactivate User Dialog */}
 			{selectedUser && (
-				<ActivateUserDialog
-					open={activateDialogOpen}
-					onOpenChange={setActivateDialogOpen}
+				<ReactivateUserDialog
+					open={reactivateDialogOpen}
+					onOpenChange={setReactivateDialogOpen}
+					user={selectedUser}
+					onRefresh={onRefresh}
+				/>
+			)}
+
+			{/* Reinvite User Dialog */}
+			{selectedUser && (
+				<ReinviteUserDialog
+					open={reinviteDialogOpen}
+					onOpenChange={setReinviteDialogOpen}
 					user={selectedUser}
 					onRefresh={onRefresh}
 				/>

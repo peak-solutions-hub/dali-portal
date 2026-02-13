@@ -2,6 +2,8 @@ import { oc } from "@orpc/contract";
 import { ERRORS } from "../constants";
 import {
 	ActivateUserSchema,
+	CheckEmailStatusResponseSchema,
+	CheckEmailStatusSchema,
 	DeleteUserSchema,
 	GetUserByIdSchema,
 	GetUserListSchema,
@@ -25,6 +27,7 @@ export const getCurrentUserContract = oc
 	.errors({
 		NOT_AUTHENTICATED: ERRORS.USER.NOT_AUTHENTICATED,
 		NOT_FOUND: ERRORS.USER.NOT_FOUND,
+		DEACTIVATED_ACCOUNT: ERRORS.AUTH.DEACTIVATED_ACCOUNT,
 	});
 
 export const getUserListContract = oc
@@ -127,6 +130,18 @@ export const activateUserContract = oc
 		ALREADY_ACTIVE: ERRORS.USER.ALREADY_ACTIVE,
 	});
 
+export const checkEmailStatusContract = oc
+	.route({
+		method: "POST",
+		path: "/users/check-email-status",
+		summary: "Check if email is deactivated",
+		description:
+			"Check if an email exists in the system and if the account is deactivated (for password reset validation)",
+		tags: ["Users", "Auth"],
+	})
+	.input(CheckEmailStatusSchema)
+	.output(CheckEmailStatusResponseSchema);
+
 export const userContract = {
 	me: getCurrentUserContract,
 	list: getUserListContract,
@@ -135,4 +150,5 @@ export const userContract = {
 	getById: getUserByIdContract,
 	update: updateUserContract,
 	invite: inviteUserContract,
+	checkEmailStatus: checkEmailStatusContract,
 };

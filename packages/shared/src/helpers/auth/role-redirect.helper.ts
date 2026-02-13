@@ -19,7 +19,7 @@ export function getRedirectPath(role: RoleType): string {
 		case "ovm_staff":
 			return "/dashboard";
 		case "councilor":
-			return "/conference-room";
+			return "/dashboard";
 		default:
 			return "/dashboard";
 	}

@@ -82,6 +82,13 @@ export const AUTH_DEBOUNCE = {
 } as const;
 
 /**
+ * User-facing message for deactivated accounts.
+ * Single source of truth for frontend auth flows.
+ */
+export const DEACTIVATED_MESSAGE =
+	"Your account has been deactivated. Please contact a system administrator.";
+
+/**
  * Type helpers
  */
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];

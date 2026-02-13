@@ -1,25 +1,25 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getRedirectPath, type LoginInput, LoginSchema } from "@repo/shared";
-import { Alert, AlertDescription } from "@repo/ui/components/alert";
+import { type LoginInput, LoginSchema } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
-import { AlertCircle, Loader2, Mail, Shield } from "@repo/ui/lib/lucide-react";
+import { Loader2, Mail, Shield } from "@repo/ui/lib/lucide-react";
 import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/auth-context";
 import { useAuthStore } from "@/stores/auth-store";
 import { AuthCard, AuthHeader, PasswordField } from ".";
 
 export function LoginForm() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const { setSession, fetchProfile } = useAuthStore();
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const { isLoading: isAuthLoading } = useAuth();
+	const { setSession } = useAuthStore();
 
 	const {
 		register,
@@ -34,14 +34,21 @@ export function LoginForm() {
 		},
 	});
 
+	// Handle URL-param errors from auth callback (server Route Handler)
 	useEffect(() => {
 		const error = searchParams.get("error");
 		const message = searchParams.get("message");
 
-		if ((error === "invalid_link" || error === "auth_code_error") && message) {
-			setErrorMessage(message);
+		if (
+			(error === "invalid_link" ||
+				error === "auth_code_error" ||
+				error === "session_expired") &&
+			message
+		) {
+			toast.error(message);
+			router.replace("/login");
 		}
-	}, [searchParams]);
+	}, [searchParams, router]);
 
 	const onSubmit = async (data: LoginInput) => {
 		try {
@@ -63,53 +70,20 @@ export function LoginForm() {
 				return;
 			}
 
+			// Set session in Zustand — this triggers auth-context's SIGNED_IN handler
+			// which owns profile fetching, deactivated detection, redirect, and success toast
 			setSession(authData.session);
-
-			try {
-				await fetchProfile();
-				const profile = useAuthStore.getState().userProfile;
-
-				if (profile) {
-					if (profile.status === "deactivated") {
-						toast.error(
-							"Your account has been deactivated. Please contact an administrator.",
-						);
-						await supabase.auth.signOut();
-						setSession(null);
-						return;
-					}
-
-					const redirectPath = getRedirectPath(profile.role.name);
-					toast.success("Login successful");
-					router.push(redirectPath);
-					router.refresh();
-					return;
-				}
-			} catch (err) {
-				console.error("Profile fetch error:", err);
-			}
-
-			toast.success("Login successful");
-			router.push("/dashboard");
-			router.refresh();
-		} catch (err) {
-			console.error("Login error:", err);
+		} catch (_err) {
 			toast.error("An unexpected error occurred");
 		}
 	};
 
 	const passwordValue = watch("password", "");
+	const isBusy = isSubmitting || isAuthLoading;
 
 	return (
 		<AuthCard>
 			<AuthHeader />
-
-			{errorMessage && (
-				<Alert variant="destructive" className="mb-6">
-					<AlertCircle className="h-4 w-4" />
-					<AlertDescription>{errorMessage}</AlertDescription>
-				</Alert>
-			)}
 
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 				<div>
@@ -127,7 +101,7 @@ export function LoginForm() {
 							{...register("email")}
 							placeholder="your.email@iloilo.gov.ph"
 							className="h-12 pl-11 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
-							disabled={isSubmitting}
+							disabled={isBusy}
 							autoComplete="email"
 						/>
 					</div>
@@ -143,17 +117,17 @@ export function LoginForm() {
 						register={register("password")}
 						placeholder="••••••••"
 						showIcon={passwordValue.length > 0}
-						disabled={isSubmitting}
+						disabled={isBusy}
 						error={errors.password?.message}
 					/>
 				</div>
 
 				<Button
 					type="submit"
-					disabled={isSubmitting}
+					disabled={isBusy}
 					className="w-full h-12 bg-[#a60202] hover:bg-[#8a0101] text-white shadow-lg shadow-[#a60202]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
-					{isSubmitting ? (
+					{isBusy ? (
 						<>
 							<Loader2 className="w-4 h-4 mr-2 animate-spin" />
 							Signing in...

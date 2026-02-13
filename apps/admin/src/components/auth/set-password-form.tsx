@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isDefinedError } from "@orpc/client";
 import {
+	DEACTIVATED_MESSAGE,
 	getRedirectPath,
 	type SetPasswordInput,
 	SetPasswordSchema,
@@ -42,7 +43,7 @@ export function SetPasswordForm() {
 		formState: { errors, isSubmitting },
 	} = useForm<SetPasswordInput>({
 		resolver: zodResolver(SetPasswordSchema),
-		mode: "onChange", // Validate while typing to provide instant feedback
+		mode: "onChange",
 		defaultValues: {
 			password: "",
 			confirmPassword: "",
@@ -55,17 +56,37 @@ export function SetPasswordForm() {
 				data: { session },
 			} = await supabase.auth.getSession();
 
-			if (session) {
-				// console.log("[SetPassword] Session found, allowing password setup");
-				setHasSession(true);
-				setIsChecking(false);
-			} else {
-				// console.log("[SetPassword] No session found, redirecting to sign-in");
+			if (!session) {
 				setHasSession(false);
-				router.push(
-					"/login?error=session_expired&message=Your session has expired. Please request a new invite link.",
+				toast.error(
+					"Your session has expired. Please request a new invite link.",
 				);
+				router.push("/login");
+				return;
 			}
+
+			// Validate session by fetching profile via auth-context
+			const result = await fetchProfile(
+				session.access_token,
+				session.user?.email,
+			);
+
+			if (result.status === "deactivated") {
+				toast.error(DEACTIVATED_MESSAGE);
+				router.push("/login");
+				return;
+			}
+
+			if (result.status === "error") {
+				toast.error(
+					"Your session has expired. Please request a new invite link.",
+				);
+				router.push("/login");
+				return;
+			}
+
+			setHasSession(true);
+			setIsChecking(false);
 		};
 
 		checkSession();
@@ -80,7 +101,7 @@ export function SetPasswordForm() {
 			toast.error("Password does not meet the security requirements.", {
 				description: "Please check the highlighted rules and try again.",
 			});
-			setIsPasswordFocused(true); // Force tooltip to show
+			setIsPasswordFocused(true);
 			return;
 		}
 		await onSubmit(data);
@@ -116,71 +137,85 @@ export function SetPasswordForm() {
 			setSession(session);
 			setAuthToken(session.access_token);
 
-			// Activate user (change status from 'invited' to 'active')
-			const supabaseUserId = updateData.user.id;
-			const [activateError] = await api.users.activate({
-				id: supabaseUserId,
-			});
+			// Determine flow type first:
+			// - invited user: needs activation after setting password
+			// - active user (forgot-password recovery): no activation needed
+			const preUpdateProfile = await fetchProfile(
+				session.access_token,
+				session.user?.email,
+			);
 
-			if (activateError) {
-				// If user is already active, that's okay - continue
-				if (
-					isDefinedError(activateError) &&
-					activateError.code === "ALREADY_ACTIVE"
-				) {
-					console.log("User is already active, proceeding...");
-				} else {
-					console.error("Failed to activate user:", activateError);
-					toast.error(
-						"Failed to activate your account. Please contact support.",
-					);
-					await supabase.auth.signOut();
-					setSession(null);
-					return;
-				}
+			if (preUpdateProfile.status === "deactivated") {
+				toast.error(DEACTIVATED_MESSAGE);
+				router.push("/login");
+				return;
 			}
 
-			try {
-				// fetchProfile now returns the profile directly - no need for fragile delays
-				const profile = await fetchProfile(session.access_token);
-
-				if (!profile) {
-					toast.error("Failed to load user profile");
-					await supabase.auth.signOut();
-					setSession(null);
-					return;
-				}
-
-				if (profile.status === "deactivated") {
-					toast.error(
-						"Your account has been deactivated. Please contact an administrator.",
-					);
-					await supabase.auth.signOut();
-					setSession(null);
-					return;
-				}
-
-				const redirectPath = getRedirectPath(profile.role.name);
-				toast.success("Password updated successfully! Welcome to DALI Portal.");
-				router.push(redirectPath);
-			} catch (profileError: unknown) {
-				const error = profileError as { status?: number; message?: string };
-				if (error.status === 403) {
-					toast.error(
-						"Your account has been deactivated. Please contact an administrator.",
-					);
-					await supabase.auth.signOut();
-					setSession(null);
-					return;
-				}
-
-				console.error("Profile fetch error:", profileError);
+			if (preUpdateProfile.status === "error") {
 				toast.error("Failed to load user profile. Please try again.");
 				await supabase.auth.signOut();
 				setSession(null);
+				router.push("/login");
+				return;
 			}
-		} catch (err) {
-			console.error("Set password error:", err);
+
+			let profileForRedirect = preUpdateProfile.profile;
+
+			if (preUpdateProfile.profile.status === "invited") {
+				const supabaseUserId = updateData.user.id;
+				const [activateError] = await api.users.activate({
+					id: supabaseUserId,
+				});
+
+				if (activateError) {
+					const rawCode = (activateError as { code?: string })?.code;
+					const isAlreadyActiveCode =
+						rawCode === "ALREADY_ACTIVE" ||
+						rawCode === "USER.ALREADY_ACTIVE" ||
+						rawCode?.endsWith(".ALREADY_ACTIVE");
+
+					if (
+						!(
+							isDefinedError(activateError) &&
+							activateError.code === "ALREADY_ACTIVE"
+						) &&
+						!isAlreadyActiveCode
+					) {
+						toast.error(
+							"Failed to activate your account. Please contact support.",
+						);
+						await supabase.auth.signOut();
+						setSession(null);
+						return;
+					}
+				}
+
+				const postActivateProfile = await fetchProfile(
+					session.access_token,
+					session.user?.email,
+				);
+
+				if (postActivateProfile.status === "deactivated") {
+					toast.error(DEACTIVATED_MESSAGE);
+					router.push("/login");
+					return;
+				}
+
+				if (postActivateProfile.status === "error") {
+					toast.error("Failed to load user profile. Please try again.");
+					await supabase.auth.signOut();
+					setSession(null);
+					router.push("/login");
+					return;
+				}
+
+				profileForRedirect = postActivateProfile.profile;
+			}
+
+			const redirectPath = getRedirectPath(profileForRedirect.role.name);
+			toast.success("Password updated successfully! Welcome to DALI Portal.");
+			router.push(redirectPath);
+		} catch (_err) {
 			toast.error("An unexpected error occurred");
 		}
 	};
