@@ -1,17 +1,21 @@
 import {
 	applyDecorators,
+	BadRequestException,
 	type CanActivate,
+	ConflictException,
 	type ExecutionContext,
 	Injectable,
 	SetMetadata,
 	UseGuards,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { ORPCError } from "@orpc/nest";
+import { ERRORS } from "@repo/shared";
 import type { Request } from "express";
 import { TurnstileService } from "@/lib/turnstile.service";
 
 const CAPTCHA_OPTIONS_KEY = "captchaOptions";
+
+type CaptchaErrorCode = "VALIDATION_FAILED" | "TOKEN_SPENT_OR_EXPIRED";
 
 /**
  * Options for the @Captcha() decorator
@@ -75,25 +79,27 @@ export class CaptchaGuard implements CanActivate {
 		const request = context.switchToHttp().getRequest<Request>();
 		const token = request.body.captchaToken;
 
-		if (!token) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Captcha verification required",
-			});
-		}
-
-		if (typeof token !== "string") {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Invalid captcha token format",
-			});
-		}
-
 		// Verify token with Cloudflare Turnstile
 		const result = await this.turnstile.validateToken(token);
 
 		if (!result.success) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Captcha verification failed. Please try again.",
-			});
+			const turnstileErrorCodes = result["error-codes"] ?? [];
+
+			const captchaErrorCode: CaptchaErrorCode = turnstileErrorCodes.includes(
+				"timeout-or-duplicate",
+			)
+				? "TOKEN_SPENT_OR_EXPIRED"
+				: "VALIDATION_FAILED";
+
+			if (captchaErrorCode === "TOKEN_SPENT_OR_EXPIRED") {
+				throw new ConflictException(
+					ERRORS.INQUIRY.CAPTCHA_TOKEN_SPENT_OR_EXPIRED.message,
+				);
+			}
+
+			throw new BadRequestException(
+				ERRORS.INQUIRY.CAPTCHA_VALIDATION_FAILED.message,
+			);
 		}
 
 		return true;
