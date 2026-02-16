@@ -29,14 +29,15 @@ export const ALL_ROLES: RoleType[] = [
  * Feature-based role permissions
  *
  * Permission Mapping:
- * - Dashboard: Everyone (all roles can access)
- * - Document Tracker: admin_staff, head_admin, vice_mayor, legislative_staff, it_admin
- * - Caller's Slips: vice_mayor, ovm_staff, it_admin
- * - Session Management: legislative_staff, vice_mayor, it_admin
- * - Inquiry Tickets: ovm_staff, vice_mayor, it_admin
- * - Visitor & Beneficiary Hub: ovm_staff, vice_mayor, it_admin
- * - Conference Room: Everyone (all roles can access)
+ * - Dashboard: admin_staff, head_admin, vice_mayor, legislative_staff, ovm_staff, councilor
+ * - Document Tracker: admin_staff, head_admin, vice_mayor, legislative_staff
+ * - Caller's Slips: vice_mayor, ovm_staff
+ * - Session Management: head_admin, legislative_staff, vice_mayor
+ * - Inquiry Tickets: admin_staff, head_admin, vice_mayor, ovm_staff, legislative_staff, councilor
+ * - Visitor & Beneficiary Hub: ovm_staff, vice_mayor
+ * - Conference Room: admin_staff, head_admin, vice_mayor, legislative_staff, ovm_staff, councilor
  * - User Management: it_admin only
+ * - Roles Management: it_admin only
  */
 export const ROLE_PERMISSIONS = {
 	DASHBOARD: [
@@ -45,6 +46,7 @@ export const ROLE_PERMISSIONS = {
 		"vice_mayor",
 		"legislative_staff",
 		"ovm_staff",
+		"councilor",
 	] as RoleType[],
 	DOCUMENT_TRACKER: [
 		"admin_staff",
@@ -64,6 +66,7 @@ export const ROLE_PERMISSIONS = {
 		"vice_mayor",
 		"ovm_staff",
 		"legislative_staff",
+		"councilor",
 	] as RoleType[],
 	VISITOR_BENEFICIARY_HUB: ["ovm_staff", "vice_mayor"] as RoleType[],
 	CONFERENCE_ROOM: [

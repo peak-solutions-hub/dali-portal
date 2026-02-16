@@ -1,4 +1,5 @@
 import { Controller } from "@nestjs/common";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { ALL_ROLES, AppError, contract, ROLE_PERMISSIONS } from "@repo/shared";
 import { Roles } from "@/app/auth/decorators/roles.decorator";
@@ -10,6 +11,7 @@ export class UsersController {
 	constructor(private readonly usersService: UsersService) {}
 
 	// Get current authenticated user's profile - accessible by any authenticated user
+	@SkipThrottle()
 	@Roles(...ALL_ROLES)
 	@Implement(contract.users.me)
 	getCurrentUser() {
@@ -27,6 +29,7 @@ export class UsersController {
 	}
 
 	// User management routes require IT_ADMIN role
+	@SkipThrottle()
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.list)
 	getUsers() {
@@ -35,6 +38,7 @@ export class UsersController {
 		});
 	}
 
+	@Throttle({ default: { limit: 5, ttl: 60000 } })
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.deactivate)
 	deactivateUser() {
@@ -43,7 +47,8 @@ export class UsersController {
 		});
 	}
 
-	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
+	@Throttle({ default: { limit: 5, ttl: 60000 } })
+	@Roles(...ALL_ROLES)
 	@Implement(contract.users.activate)
 	activateUser() {
 		return implement(contract.users.activate).handler(async ({ input }) => {
@@ -51,6 +56,18 @@ export class UsersController {
 		});
 	}
 
+	// Public endpoint (no @Roles decorator) - used for password reset validation
+	@Throttle({ default: { limit: 5, ttl: 60000 } })
+	@Implement(contract.users.checkEmailStatus)
+	checkEmailStatus() {
+		return implement(contract.users.checkEmailStatus).handler(
+			async ({ input }) => {
+				return await this.usersService.checkEmailStatus(input);
+			},
+		);
+	}
+
+	@SkipThrottle()
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.getById)
 	getUserById() {
@@ -59,6 +76,7 @@ export class UsersController {
 		});
 	}
 
+	@Throttle({ default: { limit: 5, ttl: 60000 } })
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.update)
 	updateUser() {
@@ -73,6 +91,7 @@ export class UsersController {
 		);
 	}
 
+	@Throttle({ default: { limit: 3, ttl: 60000 } })
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.invite)
 	inviteUser() {

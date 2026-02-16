@@ -194,7 +194,11 @@ export class AppError extends ORPCError<ErrorCode, Record<string, never>> {
 			throw new Error(`Error definition not found for code: ${code}`);
 		}
 
-		super(code, { message: message ?? errorDef.message, data: {} });
+		super(code, {
+			message: message ?? errorDef.message,
+			status: errorDef.status,
+			data: {},
+		});
 	}
 
 	static getErrorDefinition(
