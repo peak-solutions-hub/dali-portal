@@ -18,7 +18,7 @@ import {
 	FileText,
 	Loader2,
 } from "@repo/ui/lib/lucide-react";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { downloadFile } from "@/utils/download-utils";
@@ -50,7 +50,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 	// Generate signed URL when component mounts
 	useEffect(() => {
 		if (document.storagePath && document.storageBucket) {
-			const supabase = createSupabaseBrowserClient();
+			const supabase = createBrowserClient();
 			getDocumentPdfUrl(supabase, document).then(setPdfUrl);
 		}
 	}, [document]);
@@ -60,7 +60,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
 		setIsDownloading(true);
 		try {
-			const supabase = createSupabaseBrowserClient();
+			const supabase = createBrowserClient();
 			await downloadFile(
 				supabase,
 				document.storageBucket,

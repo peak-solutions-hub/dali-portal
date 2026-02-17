@@ -1,0 +1,258 @@
+"use client";
+
+import { Loader2, Shield } from "@repo/ui/lib/lucide-react";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { AuthCard } from "@/components/auth";
+
+export default function AuthConfirmPage() {
+	const router = useRouter();
+	const [status, setStatus] = useState<"loading" | "error" | "success">(
+		"loading",
+	);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+	useEffect(() => {
+		const handleAuthConfirmation = async () => {
+			const supabase = createBrowserClient();
+
+			try {
+				// Priority 1: Check hash fragments for implicit flow (invite emails)
+				const hashParams = new URLSearchParams(
+					window.location.hash.substring(1), // Remove the leading #
+				);
+
+				const accessToken = hashParams.get("access_token");
+				const refreshToken = hashParams.get("refresh_token");
+				const hashType = hashParams.get("type");
+
+				if (accessToken && refreshToken) {
+					// console.log(`[AuthConfirm] Processing implicit flow: ${hashType}`);
+
+					const { data, error } = await supabase.auth.setSession({
+						access_token: accessToken,
+						refresh_token: refreshToken,
+					});
+
+					if (error) {
+						console.error("[AuthConfirm] Failed to set session:", error);
+						setErrorMessage(error.message);
+						setStatus("error");
+						return;
+					}
+
+					// Some Supabase clients may not return session in the setSession response.
+					// Ensure a session actually exists by querying the client.
+					const {
+						data: { session: confirmedSession },
+					} = await supabase.auth.getSession();
+
+					if (data.session || confirmedSession) {
+						// console.log(`[AuthConfirm] Session established for ${hashType}`);
+
+						// Wait a moment for the session to propagate to auth store
+						// This prevents race conditions with the auth provider
+						await new Promise((resolve) => setTimeout(resolve, 500));
+
+						setStatus("success");
+
+						// Clear hash from URL for security
+						window.history.replaceState(
+							null,
+							"",
+							window.location.pathname + window.location.search,
+						);
+
+						// Redirect based on type
+						if (
+							hashType === "invite" ||
+							hashType === "signup" ||
+							hashType === "recovery"
+						) {
+							router.push("/set-password");
+						} else {
+							// Redirect to / so proxy handles role-based routing
+							router.push("/");
+						}
+						return;
+					}
+				}
+
+				// Priority 2: Check query params for PKCE flow
+				const searchParams = new URLSearchParams(window.location.search);
+				const tokenHash = searchParams.get("token_hash");
+				const otpType = searchParams.get("type") as
+					| "signup"
+					| "invite"
+					| "recovery"
+					| "email"
+					| "magiclink"
+					| null;
+
+				if (tokenHash && otpType) {
+					// console.log(`[AuthConfirm] Processing PKCE flow: ${otpType}`);
+
+					const { error } = await supabase.auth.verifyOtp({
+						type: otpType,
+						token_hash: tokenHash,
+					});
+
+					if (error) {
+						console.error("[AuthConfirm] OTP verification failed:", error);
+						setErrorMessage(error.message);
+						setStatus("error");
+						return;
+					}
+
+					// console.log(`[AuthConfirm] OTP verified for ${otpType}`);
+
+					// Wait for session propagation
+					await new Promise((resolve) => setTimeout(resolve, 500));
+
+					setStatus("success");
+
+					// Redirect based on type
+					if (
+						otpType === "invite" ||
+						otpType === "signup" ||
+						otpType === "recovery"
+					) {
+						router.push("/set-password");
+					} else {
+						// Redirect to / so proxy handles role-based routing
+						router.push("/");
+					}
+					return;
+				}
+
+				// Priority 3: Check for existing session
+				const {
+					data: { session },
+				} = await supabase.auth.getSession();
+
+				if (session) {
+					// console.log("[AuthConfirm] Existing session found, redirecting");
+					setStatus("success");
+					// Redirect to / so proxy handles role-based routing
+					router.push("/");
+					return;
+				}
+
+				// No tokens or session found
+				// console.log("[AuthConfirm] No authentication tokens found");
+				setErrorMessage(
+					"The verification link is invalid or has expired. Please request a new one.",
+				);
+				setStatus("error");
+			} catch (error) {
+				console.error("[AuthConfirm] Unexpected error:", error);
+				setErrorMessage("An unexpected error occurred during verification.");
+				setStatus("error");
+			}
+		};
+
+		handleAuthConfirmation();
+	}, [router]);
+
+	// Auto-redirect to sign-in on error
+	useEffect(() => {
+		if (status === "error") {
+			const timeout = setTimeout(() => {
+				const errorUrl = new URL("/auth/sign-in", window.location.origin);
+				errorUrl.searchParams.set("error", "invalid_link");
+				errorUrl.searchParams.set(
+					"message",
+					errorMessage || "The verification link is invalid or has expired.",
+				);
+				router.push(errorUrl.toString().replace(window.location.origin, ""));
+			}, 3000); // Give user time to read the error
+
+			return () => clearTimeout(timeout);
+		}
+	}, [status, errorMessage, router]);
+
+	return (
+		<AuthCard>
+			<div className="text-center">
+				<div className="mb-6 flex justify-center">
+					<div className="relative">
+						<img
+							src="/iloilo-city-seal.png"
+							alt="Iloilo City Council Seal"
+							className="w-16 h-16 object-contain"
+						/>
+						<div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#a60202] flex items-center justify-center shadow-lg">
+							<Shield className="w-3 h-3 text-[#FFC107]" />
+						</div>
+					</div>
+				</div>
+
+				{status === "loading" && (
+					<>
+						<Loader2 className="w-8 h-8 animate-spin text-[#a60202] mx-auto mb-4" />
+						<h2 className="text-lg font-semibold text-gray-900">
+							Verifying your account...
+						</h2>
+						<p className="text-sm text-gray-600 mt-2">
+							Please wait while we confirm your identity.
+						</p>
+					</>
+				)}
+
+				{status === "success" && (
+					<>
+						<div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+							<svg
+								className="w-6 h-6 text-green-600"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M5 13l4 4L19 7"
+								/>
+							</svg>
+						</div>
+						<h2 className="text-lg font-semibold text-gray-900">
+							Verification successful!
+						</h2>
+						<p className="text-sm text-gray-600 mt-2">Redirecting you now...</p>
+					</>
+				)}
+
+				{status === "error" && (
+					<>
+						<div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+							<svg
+								className="w-6 h-6 text-red-600"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M6 18L18 6M6 6l12 12"
+								/>
+							</svg>
+						</div>
+						<h2 className="text-lg font-semibold text-gray-900">
+							Verification failed
+						</h2>
+						<p className="text-sm text-gray-600 mt-2">
+							{errorMessage || "The link is invalid or has expired."}
+						</p>
+						<p className="text-xs text-gray-500 mt-2">
+							Redirecting to sign-in in 3 seconds...
+						</p>
+					</>
+				)}
+			</div>
+		</AuthCard>
+	);
+}

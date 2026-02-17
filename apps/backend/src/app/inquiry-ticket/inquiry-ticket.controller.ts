@@ -3,8 +3,8 @@ import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { Captcha } from "@/app/captcha/captcha.guard";
-import { InquiryTicketService } from "@/app/inquiry-ticket/inquiry-ticket.service";
 import { InquiryMessageService } from "./inquiry-message.service";
+import { InquiryTicketService } from "./inquiry-ticket.service";
 
 @Controller()
 export class InquiryTicketController {

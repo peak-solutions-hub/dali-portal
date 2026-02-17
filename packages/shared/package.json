@@ -17,6 +17,14 @@
 			"types": "./dist/constants/index.d.ts",
 			"default": "./dist/constants/index.js"
 		},
+		"./lib": {
+			"types": "./dist/lib/index.d.ts",
+			"default": "./dist/lib/index.js"
+		},
+		"./lib/supabase": {
+			"types": "./dist/lib/supabase/index.d.ts",
+			"default": "./dist/lib/supabase/index.js"
+		},
 		"./schemas": {
 			"types": "./dist/schemas/index.d.ts",
 			"default": "./dist/schemas/index.js"
@@ -39,6 +47,7 @@
 	},
 	"dependencies": {
 		"@orpc/contract": "1.13.4",
+		"@supabase/ssr": "^0.8.0",
 		"@supabase/supabase-js": "^2.90.0",
 		"zod": "^4.2.1"
 	}

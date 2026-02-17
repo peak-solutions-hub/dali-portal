@@ -45,14 +45,8 @@ export const trackInquiryTicket = oc
 		tags: ["Inquiry", "Public"],
 	})
 	.errors({
-		NOT_FOUND: {
-			status: 404,
-			message: "Inquiry not found.",
-		},
-		TOO_MANY_REQUESTS: {
-			status: 429,
-			message: "Too many requests. Please try again later.",
-		},
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		TOO_MANY_REQUESTS: ERRORS.GENERAL.TOO_MANY_REQUESTS,
 	})
 	.input(TrackInquiryTicketSchema)
 	.output(TrackInquiryTicketResponseSchema);
@@ -66,15 +60,10 @@ export const sendInquiryMessage = oc
 		tags: ["Inquiry", "Public", "Admin"],
 	})
 	.errors({
-		NOT_FOUND: {
-			status: 404,
-			message: "Inquiry not found",
-		},
-		TOO_MANY_REQUESTS: {
-			status: 429,
-			message: "Too many requests. Please try again later.",
-		},
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		TOO_MANY_REQUESTS: ERRORS.GENERAL.TOO_MANY_REQUESTS,
 		ATTACHMENT_LIMIT_EXCEEDED: ERRORS.INQUIRY.ATTACHMENT_LIMIT_EXCEEDED,
+		MESSAGE_SEND_FAILED: ERRORS.INQUIRY.MESSAGE_SEND_FAILED,
 	})
 	.input(SendInquiryMessageSchema)
 	.output(InquiryMessageSchema);
@@ -89,10 +78,7 @@ export const getInquiryTicketWithMessages = oc
 		tags: ["Inquiry", "Public", "Admin"],
 	})
 	.errors({
-		NOT_FOUND: {
-			status: 404,
-			message: "Inquiry not found",
-		},
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
 	})
 	.input(GetInquiryTicketByIdSchema)
 	.output(InquiryTicketWithMessagesAndAttachmentsSchema);
@@ -107,10 +93,8 @@ export const getInquiryTicketList = oc
 		tags: ["Inquiry", "Admin"],
 	})
 	.errors({
-		UNAUTHORIZED: {
-			status: 401,
-			message: "Unauthorized access",
-		},
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	})
 	.input(GetInquiryTicketListSchema)
 	.output(InquiryTicketListSchema);
@@ -124,7 +108,8 @@ export const getInquiryTicketById = oc
 		tags: ["Inquiry", "Admin"],
 	})
 	.errors({
-		// define possible errors here
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
 	})
 	.input(GetInquiryTicketByIdSchema)
 	.output(InquiryTicketSchema);
@@ -137,6 +122,11 @@ export const updateInquiryTicketStatus = oc
 		description:
 			"Staff updates inquiry status. Closure remarks required for RESOLVED/REJECTED.",
 		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	})
 	.input(UpdateInquiryTicketStatusSchema)
 	.output(InquiryTicketSchema);
