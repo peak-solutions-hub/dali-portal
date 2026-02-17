@@ -5,10 +5,11 @@ import type {
 	InquiryStatus,
 	InquiryTicketWithMessagesResponse,
 } from "@repo/shared";
-import { ScrollArea } from "@repo/ui/components/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@repo/ui/components/sheet";
 import { createBrowserClient } from "@repo/ui/lib/supabase/client";
+import { LockKeyhole } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api.client";
 import { createTicketHelpers } from "@/utils/inquiry-ticket-helpers";
 import {
@@ -37,6 +38,7 @@ export function InquiryTicketSheet({
 	onClose,
 	onStatusUpdate,
 }: InquiryTicketSheetProps) {
+	const { userProfile } = useAuth();
 	const [ticket, setTicket] =
 		useState<InquiryTicketWithMessagesResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
@@ -90,6 +92,10 @@ export function InquiryTicketSheet({
 
 	if (!ticketId) return null;
 
+	// Check if ticket is assigned to someone else (not the current user)
+	const isAssignedToOther =
+		ticket?.assignedTo && ticket.assignedTo !== userProfile?.id;
+
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files) {
 			const newFiles = Array.from(e.target.files);
@@ -130,15 +136,24 @@ export function InquiryTicketSheet({
 		return paths;
 	};
 
-	const helpers = createTicketHelpers(ticketId, message, files, uploadFiles, {
-		onFilesClear: () => setFiles([]),
-		onUploadProgress: setUploadProgress,
-		onTicketUpdate: setTicket,
-		onMessageClear: () => setMessage(""),
-		onLoadingChange: setIsSending,
-		onStatusLoadingChange: setIsUpdatingStatus,
-		onStatusUpdate,
-	});
+	const helpers = createTicketHelpers(
+		ticketId,
+		message,
+		files,
+		uploadFiles,
+		{
+			onFilesClear: () => setFiles([]),
+			onUploadProgress: setUploadProgress,
+			onTicketUpdate: setTicket,
+			onMessageClear: () => setMessage(""),
+			onLoadingChange: setIsSending,
+			onStatusLoadingChange: setIsUpdatingStatus,
+			onStatusUpdate,
+		},
+		userProfile
+			? { id: userProfile.id, fullName: userProfile.fullName }
+			: undefined,
+	);
 
 	const {
 		handleSendMessage,
@@ -179,24 +194,22 @@ export function InquiryTicketSheet({
 	return (
 		<>
 			<Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-				<SheetContent className="w-full sm:max-w-[50vw] p-0 overflow-y-auto">
+				<SheetContent className="w-full sm:max-w-[50vw] p-0 overflow-hidden flex flex-col">
 					<SheetTitle className="sr-only">Inquiry Ticket</SheetTitle>
 					{isLoading ? (
 						<InquiryTicketSheetSkeleton />
 					) : error ? (
 						<InquiryTicketSheetError message={error} />
 					) : ticket ? (
-						<div className="flex h-full flex-col">
+						<div className="flex flex-1 flex-col min-h-0">
 							<InquiryTicketHeader ticket={ticket} />
 
 							{/* Scrollable Content */}
-							<ScrollArea className="flex-1">
-								<div className="space-y-6 p-6">
-									<InquiryConversation ticket={ticket} />
-								</div>
-							</ScrollArea>
+							<div className="flex-1 min-h-0 overflow-hidden p-6">
+								<InquiryConversation ticket={ticket} />
+							</div>
 
-							<div className="border-t bg-background p-6">
+							<div className="border-t bg-background p-6 shrink-0">
 								{ticket.status === "resolved" ||
 								ticket.status === "rejected" ? (
 									<div className="p-4 bg-muted/30 rounded-lg border text-center">
@@ -205,6 +218,23 @@ export function InquiryTicketSheet({
 											{ticket.status === "resolved" ? "resolved" : "rejected"}{" "}
 											and is now closed.
 										</p>
+									</div>
+								) : isAssignedToOther ? (
+									<div className="p-6 bg-muted/30 rounded-lg border text-center space-y-3">
+										<div className="flex justify-center">
+											<div className="p-3 bg-muted rounded-full">
+												<LockKeyhole className="h-5 w-5 text-muted-foreground" />
+											</div>
+										</div>
+										<div>
+											<p className="text-sm font-medium text-foreground/80">
+												Assigned to {ticket.user?.fullName}
+											</p>
+											<p className="text-xs text-muted-foreground mt-1">
+												You cannot reply to or manage inquiries assigned to
+												other staff members.
+											</p>
+										</div>
 									</div>
 								) : (
 									<>
@@ -217,9 +247,11 @@ export function InquiryTicketSheet({
 											onSend={handleSendMessage}
 											isSending={isSending}
 											uploadProgress={uploadProgress}
+											disabled={!ticket.assignedTo}
 										/>
 
 										<InquiryTicketActions
+											ticket={ticket}
 											onAssign={() =>
 												handleAssignToMe(() => openConfirmationDialog("assign"))
 											}
@@ -230,6 +262,7 @@ export function InquiryTicketSheet({
 												handleReject(() => openConfirmationDialog("reject"))
 											}
 											isUpdating={isUpdatingStatus}
+											currentUserId={userProfile?.id}
 										/>
 									</>
 								)}

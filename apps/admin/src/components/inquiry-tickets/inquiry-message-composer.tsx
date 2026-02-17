@@ -14,6 +14,7 @@ interface InquiryMessageComposerProps {
 	onSend: () => void;
 	isSending: boolean;
 	uploadProgress: number;
+	disabled?: boolean;
 }
 
 export function InquiryMessageComposer({
@@ -25,6 +26,7 @@ export function InquiryMessageComposer({
 	onSend,
 	isSending,
 	uploadProgress,
+	disabled = false,
 }: InquiryMessageComposerProps) {
 	return (
 		<div className="space-y-2">
@@ -35,6 +37,7 @@ export function InquiryMessageComposer({
 				className="hidden"
 				id="admin-reply-file-upload"
 				onChange={onFileChange}
+				disabled={disabled}
 			/>
 
 			{/* File preview section */}
@@ -61,43 +64,53 @@ export function InquiryMessageComposer({
 				</div>
 			)}
 
-			<Textarea
-				value={message}
-				onChange={(e) => onMessageChange(e.target.value)}
-				placeholder="Type your message..."
-				disabled={isSending}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-						e.preventDefault();
-						onSend();
-					}
-				}}
-				className="min-h-30 resize-none border-gray-300"
-				rows={4}
-			/>
-			<div className="flex justify-between items-center">
+			{/* Input row with attachment, textarea, and send button */}
+			<div className="flex items-center gap-2">
+				{/* Attachment button */}
 				<label
 					htmlFor="admin-reply-file-upload"
-					className="cursor-pointer p-2 hover:bg-muted rounded-md flex items-center justify-center text-muted-foreground transition-colors"
-					title="Attach files"
+					className={
+						disabled
+							? "h-12.5 p-2 rounded-md flex items-center justify-center text-muted-foreground/30 cursor-not-allowed"
+							: "h-12.5 cursor-pointer p-2 hover:bg-muted rounded-md flex items-center justify-center text-muted-foreground transition-colors"
+					}
+					title={
+						disabled ? "Assign the ticket to attach files" : "Attach files"
+					}
+					style={disabled ? { pointerEvents: "none" } : {}}
 				>
 					<Paperclip className="h-5 w-5" />
 				</label>
+
+				{/* Textarea */}
+				<Textarea
+					value={message}
+					onChange={(e) => onMessageChange(e.target.value)}
+					placeholder={
+						disabled ? "Assign the ticket to reply..." : "Type your message..."
+					}
+					disabled={isSending || disabled}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+							e.preventDefault();
+							onSend();
+						}
+					}}
+					className="min-h-12.5 max-h-37.5 border-gray-300 resize-y flex-1"
+				/>
+
+				{/* Send button */}
 				<Button
 					onClick={onSend}
-					disabled={isSending || (!message.trim() && files.length === 0)}
-					className="shrink-0 px-6"
+					disabled={
+						isSending || (!message.trim() && files.length === 0) || disabled
+					}
+					className="h-12.5 px-4 shrink-0"
 				>
 					{isSending ? (
-						<>
-							<Loader2 className="h-4 w-4 animate-spin mr-2" />
-							{uploadProgress > 0 ? `${uploadProgress}%` : "Sending"}
-						</>
+						<Loader2 className="h-4 w-4 animate-spin" />
 					) : (
-						<>
-							<Send className="h-4 w-4 mr-2" />
-							Send
-						</>
+						<Send className="h-4 w-4" />
 					)}
 				</Button>
 			</div>

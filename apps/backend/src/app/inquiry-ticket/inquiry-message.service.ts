@@ -36,10 +36,40 @@ export class InquiryMessageService {
 			throw new AppError("INQUIRY.NOT_FOUND");
 		}
 
+		// FR-02: Check if this is NOT the initial message (initial message is created during inquiry creation)
+		const messageCount = await this.db.inquiryMessage.count({
+			where: { ticketId: input.ticketId },
+		});
+
+		const isNotInitialMessage = messageCount > 0;
+		const shouldUpdateStatusForCitizen =
+			input.senderType === "citizen" &&
+			isNotInitialMessage &&
+			(inquiryTicket.status === "waiting_for_citizen" ||
+				inquiryTicket.status === "new");
+
+		// FR-01: Auto-update status when staff replies
+		const shouldUpdateStatusForStaff =
+			input.senderType === "staff" &&
+			(inquiryTicket.status === "new" || inquiryTicket.status === "open");
+
 		// Create the message
 		const message = await this.db.inquiryMessage.create({
 			data: input,
 		});
+
+		// Update status if needed
+		if (shouldUpdateStatusForStaff) {
+			await this.db.inquiryTicket.update({
+				where: { id: input.ticketId },
+				data: { status: "waiting_for_citizen" },
+			});
+		} else if (shouldUpdateStatusForCitizen) {
+			await this.db.inquiryTicket.update({
+				where: { id: input.ticketId },
+				data: { status: "open" },
+			});
+		}
 
 		// Send email notification if staff replied to citizen
 		if (message.senderType === "staff") {

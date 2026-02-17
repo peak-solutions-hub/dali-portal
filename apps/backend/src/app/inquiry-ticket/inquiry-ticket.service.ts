@@ -121,6 +121,12 @@ export class InquiryTicketService {
 					inquiryMessages: {
 						orderBy: { createdAt: "asc" },
 					},
+					user: {
+						select: {
+							id: true,
+							fullName: true,
+						},
+					},
 				},
 			});
 
@@ -146,6 +152,14 @@ export class InquiryTicketService {
 	): Promise<InquiryTicketResponse> {
 		const inquiryTicket = await this.db.inquiryTicket.findFirst({
 			where: { id: input.id },
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
 		});
 
 		if (!inquiryTicket) {
@@ -180,6 +194,14 @@ export class InquiryTicketService {
 			take: limit,
 			skip,
 			orderBy: { createdAt: "desc" },
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
 		});
 
 		// Calculate pagination info
@@ -245,6 +267,50 @@ export class InquiryTicketService {
 			data: {
 				status,
 				...(closureRemarks && { closureRemarks }),
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
+	}
+
+	async assignToMe(
+		ticketId: string,
+		userId: string,
+	): Promise<InquiryTicketResponse> {
+		const ticket = await this.db.inquiryTicket.findFirst({
+			where: { id: ticketId },
+		});
+
+		if (!ticket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		// FR-03: Assign to user and update status from 'new' to 'open'
+		const updated = await this.db.inquiryTicket.update({
+			where: { id: ticketId },
+			data: {
+				assignedTo: userId,
+				// Auto-transition from 'new' to 'open' when assigned
+				...(ticket.status === "new" && { status: "open" }),
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
 			},
 		});
 

@@ -3,6 +3,7 @@ import type {
 	InquiryStatus,
 	InquiryTicketWithMessagesResponse,
 } from "@repo/shared";
+import { toast } from "sonner";
 import { api } from "@/lib/api.client";
 
 export interface TicketHelperCallbacks {
@@ -15,12 +16,18 @@ export interface TicketHelperCallbacks {
 	onStatusUpdate?: () => void;
 }
 
+export interface UserInfo {
+	id: string;
+	fullName: string;
+}
+
 export const createTicketHelpers = (
 	ticketId: string | null,
 	message: string,
 	files: File[],
 	uploadFiles: () => Promise<string[]>,
 	callbacks: TicketHelperCallbacks,
+	currentUser?: UserInfo,
 ) => {
 	const {
 		onTicketUpdate,
@@ -70,9 +77,9 @@ export const createTicketHelpers = (
 
 			if (err) {
 				if (isDefinedError(err)) {
-					alert(`Error: ${err.message}`);
+					toast.error(err.message);
 				} else {
-					alert("Failed to send message");
+					toast.error("Failed to send message");
 				}
 				onLoadingChange(false);
 				onUploadProgress(0);
@@ -83,9 +90,16 @@ export const createTicketHelpers = (
 			await refreshTicketData();
 			onMessageClear();
 			onFilesClear();
+
+			// Status may have auto-updated (staff reply → waiting_for_citizen)
+			// Notify parent to refresh status counts
+			if (onStatusUpdate) {
+				onStatusUpdate();
+			}
+			toast.success("Message sent successfully");
 		} catch (e) {
 			console.error(e);
-			alert("An error occurred.");
+			toast.error("An error occurred while sending message");
 		} finally {
 			onLoadingChange(false);
 			onUploadProgress(0);
@@ -107,9 +121,9 @@ export const createTicketHelpers = (
 
 		if (err) {
 			if (isDefinedError(err)) {
-				alert(`Error: ${err}`);
+				toast.error(err.message);
 			} else {
-				alert("Failed to update status");
+				toast.error("Failed to update status");
 			}
 			onStatusLoadingChange(false);
 			return;
@@ -138,16 +152,113 @@ export const createTicketHelpers = (
 	};
 
 	const confirmAssignToMe = async () => {
-		// TODO: Implement assign to me with user context
-		await handleUpdateStatus("open");
+		if (!ticketId) return;
+
+		onStatusLoadingChange(true);
+		const [err, _result] = await api.inquiries.assignToMe({
+			id: ticketId,
+		});
+
+		if (err) {
+			if (isDefinedError(err)) {
+				toast.error(err.message);
+			} else {
+				toast.error("Failed to assign ticket");
+			}
+			onStatusLoadingChange(false);
+			return;
+		}
+
+		// Refresh ticket data to get updated info
+		const refreshedTicket = await refreshTicketData();
+		onStatusLoadingChange(false);
+
+		// Show success toast with ticket number
+		if (refreshedTicket) {
+			const assigneeName = currentUser?.fullName || "you";
+			toast.success(
+				`Inquiry ${refreshedTicket.referenceNumber} has been assigned to ${assigneeName}`,
+			);
+		}
+
+		// Notify parent to refresh status counts (new → open transition)
+		if (onStatusUpdate) {
+			onStatusUpdate();
+		}
 	};
 
 	const confirmResolve = async (remarks: string) => {
-		await handleUpdateStatus("resolved", remarks);
+		if (!ticketId) return;
+
+		onStatusLoadingChange(true);
+		const [err, _result] = await api.inquiries.updateStatus({
+			id: ticketId,
+			status: "resolved",
+			closureRemarks: remarks,
+		});
+
+		if (err) {
+			if (isDefinedError(err)) {
+				toast.error(err.message);
+			} else {
+				toast.error("Failed to resolve ticket");
+			}
+			onStatusLoadingChange(false);
+			return;
+		}
+
+		// Refresh ticket data to get updated info
+		const refreshedTicket = await refreshTicketData();
+		onStatusLoadingChange(false);
+
+		// Show success toast with ticket number
+		if (refreshedTicket) {
+			toast.success(
+				`Inquiry ${refreshedTicket.referenceNumber} has been resolved`,
+			);
+		}
+
+		// Notify parent to refresh status counts
+		if (onStatusUpdate) {
+			onStatusUpdate();
+		}
 	};
 
 	const confirmReject = async (remarks: string) => {
-		await handleUpdateStatus("rejected", remarks);
+		if (!ticketId) return;
+
+		onStatusLoadingChange(true);
+		const [err, _result] = await api.inquiries.updateStatus({
+			id: ticketId,
+			status: "rejected",
+			closureRemarks: remarks,
+		});
+
+		if (err) {
+			if (isDefinedError(err)) {
+				toast.error(err.message);
+			} else {
+				toast.error("Failed to reject ticket");
+			}
+			onStatusLoadingChange(false);
+			return;
+		}
+
+		// Refresh ticket data to get updated info
+		const refreshedTicket = await refreshTicketData();
+		onStatusLoadingChange(false);
+
+		// Show success toast with ticket number
+		if (refreshedTicket) {
+			toast.success(
+				`Inquiry ${refreshedTicket.referenceNumber} has been rejected`,
+			);
+		}
+
+		// Notify parent to refresh status counts
+		if (onStatusUpdate) {
+			onStatusUpdate();
+		}
 	};
 
 	return {

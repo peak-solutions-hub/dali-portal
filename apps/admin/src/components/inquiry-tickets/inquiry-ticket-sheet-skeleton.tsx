@@ -1,114 +1,77 @@
 import { Separator } from "@repo/ui/components/separator";
 import { Skeleton } from "@repo/ui/components/skeleton";
-import { Calendar, Mail, MessageSquare, Tag, User } from "lucide-react";
 
 export function InquiryTicketSheetSkeleton() {
 	return (
 		<div className="flex h-full flex-col">
-			{/* Header Skeleton */}
-			<div className="border-b bg-muted/30 p-4">
+			{/* Header Skeleton - matches InquiryTicketHeader */}
+			<div className="border-b bg-muted/30 p-4 pl-6 space-y-4">
 				<div className="flex items-start gap-4">
 					<div className="flex-1 min-w-0">
 						<div className="flex items-center gap-3 py-2">
-							<Skeleton className="h-7 w-48" />
-							<Skeleton className="h-5 w-20 rounded-full" />
+							<Skeleton className="h-7 w-64" /> {/* Title */}
+							<Skeleton className="h-5 w-20 rounded-full" />{" "}
+							{/* Status Badge */}
 						</div>
-						<Skeleton className="mt-1 h-3 w-32" />
+						<Skeleton className="mt-1 h-3 w-36" /> {/* Reference Number */}
+					</div>
+				</div>
+
+				<Separator />
+
+				{/* Collapsed Citizen Info Header */}
+				<div className="p-2 -mx-2 space-y-3">
+					<div className="flex items-center justify-between">
+						<Skeleton className="h-4 w-40" /> {/* "Citizen Information..." */}
+						<Skeleton className="h-4 w-4 rounded-full" />{" "}
+						{/* ChevronDown icon */}
 					</div>
 				</div>
 			</div>
 
-			{/* Content Skeleton */}
-			<div className="flex-1 overflow-auto">
-				<div className="space-y-6 p-6">
-					{/* Citizen Information Skeleton */}
-					<div className="space-y-3">
-						<Skeleton className="h-5 w-36" />
-						<div className="grid grid-cols-2 gap-4">
-							<div className="space-y-1">
-								<div className="flex items-center gap-2 text-xs text-muted-foreground">
-									<User className="h-3 w-3" />
-									Name
-								</div>
-								<Skeleton className="h-4 w-28" />
-							</div>
-							<div className="space-y-1">
-								<div className="flex items-center gap-2 text-xs text-muted-foreground">
-									<Mail className="h-3 w-3" />
-									Email
-								</div>
-								<Skeleton className="h-4 w-36" />
-							</div>
-							<div className="space-y-1">
-								<div className="flex items-center gap-2 text-xs text-muted-foreground">
-									<Calendar className="h-3 w-3" />
-									Date Submitted
-								</div>
-								<Skeleton className="h-4 w-32" />
-							</div>
-							<div className="space-y-1">
-								<div className="flex items-center gap-2 text-xs text-muted-foreground">
-									<Tag className="h-3 w-3" />
-									Request Type
-								</div>
-								<Skeleton className="h-4 w-24" />
-							</div>
+			{/* Content Skeleton - matches InquiryConversation */}
+			<div className="flex-1 min-h-0 overflow-hidden p-6">
+				<div className="space-y-4">
+					{/* Initial message skeleton (citizen) */}
+					<div className="max-w-[80%] rounded-lg p-3 bg-muted/30 border border-muted">
+						<div className="mb-2 flex items-center gap-2">
+							<Skeleton className="h-3 w-20" />
+							<Skeleton className="h-3 w-24" />
 						</div>
+						<Skeleton className="h-4 w-full" />
+						<Skeleton className="h-4 w-3/4 mt-1" />
 					</div>
 
-					<Separator />
-
-					{/* Conversation Skeleton */}
-					<div className="space-y-4">
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-2">
-								<MessageSquare className="h-4 w-4" />
-								<Skeleton className="h-5 w-40" />
-							</div>
-							<Skeleton className="h-6 w-20 rounded-full" />
+					{/* Staff reply skeleton */}
+					<div className="max-w-[80%] ml-auto rounded-lg p-3 bg-primary/5 border border-primary/20">
+						<div className="mb-2 flex items-center gap-2">
+							<Skeleton className="h-3 w-24" />
+							<Skeleton className="h-3 w-24" />
 						</div>
-
-						<div className="space-y-3">
-							{/* Message skeleton 1 - citizen */}
-							<div className="max-w-[80%] rounded-lg p-3 bg-muted/30 border border-muted">
-								<div className="mb-2 flex items-center gap-2">
-									<Skeleton className="h-3 w-20" />
-									<Skeleton className="h-3 w-24" />
-								</div>
-								<Skeleton className="h-4 w-full" />
-								<Skeleton className="h-4 w-3/4 mt-1" />
-							</div>
-
-							{/* Message skeleton 2 - staff */}
-							<div className="max-w-[80%] ml-auto rounded-lg p-3 bg-primary/5 border border-primary/20">
-								<div className="mb-2 flex items-center gap-2">
-									<Skeleton className="h-3 w-24" />
-									<Skeleton className="h-3 w-24" />
-								</div>
-								<Skeleton className="h-4 w-full" />
-								<Skeleton className="h-4 w-2/3 mt-1" />
-							</div>
-						</div>
+						<Skeleton className="h-4 w-full" />
+						<Skeleton className="h-4 w-2/3 mt-1" />
 					</div>
 				</div>
 			</div>
 
-			{/* Footer Skeleton */}
-			<div className="border-t bg-background p-6">
+			{/* Footer Skeleton - matches message composer + actions */}
+			<div className="border-t bg-background p-6 shrink-0">
 				<div className="space-y-3">
-					<Skeleton className="h-30 w-full rounded-md" />
+					{/* Message composer */}
+					<Skeleton className="h-24 w-full rounded-md" />
 					<div className="flex justify-between items-center">
 						<Skeleton className="h-9 w-9 rounded-md" />
 						<Skeleton className="h-9 w-24 rounded-md" />
 					</div>
 				</div>
 
+				{/* Action buttons skeleton */}
 				<div className="space-y-3 mt-6">
-					<Skeleton className="h-4 w-16" />
+					<Skeleton className="h-4 w-16" /> {/* "Actions" label */}
 					<div className="grid grid-cols-3 gap-2">
-						<Skeleton className="h-8 w-full rounded-md" />
-						<Skeleton className="h-8 w-full rounded-md" />
-						<Skeleton className="h-8 w-full rounded-md" />
+						<Skeleton className="h-9 w-full rounded-md" />
+						<Skeleton className="h-9 w-full rounded-md" />
+						<Skeleton className="h-9 w-full rounded-md" />
 					</div>
 				</div>
 			</div>

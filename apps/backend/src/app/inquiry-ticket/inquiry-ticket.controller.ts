@@ -1,9 +1,11 @@
 import { Controller } from "@nestjs/common";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
-import { contract } from "@repo/shared";
+import { AppError, contract, ROLE_PERMISSIONS } from "@repo/shared";
+import { Roles } from "@/app/auth/decorators/roles.decorator";
 import { Captcha } from "@/app/captcha/captcha.guard";
 import { InquiryTicketService } from "@/app/inquiry-ticket/inquiry-ticket.service";
+import type { ORPCContext } from "@/app/types";
 import { InquiryMessageService } from "./inquiry-message.service";
 
 @Controller()
@@ -116,6 +118,25 @@ export class InquiryTicketController {
 		return implement(contract.inquiries.updateStatus).handler(
 			async ({ input }) => {
 				return await this.inquiryService.updateStatus(input);
+			},
+		);
+	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Roles(...ROLE_PERMISSIONS.INQUIRY_TICKETS)
+	@Implement(contract.inquiries.assignToMe)
+	assignToMe() {
+		return implement(contract.inquiries.assignToMe).handler(
+			async ({ input, context }) => {
+				// Extract user ID from auth context
+				const { request } = context as ORPCContext;
+				const userId = request.user?.id;
+
+				if (!userId) {
+					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+				}
+
+				return await this.inquiryService.assignToMe(input.id, userId);
 			},
 		);
 	}

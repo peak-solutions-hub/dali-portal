@@ -27,8 +27,8 @@ export function InquiryConversation({ ticket }: InquiryConversationProps) {
 	}, [ticket.inquiryMessages, ticket.inquiryMessages.length]);
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
+		<div className="h-full flex flex-col">
+			<div className="flex items-center justify-between shrink-0 mb-4">
 				<div className="flex items-center gap-2">
 					<MessageSquare className="h-4 w-4" />
 					<h3 className="font-semibold">Conversation History</h3>
@@ -57,7 +57,7 @@ export function InquiryConversation({ ticket }: InquiryConversationProps) {
 
 			<div
 				ref={scrollRef}
-				className="conversation-scroll space-y-3 max-h-125 overflow-y-auto pr-2"
+				className="conversation-scroll space-y-3 flex-1 min-h-0 overflow-y-auto pr-2"
 				style={{
 					scrollbarWidth: "thin",
 					scrollbarColor: "hsl(var(--muted-foreground) / 0.3) transparent",
