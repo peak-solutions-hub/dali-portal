@@ -1,6 +1,6 @@
 "use client";
 
-import type { CreateInquiryTicketInput } from "@repo/shared";
+import { type CreateInquiryTicketInput, ERRORS } from "@repo/shared";
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api.client";
 
@@ -37,7 +37,9 @@ export function useSendInquiry(
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const clearError = useCallback(() => setError(null), []);
+	const clearError = useCallback(() => {
+		setError(null);
+	}, []);
 
 	const reset = useCallback(() => {
 		setIsSubmitting(false);
@@ -65,7 +67,25 @@ export function useSendInquiry(
 				});
 
 				if (err) {
-					const errorMessage = err.message;
+					const errorMessage = err?.message ?? err.message;
+
+					const errWithStatus = err as { status?: number };
+
+					if (errWithStatus?.status === 409) {
+						const message =
+							ERRORS.INQUIRY.CAPTCHA_TOKEN_SPENT_OR_EXPIRED.message;
+						setError(message);
+						options?.onError?.(message);
+						return { success: false };
+					}
+
+					if (errWithStatus?.status === 400) {
+						const message = ERRORS.INQUIRY.CAPTCHA_VALIDATION_FAILED.message;
+						setError(message);
+						options?.onError?.(message);
+						return { success: false };
+					}
+
 					setError(errorMessage);
 					options?.onError?.(errorMessage);
 					return { success: false };
@@ -82,7 +102,7 @@ export function useSendInquiry(
 				const errorMessage =
 					e instanceof Error
 						? e.message
-						: "An unexpected error occurred during submission.";
+						: ERRORS.GENERAL.INTERNAL_SERVER_ERROR.message;
 				setError(errorMessage);
 				options?.onError?.(errorMessage);
 				return { success: false };
