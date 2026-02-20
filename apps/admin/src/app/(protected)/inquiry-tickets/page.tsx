@@ -15,7 +15,7 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
-import { Bell, Loader2, MessageCircle, Search, Tag, User } from "lucide-react";
+import { Loader2, MessageCircle, Tag } from "lucide-react";
 import { useEffect, useState } from "react";
 import { InquiryStatusBadge } from "@/components/inquiry-tickets/inquiry-status-badge";
 import { InquiryTicketSheet } from "@/components/inquiry-tickets/inquiry-ticket-sheet";

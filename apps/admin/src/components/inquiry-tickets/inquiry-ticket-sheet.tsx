@@ -12,9 +12,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import {
 	useAssignTicket,
+	useConcludeTicket,
 	useRefreshTicket,
-	useRejectTicket,
-	useResolveTicket,
 	useSendTicketMessage,
 } from "@/hooks";
 import { api } from "@/lib/api.client";
@@ -87,7 +86,7 @@ export function InquiryTicketSheet({
 		},
 	});
 
-	const { resolve: resolveTicket, isResolving } = useResolveTicket({
+	const { conclude: concludeTicket, isConcluding } = useConcludeTicket({
 		onSuccess: async () => {
 			if (ticketId) {
 				await refreshTicket(ticketId);
@@ -95,15 +94,7 @@ export function InquiryTicketSheet({
 		},
 	});
 
-	const { reject: rejectTicket, isRejecting } = useRejectTicket({
-		onSuccess: async () => {
-			if (ticketId) {
-				await refreshTicket(ticketId);
-			}
-		},
-	});
-
-	const isUpdatingStatus = isResolving || isRejecting;
+	const isUpdatingStatus = isConcluding;
 
 	// Fetch ticket details when ticketId changes
 	useEffect(() => {
@@ -219,12 +210,12 @@ export function InquiryTicketSheet({
 
 	const confirmResolve = async (remarks: string) => {
 		if (!ticketId) return;
-		await resolveTicket(ticketId, remarks);
+		await concludeTicket(ticketId, "resolved", remarks);
 	};
 
 	const confirmReject = async (remarks: string) => {
 		if (!ticketId) return;
-		await rejectTicket(ticketId, remarks);
+		await concludeTicket(ticketId, "rejected", remarks);
 	};
 
 	const openConfirmationDialog = (actionType: InquiryActionType) => {

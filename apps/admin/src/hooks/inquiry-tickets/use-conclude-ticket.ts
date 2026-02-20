@@ -1,22 +1,29 @@
 "use client";
 
 import { isDefinedError } from "@orpc/client";
+import type { InquiryStatus } from "@repo/shared";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
 
-export interface UseRejectTicketOptions {
-	/** Callback when ticket is rejected successfully */
+type ConclusionAction = "resolved" | "rejected";
+
+export interface UseConcludeTicketOptions {
+	/** Callback when ticket is concluded successfully */
 	onSuccess?: (ticketId: string, referenceNumber?: string) => void;
 	/** Callback when an error occurs */
 	onError?: (error: string) => void;
 }
 
-export interface UseRejectTicketReturn {
-	/** Reject ticket with closure remarks */
-	reject: (ticketId: string, remarks: string) => Promise<{ success: boolean }>;
+export interface UseConcludeTicketReturn {
+	/** Conclude ticket with closure remarks */
+	conclude: (
+		ticketId: string,
+		action: ConclusionAction,
+		remarks: string,
+	) => Promise<{ success: boolean }>;
 	/** Loading state */
-	isRejecting: boolean;
+	isConcluding: boolean;
 	/** Error message */
 	error: string | null;
 	/** Clear error */
@@ -26,45 +33,49 @@ export interface UseRejectTicketReturn {
 }
 
 /**
- * Hook for rejecting inquiry tickets
+ * Hook for concluding inquiry tickets (resolving or rejecting)
  * Handles API calls, error handling, and loading states
  */
-export function useRejectTicket(
-	options?: UseRejectTicketOptions,
-): UseRejectTicketReturn {
-	const [isRejecting, setIsRejecting] = useState(false);
+export function useConcludeTicket(
+	options?: UseConcludeTicketOptions,
+): UseConcludeTicketReturn {
+	const [isConcluding, setIsConcluding] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	const clearError = useCallback(() => setError(null), []);
 
 	const reset = useCallback(() => {
-		setIsRejecting(false);
+		setIsConcluding(false);
 		setError(null);
 	}, []);
 
-	const reject = useCallback(
+	const conclude = useCallback(
 		async (
 			ticketId: string,
+			action: ConclusionAction,
 			remarks: string,
 		): Promise<{ success: boolean }> => {
 			if (!ticketId) {
 				return { success: false };
 			}
 
-			setIsRejecting(true);
+			setIsConcluding(true);
 			setError(null);
+
+			const actionLabel = action === "resolved" ? "resolve" : "reject";
+			const actionPastTense = action === "resolved" ? "resolved" : "rejected";
 
 			try {
 				const [err, result] = await api.inquiries.updateStatus({
 					id: ticketId,
-					status: "rejected",
+					status: action as InquiryStatus,
 					closureRemarks: remarks,
 				});
 
 				if (err) {
 					const errorMessage = isDefinedError(err)
 						? err.message
-						: "Failed to reject ticket";
+						: `Failed to ${actionLabel} ticket`;
 					setError(errorMessage);
 					options?.onError?.(errorMessage);
 					toast.error(errorMessage);
@@ -72,7 +83,9 @@ export function useRejectTicket(
 				}
 
 				if (result) {
-					toast.success(`Inquiry ${result.referenceNumber} has been rejected`);
+					toast.success(
+						`Inquiry ${result.referenceNumber} has been ${actionPastTense}`,
+					);
 					options?.onSuccess?.(ticketId, result.referenceNumber);
 					return { success: true };
 				}
@@ -83,22 +96,22 @@ export function useRejectTicket(
 				const errorMessage =
 					e instanceof Error
 						? e.message
-						: "An error occurred while rejecting ticket";
+						: `An error occurred while ${actionLabel}ing ticket`;
 				console.error(e);
 				setError(errorMessage);
 				options?.onError?.(errorMessage);
 				toast.error(errorMessage);
 				return { success: false };
 			} finally {
-				setIsRejecting(false);
+				setIsConcluding(false);
 			}
 		},
 		[options],
 	);
 
 	return {
-		reject,
-		isRejecting,
+		conclude,
+		isConcluding,
 		error,
 		clearError,
 		reset,
