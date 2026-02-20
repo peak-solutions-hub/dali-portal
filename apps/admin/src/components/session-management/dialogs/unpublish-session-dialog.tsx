@@ -109,6 +109,13 @@ export function UnpublishSessionDialog({
 							</li>
 							<li className="flex items-start gap-2">
 								<span className="text-amber-500 mt-0.5">•</span>
+								<span>
+									Permanently remove any uploaded agenda PDF — you will need to
+									upload it again after re-publishing
+								</span>
+							</li>
+							<li className="flex items-start gap-2">
+								<span className="text-amber-500 mt-0.5">•</span>
 								<span>Allow further editing of the agenda</span>
 							</li>
 						</ul>

@@ -108,6 +108,10 @@ export const ERRORS = {
 			status: 500,
 			message: "Failed to create session. Please try again.",
 		},
+		AGENDA_UPLOAD_FAILED: {
+			status: 500,
+			message: "Failed to upload session agenda. Please try again.",
+		},
 	},
 	AUTH: {
 		MISSING_TOKEN: {

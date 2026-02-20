@@ -49,12 +49,11 @@ export function RichTextEditor({
 
 	const handleChange = useCallback(
 		(content: string) => {
-			// Quill produces <p><br></p> for empty content
+			// Quill produces <p><br></p> for truly empty content.
+			// Only treat exact empty-editor states as empty — do NOT strip
+			// content that has HTML structure (line breaks, paragraphs).
 			const isEmpty =
-				!content ||
-				content === "<p><br></p>" ||
-				content === "<p></p>" ||
-				content.replace(/<[^>]*>/g, "").trim() === "";
+				!content || content === "<p><br></p>" || content === "<p></p>";
 
 			const plainText = content.replace(/<[^>]*>/g, "");
 			setTextLength(plainText.length);

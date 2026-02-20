@@ -13,16 +13,13 @@ import {
 	type GetDocumentFileUrlInput,
 	type GetSessionByIdInput,
 	type GetSessionListAdminInput,
-	type GetSessionListInput,
 	type MarkSessionCompleteInput,
 	type PublishSessionInput,
 	type RemoveAgendaPdfInput,
 	type SaveAgendaPdfInput,
 	type SaveSessionDraftInput,
-	type SessionListResponse,
 	type SessionStatus,
 	type SessionType,
-	type SessionWithAgenda,
 	type UnpublishSessionInput,
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
@@ -34,8 +31,8 @@ import {
 } from "@/generated/prisma/client";
 
 @Injectable()
-export class SessionService {
-	private readonly logger = new Logger(SessionService.name);
+export class SessionManagementService {
+	private readonly logger = new Logger(SessionManagementService.name);
 
 	constructor(
 		private readonly db: DbService,
@@ -46,9 +43,6 @@ export class SessionService {
 	   Shared Helpers
 	   ============================ */
 
-	/**
-	 * Transform a Prisma session record to API-friendly format
-	 */
 	private transformSession<
 		T extends { sessionNumber: Prisma.Decimal | number },
 	>(session: T): Omit<T, "sessionNumber"> & { sessionNumber: number } {
@@ -58,9 +52,6 @@ export class SessionService {
 		};
 	}
 
-	/**
-	 * Transform a session with agenda items
-	 */
 	private transformSessionWithAgenda<
 		TItem extends { orderIndex: Prisma.Decimal | number },
 		T extends {
@@ -87,9 +78,6 @@ export class SessionService {
 		};
 	}
 
-	/**
-	 * Build pagination where clause for sessions with shared filter logic
-	 */
 	private buildSessionWhere(input: {
 		type?: string | string[];
 		status?: string | string[];
@@ -124,135 +112,6 @@ export class SessionService {
 				dateTo ? { scheduleDate: { lte: dateTo } } : {},
 			],
 		};
-	}
-
-	/* ============================
-	   Public Endpoints
-	   ============================ */
-
-	/**
-	 * List sessions with filtering, sorting, and offset pagination (PUBLIC)
-	 */
-	async findAll(input: GetSessionListInput): Promise<SessionListResponse> {
-		const {
-			type,
-			status,
-			dateFrom,
-			dateTo,
-			sortBy,
-			sortDirection,
-			limit,
-			page,
-		} = input;
-
-		const skip = (page - 1) * limit;
-
-		const where = this.buildSessionWhere({
-			type,
-			status,
-			dateFrom,
-			dateTo,
-			defaultStatusFilter: ["scheduled", "completed"],
-		});
-
-		const orderBy: Prisma.SessionOrderByWithRelationInput =
-			sortBy === "date"
-				? { scheduleDate: sortDirection }
-				: { scheduleDate: "desc" };
-
-		const totalCount = await this.db.session.count({ where });
-		const totalPages = Math.ceil(totalCount / limit);
-
-		const sessions = await this.db.session.findMany({
-			where,
-			orderBy,
-			skip,
-			take: limit,
-		});
-
-		return {
-			sessions: sessions.map((s) => this.transformSession(s)),
-			pagination: {
-				currentPage: page,
-				totalPages,
-				totalCount,
-				itemsPerPage: limit,
-				hasNextPage: page < totalPages,
-				hasPreviousPage: page > 1,
-			},
-		};
-	}
-
-	/**
-	 * Get a single session by ID with full agenda (PUBLIC)
-	 */
-	async findOne(input: GetSessionByIdInput): Promise<SessionWithAgenda> {
-		const session = await this.db.session.findUnique({
-			where: { id: input.id },
-			include: {
-				sessionAgendaItem: {
-					orderBy: { orderIndex: "asc" },
-					include: {
-						document: {
-							select: {
-								id: true,
-								codeNumber: true,
-								title: true,
-								type: true,
-								status: true,
-								purpose: true,
-								classification: true,
-								receivedAt: true,
-								legislativeDocument: {
-									select: {
-										authorNames: true,
-										sponsorNames: true,
-									},
-									take: 1,
-								},
-							},
-						},
-					},
-				},
-			},
-		});
-
-		if (!session) {
-			throw new AppError("SESSION.NOT_FOUND");
-		}
-
-		// Only return scheduled and completed sessions to public
-		if (session.status === "draft") {
-			throw new AppError("SESSION.NOT_FOUND");
-		}
-
-		// Flatten legislativeDocument into authors/sponsors on raw data before transforming
-		const flattenedSession = {
-			...session,
-			sessionAgendaItem: session.sessionAgendaItem.map((item) => {
-				if (!item.document) return item;
-				const { legislativeDocument, receivedAt, ...docRest } = item.document;
-				const legDoc = (
-					legislativeDocument as {
-						authorNames: string[];
-						sponsorNames: string[];
-					}[]
-				)?.[0];
-				return {
-					...item,
-					document: {
-						...docRest,
-						receivedAt: receivedAt.toISOString(),
-						authors: legDoc?.authorNames ?? [],
-						sponsors: legDoc?.sponsorNames ?? [],
-					},
-				};
-			}),
-		};
-
-		return this.transformSessionWithAgenda(
-			flattenedSession,
-		) as SessionWithAgenda;
 	}
 
 	/* ============================
@@ -716,10 +575,7 @@ export class SessionService {
 				input.fileName,
 			);
 
-			const result = await this.storage.createSignedUploadUrl(
-				"session-agendas",
-				path,
-			);
+			const result = await this.storage.createSignedUploadUrl("agendas", path);
 
 			this.logger.log(
 				`Generated agenda upload URL for session #${Number(session.sessionNumber)}`,

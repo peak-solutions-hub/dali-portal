@@ -12,6 +12,7 @@ import {
 } from "@repo/ui/components/select";
 import {
 	ChevronDown,
+	ChevronUp,
 	ExternalLink,
 	FileText,
 	Pencil,
@@ -54,6 +55,18 @@ interface AgendaItemCardProps {
 	) => void;
 	/** Callback to open document viewer dialog */
 	onViewDocument?: (documentId: string) => void;
+	/** Callback to move this item up */
+	onMoveUp?: () => void;
+	/** Callback to move this item down */
+	onMoveDown?: () => void;
+	/** Whether this is the first item in the list */
+	isFirst?: boolean;
+	/** Whether this is the last item in the list */
+	isLast?: boolean;
+	/** Whether this item was just moved (show highlight) */
+	isHighlighted?: boolean;
+	/** Whether this item has unsaved changes */
+	isModified?: boolean;
 }
 
 /** Format a date string (YYYY-MM-DD) to "Month DD, YYYY" */
@@ -80,6 +93,12 @@ export function AgendaItemCard({
 	onRemoveDocument,
 	onUpdateDocumentSummary,
 	onViewDocument,
+	onMoveUp,
+	onMoveDown,
+	isFirst,
+	isLast,
+	isHighlighted,
+	isModified,
 }: AgendaItemCardProps) {
 	const [editingSummaryId, setEditingSummaryId] = useState<string | null>(null);
 	const [summaryDraft, setSummaryDraft] = useState("");
@@ -287,10 +306,51 @@ export function AgendaItemCard({
 	};
 
 	return (
-		<div className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4 bg-white">
-			<h4 className="text-base font-medium text-gray-900 leading-6">
-				{item.title}
-			</h4>
+		<div
+			className={`flex flex-col gap-3 rounded-lg border p-4 bg-white transition-all duration-300 ${
+				isHighlighted
+					? "border-[#a60202] ring-2 ring-[#a60202]/30"
+					: isModified
+						? "border-l-amber-400 border-l-[3px] border-gray-200"
+						: "border-gray-200"
+			}`}
+		>
+			<div className="flex items-center justify-between">
+				<div className="flex items-center gap-2">
+					<h4 className="text-base font-medium text-gray-900 leading-6">
+						{item.title}
+					</h4>
+					{isModified && (
+						<span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-400/30">
+							Unsaved
+						</span>
+					)}
+				</div>
+				{(onMoveUp || onMoveDown) && (
+					<div className="flex items-center gap-0.5">
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 w-7 p-0 cursor-pointer text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+							onClick={onMoveUp}
+							disabled={isFirst}
+							title="Move up"
+						>
+							<ChevronUp className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 w-7 p-0 cursor-pointer text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+							onClick={onMoveDown}
+							disabled={isLast}
+							title="Move down"
+						>
+							<ChevronDown className="h-4 w-4" />
+						</Button>
+					</div>
+				)}
+			</div>
 
 			{/* Minutes Session Picker (draft) or read-only display (scheduled/completed) */}
 			{isMinutesSection && onContentTextChange && (
@@ -320,15 +380,19 @@ export function AgendaItemCard({
 						</SelectContent>
 					</Select>
 					{contentText && (
-						<p className="text-xs text-gray-500 italic mt-1">
-							Preview: {contentText}
-						</p>
+						<div className="text-xs text-gray-500 italic mt-1">
+							<span>Preview: </span>
+							<span dangerouslySetInnerHTML={{ __html: contentText }} />
+						</div>
 					)}
 				</div>
 			)}
 			{isMinutesSection && !onContentTextChange && contentText && (
 				<div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-					<p className="text-sm text-gray-700">{contentText}</p>
+					<div
+						className="text-sm text-gray-700 [&>ul]:list-disc [&>ul]:ml-4 [&>ol]:list-decimal [&>ol]:ml-4"
+						dangerouslySetInnerHTML={{ __html: contentText }}
+					/>
 				</div>
 			)}
 

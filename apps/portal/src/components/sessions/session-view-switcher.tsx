@@ -4,9 +4,8 @@ import type { SessionWithAgenda } from "@repo/shared";
 import { FileText, Globe, Monitor } from "@repo/ui/lib/lucide-react";
 import { type ReactNode, useState } from "react";
 import { SessionPdfView } from "./session-pdf-view";
-import { SessionPresentationView } from "./session-presentation-view";
 
-type ViewMode = "web" | "presentation" | "pdf";
+type ViewMode = "web" | "pdf";
 
 interface SessionViewSwitcherProps {
 	session: SessionWithAgenda;
@@ -29,12 +28,6 @@ export function SessionViewSwitcher({
 		disabled?: boolean;
 		tooltip?: string;
 	}[] = [
-		{
-			mode: "presentation",
-			label: "Presentation View",
-			shortLabel: "Slides",
-			icon: Monitor,
-		},
 		{
 			mode: "web",
 			label: "Web View",
@@ -75,9 +68,7 @@ export function SessionViewSwitcher({
 											? "bg-[#a60202] text-white shadow-sm"
 											: disabled
 												? "border border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50"
-												: mode === "presentation"
-													? "border-2 border-[#ffc107] text-[#a60202] hover:bg-yellow-50"
-													: "border border-[#a60202] text-[#a60202] hover:bg-red-50"
+												: "border border-[#a60202] text-[#a60202] hover:bg-red-50"
 									}`}
 								>
 									<Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -96,14 +87,11 @@ export function SessionViewSwitcher({
 
 			{/* View Content */}
 			{activeView === "web" && children}
-			{activeView === "presentation" && (
-				<SessionPresentationView
-					session={session}
-					onExitPresentation={() => setActiveView("web")}
-				/>
-			)}
 			{activeView === "pdf" && agendaFilePath && (
-				<SessionPdfView agendaFilePath={agendaFilePath} />
+				<SessionPdfView
+					sessionId={session.id}
+					agendaFilePath={agendaFilePath}
+				/>
 			)}
 		</div>
 	);

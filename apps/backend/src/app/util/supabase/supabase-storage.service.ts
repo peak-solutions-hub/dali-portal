@@ -216,6 +216,26 @@ export class SupabaseStorageService {
 	}
 
 	/**
+	 * Delete a file from storage.
+	 *
+	 * @param bucket - Storage bucket name
+	 * @param path - Full path of the file to delete
+	 */
+	async deleteFile(bucket: string, path: string): Promise<void> {
+		try {
+			const supabase = this.supabaseAdmin.getClient();
+			const { error } = await supabase.storage.from(bucket).remove([path]);
+			if (error) {
+				this.logger.warn(
+					`Failed to delete file ${bucket}/${path}: ${error.message}`,
+				);
+			}
+		} catch (err) {
+			this.logger.error(`Error deleting file ${bucket}/${path}`, err);
+		}
+	}
+
+	/**
 	 * Generate a unique file path with timestamp prefix.
 	 * Prevents collisions and makes files harder to guess.
 	 *

@@ -1,56 +1,56 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
-import { Download, Loader2, RefreshCw } from "@repo/ui/lib/lucide-react";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
+import {
+	Download,
+	FileText,
+	Loader2,
+	RefreshCw,
+} from "@repo/ui/lib/lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useDocumentFile } from "@/hooks/sessions/use-document-file";
 
 interface SessionPdfViewProps {
+	sessionId: string;
 	agendaFilePath: string;
 }
 
-export function SessionPdfView({ agendaFilePath }: SessionPdfViewProps) {
-	const [signedUrl, setSignedUrl] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState(false);
+export function SessionPdfView({
+	sessionId,
+	agendaFilePath,
+}: SessionPdfViewProps) {
+	const {
+		isLoading,
+		fileUrl: signedUrl,
+		error,
+		fetchAgendaPdfUrl,
+		downloadFile,
+	} = useDocumentFile();
 
-	const generateUrl = useCallback(async () => {
-		setIsLoading(true);
-		setError(false);
-
-		try {
-			const supabase = createSupabaseBrowserClient();
-			const { data, error: urlError } = await supabase.storage
-				.from("session-agendas")
-				.createSignedUrl(agendaFilePath, 3600);
-
-			if (urlError || !data?.signedUrl) {
-				setError(true);
-			} else {
-				setSignedUrl(data.signedUrl);
-			}
-		} catch {
-			setError(true);
-		} finally {
-			setIsLoading(false);
-		}
-	}, [agendaFilePath]);
+	const [isDownloading, setIsDownloading] = useState(false);
 
 	useEffect(() => {
-		generateUrl();
-	}, [generateUrl]);
+		fetchAgendaPdfUrl(sessionId);
+	}, [sessionId, fetchAgendaPdfUrl]);
 
-	const handleDownload = () => {
-		if (!signedUrl) return;
-		const link = document.createElement("a");
-		link.href = signedUrl;
-		link.download = agendaFilePath.split("/").pop() ?? "agenda.pdf";
-		link.target = "_blank";
-		link.rel = "noopener noreferrer";
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-	};
+	const handleDownload = useCallback(async () => {
+		if (!agendaFilePath || isDownloading) return;
+		setIsDownloading(true);
+		try {
+			// Reuse already-fetched signedUrl if available, otherwise fetch
+			const url = signedUrl ?? (await fetchAgendaPdfUrl(sessionId));
+			if (url) await downloadFile(undefined, url);
+		} finally {
+			setIsDownloading(false);
+		}
+	}, [
+		sessionId,
+		agendaFilePath,
+		signedUrl,
+		isDownloading,
+		fetchAgendaPdfUrl,
+		downloadFile,
+	]);
 
 	if (isLoading) {
 		return (
@@ -68,7 +68,7 @@ export function SessionPdfView({ agendaFilePath }: SessionPdfViewProps) {
 				</p>
 				<Button
 					variant="outline"
-					onClick={generateUrl}
+					onClick={() => fetchAgendaPdfUrl(sessionId)}
 					className="cursor-pointer"
 				>
 					<RefreshCw className="h-4 w-4 mr-2" />
@@ -80,24 +80,40 @@ export function SessionPdfView({ agendaFilePath }: SessionPdfViewProps) {
 
 	return (
 		<div className="space-y-4">
-			{/* Download Button */}
-			<div className="flex justify-end">
-				<Button
-					variant="outline"
-					onClick={handleDownload}
-					className="cursor-pointer border-[#a60202] text-[#a60202] hover:bg-red-50"
-				>
-					<Download className="h-4 w-4 mr-2" />
-					Download PDF
-				</Button>
-			</div>
+			<div className="flex flex-col items-center justify-center py-12 px-4 border border-gray-200 rounded-lg bg-gray-50 space-y-4">
+				<div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
+					<FileText className="h-8 w-8 text-[#a60202]" />
+				</div>
+				<p className="text-sm text-gray-600 text-center">
+					View the full agenda document in your browser.
+				</p>
 
-			{/* PDF iframe */}
-			<iframe
-				src={signedUrl}
-				className="w-full h-[80vh] rounded-lg border border-gray-200"
-				title="Session Agenda PDF"
-			/>
+				<div className="flex flex-col w-56 gap-3">
+					<Button
+						variant="outline"
+						asChild
+						className="border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-6 py-5 w-full"
+					>
+						<a href={signedUrl} target="_blank" rel="noopener noreferrer">
+							<FileText className="h-5 w-5 mr-2" />
+							View PDF Document
+						</a>
+					</Button>
+
+					<Button
+						onClick={handleDownload}
+						disabled={!agendaFilePath || isDownloading}
+						className="border bg-[#a60202] hover:bg-[#8a0101] cursor-pointer text-white px-6 py-5 w-full"
+					>
+						{isDownloading ? (
+							<Loader2 className="h-4 w-4 animate-spin mr-2" />
+						) : (
+							<Download className="h-4 w-4 mr-2" />
+						)}
+						Download Agenda PDF
+					</Button>
+				</div>
+			</div>
 		</div>
 	);
 }

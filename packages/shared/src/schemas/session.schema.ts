@@ -249,6 +249,7 @@ export const SessionManagementSessionSchema = z.object({
 	time: z.string(),
 	type: z.enum(["regular", "special"]),
 	status: z.enum(["draft", "scheduled", "completed"]),
+	agendaFilePath: z.string().nullable().optional(),
 });
 
 /* ============================
@@ -344,6 +345,54 @@ export const ApprovedDocumentListResponseSchema = z.object({
 	documents: z.array(ApprovedDocumentSchema),
 });
 
+/**
+ * Get agenda upload URL input
+ */
+export const GetAgendaUploadUrlSchema = z.object({
+	id: z.string().uuid(),
+	fileName: z.string().min(1),
+});
+
+/**
+ * Agenda upload URL response
+ */
+export const AgendaUploadUrlResponseSchema = z.object({
+	signedUrl: z.string(),
+	token: z.string(),
+	path: z.string(),
+});
+
+/**
+ * Save agenda PDF input (after upload is completed)
+ */
+export const SaveAgendaPdfSchema = z.object({
+	id: z.string().uuid(),
+	filePath: z.string().min(1),
+	fileName: z.string().min(1),
+});
+
+/**
+ * Remove agenda PDF input
+ */
+export const RemoveAgendaPdfSchema = z.object({
+	id: z.string().uuid(),
+});
+
+/**
+ * Get agenda PDF signed URL (Public) input
+ */
+export const GetAgendaPdfUrlSchema = z.object({
+	id: z.string().uuid(),
+});
+
+/**
+ * Agenda PDF signed URL response (Public)
+ */
+export const AgendaPdfUrlResponseSchema = z.object({
+	signedUrl: z.string(),
+	fileName: z.string(),
+});
+
 /* ============================
    Admin Types
    ============================ */
@@ -388,6 +437,14 @@ export type ApprovedDocument = z.infer<typeof ApprovedDocumentSchema>;
 export type ApprovedDocumentListResponse = z.infer<
 	typeof ApprovedDocumentListResponseSchema
 >;
+export type GetAgendaUploadUrlInput = z.infer<typeof GetAgendaUploadUrlSchema>;
+export type AgendaUploadUrlResponse = z.infer<
+	typeof AgendaUploadUrlResponseSchema
+>;
+export type SaveAgendaPdfInput = z.infer<typeof SaveAgendaPdfSchema>;
+export type RemoveAgendaPdfInput = z.infer<typeof RemoveAgendaPdfSchema>;
+export type GetAgendaPdfUrlInput = z.infer<typeof GetAgendaPdfUrlSchema>;
+export type AgendaPdfUrlResponse = z.infer<typeof AgendaPdfUrlResponseSchema>;
 
 /* ============================
    Admin UI Component Props

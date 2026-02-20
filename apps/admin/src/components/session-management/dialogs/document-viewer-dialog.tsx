@@ -11,7 +11,6 @@ import {
 import {
 	Calendar,
 	Download,
-	ExternalLink,
 	FileText,
 	Loader2,
 	Tag,
@@ -85,6 +84,24 @@ export function DocumentViewerDialog({
 
 	const isPdf = contentType === "application/pdf" || fileName?.endsWith(".pdf");
 
+	const handleDownload = async () => {
+		if (!fileUrl) return;
+		try {
+			const res = await fetch(fileUrl);
+			const blob = await res.blob();
+			const blobUrl = URL.createObjectURL(blob);
+			const link = globalThis.document.createElement("a");
+			link.href = blobUrl;
+			link.download = fileName || "document.pdf";
+			globalThis.document.body.appendChild(link);
+			link.click();
+			globalThis.document.body.removeChild(link);
+			URL.revokeObjectURL(blobUrl);
+		} catch {
+			window.open(fileUrl, "_blank", "noopener,noreferrer");
+		}
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="w-screen max-w-screen h-dvh max-h-dvh sm:w-[96vw] sm:max-w-[96vw] sm:h-[94vh] sm:max-h-[94vh] rounded-none sm:rounded-lg overflow-hidden p-0">
@@ -102,17 +119,22 @@ export function DocumentViewerDialog({
 						{/* Left: Document Details */}
 						<div className="w-full sm:w-105 sm:shrink-0 border-b sm:border-b-0 sm:border-r border-gray-200 overflow-y-auto p-4 sm:p-6">
 							<div className="space-y-4">
-								{/* Type Badge and Code Number */}
-								<div className="flex items-center gap-2 flex-wrap">
-									<span
-										className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${getDocumentTypeBadgeClass(document.type)}`}
-									>
-										<FileText className="w-3 h-3" />
-										{document.type}
-									</span>
-									<span className="text-sm text-[#a60202] font-semibold">
-										{document.number}
-									</span>
+								{/* Document Type */}
+								<div>
+									<label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+										Document Type
+									</label>
+									<div className="flex items-center gap-2 mt-1 flex-wrap">
+										<span
+											className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${getDocumentTypeBadgeClass(document.type)}`}
+										>
+											<FileText className="w-3 h-3" />
+											{document.type}
+										</span>
+										<span className="text-sm text-[#a60202] font-semibold">
+											{document.number}
+										</span>
+									</div>
 								</div>
 
 								{/* Title */}
@@ -208,17 +230,17 @@ export function DocumentViewerDialog({
 													rel="noopener noreferrer"
 													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors"
 												>
-													<ExternalLink className="h-3.5 w-3.5" />
-													Open in New Tab
+													<FileText className="h-3.5 w-3.5" />
+													View PDF Document
 												</a>
-												<a
-													href={fileUrl}
-													download={fileName || "document"}
-													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors"
+												<button
+													type="button"
+													onClick={handleDownload}
+													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer"
 												>
 													<Download className="h-3.5 w-3.5" />
-													Download
-												</a>
+													Download PDF
+												</button>
 											</div>
 											{fileName && (
 												<p className="text-xs text-gray-400">
@@ -273,17 +295,17 @@ export function DocumentViewerDialog({
 											rel="noopener noreferrer"
 											className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md bg-[#a60202] text-white hover:bg-[#8a0202] font-medium transition-colors"
 										>
-											<ExternalLink className="h-4 w-4" />
-											Open File
+											<FileText className="h-4 w-4" />
+											View PDF Document
 										</a>
-										<a
-											href={fileUrl}
-											download={fileName || "document"}
-											className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors"
+										<button
+											type="button"
+											onClick={handleDownload}
+											className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer"
 										>
 											<Download className="h-4 w-4" />
-											Download
-										</a>
+											Download PDF
+										</button>
 									</div>
 								</div>
 							) : null}

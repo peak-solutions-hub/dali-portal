@@ -67,7 +67,7 @@ export default async function HomePage() {
 		limit: 3,
 		page: 1,
 	});
-	console.log(sessionsResponse);
+
 	if (sessionsError && isDefinedError(sessionsError)) {
 		console.error("Failed to fetch upcoming sessions:", sessionsError.message);
 	}

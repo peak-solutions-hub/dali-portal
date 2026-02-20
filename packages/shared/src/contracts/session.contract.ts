@@ -8,14 +8,20 @@ import {
 	AdminSessionListResponseSchema,
 	AdminSessionResponseSchema,
 	AdminSessionWithAgendaSchema,
+	AgendaPdfUrlResponseSchema,
+	AgendaUploadUrlResponseSchema,
 	ApprovedDocumentListResponseSchema,
 	CreateSessionSchema,
 	DeleteSessionSchema,
+	GetAgendaPdfUrlSchema,
+	GetAgendaUploadUrlSchema,
 	GetSessionByIdSchema,
 	GetSessionListAdminSchema,
 	GetSessionListSchema,
 	MarkSessionCompleteSchema,
 	PublishSessionSchema,
+	RemoveAgendaPdfSchema,
+	SaveAgendaPdfSchema,
 	SaveSessionDraftSchema,
 	SessionListResponseSchema,
 	SessionWithAgendaSchema,
@@ -61,6 +67,25 @@ export const getSessionById = oc
 	})
 	.input(GetSessionByIdSchema)
 	.output(SessionWithAgendaSchema);
+
+/**
+ * Get agenda PDF signed URL (Public)
+ */
+export const getAgendaPdfUrl = oc
+	.route({
+		method: "GET",
+		path: "/sessions/{id}/agenda-pdf-url",
+		summary: "Get agenda PDF URL",
+		description:
+			"Public endpoint to get a signed URL for viewing/downloading the session agenda PDF.",
+		tags: ["Sessions", "Public"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
+		SIGNED_URL_FAILED: ERRORS.STORAGE.SIGNED_URL_FAILED,
+	})
+	.input(GetAgendaPdfUrlSchema)
+	.output(AgendaPdfUrlResponseSchema);
 
 /* ============================
    Admin Endpoints
@@ -247,12 +272,71 @@ export const getDocumentFileUrl = oc
 	.output(DocumentFileUrlResponseSchema);
 
 /**
+ * Get a signed upload URL for session agenda PDF
+ */
+export const getAgendaUploadUrl = oc
+	.route({
+		method: "POST",
+		path: "/admin/sessions/{id}/agenda-upload-url",
+		summary: "Get agenda PDF upload URL",
+		description:
+			"Admin endpoint to get a signed upload URL for uploading session agenda PDF.",
+		tags: ["Sessions", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
+		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+		AGENDA_UPLOAD_FAILED: ERRORS.SESSION.AGENDA_UPLOAD_FAILED,
+	})
+	.input(GetAgendaUploadUrlSchema)
+	.output(AgendaUploadUrlResponseSchema);
+
+/**
+ * Save agenda PDF path after successful upload
+ */
+export const saveAgendaPdf = oc
+	.route({
+		method: "PATCH",
+		path: "/admin/sessions/{id}/agenda-pdf",
+		summary: "Save agenda PDF",
+		description:
+			"Admin endpoint to save the agenda PDF file path after upload and create a tracking agenda item.",
+		tags: ["Sessions", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
+		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+	})
+	.input(SaveAgendaPdfSchema)
+	.output(AdminSessionResponseSchema);
+
+/**
+ * Remove agenda PDF from session
+ */
+export const removeAgendaPdf = oc
+	.route({
+		method: "DELETE",
+		path: "/admin/sessions/{id}/agenda-pdf",
+		summary: "Remove agenda PDF",
+		description:
+			"Admin endpoint to remove the agenda PDF from a scheduled session.",
+		tags: ["Sessions", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
+		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+	})
+	.input(RemoveAgendaPdfSchema)
+	.output(AdminSessionResponseSchema);
+
+/**
  * Session contract (exported for root router)
  */
 export const sessionContract = {
 	// Public
 	list: listSessions,
 	getById: getSessionById,
+	getAgendaPdfUrl: getAgendaPdfUrl,
 	// Admin
 	adminList: adminListSessions,
 	adminGetById: adminGetSessionById,
@@ -264,4 +348,7 @@ export const sessionContract = {
 	delete: deleteSession,
 	approvedDocuments: listApprovedDocuments,
 	getDocumentFileUrl: getDocumentFileUrl,
+	getAgendaUploadUrl: getAgendaUploadUrl,
+	saveAgendaPdf: saveAgendaPdf,
+	removeAgendaPdf: removeAgendaPdf,
 };

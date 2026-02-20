@@ -12,8 +12,10 @@ import {
 } from "@repo/ui/components/select";
 import { FileText, Search } from "@repo/ui/lib/lucide-react";
 import { getClassificationLabel } from "@repo/ui/lib/session-ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DocumentCard } from "./document-card";
+
+const DOCS_PAGE_SIZE = 20;
 
 interface DocumentsPanelPropsExtended extends DocumentsPanelProps {
 	onViewDocument?: (documentId: string) => void;
@@ -30,23 +32,28 @@ export function DocumentsPanel({
 		return documents.filter((doc) => {
 			// Type filter
 			if (typeFilter !== "all") {
-				if (
-					typeFilter === "ordinance" &&
-					!doc.type.toLowerCase().includes("ordinance")
-				) {
+				const typeLower = doc.type.toLowerCase();
+				if (typeFilter === "ordinance" && !typeLower.includes("ordinance")) {
 					return false;
 				}
-				if (
-					typeFilter === "resolution" &&
-					!doc.type.toLowerCase().includes("resolution")
-				) {
+				if (typeFilter === "resolution" && !typeLower.includes("resolution")) {
 					return false;
 				}
 				if (
 					typeFilter === "committee_report" &&
-					!doc.type.toLowerCase().includes("committee")
+					!typeLower.includes("committee")
 				) {
 					return false;
+				}
+				if (typeFilter === "others") {
+					// Show all documents that are NOT ordinances, resolutions, or committee reports
+					if (
+						typeLower.includes("ordinance") ||
+						typeLower.includes("resolution") ||
+						typeLower.includes("committee")
+					) {
+						return false;
+					}
 				}
 			}
 
@@ -65,6 +72,18 @@ export function DocumentsPanel({
 		});
 	}, [documents, typeFilter, searchQuery]);
 
+	// Pagination: reset when filters change
+	const [displayCount, setDisplayCount] = useState(DOCS_PAGE_SIZE);
+	useEffect(() => {
+		setDisplayCount(DOCS_PAGE_SIZE);
+	}, [typeFilter, searchQuery]);
+
+	const visibleDocuments = useMemo(
+		() => filteredDocuments.slice(0, displayCount),
+		[filteredDocuments, displayCount],
+	);
+	const hasMore = displayCount < filteredDocuments.length;
+
 	const ordinanceCount = documents.filter((d) =>
 		d.type.toLowerCase().includes("ordinance"),
 	).length;
@@ -74,6 +93,14 @@ export function DocumentsPanel({
 	const committeeReportCount = documents.filter((d) =>
 		d.type.toLowerCase().includes("committee"),
 	).length;
+	const othersCount = documents.filter((d) => {
+		const t = d.type.toLowerCase();
+		return (
+			!t.includes("ordinance") &&
+			!t.includes("resolution") &&
+			!t.includes("committee")
+		);
+	}).length;
 
 	return (
 		<div className="flex h-full w-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4">
@@ -104,6 +131,14 @@ export function DocumentsPanel({
 							className="text-xs bg-purple-100 text-purple-800"
 						>
 							{committeeReportCount} CR
+						</Badge>
+					)}
+					{othersCount > 0 && (
+						<Badge
+							variant="outline"
+							className="text-xs bg-orange-100 text-orange-800"
+						>
+							{othersCount} Other
 						</Badge>
 					)}
 				</div>
@@ -141,6 +176,9 @@ export function DocumentsPanel({
 						<SelectItem className="cursor-pointer" value="committee_report">
 							Committee Reports
 						</SelectItem>
+						<SelectItem className="cursor-pointer" value="others">
+							Others
+						</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
@@ -148,14 +186,26 @@ export function DocumentsPanel({
 			{/* Document List */}
 			<div className="flex-1 overflow-y-auto">
 				<div className="flex flex-col gap-2">
-					{filteredDocuments.length > 0 ? (
-						filteredDocuments.map((doc) => (
-							<DocumentCard
-								key={doc.id}
-								document={doc}
-								onViewDocument={onViewDocument}
-							/>
-						))
+					{visibleDocuments.length > 0 ? (
+						<>
+							{visibleDocuments.map((doc) => (
+								<DocumentCard
+									key={doc.id}
+									document={doc}
+									onViewDocument={onViewDocument}
+								/>
+							))}
+							{hasMore && (
+								<button
+									type="button"
+									onClick={() => setDisplayCount((c) => c + DOCS_PAGE_SIZE)}
+									className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+								>
+									Show more ({filteredDocuments.length - displayCount}{" "}
+									remaining)
+								</button>
+							)}
+						</>
 					) : (
 						<div className="flex flex-col items-center justify-center py-8 text-gray-500">
 							<FileText className="h-8 w-8 mb-2 text-gray-300" />

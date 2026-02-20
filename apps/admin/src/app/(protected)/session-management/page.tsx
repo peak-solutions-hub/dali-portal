@@ -3,33 +3,18 @@
 import type { SessionManagementSession as SessionUI } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Plus } from "@repo/ui/lib/lucide-react";
-import {
-	getSectionLabel,
-	getSectionLetter,
-	SESSION_SECTION_ORDER,
-} from "@repo/ui/lib/session-ui";
-import { useCallback, useEffect, useState } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	AgendaPanel,
 	CreateSessionDialog,
+	DiscardChangesDialog,
 	DocumentsPanel,
 	DocumentViewerDialog,
-	PresentationMode,
 } from "@/components/session-management";
-import type { AttachedDocument } from "@/components/session-management/agenda-panel";
-import { api } from "@/lib/api.client";
-
-// Dynamically generate agenda items from the session section enum
-// Each section gets an uppercase alphabetical letter (A, B, C, ...)
-const DEFAULT_AGENDA_ITEMS = SESSION_SECTION_ORDER.map((section, index) => ({
-	id: section,
-	title: `${getSectionLetter(section)}. ${getSectionLabel(section)
-		.replace(/\s+of:$/, "")
-		.replace(/:$/, "")}`,
-	section,
-	orderIndex: index,
-}));
+import { useAgendaBuilder, useSessionActions } from "@/hooks";
+import { api, orpc } from "@/lib/api.client";
 
 /**
  * Transform API session to the shape the UI components expect
@@ -40,6 +25,7 @@ function toSessionUI(session: {
 	scheduleDate: string | Date;
 	type: string;
 	status: string;
+	agendaFilePath?: string | null;
 }): SessionUI {
 	const d = new Date(session.scheduleDate);
 	return {
@@ -54,6 +40,7 @@ function toSessionUI(session: {
 		}),
 		type: session.type as "regular" | "special",
 		status: session.status as "draft" | "scheduled" | "completed",
+		agendaFilePath: session.agendaFilePath ?? null,
 	};
 }
 
@@ -62,7 +49,39 @@ export default function SessionManagement() {
 }
 
 function AgendaBuilderPage() {
-	const [sessions, setSessions] = useState<SessionUI[]>([]);
+	const queryClient = useQueryClient();
+
+	// Fetch sessions with TanStack infinite query (page-based)
+	const sessionsQuery = useInfiniteQuery(
+		orpc.sessions.adminList.infiniteOptions({
+			input: (pageParam) => ({
+				page: pageParam,
+				limit: 20,
+				sortDirection: "desc" as const,
+			}),
+			getNextPageParam: (lastPage) =>
+				lastPage.pagination.hasNextPage
+					? lastPage.pagination.currentPage + 1
+					: undefined,
+			initialPageParam: 1,
+		}),
+	);
+
+	// Flatten all loaded pages into a single sessions array
+	const sessions = useMemo<SessionUI[]>(() => {
+		if (!sessionsQuery.data) return [];
+		return sessionsQuery.data.pages.flatMap((page) =>
+			page.sessions.map(toSessionUI),
+		);
+	}, [sessionsQuery.data]);
+
+	/** Invalidate sessions cache to refetch from server */
+	const invalidateSessions = useCallback(async () => {
+		await queryClient.invalidateQueries({
+			queryKey: orpc.sessions.adminList.key(),
+		});
+	}, [queryClient]);
+
 	const [selectedSession, setSelectedSession] = useState<string | null>(null);
 	const [documents, setDocuments] = useState<
 		{
@@ -79,51 +98,50 @@ function AgendaBuilderPage() {
 		}[]
 	>([]);
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
-	const [showPresentationMode, setShowPresentationMode] = useState(false);
+	const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
-	const [actionInFlight, setActionInFlight] = useState<string | null>(null);
-	const [contentTextMap, setContentTextMap] = useState<Record<string, string>>(
-		{},
-	);
-	const [documentsByAgendaItem, setDocumentsByAgendaItem] = useState<
-		Record<string, AttachedDocument[]>
-	>({});
 	const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
-	const [pendingSaveForScheduled, setPendingSaveForScheduled] = useState(false);
+
+	// --- Agenda builder state (content, docs, ordering, dirty tracking) ---
+	const builder = useAgendaBuilder();
+	const {
+		contentTextMap,
+		documentsByAgendaItem,
+		hasChanges,
+		changedSections,
+		orderedAgendaItems,
+		highlightedItemId,
+		handleContentTextChange,
+		handleMoveAgendaItem,
+		resetEditorState,
+	} = builder;
+
+	// --- Session action handlers (save, publish, delete, PDF upload, etc.) ---
+	const actions = useSessionActions({
+		selectedSession,
+		sessions,
+		builder,
+		invalidateSessions,
+	});
+	const {
+		actionInFlight,
+		isUploadingPdf,
+		isRemovingPdf,
+		isLoadingSession,
+		handleSessionChange: loadSession,
+		handleDocumentsChange,
+		handleSaveDraft,
+		handlePublish,
+		handleUnpublish,
+		handleDeleteDraft,
+		handleUploadAgendaPdf,
+		handleRemoveAgendaPdf,
+		handleMarkComplete,
+	} = actions;
 
 	/** Find a document by ID from the approved documents list */
 	const viewerDocument =
 		documents.find((d) => d.id === viewerDocumentId) ?? null;
-
-	const handleContentTextChange = useCallback(
-		(itemId: string, text: string) => {
-			setContentTextMap((prev) => ({ ...prev, [itemId]: text }));
-		},
-		[],
-	);
-
-	/** Wrapper that flags a pending save when docs change on a scheduled session */
-	const handleDocumentsChange = useCallback(
-		(docs: Record<string, AttachedDocument[]>) => {
-			setDocumentsByAgendaItem(docs);
-			const session = sessions.find((s) => s.id === selectedSession);
-			if (session?.status === "scheduled") {
-				setPendingSaveForScheduled(true);
-			}
-		},
-		[sessions, selectedSession],
-	);
-
-	const fetchSessions = useCallback(async () => {
-		const [err, data] = await api.sessions.adminList({
-			limit: 100,
-			sortDirection: "desc",
-		});
-
-		if (!err && data) {
-			setSessions(data.sessions.map(toSessionUI));
-		}
-	}, []);
 
 	const fetchDocuments = useCallback(async () => {
 		const [err, data] = await api.sessions.approvedDocuments({});
@@ -133,241 +151,28 @@ function AgendaBuilderPage() {
 	}, []);
 
 	useEffect(() => {
-		Promise.all([fetchSessions(), fetchDocuments()]).finally(() =>
-			setIsLoading(false),
-		);
-	}, [fetchSessions, fetchDocuments]);
+		fetchDocuments().finally(() => setIsLoading(false));
+	}, [fetchDocuments]);
 
 	const handleSessionChange = async (sessionId: string) => {
 		setSelectedSession(sessionId);
-		// Reset state
-		setContentTextMap({});
-		setDocumentsByAgendaItem({});
-
-		// Load saved agenda items from the API
-		const [err, data] = await api.sessions.adminGetById({ id: sessionId });
-		if (!err && data && data.agendaItems.length > 0) {
-			const newContentTextMap: Record<string, string> = {};
-			const newDocsByAgenda: Record<string, AttachedDocument[]> = {};
-
-			for (const agendaItem of data.agendaItems) {
-				const sectionKey = agendaItem.section;
-
-				if (agendaItem.document) {
-					// Document sub-item
-					const docs = newDocsByAgenda[sectionKey] || [];
-					docs.push({
-						id: agendaItem.document.id,
-						key: agendaItem.document.codeNumber,
-						title: agendaItem.document.title,
-						summary: agendaItem.contentText ?? undefined,
-						classification: agendaItem.document.classification ?? undefined,
-					});
-					newDocsByAgenda[sectionKey] = docs;
-				} else if (agendaItem.contentText) {
-					// Section-level text (e.g. minutes)
-					newContentTextMap[sectionKey] = agendaItem.contentText;
-				}
-			}
-
-			setContentTextMap(newContentTextMap);
-			setDocumentsByAgendaItem(newDocsByAgenda);
-		}
+		await loadSession(sessionId);
 	};
 
 	const handleAddDocument = (agendaItemId: string) => {
 		console.log("Add document to agenda item:", agendaItemId);
 	};
 
-	const buildAgendaItems = useCallback(() => {
-		const agendaItems: {
-			section: string;
-			orderIndex: number;
-			contentText?: string | null;
-			linkedDocument?: string | null;
-		}[] = [];
-
-		let orderIdx = 0;
-		for (const item of DEFAULT_AGENDA_ITEMS) {
-			const sectionDocs = documentsByAgendaItem[item.id] || [];
-			const sectionContentText = contentTextMap[item.id] || null;
-
-			if (sectionDocs.length === 0) {
-				// No attached documents — just save the section with its contentText
-				agendaItems.push({
-					section: item.section,
-					orderIndex: orderIdx++,
-					contentText: sectionContentText,
-					linkedDocument: null,
-				});
-			} else {
-				// Has attached documents
-				// If section has contentText (e.g. minutes approval text), save it first
-				// Then save each attached document as a sub-item with its summary
-				if (sectionContentText) {
-					agendaItems.push({
-						section: item.section,
-						orderIndex: orderIdx++,
-						contentText: sectionContentText,
-						linkedDocument: null,
-					});
-				}
-				// Each attached document becomes its own agenda item
-				for (const doc of sectionDocs) {
-					agendaItems.push({
-						section: item.section,
-						orderIndex: orderIdx++,
-						contentText: doc.summary || null,
-						linkedDocument: doc.id,
-					});
-				}
-			}
-		}
-		return agendaItems;
-	}, [documentsByAgendaItem, contentTextMap]);
-
-	// Auto-save agenda when docs change on a scheduled session (e.g. removing a document)
-	useEffect(() => {
-		if (!pendingSaveForScheduled || !selectedSession) return;
-		setPendingSaveForScheduled(false);
-
-		const save = async () => {
-			const [err] = await api.sessions.saveDraft({
-				id: selectedSession,
-				agendaItems: buildAgendaItems(),
-			});
-			if (err) {
-				toast.error("Failed to save changes.");
-			}
-		};
-		save();
-	}, [pendingSaveForScheduled, selectedSession, buildAgendaItems]);
-
-	const handleSaveDraft = async () => {
-		if (!selectedSession) return;
-		setActionInFlight("saving");
-		try {
-			const [err] = await api.sessions.saveDraft({
-				id: selectedSession,
-				agendaItems: buildAgendaItems(),
-			});
-			if (err) {
-				toast.error("Failed to save draft. Please try again.");
-			} else {
-				await fetchSessions();
-			}
-		} catch {
-			toast.error("Failed to save draft. Please try again.");
-		} finally {
-			setActionInFlight(null);
-		}
-	};
-
-	const handlePublish = async () => {
-		if (!selectedSession) return;
-		setActionInFlight("publishing");
-		try {
-			// Save agenda items first before publishing
-			const [saveErr] = await api.sessions.saveDraft({
-				id: selectedSession,
-				agendaItems: buildAgendaItems(),
-			});
-			if (saveErr) {
-				toast.error("Failed to save before publishing. Please try again.");
-				setActionInFlight(null);
-				return;
-			}
-
-			const [err] = await api.sessions.publish({ id: selectedSession });
-			if (err) {
-				toast.error("Failed to publish session. Please try again.");
-			} else {
-				await fetchSessions();
-			}
-		} catch {
-			toast.error("Failed to publish session. Please try again.");
-		} finally {
-			setActionInFlight(null);
-		}
-	};
-
-	const handleStartPresentation = () => {
-		setShowPresentationMode(true);
-	};
-
-	const handleUnpublish = async () => {
-		if (!selectedSession) return;
-		setActionInFlight("unpublishing");
-		try {
-			const [err] = await api.sessions.unpublish({ id: selectedSession });
-			if (err) {
-				toast.error("Failed to unpublish session. Please try again.");
-			} else {
-				await fetchSessions();
-			}
-		} catch {
-			toast.error("Failed to unpublish session. Please try again.");
-		} finally {
-			setActionInFlight(null);
-		}
-	};
-
-	const handleDeleteDraft = async () => {
-		if (!selectedSession) return;
-		setActionInFlight("deleting");
-		try {
-			const [err] = await api.sessions.delete({ id: selectedSession });
-			if (err) {
-				toast.error("Failed to delete session. Please try again.");
-			} else {
-				setSelectedSession(null);
-				await fetchSessions();
-			}
-		} catch {
-			toast.error("Failed to delete session. Please try again.");
-		} finally {
-			setActionInFlight(null);
-		}
-	};
-
-	const handleMarkComplete = async () => {
-		if (!selectedSession) return;
-		setActionInFlight("completing");
-		try {
-			const [err] = await api.sessions.markComplete({ id: selectedSession });
-			if (err) {
-				toast.error("Failed to mark session complete. Please try again.");
-			} else {
-				await fetchSessions();
-			}
-		} catch {
-			toast.error("Failed to mark session complete. Please try again.");
-		} finally {
-			setActionInFlight(null);
+	const onDeleteDraft = async () => {
+		const deleted = await handleDeleteDraft();
+		if (deleted) {
+			setSelectedSession(null);
 		}
 	};
 
 	const selectedSessionData = sessions.find((s) => s.id === selectedSession);
 
-	if (showPresentationMode && selectedSessionData) {
-		return (
-			<PresentationMode
-				sessionNumber={selectedSessionData.sessionNumber.toString()}
-				sessionType={selectedSessionData.type}
-				sessionDate={selectedSessionData.date}
-				sessionTime={selectedSessionData.time}
-				agendaItems={DEFAULT_AGENDA_ITEMS.map((item) => ({
-					id: item.id,
-					title: item.title,
-					section: item.section,
-					documents: [],
-				}))}
-				onExit={() => setShowPresentationMode(false)}
-			/>
-		);
-	}
-
-	if (isLoading) {
+	if (isLoading || sessionsQuery.isLoading) {
 		return (
 			<div className="h-full bg-gray-50 flex items-center justify-center">
 				<p className="text-sm text-gray-500">Loading sessions...</p>
@@ -385,7 +190,13 @@ function AgendaBuilderPage() {
 							Session Management
 						</h1>
 						<Button
-							onClick={() => setShowCreateDialog(true)}
+							onClick={() => {
+								if (hasChanges) {
+									setShowDiscardDialog(true);
+								} else {
+									setShowCreateDialog(true);
+								}
+							}}
 							className="cursor-pointer bg-[#a60202] hover:bg-[#8a0101] text-white"
 						>
 							<Plus className="h-4 w-4 mr-2" />
@@ -412,21 +223,32 @@ function AgendaBuilderPage() {
 						<AgendaPanel
 							sessions={sessions}
 							selectedSession={selectedSessionData || null}
-							agendaItems={DEFAULT_AGENDA_ITEMS}
+							agendaItems={orderedAgendaItems}
 							onAddDocument={handleAddDocument}
 							onSaveDraft={handleSaveDraft}
 							onPublish={handlePublish}
 							onMarkComplete={handleMarkComplete}
-							onStartPresentation={handleStartPresentation}
 							onSessionChange={handleSessionChange}
 							onUnpublish={handleUnpublish}
-							onDeleteDraft={handleDeleteDraft}
+							onDeleteDraft={onDeleteDraft}
 							actionInFlight={actionInFlight}
 							contentTextMap={contentTextMap}
 							onContentTextChange={handleContentTextChange}
 							documentsByAgendaItem={documentsByAgendaItem}
 							onDocumentsByAgendaItemChange={handleDocumentsChange}
 							onViewDocument={setViewerDocumentId}
+							hasChanges={hasChanges}
+							changedSections={changedSections}
+							onUploadAgendaPdf={handleUploadAgendaPdf}
+							onRemoveAgendaPdf={handleRemoveAgendaPdf}
+							isUploadingPdf={isUploadingPdf}
+							isRemovingPdf={isRemovingPdf}
+							isLoadingSession={isLoadingSession}
+							onMoveAgendaItem={handleMoveAgendaItem}
+							highlightedItemId={highlightedItemId}
+							hasNextPage={sessionsQuery.hasNextPage}
+							isFetchingNextPage={sessionsQuery.isFetchingNextPage}
+							onLoadMoreSessions={sessionsQuery.fetchNextPage}
 						/>
 					</div>
 				</div>
@@ -436,8 +258,20 @@ function AgendaBuilderPage() {
 					open={showCreateDialog}
 					onOpenChange={setShowCreateDialog}
 					onSessionCreated={async (id) => {
+						// Reset editor state before switching to the new session
+						resetEditorState();
 						setSelectedSession(id);
-						await fetchSessions();
+						await invalidateSessions();
+						toast.success("New session created.");
+					}}
+				/>
+				<DiscardChangesDialog
+					open={showDiscardDialog}
+					onOpenChange={setShowDiscardDialog}
+					onDiscard={() => {
+						resetEditorState();
+						setSelectedSession(null);
+						setShowCreateDialog(true);
 					}}
 				/>
 				<DocumentViewerDialog

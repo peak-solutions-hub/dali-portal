@@ -6,7 +6,7 @@ import {
 } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
-import { ChevronLeft, Download } from "@repo/ui/lib/lucide-react";
+import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import {
 	formatAgendaItemNumber,
 	getClassificationLabel,
@@ -24,6 +24,7 @@ import { notFound } from "next/navigation";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import {
 	DocumentViewButton,
+	DownloadAgendaButton,
 	SessionQuickNav,
 	SessionViewSwitcher,
 } from "@/components/sessions";
@@ -201,23 +202,10 @@ async function SessionDetailContent({
 						</div>
 
 						{/* Download PDF - always visible, disabled when no file */}
-						<button
-							type="button"
-							disabled={!session.agendaFilePath}
-							className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
-								session.agendaFilePath
-									? "border-[#a60202] text-[#a60202] hover:bg-red-50"
-									: "border-gray-300 text-gray-400 cursor-not-allowed"
-							}`}
-							aria-label={
-								session.agendaFilePath
-									? "Download session agenda PDF"
-									: "No PDF available"
-							}
-						>
-							<Download className="h-4 w-4" />
-							Download PDF
-						</button>
+						<DownloadAgendaButton
+							sessionId={session.id}
+							agendaFilePath={session.agendaFilePath}
+						/>
 					</div>
 
 					{/* Session Agenda */}

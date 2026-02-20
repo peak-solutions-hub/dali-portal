@@ -2,41 +2,19 @@ import { Controller } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
-import { SessionService } from "./session.service";
+import { SessionManagementService } from "./session-management.service";
 
 @Controller()
-export class SessionController {
-	constructor(private readonly sessionService: SessionService) {}
-
-	/* ============================
-	   Public Endpoints
-	   ============================ */
-
-	@SkipThrottle()
-	@Implement(contract.sessions.list)
-	list() {
-		return implement(contract.sessions.list).handler(async ({ input }) => {
-			return await this.sessionService.findAll(input);
-		});
-	}
-
-	@SkipThrottle()
-	@Implement(contract.sessions.getById)
-	getById() {
-		return implement(contract.sessions.getById).handler(async ({ input }) => {
-			return await this.sessionService.findOne(input);
-		});
-	}
-
-	/* ============================
-	   Admin Endpoints
-	   ============================ */
+export class SessionManagementController {
+	constructor(
+		private readonly sessionManagementService: SessionManagementService,
+	) {}
 
 	@SkipThrottle()
 	@Implement(contract.sessions.approvedDocuments)
 	approvedDocuments() {
 		return implement(contract.sessions.approvedDocuments).handler(async () => {
-			return await this.sessionService.getApprovedDocuments();
+			return await this.sessionManagementService.getApprovedDocuments();
 		});
 	}
 
@@ -44,7 +22,7 @@ export class SessionController {
 	@Implement(contract.sessions.adminList)
 	adminList() {
 		return implement(contract.sessions.adminList).handler(async ({ input }) => {
-			return await this.sessionService.adminFindAll(input);
+			return await this.sessionManagementService.adminFindAll(input);
 		});
 	}
 
@@ -53,7 +31,7 @@ export class SessionController {
 	adminGetById() {
 		return implement(contract.sessions.adminGetById).handler(
 			async ({ input }) => {
-				return await this.sessionService.adminFindOne(input);
+				return await this.sessionManagementService.adminFindOne(input);
 			},
 		);
 	}
@@ -61,28 +39,28 @@ export class SessionController {
 	@Implement(contract.sessions.create)
 	create() {
 		return implement(contract.sessions.create).handler(async ({ input }) => {
-			return await this.sessionService.create(input);
+			return await this.sessionManagementService.create(input);
 		});
 	}
 
 	@Implement(contract.sessions.saveDraft)
 	saveDraft() {
 		return implement(contract.sessions.saveDraft).handler(async ({ input }) => {
-			return await this.sessionService.saveDraft(input);
+			return await this.sessionManagementService.saveDraft(input);
 		});
 	}
 
 	@Implement(contract.sessions.publish)
 	publish() {
 		return implement(contract.sessions.publish).handler(async ({ input }) => {
-			return await this.sessionService.publish(input);
+			return await this.sessionManagementService.publish(input);
 		});
 	}
 
 	@Implement(contract.sessions.unpublish)
 	unpublish() {
 		return implement(contract.sessions.unpublish).handler(async ({ input }) => {
-			return await this.sessionService.unpublish(input);
+			return await this.sessionManagementService.unpublish(input);
 		});
 	}
 
@@ -90,7 +68,7 @@ export class SessionController {
 	markComplete() {
 		return implement(contract.sessions.markComplete).handler(
 			async ({ input }) => {
-				return await this.sessionService.markComplete(input);
+				return await this.sessionManagementService.markComplete(input);
 			},
 		);
 	}
@@ -98,7 +76,7 @@ export class SessionController {
 	@Implement(contract.sessions.delete)
 	delete() {
 		return implement(contract.sessions.delete).handler(async ({ input }) => {
-			return await this.sessionService.delete(input);
+			return await this.sessionManagementService.delete(input);
 		});
 	}
 
@@ -107,7 +85,7 @@ export class SessionController {
 	getDocumentFileUrl() {
 		return implement(contract.sessions.getDocumentFileUrl).handler(
 			async ({ input }) => {
-				return await this.sessionService.getDocumentFileUrl(input);
+				return await this.sessionManagementService.getDocumentFileUrl(input);
 			},
 		);
 	}
@@ -116,7 +94,7 @@ export class SessionController {
 	getAgendaUploadUrl() {
 		return implement(contract.sessions.getAgendaUploadUrl).handler(
 			async ({ input }) => {
-				return await this.sessionService.getAgendaUploadUrl(input);
+				return await this.sessionManagementService.getAgendaUploadUrl(input);
 			},
 		);
 	}
@@ -125,7 +103,7 @@ export class SessionController {
 	saveAgendaPdf() {
 		return implement(contract.sessions.saveAgendaPdf).handler(
 			async ({ input }) => {
-				return await this.sessionService.saveAgendaPdf(input);
+				return await this.sessionManagementService.saveAgendaPdf(input);
 			},
 		);
 	}
@@ -134,7 +112,7 @@ export class SessionController {
 	removeAgendaPdf() {
 		return implement(contract.sessions.removeAgendaPdf).handler(
 			async ({ input }) => {
-				return await this.sessionService.removeAgendaPdf(input);
+				return await this.sessionManagementService.removeAgendaPdf(input);
 			},
 		);
 	}
