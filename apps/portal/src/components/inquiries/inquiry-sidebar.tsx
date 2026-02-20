@@ -1,7 +1,7 @@
 import type { InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
 import { InquiryStatus } from "@repo/shared";
 import { Card, CardContent } from "@repo/ui/components/card";
-import { CheckCircle2, Clock, Mail, User } from "@repo/ui/lib/lucide-react";
+import { Clock, Mail, User } from "@repo/ui/lib/lucide-react";
 
 interface InquirySidebarProps {
 	ticket: InquiryTicketWithMessagesAndAttachmentsResponse;
@@ -71,24 +71,6 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 					</div>
 				</CardContent>
 			</Card>
-
-			{ticket.status === "resolved" && ticket.closureRemarks && (
-				<Card className="border-green-200 bg-green-50 shadow-sm">
-					<CardContent className="p-4">
-						<div className="flex items-start gap-3">
-							<CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-							<div>
-								<p className="font-semibold text-green-800 text-sm">
-									Resolution Remarks
-								</p>
-								<p className="text-sm text-green-700 mt-1">
-									{ticket.closureRemarks}
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			)}
 		</div>
 	);
 }
