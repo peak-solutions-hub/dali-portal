@@ -68,6 +68,17 @@ export const InviteUserSchema = z.object({
 	roleId: z.uuid(),
 });
 
+export const CheckEmailStatusSchema = z.object({
+	email: z
+		.email()
+		.max(TEXT_LIMITS.SM, `Email must not exceed ${TEXT_LIMITS.SM} characters`),
+});
+
+export const CheckEmailStatusResponseSchema = z.object({
+	exists: z.boolean(),
+	isDeactivated: z.boolean(),
+});
+
 // Response schemas
 export const UserListResponseSchema = z.object({
 	users: z.array(UserWithRoleSchema),
@@ -90,3 +101,7 @@ export type ActivateUserInput = z.infer<typeof ActivateUserSchema>;
 export type InviteUserInput = z.infer<typeof InviteUserSchema>;
 export type UserListResponse = z.infer<typeof UserListResponseSchema>;
 export type InviteUserResponse = z.infer<typeof InviteUserResponseSchema>;
+export type CheckEmailStatusInput = z.infer<typeof CheckEmailStatusSchema>;
+export type CheckEmailStatusResponse = z.infer<
+	typeof CheckEmailStatusResponseSchema
+>;

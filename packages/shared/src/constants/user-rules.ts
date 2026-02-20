@@ -6,7 +6,7 @@
  */
 
 /** Default number of users to display per page in the admin user management list */
-export const USERS_ITEMS_PER_PAGE = 5;
+export const USERS_ITEMS_PER_PAGE = 10;
 
 /** Maximum allowed items per page for users (for future validation) */
 export const USERS_MAX_ITEMS_PER_PAGE = 100;

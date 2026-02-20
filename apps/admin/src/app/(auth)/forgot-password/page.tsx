@@ -1,7 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type ResetPasswordInput, ResetPasswordSchema } from "@repo/shared";
+import {
+	DEACTIVATED_MESSAGE,
+	type ResetPasswordInput,
+	ResetPasswordSchema,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
 import {
@@ -17,6 +21,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthCard, AuthHeader } from "@/components/auth";
+import { api } from "@/lib/api.client";
 
 /**
  * Forgot password form with inline auth logic
@@ -37,8 +42,31 @@ function ForgotPasswordForm() {
 
 	const onSubmit = async (data: ResetPasswordInput) => {
 		try {
+			// First, check if the email exists and is deactivated
+			const [checkError, checkResult] = await api.users.checkEmailStatus({
+				email: data.email,
+			});
+
+			if (checkError) {
+				toast.error("Failed to process request");
+				return;
+			}
+
+			// If email doesn't exist, still show success (security: prevent account enumeration)
+			if (!checkResult?.exists) {
+				setSubmittedEmail(data.email);
+				setEmailSent(true);
+				return;
+			}
+
+			// If email exists but account is deactivated, show error toast
+			if (checkResult.isDeactivated) {
+				toast.error(DEACTIVATED_MESSAGE);
+				return;
+			}
+
+			// Email exists and is active, proceed with password reset
 			const supabase = createBrowserClient();
-			// Use /auth/callback for code exchange and redirect to update password page
 			const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
 				redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
 			});
@@ -50,8 +78,7 @@ function ForgotPasswordForm() {
 
 			setSubmittedEmail(data.email);
 			setEmailSent(true);
-		} catch (err) {
-			console.error("Reset password error:", err);
+		} catch (_err) {
 			toast.error("Failed to send reset email");
 		}
 	};
