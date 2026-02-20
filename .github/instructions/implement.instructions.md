@@ -121,13 +121,15 @@ export class DomainController {
 ### Service Pattern
 
 ```typescript
-import { Injectable } from "@nestjs/common";
-import { ORPCError } from "@orpc/nest";
+import { Injectable, Logger } from "@nestjs/common";
+import { AppError } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 import type { CreateInquiryTicketInput, InquiryTicketResponse } from "@repo/shared";
 
 @Injectable()
 export class DomainService {
+  private readonly logger = new Logger(DomainService.name);
+  
   constructor(private readonly db: DbService) {}
 
   async create(input: CreateInquiryTicketInput): Promise<InquiryTicketResponse> {
@@ -144,7 +146,8 @@ export class DomainService {
     });
 
     if (!record) {
-      throw new ORPCError("NOT_FOUND", { message: "Record not found" });
+      // Use AppError with typed error codes from ERRORS constant
+      throw new AppError("GENERAL.NOT_FOUND");
     }
 
     return record;
@@ -154,13 +157,67 @@ export class DomainService {
 
 ### Error Handling
 
-**Backend:** Use `ORPCError` for typed server-side errors:
+The backend uses a layered error handling system:
+
+1. **AppError** - For typed business logic errors with domain-specific codes
+2. **Exception Filters** - For catching and transforming Prisma and framework errors
+3. **Rate Limiting** - For throttling requests
+
+#### AppError (Recommended)
+
+Use `AppError` from `@repo/shared` for typed server-side errors:
 
 ```typescript
-throw new ORPCError('NOT_FOUND', { message: 'Record not found' })
-throw new ORPCError('UNAUTHORIZED', { message: 'Access denied' })
-throw new ORPCError('BAD_REQUEST', { message: 'Invalid input' })
-throw new ORPCError('INTERNAL_SERVER_ERROR', { message: 'Something went wrong' })
+import { AppError } from "@repo/shared";
+
+// Use predefined error codes (from packages/shared/src/constants/errors.ts)
+throw new AppError("GENERAL.NOT_FOUND")          // 404 - Resource not found
+throw new AppError("GENERAL.UNAUTHORIZED")       // 401 - Authentication required
+throw new AppError("GENERAL.FORBIDDEN")          // 403 - Permission denied
+throw new AppError("GENERAL.BAD_REQUEST")        // 400 - Invalid input
+throw new AppError("GENERAL.CONFLICT")           // 409 - Resource conflict
+throw new AppError("INQUIRY.NOT_FOUND")          // 404 - Inquiry not found
+throw new AppError("INQUIRY.EMAIL_SEND_FAILED")  // 500 - Email failed
+throw new AppError("STORAGE.SIGNED_URL_FAILED")  // 500 - Signed URL generation failed
+throw new AppError("STORAGE.UPLOAD_FAILED")      // 500 - File upload failed
+
+// With custom message (overrides default)
+throw new AppError("INQUIRY.EMAIL_SEND_FAILED", "SMTP server timeout")
+
+// With additional data
+throw AppError.withData("GENERAL.BAD_REQUEST", { field: "email", reason: "invalid format" })
+```
+
+#### Exception Filters
+
+Global exception filters automatically handle:
+
+| Exception Type | HTTP Status | User Message |
+|----------------|-------------|--------------|
+| Prisma P2002 (Unique violation) | 409 Conflict | "A record with this value already exists" |
+| Prisma P2025 (Not found) | 404 Not Found | "Record not found" |
+| Prisma P2003 (FK violation) | 400 Bad Request | "Invalid reference to related record" |
+| Prisma P2024 (Pool timeout) | 503 Service Unavailable | "Database connection pool exhausted" |
+| ThrottlerException | 429 Too Many Requests | "Too many requests. Please try again later." |
+
+These filters are located in `apps/backend/src/app/exceptions/` and registered globally in `AppModule`.
+
+#### Rate Limiting
+
+Configure rate limits per endpoint:
+
+```typescript
+import { Throttle, SkipThrottle } from "@nestjs/throttler";
+
+// 5 requests per minute for sensitive endpoints
+@Throttle({ default: { limit: 5, ttl: 60000 } })
+@Implement(contract.inquiries.create)
+create() { ... }
+
+// Skip rate limiting for public read endpoints
+@SkipThrottle()
+@Implement(contract.inquiries.getById)
+getById() { ... }
 ```
 
 **Frontend:** Use `isDefinedError()` to handle typed errors:
@@ -385,6 +442,22 @@ const getErrorMessage = (error: unknown): string => {
 * **Functions/Variables:** camelCase (`handleSubmit`, `isLoading`)
 * **Constants:** UPPER_SNAKE_CASE (`API_URL`, `MAX_LIMIT`)
 
+### Constants & Magic Numbers
+
+**Single source of truth:** All reusable limits, thresholds, and configuration values MUST live in `packages/shared/src/constants/`. Never duplicate them in individual apps or use inline magic numbers for values that could change or are referenced in more than one place.
+
+| Constant Group | Purpose | Example |
+|---|---|---|
+| `TEXT_LIMITS` | Max character lengths | `TEXT_LIMITS.LG` (1000) for chat messages |
+| `FILE_SIZE_LIMITS` | Max file sizes in bytes | `FILE_SIZE_LIMITS.XS` (5 MB) |
+| `FILE_COUNT_LIMITS` | Max number of files per upload | `FILE_COUNT_LIMITS.SM` (3) |
+| `FILE_UPLOAD_PRESETS` | Pre-built upload configs combining the above | `FILE_UPLOAD_PRESETS.ATTACHMENTS` |
+| `INQUIRY_MAX_TOTAL_ATTACHMENTS` | Conversation-wide attachment cap | `6` |
+
+**Rules:**
+- Reference `FILE_COUNT_LIMITS` in Zod schema `.max()` calls instead of literal numbers.
+- `FILE_UPLOAD_PRESETS.ATTACHMENTS` is used for **both** initial inquiry attachments and chat reply attachments (they share identical limits).
+
 ### Folder Structure
 
 ```bash
@@ -394,6 +467,9 @@ dali-portal/
 │   │   └── src/
 │   │       ├── app/         # App Router pages, layouts
 │   │       ├── components/  # App-specific components
+│   │       │   └── <domain>/
+│   │       │       └── chat/ # Sub-components (bubbles, list, reply box)
+│   │       ├── hooks/       # Custom hooks (use-file-upload, use-send-*)
 │   │       └── lib/         # Utilities, client setup
 │   ├── admin/               # Next.js — Internal Dashboard (CSR)
 │   │   └── src/

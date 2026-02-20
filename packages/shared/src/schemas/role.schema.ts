@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { RoleTypeSchema } from "../enums/role";
+
+export const RoleTypeSchema = z.enum([
+	"it_admin",
+	"vice_mayor",
+	"head_admin",
+	"admin_staff",
+	"legislative_staff",
+	"ovm_staff",
+	"councilor",
+]);
 
 // Role schema matching Prisma model
 export const RoleSchema = z.object({

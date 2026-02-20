@@ -1,7 +1,11 @@
 "use client";
 
 import type { UserWithRole } from "@repo/shared";
-import { formatRoleDisplay, getRoleBadgeStyles } from "@repo/shared";
+import {
+	formatRoleDisplay,
+	getRoleBadgeStyles,
+	truncateEmail,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -16,18 +20,19 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
-import truncateEmail from "@/utils/email-helper";
 
 interface DeactivateUserDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	user: UserWithRole | null;
+	onRefresh?: () => void;
 }
 
 export function DeactivateUserDialog({
 	open,
 	onOpenChange,
 	user,
+	onRefresh,
 }: DeactivateUserDialogProps) {
 	const [isDeactivating, setIsDeactivating] = useState(false);
 	const router = useRouter();
@@ -50,9 +55,13 @@ export function DeactivateUserDialog({
 					duration: 3000,
 				});
 				onOpenChange(false);
-				setTimeout(() => {
-					router.refresh();
-				}, 1000);
+				if (onRefresh) {
+					onRefresh();
+				} else {
+					setTimeout(() => {
+						router.refresh();
+					}, 1000);
+				}
 			}
 		} catch (error) {
 			console.error("Error deactivating user:", error);

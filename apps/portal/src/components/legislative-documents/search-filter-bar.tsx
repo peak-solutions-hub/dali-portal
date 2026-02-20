@@ -1,11 +1,10 @@
 "use client";
 
-import { buildQueryString } from "@repo/shared";
 import { Input } from "@repo/ui/components/input";
 import { useDebounce } from "@repo/ui/hooks";
 import { Search, X } from "@repo/ui/lib/lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { FilterControls } from "./filter-controls";
 
 interface SearchFilterBarProps {
@@ -15,39 +14,45 @@ interface SearchFilterBarProps {
 export function SearchFilterBar({ availableYears }: SearchFilterBarProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const [, startTransition] = useTransition();
 
-	const currentParams = useMemo(
-		() => ({
-			search: searchParams.get("search") || "",
-			type: searchParams.get("type") || "all",
-			year: searchParams.get("year") || "all",
-			classification: searchParams.get("classification") || "all",
-		}),
+	// Only track the search value from URL
+	const currentSearch = useMemo(
+		() => searchParams.get("search") || "",
 		[searchParams],
 	);
 
-	const [searchInput, setSearchInput] = useState<string>(currentParams.search);
+	const [searchInput, setSearchInput] = useState<string>(currentSearch);
 
 	const debouncedSearch = useDebounce(searchInput, 400);
 
-	const navigateWithParams = useCallback(
-		(params: Record<string, string>) => {
-			const newParams = {
-				...currentParams,
-				...params,
-				page: "1", // Reset to page 1 when filters change
-			};
-			const queryString = buildQueryString(newParams);
-			router.push(`/legislative-documents?${queryString}`);
-		},
-		[currentParams, router],
-	);
+	useEffect(() => {
+		if (currentSearch !== debouncedSearch) {
+			setSearchInput(currentSearch);
+		}
+	}, [currentSearch]);
 
 	useEffect(() => {
-		if (debouncedSearch !== currentParams.search) {
-			navigateWithParams({ search: debouncedSearch });
+		// Read current URL search at execution time to avoid stale closure
+		const urlSearch =
+			new URLSearchParams(window.location.search).get("search") || "";
+
+		if (debouncedSearch !== urlSearch) {
+			// Preserve all existing params, only update search and reset to page 1
+			const newParams = new URLSearchParams(window.location.search);
+
+			if (debouncedSearch) {
+				newParams.set("search", debouncedSearch);
+			} else {
+				newParams.delete("search");
+			}
+			newParams.set("page", "1");
+
+			startTransition(() => {
+				router.push(`/legislative-documents?${newParams.toString()}`);
+			});
 		}
-	}, [debouncedSearch, currentParams.search, navigateWithParams]);
+	}, [debouncedSearch, router]);
 
 	return (
 		<div

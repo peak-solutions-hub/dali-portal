@@ -8,7 +8,7 @@ import { Button } from "@repo/ui/components/button";
 import { useBodyScrollLock, useFocusTrap, useIsMobile } from "@repo/ui/hooks";
 import { getDocumentPdfUrl } from "@repo/ui/lib/documents";
 import { Download, FileText, Loader2, X } from "@repo/ui/lib/lucide-react";
-import { createSupabaseBrowserClient } from "@repo/ui/lib/supabase/client";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadFile } from "@/utils/download-utils";
 
@@ -53,7 +53,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 		if (document.storagePath && document.storageBucket) {
 			setIsLoadingUrl(true);
 			setUrlError(false);
-			const supabase = createSupabaseBrowserClient();
+			const supabase = createBrowserClient();
 			getDocumentPdfUrl(supabase, document)
 				.then((url) => {
 					if (url) {
@@ -81,7 +81,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 
 		setIsDownloading(true);
 		try {
-			const supabase = createSupabaseBrowserClient();
+			const supabase = createBrowserClient();
 			await downloadFile(
 				supabase,
 				document.storageBucket,

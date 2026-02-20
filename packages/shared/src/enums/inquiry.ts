@@ -11,7 +11,6 @@ export const INQUIRY_CATEGORY_VALUES: InquiryCategory[] =
 	Object.values(InquiryCategory);
 
 export const InquiryStatus = {
-	NEW: "new",
 	OPEN: "open",
 	WAITING_FOR_CITIZEN: "waiting_for_citizen",
 	RESOLVED: "resolved",
@@ -21,3 +20,14 @@ export const InquiryStatus = {
 export type InquiryStatus = (typeof InquiryStatus)[keyof typeof InquiryStatus];
 export const INQUIRY_STATUS_VALUES: InquiryStatus[] =
 	Object.values(InquiryStatus);
+
+export const InquiryMessageSenderType = {
+	CITIZEN: "citizen",
+	STAFF: "staff",
+} as const;
+export type InquiryMessageSenderType =
+	(typeof InquiryMessageSenderType)[keyof typeof InquiryMessageSenderType];
+
+export const SENDER_TYPE_VALUES: InquiryMessageSenderType[] = Object.values(
+	InquiryMessageSenderType,
+);

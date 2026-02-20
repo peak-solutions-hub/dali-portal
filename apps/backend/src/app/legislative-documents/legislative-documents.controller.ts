@@ -9,6 +9,7 @@ export class LegislativeDocumentsController {
 		private readonly legislativeDocumentsService: LegislativeDocumentsService,
 	) {}
 
+	// Public endpoint - citizens can view legislative documents
 	@Implement(contract.legislativeDocuments.list)
 	list() {
 		return implement(contract.legislativeDocuments.list).handler(
@@ -18,6 +19,7 @@ export class LegislativeDocumentsController {
 		);
 	}
 
+	// Public endpoint - citizens can view statistics
 	@Implement(contract.legislativeDocuments.statistics)
 	statistics() {
 		return implement(contract.legislativeDocuments.statistics).handler(
@@ -27,6 +29,7 @@ export class LegislativeDocumentsController {
 		);
 	}
 
+	// Public endpoint - citizens can view latest documents
 	@Implement(contract.legislativeDocuments.latest)
 	latest() {
 		return implement(contract.legislativeDocuments.latest).handler(
@@ -38,6 +41,7 @@ export class LegislativeDocumentsController {
 		);
 	}
 
+	// Public endpoint - citizens can view document details
 	@Implement(contract.legislativeDocuments.getById)
 	getById() {
 		return implement(contract.legislativeDocuments.getById).handler(

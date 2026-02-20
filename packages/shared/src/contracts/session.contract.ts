@@ -1,4 +1,5 @@
 import { oc } from "@orpc/contract";
+import { ERRORS } from "../constants";
 import {
 	GetSessionByIdSchema,
 	GetSessionListSchema,
@@ -19,10 +20,7 @@ export const listSessions = oc
 		tags: ["Sessions", "Public"],
 	})
 	.errors({
-		BAD_REQUEST: {
-			status: 400,
-			description: "Invalid parameters (e.g., invalid date range)",
-		},
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
 	})
 	.input(GetSessionListSchema)
 	.output(SessionListResponseSchema);
@@ -40,10 +38,7 @@ export const getSessionById = oc
 		tags: ["Sessions", "Public"],
 	})
 	.errors({
-		NOT_FOUND: {
-			status: 404,
-			description: "Session not found",
-		},
+		NOT_FOUND: ERRORS.GENERAL.NOT_FOUND,
 	})
 	.input(GetSessionByIdSchema)
 	.output(SessionWithAgendaSchema);

@@ -7,10 +7,9 @@ import { AppModule } from "@/app/app.module";
 import { ConfigService } from "@/lib/config.service";
 
 async function bootstrap() {
+	// create app with body parser enabled
 	// https://orpc.dev/docs/openapi/integrations/implement-contract-in-nest#body-parser
-	const app = await NestFactory.create(AppModule, {
-		bodyParser: false,
-	});
+	const app = await NestFactory.create(AppModule);
 
 	const configService = app.get(ConfigService);
 

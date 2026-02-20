@@ -1,4 +1,5 @@
 import { oc } from "@orpc/contract";
+import { ERRORS } from "../constants";
 import {
 	GetLatestLegislativeDocumentSchema,
 	GetLegislativeDocumentByIdSchema,
@@ -30,10 +31,7 @@ export const getLegislativeDocumentById = oc
 		tags: ["Legislative Documents", "Public"],
 	})
 	.errors({
-		NOT_FOUND: {
-			status: 404,
-			description: "Legislative document not found",
-		},
+		NOT_FOUND: ERRORS.GENERAL.NOT_FOUND,
 	})
 	.input(GetLegislativeDocumentByIdSchema)
 	.output(LegislativeDocumentWithDetailsSchema);
@@ -48,12 +46,8 @@ export const getLegislativeDocumentStatistics = oc
 		tags: ["Legislative Documents", "Public"],
 	})
 	.errors({
-		INTERNAL_SERVER_ERROR: {
-			status: 500,
-			description: "Failed to fetch statistics",
-		},
+		INTERNAL_SERVER_ERROR: ERRORS.GENERAL.INTERNAL_SERVER_ERROR,
 	})
-	// no input
 	.output(LegislativeDocumentStatisticsSchema);
 
 export const getLatestLegislativeDocuments = oc
@@ -66,10 +60,7 @@ export const getLatestLegislativeDocuments = oc
 		tags: ["Legislative Documents", "Public"],
 	})
 	.errors({
-		INTERNAL_SERVER_ERROR: {
-			status: 500,
-			description: "Failed to fetch latest documents",
-		},
+		INTERNAL_SERVER_ERROR: ERRORS.GENERAL.INTERNAL_SERVER_ERROR,
 	})
 	.input(GetLatestLegislativeDocumentSchema)
 	.output(LegislativeDocumentListResponseSchema);
