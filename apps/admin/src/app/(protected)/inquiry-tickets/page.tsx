@@ -6,6 +6,7 @@ import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { Input } from "@repo/ui/components/input";
+import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
 import {
 	Table,
 	TableBody,
@@ -17,7 +18,6 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
 import { Loader2, MessageCircle, Tag } from "lucide-react";
 import { useEffect, useState } from "react";
-import { InquiryStatusBadge } from "@/components/inquiry-tickets/inquiry-status-badge";
 import { InquiryTicketSheet } from "@/components/inquiry-tickets/inquiry-ticket-sheet";
 import { PaginationControls } from "@/components/inquiry-tickets/pagination-controls";
 import { api } from "@/lib/api.client";
