@@ -5,13 +5,18 @@ import {
 	type CreateInquiryTicketResponse,
 	type CreateSignedUploadUrlsInput,
 	type GetInquiryTicketByIdInput,
+	type GetInquiryTicketListInput,
 	INQUIRY_CATEGORY_LABELS,
 	type InquiryMessage,
 	type InquiryMessageWithAttachments,
+	type InquiryStatusCounts,
 	type InquiryTicket,
+	type InquiryTicketListResponse,
+	type InquiryTicketResponse,
 	type InquiryTicketWithMessagesAndAttachments,
 	type TrackInquiryTicketInput,
 	type TrackInquiryTicketResponse,
+	type UpdateInquiryTicketStatusInput,
 } from "@repo/shared";
 import { customAlphabet } from "nanoid";
 import { DbService } from "@/app/db/db.service";
@@ -48,7 +53,7 @@ export class InquiryTicketService {
 				citizenName: input.citizenName,
 				category: input.category,
 				subject: input.subject,
-				status: "open",
+				status: "new",
 				// create initial inquiry message with optional attachments
 				// https://www.prisma.io/docs/orm/prisma-client/queries/transactions#nested-writes-1
 				inquiryMessages: {
@@ -116,6 +121,12 @@ export class InquiryTicketService {
 					inquiryMessages: {
 						orderBy: { createdAt: "asc" },
 					},
+					user: {
+						select: {
+							id: true,
+							fullName: true,
+						},
+					},
 				},
 			});
 
@@ -136,16 +147,303 @@ export class InquiryTicketService {
 		};
 	}
 
-	async getById(input: GetInquiryTicketByIdInput): Promise<InquiryTicket> {
+	async getById(
+		input: GetInquiryTicketByIdInput,
+	): Promise<InquiryTicketResponse> {
 		const inquiryTicket = await this.db.inquiryTicket.findFirst({
 			where: { id: input.id },
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
 		});
 
 		if (!inquiryTicket) {
 			throw new AppError("INQUIRY.NOT_FOUND");
 		}
 
-		return inquiryTicket;
+		return {
+			...inquiryTicket,
+			createdAt: inquiryTicket.createdAt.toISOString(),
+		};
+	}
+
+	async getList(
+		input: GetInquiryTicketListInput,
+	): Promise<InquiryTicketListResponse> {
+		const { status, category, limit, page } = input;
+
+		const skip = (page - 1) * limit;
+
+		// Build where clause
+		const where = {
+			...(status && { status }),
+			...(category && { category }),
+		};
+
+		// Get total count for pagination
+		const totalItems = await this.db.inquiryTicket.count({ where });
+
+		// Get paginated results
+		const inquiryTickets = await this.db.inquiryTicket.findMany({
+			where,
+			take: limit,
+			skip,
+			orderBy: { createdAt: "desc" },
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		// Calculate pagination info
+		const totalPages = Math.ceil(totalItems / limit);
+		const hasNextPage = page < totalPages;
+		const hasPreviousPage = page > 1;
+
+		return {
+			tickets: inquiryTickets.map((ticket) => ({
+				...ticket,
+				createdAt: ticket.createdAt.toISOString(),
+			})),
+			pagination: {
+				currentPage: page,
+				totalPages,
+				totalItems,
+				itemsPerPage: limit,
+				hasNextPage,
+				hasPreviousPage,
+			},
+		};
+	}
+
+	async getStatusCounts(): Promise<InquiryStatusCounts> {
+		// Get all counts in parallel for maximum efficiency
+		const [all, newCount, open, waiting, resolved, rejected] =
+			await Promise.all([
+				this.db.inquiryTicket.count(),
+				this.db.inquiryTicket.count({ where: { status: "new" } }),
+				this.db.inquiryTicket.count({ where: { status: "open" } }),
+				this.db.inquiryTicket.count({
+					where: { status: "waiting_for_citizen" },
+				}),
+				this.db.inquiryTicket.count({ where: { status: "resolved" } }),
+				this.db.inquiryTicket.count({ where: { status: "rejected" } }),
+			]);
+
+		return {
+			all,
+			new: newCount,
+			open,
+			waiting_for_citizen: waiting,
+			resolved,
+			rejected,
+		};
+	}
+
+	async updateStatus(
+		input: UpdateInquiryTicketStatusInput,
+	): Promise<InquiryTicketResponse> {
+		const { id, status, closureRemarks } = input;
+
+		const inquiryTicket = await this.db.inquiryTicket.findFirst({
+			where: { id },
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		if (!inquiryTicket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id },
+			data: {
+				status,
+				...(closureRemarks && { closureRemarks }),
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		// Send email notification when inquiry is resolved or rejected
+		if (status === "resolved" || status === "rejected") {
+			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}&email=${encodeURIComponent(updated.citizenEmail)}`;
+
+			console.log(
+				`[InquiryTicket] Inquiry ${status}, sending email notification...`,
+				{
+					to: updated.citizenEmail,
+					referenceNumber: updated.referenceNumber,
+					status,
+				},
+			);
+
+			this.resend
+				.send({
+					to: updated.citizenEmail,
+					template: {
+						id: "inquiry-resolution-email",
+						variables: {
+							CITIZEN_NAME: updated.citizenName,
+							SUBJECT: updated.subject,
+							STATUS: status,
+							REFERENCE_NUMBER: updated.referenceNumber,
+							STAFF_NAME: inquiryTicket.user?.fullName || "Staff Member",
+							MESSAGE_CONTENT: closureRemarks || "No remarks provided",
+							PORTAL_URL: portalUrl,
+							YEAR: new Date().getFullYear().toString(),
+						},
+					},
+				})
+				.then((result) => {
+					console.log(
+						`[InquiryTicket] Resolution notification - Resend response:`,
+						{
+							success: !!result.data,
+							emailId: result.data?.id,
+							error: result.error,
+							to: updated.citizenEmail,
+							referenceNumber: updated.referenceNumber,
+							status,
+						},
+					);
+					if (result.error) {
+						console.error(
+							"[InquiryTicket] Resend returned an error:",
+							result.error,
+						);
+					}
+				})
+				.catch((err) => {
+					console.error(
+						"[InquiryTicket] Failed to send resolution notification",
+						{
+							ticketId: updated.id,
+							referenceNumber: updated.referenceNumber,
+							status,
+							error: err,
+						},
+					);
+				});
+		}
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
+	}
+
+	async assignToMe(
+		ticketId: string,
+		userId: string,
+	): Promise<InquiryTicketResponse> {
+		const ticket = await this.db.inquiryTicket.findFirst({
+			where: { id: ticketId },
+		});
+
+		if (!ticket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		// FR-03: Assign to user and update status from 'new' to 'open'
+		const updated = await this.db.inquiryTicket.update({
+			where: { id: ticketId },
+			data: {
+				assignedTo: userId,
+				// Auto-transition from 'new' to 'open' when assigned
+				...(ticket.status === "new" && { status: "open" }),
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		// Send email notification when inquiry is assigned
+		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}&email=${encodeURIComponent(updated.citizenEmail)}`;
+
+		console.log(
+			"[InquiryTicket] Inquiry assigned, sending email notification...",
+			{
+				to: updated.citizenEmail,
+				referenceNumber: updated.referenceNumber,
+				assignedTo: updated.user?.fullName,
+			},
+		);
+
+		this.resend
+			.send({
+				to: updated.citizenEmail,
+				template: {
+					id: "assigned-inquiry",
+					variables: {
+						CITIZEN_NAME: updated.citizenName,
+						REFERENCE_NUMBER: updated.referenceNumber,
+						SUBJECT: updated.subject,
+						STAFF_NAME: updated.user?.fullName || "Staff Member",
+						PORTAL_URL: portalUrl,
+						YEAR: new Date().getFullYear().toString(),
+					},
+				},
+			})
+			.then((result) => {
+				console.log(
+					"[InquiryTicket] Assignment notification - Resend response:",
+					{
+						success: !!result.data,
+						emailId: result.data?.id,
+						error: result.error,
+						to: updated.citizenEmail,
+						referenceNumber: updated.referenceNumber,
+					},
+				);
+				if (result.error) {
+					console.error(
+						"[InquiryTicket] Resend returned an error:",
+						result.error,
+					);
+				}
+			})
+			.catch((err) => {
+				console.error(
+					"[InquiryTicket] Failed to send assignment notification",
+					{
+						ticketId: updated.id,
+						referenceNumber: updated.referenceNumber,
+						error: err,
+					},
+				);
+			});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
 	}
 
 	/**
