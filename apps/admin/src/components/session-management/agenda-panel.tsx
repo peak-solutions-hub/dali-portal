@@ -1,5 +1,6 @@
 "use client";
 
+import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import type {
 	SessionManagementAgendaPanelProps as AgendaPanelProps,
 	SessionManagementDocument as Document,
@@ -11,11 +12,13 @@ import { getSessionTypeLabel } from "@repo/ui/lib/session-ui";
 import { useState } from "react";
 import { AgendaItemCard } from "./agenda-item-card";
 import {
+	ConfirmDiscardDialog,
 	DeleteSessionDialog,
 	MarkCompleteDialog,
 	PublishSessionDialog,
 	SaveDraftDialog,
 	UnpublishSessionDialog,
+	UnsavedChangesBeforePublishDialog,
 } from "./dialogs";
 import { DraftActionBar } from "./draft-action-bar";
 import { ScheduledActionBar } from "./scheduled-action-bar";
@@ -53,8 +56,9 @@ export function AgendaPanel({
 	isUploadingPdf = false,
 	isRemovingPdf = false,
 	isLoadingSession = false,
-	onMoveAgendaItem,
-	highlightedItemId,
+	onDndReorder,
+	onDiscardChanges,
+	isSessionEmpty = false,
 	hasNextPage,
 	isFetchingNextPage,
 	onLoadMoreSessions,
@@ -78,8 +82,14 @@ export function AgendaPanel({
 	isUploadingPdf?: boolean;
 	isRemovingPdf?: boolean;
 	isLoadingSession?: boolean;
-	onMoveAgendaItem?: (itemId: string, direction: "up" | "down") => void;
-	highlightedItemId?: string | null;
+	onDndReorder?: (
+		sourceSectionId: string,
+		destSectionId: string,
+		sourceIndex: number,
+		destIndex: number,
+	) => void;
+	onDiscardChanges?: () => void;
+	isSessionEmpty?: boolean;
 	hasNextPage?: boolean;
 	isFetchingNextPage?: boolean;
 	onLoadMoreSessions?: () => void;
@@ -89,6 +99,32 @@ export function AgendaPanel({
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [showSaveDraftDialog, setShowSaveDraftDialog] = useState(false);
 	const [showPublishDialog, setShowPublishDialog] = useState(false);
+	const [showUnsavedBeforePublish, setShowUnsavedBeforePublish] =
+		useState(false);
+	const [showConfirmDiscard, setShowConfirmDiscard] = useState(false);
+
+	/**
+	 * When "Finalize & Publish" is clicked we check for unsaved changes first.
+	 * If there are unsaved changes we show the save-before-publish dialog,
+	 * otherwise we go straight to the publish confirmation dialog.
+	 */
+	const handlePublishClick = () => {
+		if (hasChanges) {
+			setShowUnsavedBeforePublish(true);
+		} else {
+			setShowPublishDialog(true);
+		}
+	};
+
+	/**
+	 * Save the draft, close the unsaved-changes dialog, then open the publish
+	 * confirmation dialog.
+	 */
+	const handleSaveAndProceedToPublish = async () => {
+		if (onSaveDraft) await onSaveDraft();
+		setShowUnsavedBeforePublish(false);
+		setShowPublishDialog(true);
+	};
 
 	const handleAddDocument = (agendaItemId: string) => {
 		onAddDocument(agendaItemId);
@@ -160,6 +196,24 @@ export function AgendaPanel({
 	const isCompleted = selectedSession?.status === "completed";
 	const isDraft = selectedSession?.status === "draft";
 
+	/** Handle DnD reorder via @hello-pangea/dnd */
+	const handleDragEnd = (result: DropResult) => {
+		const { source, destination } = result;
+		if (!destination) return; // dropped outside a droppable
+		if (
+			source.droppableId === destination.droppableId &&
+			source.index === destination.index
+		)
+			return; // dropped in the same spot
+
+		onDndReorder?.(
+			source.droppableId,
+			destination.droppableId,
+			source.index,
+			destination.index,
+		);
+	};
+
 	return (
 		<div className="flex h-full w-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5">
 			{/* Session Selector Dropdown */}
@@ -207,61 +261,57 @@ export function AgendaPanel({
 							)}
 
 							{/* Agenda Items */}
-							<div className="flex-1 overflow-y-auto min-h-0">
-								<div className="flex flex-col gap-3">
-									{agendaItems.map((item, index) => (
-										<div
-											key={item.id}
-											onDragOver={(e) => isDraft && handleDragOver(e, item.id)}
-											onDragLeave={isDraft ? handleDragLeave : undefined}
-											onDrop={(e) => isDraft && handleDrop(e, item.id)}
-											className={`transition-colors rounded-lg ${isCompleted ? "opacity-75" : ""}`}
-										>
-											<AgendaItemCard
-												item={item}
-												documents={documentsByAgendaItem[item.id]}
-												sessions={sessions}
-												selectedSessionId={selectedSession?.id}
-												contentText={contentTextMap?.[item.id]}
-												onContentTextChange={
-													isDraft ? onContentTextChange : undefined
+							<DragDropContext onDragEnd={handleDragEnd}>
+								<div className="flex-1 overflow-y-auto min-h-0">
+									<div className="flex flex-col gap-3">
+										{agendaItems.map((item, index) => (
+											<div
+												key={item.id}
+												onDragOver={(e) =>
+													isDraft && handleDragOver(e, item.id)
 												}
-												onAddDocument={isDraft ? handleAddDocument : undefined}
-												onRemoveDocument={
-													isCompleted ? undefined : handleRemoveDocument
-												}
-												onUpdateDocumentSummary={
-													isDraft ? handleUpdateDocumentSummary : undefined
-												}
-												onViewDocument={onViewDocument}
-												onMoveUp={
-													isDraft && onMoveAgendaItem
-														? () => onMoveAgendaItem(item.id, "up")
-														: undefined
-												}
-												onMoveDown={
-													isDraft && onMoveAgendaItem
-														? () => onMoveAgendaItem(item.id, "down")
-														: undefined
-												}
-												isFirst={index === 0}
-												isLast={index === agendaItems.length - 1}
-												isHighlighted={highlightedItemId === item.id}
-												isModified={changedSections?.has(item.id)}
-											/>
-										</div>
-									))}
+												onDragLeave={isDraft ? handleDragLeave : undefined}
+												onDrop={(e) => isDraft && handleDrop(e, item.id)}
+												className={`transition-colors rounded-lg ${isCompleted ? "opacity-75" : ""}`}
+											>
+												<AgendaItemCard
+													item={item}
+													documents={documentsByAgendaItem[item.id]}
+													sessions={sessions}
+													selectedSessionId={selectedSession?.id}
+													contentText={contentTextMap?.[item.id]}
+													onContentTextChange={
+														isDraft ? onContentTextChange : undefined
+													}
+													onAddDocument={
+														isDraft ? handleAddDocument : undefined
+													}
+													onRemoveDocument={
+														isCompleted ? undefined : handleRemoveDocument
+													}
+													onUpdateDocumentSummary={
+														isDraft ? handleUpdateDocumentSummary : undefined
+													}
+													onViewDocument={onViewDocument}
+													isDndEnabled={isDraft && !!onDndReorder}
+													isModified={changedSections?.has(item.id)}
+												/>
+											</div>
+										))}
+									</div>
 								</div>
-							</div>
+							</DragDropContext>
 
 							{/* Action Buttons - Only for Draft Sessions */}
 							{!isScheduled && !isCompleted && (
 								<DraftActionBar
 									actionInFlight={actionInFlight}
 									hasChanges={hasChanges}
+									isSessionEmpty={isSessionEmpty}
 									onShowSaveDraftDialog={() => setShowSaveDraftDialog(true)}
-									onShowPublishDialog={() => setShowPublishDialog(true)}
+									onShowPublishDialog={handlePublishClick}
 									onShowDeleteDialog={() => setShowDeleteDialog(true)}
+									onDiscardChanges={() => setShowConfirmDiscard(true)}
 								/>
 							)}
 						</>
@@ -330,6 +380,21 @@ export function AgendaPanel({
 					onConfirm={onPublish}
 				/>
 			)}
+
+			{/* Unsaved Changes Before Publish Dialog */}
+			<UnsavedChangesBeforePublishDialog
+				open={showUnsavedBeforePublish}
+				onOpenChange={setShowUnsavedBeforePublish}
+				onSaveAndProceed={handleSaveAndProceedToPublish}
+				onCancel={() => setShowUnsavedBeforePublish(false)}
+			/>
+
+			{/* Confirm Discard Changes Dialog */}
+			<ConfirmDiscardDialog
+				open={showConfirmDiscard}
+				onOpenChange={setShowConfirmDiscard}
+				onConfirm={() => onDiscardChanges?.()}
+			/>
 		</div>
 	);
 }

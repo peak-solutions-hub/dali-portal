@@ -61,8 +61,8 @@ export function PublishSessionDialog({
 			>
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
-						<div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-							<Send className="h-5 w-5 text-green-600" />
+						<div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+							<Send className="h-5 w-5 text-blue-600" />
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -77,14 +77,14 @@ export function PublishSessionDialog({
 
 				{/* Content */}
 				<div className="space-y-4">
-					<div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+					<div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
 						<div className="flex items-start gap-2">
-							<Send className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+							<Send className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
 							<div>
-								<p className="text-sm font-medium text-green-800 mb-1">
+								<p className="text-sm font-medium text-blue-800 mb-1">
 									Publish Session #{sessionNumber}
 								</p>
-								<p className="text-xs text-green-700">
+								<p className="text-xs text-blue-700">
 									The session will be scheduled and visible on the public
 									portal. Ensure all agenda items and documents are finalized.
 								</p>
@@ -98,15 +98,15 @@ export function PublishSessionDialog({
 						</p>
 						<ul className="space-y-1.5 text-sm text-gray-600">
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+								<CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
 								<span>Make the session visible on the public portal</span>
 							</li>
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+								<CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
 								<span>Change the session status to Scheduled</span>
 							</li>
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+								<CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
 								<span>Enable presentation mode for this session</span>
 							</li>
 						</ul>
@@ -133,7 +133,7 @@ export function PublishSessionDialog({
 					<Button
 						onClick={handlePublish}
 						disabled={isSubmitting}
-						className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+						className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
 					>
 						{isSubmitting ? (
 							<Loader2 className="h-4 w-4 mr-2 animate-spin" />

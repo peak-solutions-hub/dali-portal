@@ -11,33 +11,33 @@ import {
 } from "@repo/ui/components/dialog";
 import { AlertTriangle } from "@repo/ui/lib/lucide-react";
 
-interface DiscardChangesDialogProps {
+interface ConfirmDiscardDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onDiscard: () => void;
+	onConfirm: () => void;
 }
 
-export function DiscardChangesDialog({
+export function ConfirmDiscardDialog({
 	open,
 	onOpenChange,
-	onDiscard,
-}: DiscardChangesDialogProps) {
+	onConfirm,
+}: ConfirmDiscardDialogProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-md">
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-1">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
-							<AlertTriangle className="h-5 w-5 text-amber-600" />
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+							<AlertTriangle className="h-5 w-5 text-red-600" />
 						</div>
-						<DialogTitle className="text-lg">Unsaved Changes</DialogTitle>
+						<DialogTitle className="text-lg">Discard Changes?</DialogTitle>
 					</div>
 					<DialogDescription className="text-sm text-gray-600 pl-13">
-						You have unsaved changes in the current session. Creating a new
-						session will discard them.
+						All unsaved changes will be lost and the session will revert to its
+						last saved state. This action cannot be undone.
 					</DialogDescription>
 				</DialogHeader>
-				<DialogFooter className="gap-2 sm:gap-0">
+				<DialogFooter>
 					<Button
 						variant="outline"
 						onClick={() => onOpenChange(false)}
@@ -46,13 +46,13 @@ export function DiscardChangesDialog({
 						Cancel
 					</Button>
 					<Button
-						className="cursor-pointer bg-amber-500 text-white hover:bg-amber-600"
+						className="cursor-pointer bg-red-600 text-white hover:bg-red-700"
 						onClick={() => {
 							onOpenChange(false);
-							onDiscard();
+							onConfirm();
 						}}
 					>
-						Discard & Create New
+						Discard Changes
 					</Button>
 				</DialogFooter>
 			</DialogContent>

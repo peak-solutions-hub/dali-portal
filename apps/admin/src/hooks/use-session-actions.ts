@@ -175,6 +175,7 @@ export function useSessionActions({
 			if (err) {
 				toast.error("Failed to publish session. Please try again.");
 			} else {
+				snapshotSavedState();
 				toast.success("Session published successfully.");
 				await invalidateSessions();
 			}

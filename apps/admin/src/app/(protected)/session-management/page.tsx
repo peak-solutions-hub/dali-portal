@@ -9,9 +9,9 @@ import { toast } from "sonner";
 import {
 	AgendaPanel,
 	CreateSessionDialog,
-	DiscardChangesDialog,
 	DocumentsPanel,
 	DocumentViewerDialog,
+	SaveBeforeCreateDialog,
 } from "@/components/session-management";
 import { useAgendaBuilder, useSessionActions } from "@/hooks";
 import { api, orpc } from "@/lib/api.client";
@@ -110,10 +110,11 @@ function AgendaBuilderPage() {
 		hasChanges,
 		changedSections,
 		orderedAgendaItems,
-		highlightedItemId,
+		isSessionEmpty,
+		handleDndReorder,
 		handleContentTextChange,
-		handleMoveAgendaItem,
 		resetEditorState,
+		revertToSaved,
 	} = builder;
 
 	// --- Session action handlers (save, publish, delete, PDF upload, etc.) ---
@@ -244,8 +245,9 @@ function AgendaBuilderPage() {
 							isUploadingPdf={isUploadingPdf}
 							isRemovingPdf={isRemovingPdf}
 							isLoadingSession={isLoadingSession}
-							onMoveAgendaItem={handleMoveAgendaItem}
-							highlightedItemId={highlightedItemId}
+							onDndReorder={handleDndReorder}
+							onDiscardChanges={revertToSaved}
+							isSessionEmpty={isSessionEmpty}
 							hasNextPage={sessionsQuery.hasNextPage}
 							isFetchingNextPage={sessionsQuery.isFetchingNextPage}
 							onLoadMoreSessions={sessionsQuery.fetchNextPage}
@@ -265,10 +267,11 @@ function AgendaBuilderPage() {
 						toast.success("New session created.");
 					}}
 				/>
-				<DiscardChangesDialog
+				<SaveBeforeCreateDialog
 					open={showDiscardDialog}
 					onOpenChange={setShowDiscardDialog}
-					onDiscard={() => {
+					onSaveAndCreate={async () => {
+						await handleSaveDraft();
 						resetEditorState();
 						setSelectedSession(null);
 						setShowCreateDialog(true);

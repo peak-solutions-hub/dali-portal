@@ -2,12 +2,13 @@ export { AgendaItemCard } from "./agenda-item-card";
 export { AgendaPanel } from "./agenda-panel";
 // Dialogs
 export {
+	ConfirmDiscardDialog,
 	CreateSessionDialog,
 	DeleteSessionDialog,
-	DiscardChangesDialog,
 	DocumentViewerDialog,
 	MarkCompleteDialog,
 	PublishSessionDialog,
+	SaveBeforeCreateDialog,
 	SaveDraftDialog,
 	UnpublishSessionDialog,
 } from "./dialogs";

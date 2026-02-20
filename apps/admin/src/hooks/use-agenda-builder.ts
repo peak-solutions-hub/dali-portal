@@ -1,6 +1,5 @@
 "use client";
 
-import type { SessionManagementSession as SessionUI } from "@repo/shared";
 import {
 	getSectionLabel,
 	SESSION_SECTION_ORDER,
@@ -156,25 +155,326 @@ export function useAgendaBuilder() {
 		[],
 	);
 
-	/** Move an agenda item up or down */
-	const handleMoveAgendaItem = useCallback(
-		(itemId: string, direction: "up" | "down") => {
-			setAgendaItemOrder((prev) => {
-				const idx = prev.indexOf(itemId);
-				if (idx === -1) return prev;
-				const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-				if (swapIdx < 0 || swapIdx >= prev.length) return prev;
-				const next = [...prev];
-				const temp = next[idx]!;
-				next[idx] = next[swapIdx]!;
-				next[swapIdx] = temp;
+	/**
+	 * Move a document UP or DOWN across sections.
+	 *
+	 * Within the same section the document simply swaps position with its
+	 * neighbour.  When it is already at the edge of a section it transfers
+	 * to the adjacent section (previous for "up", next for "down").
+	 *
+	 * Duplicate handling:
+	 *   If the target section already contains the same document the move
+	 *   is skipped (no duplicate created).
+	 *
+	 * After every move every affected section is renumbered starting from 1.
+	 *
+	 * Sections themselves are NEVER reordered — only items within sections.
+	 */
+	const handleMoveDocument = useCallback(
+		(documentId: string, direction: "up" | "down") => {
+			setDocumentsByAgendaItem((prev) => {
+				// Step 1 — locate the document in the ordered section list
+				let sourceSectionId: string | null = null;
+				let sourceIndex = -1;
+
+				for (const sectionId of agendaItemOrder) {
+					const docs = prev[sectionId] ?? [];
+					const idx = docs.findIndex((d) => d.id === documentId);
+					if (idx !== -1) {
+						sourceSectionId = sectionId;
+						sourceIndex = idx;
+						break;
+					}
+				}
+
+				if (!sourceSectionId || sourceIndex === -1) return prev;
+
+				const sourceDocs = [...(prev[sourceSectionId] ?? [])];
+				const sectionIdx = agendaItemOrder.indexOf(sourceSectionId);
+
+				// Step 2 — try intra-section swap first
+				if (direction === "up" && sourceIndex > 0) {
+					// Swap with previous document in the same section
+					const temp = sourceDocs[sourceIndex]!;
+					sourceDocs[sourceIndex] = sourceDocs[sourceIndex - 1]!;
+					sourceDocs[sourceIndex - 1] = temp;
+					return { ...prev, [sourceSectionId]: sourceDocs };
+				}
+
+				if (direction === "down" && sourceIndex < sourceDocs.length - 1) {
+					// Swap with next document in the same section
+					const temp = sourceDocs[sourceIndex]!;
+					sourceDocs[sourceIndex] = sourceDocs[sourceIndex + 1]!;
+					sourceDocs[sourceIndex + 1] = temp;
+					return { ...prev, [sourceSectionId]: sourceDocs };
+				}
+
+				// Step 3 — cross-section transfer
+				// Find the adjacent section, skipping sections that already contain
+				// this document (duplicate handling).
+				const step = direction === "up" ? -1 : 1;
+				let targetSectionId: string | null = null;
+
+				for (
+					let i = sectionIdx + step;
+					i >= 0 && i < agendaItemOrder.length;
+					i += step
+				) {
+					const candidateId = agendaItemOrder[i]!;
+					const candidateDocs = prev[candidateId] ?? [];
+					// Skip if the candidate already has this document
+					if (candidateDocs.some((d) => d.id === documentId)) continue;
+					targetSectionId = candidateId;
+					break;
+				}
+
+				if (!targetSectionId) return prev; // nowhere to move
+
+				// Step 4 — remove from source, insert into target
+				const movedDoc = sourceDocs[sourceIndex]!;
+				const newSourceDocs = sourceDocs.filter((_, i) => i !== sourceIndex);
+				const targetDocs = [...(prev[targetSectionId] ?? [])];
+
+				if (direction === "up") {
+					// Insert at the bottom of the previous section
+					targetDocs.push(movedDoc);
+				} else {
+					// Insert at the top of the next section
+					targetDocs.unshift(movedDoc);
+				}
+
+				// Step 5 — return updated map (positions are implicit via array index)
+				return {
+					...prev,
+					[sourceSectionId]: newSourceDocs,
+					[targetSectionId]: targetDocs,
+				};
+			});
+		},
+		[agendaItemOrder],
+	);
+
+	/**
+	 * Move a document to a specific target section, optionally inserting it
+	 * before an existing document in that section.
+	 *
+	 * Cross-section duplicate handling:
+	 *   Any copy of the document that exists in sections between the source
+	 *   and target (inclusive of source) is removed so the document ends up
+	 *   in the target section only.
+	 *
+	 * @param documentId           The document to move
+	 * @param targetSectionId      The section to move into
+	 * @param insertBeforeDocId    (optional) Place the document before this
+	 *                             document in the target section.  If omitted
+	 *                             the document is appended at the end.
+	 *
+	 * Example usage:
+	 *   // Move DOC-001 from Section A → Section C, insert before DOC-005
+	 *   moveDocumentToSection("doc-001", "committee_reports", "doc-005")
+	 *
+	 *   // Move, skip duplicate in Section B automatically
+	 *   moveDocumentToSection("doc-001", "third_reading_of_ordinances")
+	 */
+	const moveDocumentToSection = useCallback(
+		(
+			documentId: string,
+			targetSectionId: string,
+			insertBeforeDocId?: string,
+		) => {
+			setDocumentsByAgendaItem((prev) => {
+				// Step 1 — find the document data from any section
+				let movedDoc: AttachedDocument | null = null;
+				for (const sectionId of agendaItemOrder) {
+					const doc = (prev[sectionId] ?? []).find((d) => d.id === documentId);
+					if (doc) {
+						movedDoc = doc;
+						break;
+					}
+				}
+				if (!movedDoc) return prev; // document not found anywhere
+
+				// Step 2 — remove the document from ALL sections (cleans duplicates)
+				const next: Record<string, AttachedDocument[]> = {};
+				for (const sectionId of agendaItemOrder) {
+					next[sectionId] = (prev[sectionId] ?? []).filter(
+						(d) => d.id !== documentId,
+					);
+				}
+
+				// Step 3 — insert into the target section
+				const targetDocs = [...(next[targetSectionId] ?? [])];
+
+				if (insertBeforeDocId) {
+					// Insert before the specified document
+					const insertIdx = targetDocs.findIndex(
+						(d) => d.id === insertBeforeDocId,
+					);
+					if (insertIdx !== -1) {
+						targetDocs.splice(insertIdx, 0, movedDoc);
+					} else {
+						// Fallback: append if the "before" doc wasn't found
+						targetDocs.push(movedDoc);
+					}
+				} else {
+					// Append at the end
+					targetDocs.push(movedDoc);
+				}
+
+				next[targetSectionId] = targetDocs;
+
+				// Positions are renumbered implicitly (array index = position)
 				return next;
 			});
-			setHighlightedItemId(itemId);
-			setTimeout(() => setHighlightedItemId(null), 800);
+		},
+		[agendaItemOrder],
+	);
+
+	/**
+	 * Check if a document cannot move UP any further.
+	 *
+	 * True when the document is the first item in the first section AND
+	 * there is no empty (or non-duplicate) section above it to transfer to.
+	 */
+	const isDocumentFirstGlobal = useCallback(
+		(documentId: string): boolean => {
+			// Locate the document
+			let sourceSectionIdx = -1;
+			let sourceDocIdx = -1;
+
+			for (let i = 0; i < agendaItemOrder.length; i++) {
+				const sectionId = agendaItemOrder[i]!;
+				const docs = documentsByAgendaItem[sectionId] ?? [];
+				const idx = docs.findIndex((d) => d.id === documentId);
+				if (idx !== -1) {
+					sourceSectionIdx = i;
+					sourceDocIdx = idx;
+					break;
+				}
+			}
+
+			if (sourceSectionIdx === -1) return true; // not found
+
+			// If it is not the first doc in its section it can always swap up
+			if (sourceDocIdx > 0) return false;
+
+			// It is the first doc in its section — check for any valid section above
+			for (let i = sourceSectionIdx - 1; i >= 0; i--) {
+				const sectionId = agendaItemOrder[i]!;
+				const docs = documentsByAgendaItem[sectionId] ?? [];
+				// Skip sections that already contain this document (duplicate)
+				if (docs.some((d) => d.id === documentId)) continue;
+				return false; // found a valid target above
+			}
+
+			return true; // nowhere to go
+		},
+		[agendaItemOrder, documentsByAgendaItem],
+	);
+
+	/**
+	 * Check if a document cannot move DOWN any further.
+	 *
+	 * True when the document is the last item in its section AND
+	 * there is no valid (non-duplicate) section below it.
+	 */
+	const isDocumentLastGlobal = useCallback(
+		(documentId: string): boolean => {
+			let sourceSectionIdx = -1;
+			let sourceDocIdx = -1;
+			let sourceSectionLength = 0;
+
+			for (let i = 0; i < agendaItemOrder.length; i++) {
+				const sectionId = agendaItemOrder[i]!;
+				const docs = documentsByAgendaItem[sectionId] ?? [];
+				const idx = docs.findIndex((d) => d.id === documentId);
+				if (idx !== -1) {
+					sourceSectionIdx = i;
+					sourceDocIdx = idx;
+					sourceSectionLength = docs.length;
+					break;
+				}
+			}
+
+			if (sourceSectionIdx === -1) return true; // not found
+
+			// If it is not the last doc in its section it can always swap down
+			if (sourceDocIdx < sourceSectionLength - 1) return false;
+
+			// Last doc in its section — check for any valid section below
+			for (let i = sourceSectionIdx + 1; i < agendaItemOrder.length; i++) {
+				const sectionId = agendaItemOrder[i]!;
+				const docs = documentsByAgendaItem[sectionId] ?? [];
+				if (docs.some((d) => d.id === documentId)) continue;
+				return false; // found a valid target below
+			}
+
+			return true; // nowhere to go
+		},
+		[agendaItemOrder, documentsByAgendaItem],
+	);
+
+	/**
+	 * Handle a drag-and-drop reorder event.
+	 *
+	 * @param sourceSectionId  The droppable ID (section) the document was dragged from
+	 * @param destSectionId    The droppable ID (section) the document was dropped into
+	 * @param sourceIndex      The index within the source section
+	 * @param destIndex        The index within the destination section
+	 *
+	 * Works for both intra-section reorder and cross-section transfer.
+	 * Renumbering is implicit (array index = position).
+	 */
+	const handleDndReorder = useCallback(
+		(
+			sourceSectionId: string,
+			destSectionId: string,
+			sourceIndex: number,
+			destIndex: number,
+		) => {
+			setDocumentsByAgendaItem((prev) => {
+				if (sourceSectionId === destSectionId) {
+					// Intra-section reorder
+					const docs = [...(prev[sourceSectionId] ?? [])];
+					const [moved] = docs.splice(sourceIndex, 1);
+					if (!moved) return prev;
+					docs.splice(destIndex, 0, moved);
+					return { ...prev, [sourceSectionId]: docs };
+				}
+
+				// Cross-section transfer
+				const sourceDocs = [...(prev[sourceSectionId] ?? [])];
+				const destDocs = [...(prev[destSectionId] ?? [])];
+				const [moved] = sourceDocs.splice(sourceIndex, 1);
+				if (!moved) return prev;
+
+				// Prevent duplicates in destination
+				if (destDocs.some((d) => d.id === moved.id)) return prev;
+
+				destDocs.splice(destIndex, 0, moved);
+				return {
+					...prev,
+					[sourceSectionId]: sourceDocs,
+					[destSectionId]: destDocs,
+				};
+			});
 		},
 		[],
 	);
+
+	/**
+	 * Whether the session is "empty" — no documents attached and no content text
+	 * in any section.  Used to disable publish when there is nothing to publish.
+	 */
+	const isSessionEmpty = useMemo(() => {
+		const hasAnyContent = Object.values(contentTextMap).some(
+			(v) => typeof v === "string" && v.trim().length > 0,
+		);
+		const hasAnyDocs = Object.values(documentsByAgendaItem).some(
+			(docs) => Array.isArray(docs) && docs.length > 0,
+		);
+		return !hasAnyContent && !hasAnyDocs;
+	}, [contentTextMap, documentsByAgendaItem]);
 
 	// Re-order DEFAULT_AGENDA_ITEMS based on agendaItemOrder
 	const orderedAgendaItems = useMemo(() => {
@@ -202,6 +502,28 @@ export function useAgendaBuilder() {
 		setDocumentsByAgendaItem({});
 		setAgendaItemOrder(defaultOrder);
 		setHighlightedItemId(null);
+	}, [defaultOrder]);
+
+	/**
+	 * Revert all in-memory edits back to the last-saved snapshot.
+	 * Useful as a "Discard Changes" action.
+	 */
+	const revertToSaved = useCallback(() => {
+		const savedContent: Record<string, string> = JSON.parse(
+			savedContentTextRef.current || "{}",
+		);
+		const savedDocs: Record<string, AttachedDocument[]> = JSON.parse(
+			savedDocsByAgendaRef.current || "{}",
+		);
+		const savedOrder: string[] = JSON.parse(
+			savedAgendaOrderRef.current || "[]",
+		);
+
+		setContentTextMap(savedContent);
+		setDocumentsByAgendaItem(savedDocs);
+		setAgendaItemOrder(savedOrder.length > 0 ? savedOrder : defaultOrder);
+		setHighlightedItemId(null);
+		setSaveTick((t) => t + 1);
 	}, [defaultOrder]);
 
 	/** Build the agenda items array for API submission */
@@ -261,12 +583,18 @@ export function useAgendaBuilder() {
 		hasChanges,
 		changedSections,
 		orderedAgendaItems,
+		isSessionEmpty,
 		defaultOrder,
 
 		// Handlers
 		handleContentTextChange,
-		handleMoveAgendaItem,
+		handleMoveDocument,
+		handleDndReorder,
+		moveDocumentToSection,
+		isDocumentFirstGlobal,
+		isDocumentLastGlobal,
 		resetEditorState,
+		revertToSaved,
 		buildAgendaItems,
 		snapshotSavedState,
 

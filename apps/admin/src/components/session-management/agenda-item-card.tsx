@@ -1,3 +1,4 @@
+import { Draggable, Droppable } from "@hello-pangea/dnd";
 import type {
 	SessionManagementAgendaItem as AgendaItem,
 	SessionManagementSession,
@@ -12,11 +13,10 @@ import {
 } from "@repo/ui/components/select";
 import {
 	ChevronDown,
-	ChevronUp,
 	ExternalLink,
 	FileText,
+	GripVertical,
 	Pencil,
-	X,
 } from "@repo/ui/lib/lucide-react";
 import {
 	formatAgendaItemNumber,
@@ -55,16 +55,8 @@ interface AgendaItemCardProps {
 	) => void;
 	/** Callback to open document viewer dialog */
 	onViewDocument?: (documentId: string) => void;
-	/** Callback to move this item up */
-	onMoveUp?: () => void;
-	/** Callback to move this item down */
-	onMoveDown?: () => void;
-	/** Whether this is the first item in the list */
-	isFirst?: boolean;
-	/** Whether this is the last item in the list */
-	isLast?: boolean;
-	/** Whether this item was just moved (show highlight) */
-	isHighlighted?: boolean;
+	/** Whether drag-and-drop is enabled for documents */
+	isDndEnabled?: boolean;
 	/** Whether this item has unsaved changes */
 	isModified?: boolean;
 }
@@ -93,11 +85,7 @@ export function AgendaItemCard({
 	onRemoveDocument,
 	onUpdateDocumentSummary,
 	onViewDocument,
-	onMoveUp,
-	onMoveDown,
-	isFirst,
-	isLast,
-	isHighlighted,
+	isDndEnabled,
 	isModified,
 }: AgendaItemCardProps) {
 	const [editingSummaryId, setEditingSummaryId] = useState<string | null>(null);
@@ -168,6 +156,7 @@ export function AgendaItemCard({
 	/** Render a single document row with numbering indicator */
 	const renderDocumentRow = (
 		doc: Document,
+		indexInSection: number,
 		letterIndex?: number,
 		sectionDocIndex?: number,
 	) => {
@@ -179,13 +168,29 @@ export function AgendaItemCard({
 					? formatAgendaItemNumber(item.section, sectionDocIndex, true)
 					: null;
 
-		return (
+		const content = (
+			dragHandleProps?: Record<string, unknown>,
+			isDragging?: boolean,
+		) => (
 			<div
-				key={doc.id}
-				className="rounded-md border border-gray-200 bg-gray-50 overflow-hidden"
+				className={`rounded-md border overflow-hidden transition-shadow ${
+					isDragging
+						? "border-blue-400 bg-blue-50 shadow-lg ring-2 ring-blue-200"
+						: "border-gray-200 bg-gray-50"
+				}`}
 			>
 				{/* Numbering + doc info header */}
 				<div className="flex items-center justify-between p-2">
+					{/* Drag handle */}
+					{isDndEnabled && dragHandleProps && (
+						<div
+							{...dragHandleProps}
+							className="flex items-center justify-center mr-1.5 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+							title="Drag to reorder"
+						>
+							<GripVertical className="h-4 w-4" />
+						</div>
+					)}
 					<div className="flex-1 min-w-0">
 						<div className="flex items-center gap-1.5">
 							{numberLabel && (
@@ -241,19 +246,50 @@ export function AgendaItemCard({
 					<div className="px-3 pb-2.5">
 						<div className="flex items-start gap-1.5">
 							<FileText className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
-							<div>
+							<div className="min-w-0 flex-1">
 								<p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide font-medium">
 									Public summary
 								</p>
 								<div
-									className="text-xs text-gray-700 leading-relaxed [&>ul]:list-disc [&>ul]:ml-4 [&>ol]:list-decimal [&>ol]:ml-4"
+									className="summary-display text-xs text-gray-700 leading-relaxed break-words"
 									dangerouslySetInnerHTML={{ __html: doc.summary }}
 								/>
+								<style jsx global>{`
+  .summary-display ul,
+  .summary-display ol {
+    padding-left: 1.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .summary-display li {
+    list-style-type: disc;
+    display: list-item;
+    margin-bottom: 0.2rem;
+    padding-left: 0.25rem;
+  }
+  .summary-display ol li {
+    list-style-type: decimal;
+  }
+  .summary-display li.ql-indent-1 {
+    margin-left: 1.5rem;
+    list-style-type: circle;
+  }
+  .summary-display li.ql-indent-2 {
+    margin-left: 3rem;
+    list-style-type: square;
+  }
+  .summary-display li.ql-indent-3 {
+    margin-left: 4.5rem;
+    list-style-type: disc;
+  }
+  .summary-display p {
+    margin-bottom: 0.25rem;
+    word-break: break-word;
+  }
+`}</style>
 							</div>
 						</div>
 					</div>
 				)}
-
 				{/* Summary editor */}
 				{editingSummaryId === doc.id && (
 					<div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-2 bg-blue-50/50">
@@ -303,16 +339,35 @@ export function AgendaItemCard({
 				)}
 			</div>
 		);
+
+		if (isDndEnabled) {
+			return (
+				<Draggable key={doc.id} draggableId={doc.id} index={indexInSection}>
+					{(provided, snapshot) => (
+						<div
+							ref={provided.innerRef}
+							{...provided.draggableProps}
+							style={provided.draggableProps.style}
+						>
+							{content(
+								provided.dragHandleProps as unknown as Record<string, unknown>,
+								snapshot.isDragging,
+							)}
+						</div>
+					)}
+				</Draggable>
+			);
+		}
+
+		return <div key={doc.id}>{content()}</div>;
 	};
 
 	return (
 		<div
 			className={`flex flex-col gap-3 rounded-lg border p-4 bg-white transition-all duration-300 ${
-				isHighlighted
-					? "border-[#a60202] ring-2 ring-[#a60202]/30"
-					: isModified
-						? "border-l-amber-400 border-l-[3px] border-gray-200"
-						: "border-gray-200"
+				isModified
+					? "border-l-amber-400 border-l-[3px] border-gray-200"
+					: "border-gray-200"
 			}`}
 		>
 			<div className="flex items-center justify-between">
@@ -326,30 +381,6 @@ export function AgendaItemCard({
 						</span>
 					)}
 				</div>
-				{(onMoveUp || onMoveDown) && (
-					<div className="flex items-center gap-0.5">
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-7 w-7 p-0 cursor-pointer text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
-							onClick={onMoveUp}
-							disabled={isFirst}
-							title="Move up"
-						>
-							<ChevronUp className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-7 w-7 p-0 cursor-pointer text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
-							onClick={onMoveDown}
-							disabled={isLast}
-							title="Move down"
-						>
-							<ChevronDown className="h-4 w-4" />
-						</Button>
-					</div>
-				)}
 			</div>
 
 			{/* Minutes Session Picker (draft) or read-only display (scheduled/completed) */}
@@ -398,32 +429,91 @@ export function AgendaItemCard({
 
 			{/* Committee Reports: Grouped by Classification */}
 			{isCommitteeReports && groupedDocuments && (
-				<div className="flex flex-col gap-4">
-					{Object.entries(groupedDocuments).map(
-						([classification, docs], groupIndex) => (
-							<div key={classification} className="flex flex-col gap-2">
-								<h5 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-									{groupIndex + 1}. COMMITTEE ON{" "}
-									{getClassificationLabel(classification).toUpperCase()}
-								</h5>
-								<div className="flex flex-col gap-2 ml-4">
-									{docs.map((doc, docIndex) =>
-										renderDocumentRow(doc, docIndex, undefined),
-									)}
-								</div>
-							</div>
-						),
+				<Droppable droppableId={item.id} isDropDisabled={!isDndEnabled}>
+					{(provided, snapshot) => (
+						<div
+							ref={provided.innerRef}
+							{...provided.droppableProps}
+							className={`flex flex-col gap-4 min-h-[2px] transition-colors rounded ${
+								snapshot.isDraggingOver
+									? "bg-blue-50/50 ring-1 ring-blue-200 ring-inset"
+									: ""
+							}`}
+						>
+							{(() => {
+								let globalIdx = 0;
+								return Object.entries(groupedDocuments).map(
+									([classification, docs], groupIndex) => (
+										<div key={classification} className="flex flex-col gap-2">
+											<h5 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+												{groupIndex + 1}. COMMITTEE ON{" "}
+												{getClassificationLabel(classification).toUpperCase()}
+											</h5>
+											<div className="flex flex-col gap-2 ml-4">
+												{docs.map((doc, docIndex) => {
+													const idx = globalIdx++;
+													return renderDocumentRow(
+														doc,
+														idx,
+														docIndex,
+														undefined,
+													);
+												})}
+											</div>
+										</div>
+									),
+								);
+							})()}
+							{provided.placeholder}
+						</div>
 					)}
-				</div>
+				</Droppable>
 			)}
 
 			{/* Non-committee Attached Documents */}
 			{!isCommitteeReports && documents.length > 0 && (
-				<div className="flex flex-col gap-2">
-					{documents.map((doc, docIndex) =>
-						renderDocumentRow(doc, undefined, docIndex),
+				<Droppable droppableId={item.id} isDropDisabled={!isDndEnabled}>
+					{(provided, snapshot) => (
+						<div
+							ref={provided.innerRef}
+							{...provided.droppableProps}
+							className={`flex flex-col gap-2 min-h-[2px] transition-colors rounded ${
+								snapshot.isDraggingOver
+									? "bg-blue-50/50 ring-1 ring-blue-200 ring-inset"
+									: ""
+							}`}
+						>
+							{documents.map((doc, docIndex) =>
+								renderDocumentRow(doc, docIndex, undefined, docIndex),
+							)}
+							{provided.placeholder}
+						</div>
 					)}
-				</div>
+				</Droppable>
+			)}
+
+			{/* Empty Droppable when section has no documents (allows dropping into empty sections) */}
+			{!isCommitteeReports && documents.length === 0 && isDndEnabled && (
+				<Droppable droppableId={item.id}>
+					{(provided, snapshot) => (
+						<div
+							ref={provided.innerRef}
+							{...provided.droppableProps}
+							className={`min-h-[32px] rounded border border-dashed transition-colors ${
+								snapshot.isDraggingOver
+									? "border-blue-400 bg-blue-50/50"
+									: "border-gray-200 bg-gray-50/30"
+							}`}
+						>
+							{snapshot.isDraggingOver && (
+								<p className="text-xs text-blue-500 text-center py-2">
+									Drop here
+								</p>
+							)}
+							{provided.placeholder}
+						</div>
+					)}
+				</Droppable>
 			)}
 
 			{/* Add Document Button - hidden when locked */}
@@ -434,7 +524,6 @@ export function AgendaItemCard({
 					className="flex h-9 w-full items-center justify-between rounded-md bg-[#f3f3f5] px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
 				>
 					<span>+ Add document</span>
-					<ChevronDown className="h-4 w-4" />
 				</button>
 			)}
 		</div>

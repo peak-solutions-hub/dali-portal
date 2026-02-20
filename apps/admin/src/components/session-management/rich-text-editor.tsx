@@ -43,6 +43,7 @@ export function RichTextEditor({
 			"background",
 			"align",
 			"list",
+			"indent",
 		],
 		[],
 	);
@@ -116,6 +117,16 @@ export function RichTextEditor({
 				.rich-text-editor-wrapper .ql-editor ul,
 				.rich-text-editor-wrapper .ql-editor ol {
 					padding-left: 1.25rem;
+				}
+				.rich-text-editor-wrapper .ql-editor ul,
+				.rich-text-editor-wrapper .ql-editor ol {
+				padding-left: 1.25rem;
+				}
+				.rich-text-editor-wrapper .ql-editor li.ql-indent-1 {
+				padding-left: 2.5rem;
+				}
+				.rich-text-editor-wrapper .ql-editor li.ql-indent-2 {
+				padding-left: 3.75rem;
 				}
 			`}</style>
 		</div>

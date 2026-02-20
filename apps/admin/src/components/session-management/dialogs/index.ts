@@ -1,8 +1,10 @@
+export { ConfirmDiscardDialog } from "./confirm-discard-dialog";
 export { CreateSessionDialog } from "./create-session-dialog";
 export { DeleteSessionDialog } from "./delete-session-dialog";
-export { DiscardChangesDialog } from "./discard-changes-dialog";
 export { DocumentViewerDialog } from "./document-viewer-dialog";
 export { MarkCompleteDialog } from "./mark-complete-dialog";
 export { PublishSessionDialog } from "./publish-session-dialog";
+export { SaveBeforeCreateDialog } from "./save-before-create-dialog";
 export { SaveDraftDialog } from "./save-draft-dialog";
 export { UnpublishSessionDialog } from "./unpublish-session-dialog";
+export { UnsavedChangesBeforePublishDialog } from "./unsaved-changes-before-publish-dialog";
