@@ -256,6 +256,14 @@ export class InquiryTicketService {
 
 		const inquiryTicket = await this.db.inquiryTicket.findFirst({
 			where: { id },
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
 		});
 
 		if (!inquiryTicket) {
@@ -277,6 +285,68 @@ export class InquiryTicketService {
 				},
 			},
 		});
+
+		// Send email notification when inquiry is resolved or rejected
+		if (status === "resolved" || status === "rejected") {
+			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}&email=${encodeURIComponent(updated.citizenEmail)}`;
+
+			console.log(
+				`[InquiryTicket] Inquiry ${status}, sending email notification...`,
+				{
+					to: updated.citizenEmail,
+					referenceNumber: updated.referenceNumber,
+					status,
+				},
+			);
+
+			this.resend
+				.send({
+					to: updated.citizenEmail,
+					template: {
+						id: "inquiry-resolution-email",
+						variables: {
+							CITIZEN_NAME: updated.citizenName,
+							SUBJECT: updated.subject,
+							STATUS: status,
+							REFERENCE_NUMBER: updated.referenceNumber,
+							STAFF_NAME: inquiryTicket.user?.fullName || "Staff Member",
+							MESSAGE_CONTENT: closureRemarks || "No remarks provided",
+							PORTAL_URL: portalUrl,
+							YEAR: new Date().getFullYear().toString(),
+						},
+					},
+				})
+				.then((result) => {
+					console.log(
+						`[InquiryTicket] Resolution notification - Resend response:`,
+						{
+							success: !!result.data,
+							emailId: result.data?.id,
+							error: result.error,
+							to: updated.citizenEmail,
+							referenceNumber: updated.referenceNumber,
+							status,
+						},
+					);
+					if (result.error) {
+						console.error(
+							"[InquiryTicket] Resend returned an error:",
+							result.error,
+						);
+					}
+				})
+				.catch((err) => {
+					console.error(
+						"[InquiryTicket] Failed to send resolution notification",
+						{
+							ticketId: updated.id,
+							referenceNumber: updated.referenceNumber,
+							status,
+							error: err,
+						},
+					);
+				});
+		}
 
 		return {
 			...updated,
@@ -313,6 +383,62 @@ export class InquiryTicketService {
 				},
 			},
 		});
+
+		// Send email notification when inquiry is assigned
+		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}&email=${encodeURIComponent(updated.citizenEmail)}`;
+
+		console.log(
+			"[InquiryTicket] Inquiry assigned, sending email notification...",
+			{
+				to: updated.citizenEmail,
+				referenceNumber: updated.referenceNumber,
+				assignedTo: updated.user?.fullName,
+			},
+		);
+
+		this.resend
+			.send({
+				to: updated.citizenEmail,
+				template: {
+					id: "assigned-inquiry",
+					variables: {
+						CITIZEN_NAME: updated.citizenName,
+						REFERENCE_NUMBER: updated.referenceNumber,
+						SUBJECT: updated.subject,
+						STAFF_NAME: updated.user?.fullName || "Staff Member",
+						PORTAL_URL: portalUrl,
+						YEAR: new Date().getFullYear().toString(),
+					},
+				},
+			})
+			.then((result) => {
+				console.log(
+					"[InquiryTicket] Assignment notification - Resend response:",
+					{
+						success: !!result.data,
+						emailId: result.data?.id,
+						error: result.error,
+						to: updated.citizenEmail,
+						referenceNumber: updated.referenceNumber,
+					},
+				);
+				if (result.error) {
+					console.error(
+						"[InquiryTicket] Resend returned an error:",
+						result.error,
+					);
+				}
+			})
+			.catch((err) => {
+				console.error(
+					"[InquiryTicket] Failed to send assignment notification",
+					{
+						ticketId: updated.id,
+						referenceNumber: updated.referenceNumber,
+						error: err,
+					},
+				);
+			});
 
 		return {
 			...updated,
