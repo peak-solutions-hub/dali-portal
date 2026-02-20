@@ -484,13 +484,6 @@ export function RoomBookingCalendar() {
 						</div>
 
 						<div className="flex-1 overflow-y-auto relative">
-							{" "}
-							{/* Drag Preview Label */}
-							{isDragging && dragPreviewTime && (
-								<div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg font-medium text-sm animate-in fade-in duration-200">
-									{dragPreviewTime}
-								</div>
-							)}
 							{/* Time Slots - Complete 24 hours (12 AM to 11 PM) */}
 							<div className="relative">
 								{/* Real-time Indicator Line */}
@@ -550,39 +543,105 @@ export function RoomBookingCalendar() {
 												}`}
 											>
 												<div className="w-24" />
-												<div className="flex-1 h-full border-l border-gray-100 px-4 pt-1">
-													{slotIsBooked && booking && (
-														<div className="flex flex-col gap-1">
-															<div className="flex items-center gap-2">
-																<span
-																	className={`text-xs font-semibold ${
-																		booking.status === "confirmed"
-																			? "text-blue-700"
-																			: "text-yellow-700"
-																	}`}
-																>
-																	{booking.purpose}
-																</span>
-																<span
-																	className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${
-																		booking.status === "confirmed"
-																			? "bg-blue-100 text-blue-700"
-																			: "bg-yellow-100 text-yellow-700"
-																	}`}
-																>
-																	{booking.status}
-																</span>
-															</div>
-															<span className="text-[10px] text-gray-500">
-																{booking.startTime} - {booking.endTime}
-															</span>
-														</div>
-													)}
-												</div>
-											</button>{" "}
+												<div className="flex-1 h-full border-l border-gray-100" />
+											</button>
 										</div>
 									);
 								})}
+
+								{/* Booking Labels Overlay */}
+								{bookingsForSelectedDate.map((booking) => {
+									// Find the first slot index for this booking
+									const firstSlotIndex = timeSlots.findIndex((slot) =>
+										isTimeSlotBooked(
+											slot.hour,
+											slot.minute,
+											booking.startTime,
+											booking.endTime,
+										),
+									);
+
+									if (firstSlotIndex === -1) return null;
+
+									// Count how many slots this booking spans
+									let slotCount = 0;
+									for (let i = firstSlotIndex; i < timeSlots.length; i++) {
+										const slot = timeSlots[i];
+										if (!slot) break;
+										if (
+											isTimeSlotBooked(
+												slot.hour,
+												slot.minute,
+												booking.startTime,
+												booking.endTime,
+											)
+										) {
+											slotCount++;
+										} else {
+											break;
+										}
+									}
+
+									const topPosition = firstSlotIndex * 20; // 20px per slot
+									const height = slotCount * 20;
+
+									return (
+										<div
+											key={booking.id}
+											className="absolute left-24 right-0 pointer-events-none z-20"
+											style={{
+												top: `${topPosition}px`,
+												height: `${height}px`,
+											}}
+										>
+											<div className="h-full ml-px pl-4 flex flex-col justify-center gap-1">
+												<div className="flex items-center gap-2">
+													<span
+														className={`text-xs font-semibold ${
+															booking.status === "confirmed"
+																? "text-blue-700"
+																: "text-yellow-700"
+														}`}
+													>
+														{booking.purpose}
+													</span>
+													<span
+														className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${
+															booking.status === "confirmed"
+																? "bg-blue-100 text-blue-700"
+																: "bg-yellow-100 text-yellow-700"
+														}`}
+													>
+														{booking.status}
+													</span>
+												</div>
+												<span className="text-[10px] text-gray-500">
+													{booking.startTime} - {booking.endTime}
+												</span>
+											</div>
+										</div>
+									);
+								})}
+
+								{/* Drag Preview on Selected Area */}
+								{isDragging &&
+									dragPreviewTime &&
+									dragStartIndex !== null &&
+									dragEndIndex !== null && (
+										<div
+											className="absolute left-24 right-0 pointer-events-none z-40"
+											style={{
+												top: `${Math.min(dragStartIndex, dragEndIndex) * 20}px`,
+												height: `${(Math.abs(dragEndIndex - dragStartIndex) + 1) * 20}px`,
+											}}
+										>
+											<div className="h-full ml-px pl-4 flex items-center">
+												<div className="bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-lg font-medium text-sm">
+													{dragPreviewTime}
+												</div>
+											</div>
+										</div>
+									)}
 							</div>
 						</div>
 					</div>
