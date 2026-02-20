@@ -61,7 +61,7 @@ function TimePicker({
 	const [open, setOpen] = React.useState(false);
 
 	const hours = Array.from({ length: 12 }, (_, i) => i + 1);
-	const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
+	const minutes = Array.from({ length: 4 }, (_, i) => i * 15);
 
 	const parsed = React.useMemo(() => {
 		if (!value) return { hour: 10, minute: 0, period: "AM" as const };
