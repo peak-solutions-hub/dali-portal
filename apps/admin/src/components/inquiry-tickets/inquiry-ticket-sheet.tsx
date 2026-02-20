@@ -10,8 +10,14 @@ import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { LockKeyhole } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import {
+	useAssignTicket,
+	useRefreshTicket,
+	useRejectTicket,
+	useResolveTicket,
+	useSendTicketMessage,
+} from "@/hooks";
 import { api } from "@/lib/api.client";
-import { createTicketHelpers } from "@/utils/inquiry-ticket-helpers";
 import {
 	InquiryActionConfirmationDialog,
 	type InquiryActionType,
@@ -44,8 +50,6 @@ export function InquiryTicketSheet({
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [message, setMessage] = useState("");
-	const [isSending, setIsSending] = useState(false);
-	const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 	const [files, setFiles] = useState<File[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [confirmationDialog, setConfirmationDialog] = useState<{
@@ -55,6 +59,51 @@ export function InquiryTicketSheet({
 		isOpen: false,
 		actionType: null,
 	});
+
+	// Initialize hooks (must be called before any conditional returns)
+	const { refresh: refreshTicket } = useRefreshTicket({
+		onSuccess: (refreshedTicket) => {
+			setTicket(refreshedTicket);
+			onStatusUpdate?.();
+		},
+	});
+
+	const { send: sendMessage, isSending } = useSendTicketMessage({
+		onSuccess: async () => {
+			setMessage("");
+			setFiles([]);
+			if (ticketId) {
+				await refreshTicket(ticketId);
+			}
+		},
+		onUploadProgress: setUploadProgress,
+	});
+
+	const { assignToMe } = useAssignTicket({
+		onSuccess: async () => {
+			if (ticketId) {
+				await refreshTicket(ticketId);
+			}
+		},
+	});
+
+	const { resolve: resolveTicket, isResolving } = useResolveTicket({
+		onSuccess: async () => {
+			if (ticketId) {
+				await refreshTicket(ticketId);
+			}
+		},
+	});
+
+	const { reject: rejectTicket, isRejecting } = useRejectTicket({
+		onSuccess: async () => {
+			if (ticketId) {
+				await refreshTicket(ticketId);
+			}
+		},
+	});
+
+	const isUpdatingStatus = isResolving || isRejecting;
 
 	// Fetch ticket details when ticketId changes
 	useEffect(() => {
@@ -90,12 +139,7 @@ export function InquiryTicketSheet({
 		fetchTicket();
 	}, [ticketId]);
 
-	if (!ticketId) return null;
-
-	// Check if ticket is assigned to someone else (not the current user)
-	const isAssignedToOther =
-		ticket?.assignedTo && ticket.assignedTo !== userProfile?.id;
-
+	// Helper functions
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files) {
 			const newFiles = Array.from(e.target.files);
@@ -136,34 +180,52 @@ export function InquiryTicketSheet({
 		return paths;
 	};
 
-	const helpers = createTicketHelpers(
-		ticketId,
-		message,
-		files,
-		uploadFiles,
-		{
-			onFilesClear: () => setFiles([]),
-			onUploadProgress: setUploadProgress,
-			onTicketUpdate: setTicket,
-			onMessageClear: () => setMessage(""),
-			onLoadingChange: setIsSending,
-			onStatusLoadingChange: setIsUpdatingStatus,
-			onStatusUpdate,
-		},
-		userProfile
-			? { id: userProfile.id, fullName: userProfile.fullName }
-			: undefined,
-	);
+	// Early return after all hooks are called
+	if (!ticketId) return null;
 
-	const {
-		handleSendMessage,
-		handleAssignToMe,
-		handleResolve,
-		handleReject,
-		confirmAssignToMe,
-		confirmResolve,
-		confirmReject,
-	} = helpers;
+	// Check if ticket is assigned to someone else (not the current user)
+	const isAssignedToOther =
+		ticket?.assignedTo && ticket.assignedTo !== userProfile?.id;
+
+	// Action handlers
+	const handleSendMessage = async () => {
+		if (!ticketId || (!message.trim() && files.length === 0)) return;
+
+		await sendMessage({
+			ticketId,
+			message,
+			files,
+			uploadFiles,
+			senderName: userProfile?.fullName || "Staff Member",
+		});
+	};
+
+	const handleAssignToMe = (onOpenDialog: () => void) => {
+		onOpenDialog();
+	};
+
+	const handleResolve = (onOpenDialog: () => void) => {
+		onOpenDialog();
+	};
+
+	const handleReject = (onOpenDialog: () => void) => {
+		onOpenDialog();
+	};
+
+	const confirmAssignToMe = async () => {
+		if (!ticketId) return;
+		await assignToMe(ticketId);
+	};
+
+	const confirmResolve = async (remarks: string) => {
+		if (!ticketId) return;
+		await resolveTicket(ticketId, remarks);
+	};
+
+	const confirmReject = async (remarks: string) => {
+		if (!ticketId) return;
+		await rejectTicket(ticketId, remarks);
+	};
 
 	const openConfirmationDialog = (actionType: InquiryActionType) => {
 		setConfirmationDialog({ isOpen: true, actionType });
