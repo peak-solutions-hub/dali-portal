@@ -25,6 +25,12 @@ export const AttachmentWithUrlSchema = z.object({
 	fileName: z.string(),
 });
 
+// Assigned user info (minimal details for UI display)
+export const AssignedUserSchema = z.object({
+	id: z.uuid(),
+	fullName: z.string(),
+});
+
 export const InquiryTicketSchema = z.object({
 	id: z.uuid(),
 	referenceNumber: z.string(),
@@ -36,6 +42,10 @@ export const InquiryTicketSchema = z.object({
 	status: InquiryTicketStatusEnum,
 	closureRemarks: z.string().max(TEXT_LIMITS.SM).nullable(),
 	createdAt: z.date(),
+});
+
+export const InquiryTicketWithUserSchema = InquiryTicketSchema.extend({
+	user: AssignedUserSchema.nullable(),
 });
 
 export const InquiryTicketListSchema = InquiryTicketSchema.array();
@@ -71,12 +81,12 @@ export const InquiryTicketWithMessagesSchema = InquiryTicketSchema.extend({
  * This is the main schema for viewing inquiry details with downloadable attachments.
  */
 export const InquiryTicketWithMessagesAndAttachmentsSchema =
-	InquiryTicketSchema.extend({
+	InquiryTicketWithUserSchema.extend({
 		inquiryMessages: InquiryMessageWithAttachmentsSchema.array(),
 	});
 
 // override date field to be iso strings for frontend use
-export const InquiryTicketResponseSchema = InquiryTicketSchema.extend({
+export const InquiryTicketResponseSchema = InquiryTicketWithUserSchema.extend({
 	createdAt: z.iso.datetime(),
 });
 
@@ -110,14 +120,25 @@ export const InquiryTicketWithMessagesAndAttachmentsResponseSchema =
 		inquiryMessages: InquiryMessageWithAttachmentsResponseSchema.array(),
 	});
 
-export const InquiryTicketListResponseSchema =
-	InquiryTicketResponseSchema.array();
+export const PaginationResponseSchema = z.object({
+	currentPage: z.number(),
+	totalPages: z.number(),
+	totalItems: z.number(),
+	itemsPerPage: z.number(),
+	hasNextPage: z.boolean(),
+	hasPreviousPage: z.boolean(),
+});
+
+export const InquiryTicketListResponseSchema = z.object({
+	tickets: InquiryTicketResponseSchema.array(),
+	pagination: PaginationResponseSchema,
+});
 
 export const GetInquiryTicketListSchema = z.object({
 	status: InquiryTicketStatusEnum.optional(),
 	category: InquiryTicketCategoryEnum.optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
-	cursor: z.uuid().optional(),
+	page: z.coerce.number().int().min(1).default(1),
 });
 
 export const GetInquiryTicketByIdSchema = z.object({
@@ -171,6 +192,10 @@ export const UpdateInquiryTicketStatusSchema = z.object({
 	id: z.uuid(),
 	status: InquiryTicketStatusEnum,
 	closureRemarks: z.string().max(TEXT_LIMITS.SM).optional(),
+});
+
+export const AssignInquiryToMeSchema = z.object({
+	id: z.uuid(),
 });
 
 export const TrackInquiryTicketSchema = z.object({
@@ -243,6 +268,8 @@ export type InquiryMessageWithAttachments = z.infer<
 export type InquiryTicketWithMessages = z.infer<
 	typeof InquiryTicketWithMessagesSchema
 >;
+export type AssignedUser = z.infer<typeof AssignedUserSchema>;
+export type InquiryTicketWithUser = z.infer<typeof InquiryTicketWithUserSchema>;
 export type InquiryTicketWithMessagesAndAttachments = z.infer<
 	typeof InquiryTicketWithMessagesAndAttachmentsSchema
 >;
@@ -283,8 +310,22 @@ export type CreateInquiryTicketResponse = z.infer<
 export type UpdateInquiryTicketStatusInput = z.infer<
 	typeof UpdateInquiryTicketStatusSchema
 >;
+export type AssignInquiryToMeInput = z.infer<typeof AssignInquiryToMeSchema>;
 export type TrackInquiryTicketInput = z.infer<typeof TrackInquiryTicketSchema>;
 export type TrackInquiryTicketResponse = z.infer<
 	typeof TrackInquiryTicketResponseSchema
 >;
 export type SendInquiryMessageInput = z.infer<typeof SendInquiryMessageSchema>;
+
+// Status counts
+
+export const InquiryStatusCountsSchema = z.object({
+	all: z.number().int().min(0),
+	new: z.number().int().min(0),
+	open: z.number().int().min(0),
+	waiting_for_citizen: z.number().int().min(0),
+	resolved: z.number().int().min(0),
+	rejected: z.number().int().min(0),
+});
+
+export type InquiryStatusCounts = z.infer<typeof InquiryStatusCountsSchema>;
