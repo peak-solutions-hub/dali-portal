@@ -60,7 +60,7 @@ export default function ConferenceRoomBooking() {
 					)}
 				</TabsList>
 
-				<TabsContent value="calendar" className="mt-6 -mx-6">
+				<TabsContent value="calendar" className="mt-6">
 					<RoomBookingCalendar />
 				</TabsContent>
 

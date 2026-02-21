@@ -1,10 +1,6 @@
 "use client";
 
-import {
-	CONFERENCE_ROOM_COLORS,
-	CONFERENCE_ROOM_LABELS,
-	isAdminBookingRole,
-} from "@repo/shared";
+import { CONFERENCE_ROOM_LABELS, isAdminBookingRole } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Table,
@@ -28,6 +24,7 @@ import {
 	useUpdateBookingStatus,
 } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
+import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
 import { type CalendarBooking, mapApiBookings } from "@/utils/booking-helpers";
 import { formatFullDate } from "@/utils/date-utils";
 import { BookingStatusBadge } from "./booking-status-badge";

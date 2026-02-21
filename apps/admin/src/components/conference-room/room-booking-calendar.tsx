@@ -168,7 +168,7 @@ export function RoomBookingCalendar() {
 		viewingBooking.bookedBy === userId;
 
 	return (
-		<div className="flex gap-6 p-6 h-screen max-h-screen overflow-hidden bg-gray-50">
+		<div className="flex gap-6 p-3 h-screen max-h-screen overflow-hidden bg-gray-50">
 			{viewMode === "day" ? (
 				<>
 					<CalendarSidebar

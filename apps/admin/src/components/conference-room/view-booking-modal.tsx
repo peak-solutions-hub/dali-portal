@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { CONFERENCE_ROOM_COLORS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	CheckCircle,
@@ -13,6 +12,7 @@ import {
 	XCircle,
 } from "lucide-react";
 import { useUpdateBookingStatus } from "@/hooks/room-booking";
+import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
 import type { CalendarBooking } from "@/utils/booking-helpers";
 import { formatFullDate } from "@/utils/date-utils";
 import { BookingStatusBadge } from "./booking-status-badge";

@@ -1,8 +1,8 @@
 "use client";
 
-import { CONFERENCE_ROOM_COLORS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
 import type { CalendarBooking } from "@/utils/booking-helpers";
 import {
 	dayNames,

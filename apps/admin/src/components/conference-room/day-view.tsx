@@ -1,10 +1,10 @@
 "use client";
 
-import { CONFERENCE_ROOM_COLORS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { useDragSelect } from "@/hooks/room-booking";
+import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
 import type { CalendarBooking } from "@/utils/booking-helpers";
 import { formatDayName, formatFullDate, isSameDay } from "@/utils/date-utils";
 import {
