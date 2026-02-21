@@ -24,8 +24,15 @@ export class RoomBookingController {
 	@Implement(contract.roomBookings.getList)
 	getList() {
 		return implement(contract.roomBookings.getList).handler(
-			async ({ input }) => {
-				return await this.roomBookingService.getList(input);
+			async ({ input, context }) => {
+				const { request } = context as ORPCContext;
+				const user = request.user;
+
+				if (!user?.id) {
+					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+				}
+
+				return await this.roomBookingService.getList(input, user.role);
 			},
 		);
 	}
@@ -107,7 +114,7 @@ export class RoomBookingController {
 					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
 				}
 
-				return await this.roomBookingService.update(input, user.id, user.role);
+				return await this.roomBookingService.update(input, user.id);
 			},
 		);
 	}

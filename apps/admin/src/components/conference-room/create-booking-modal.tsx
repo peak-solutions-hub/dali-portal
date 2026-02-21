@@ -94,9 +94,9 @@ export function CreateBookingModal({
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+			<div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 				{/* Header */}
-				<div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-start justify-between">
+				<div className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-start justify-between">
 					<div>
 						<h2 className="text-2xl font-bold text-gray-900">
 							Request Room Booking
@@ -114,7 +114,10 @@ export function CreateBookingModal({
 					</button>
 				</div>
 
-				<form onSubmit={handleSubmit} className="px-6 py-6">
+				<form
+					onSubmit={handleSubmit}
+					className="flex-1 overflow-y-auto px-6 py-6 min-h-0"
+				>
 					<BookingFormFields
 						values={values}
 						onChange={handleChange}

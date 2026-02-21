@@ -14,12 +14,12 @@ import {
 } from "../schemas/room-booking.schema";
 
 // ---------------------------------------------------------------------------
-// GET /admin/bookings — list bookings (with filters)
+// GET /bookings — list bookings (with filters)
 // ---------------------------------------------------------------------------
 export const getRoomBookingList = oc
 	.route({
 		method: "GET",
-		path: "/admin/bookings",
+		path: "/bookings",
 		summary: "List conference room bookings",
 		description:
 			"Returns a paginated list of bookings. Supports filtering by status, room, and date.",
@@ -33,12 +33,12 @@ export const getRoomBookingList = oc
 	.output(RoomBookingListResponseSchema);
 
 // ---------------------------------------------------------------------------
-// GET /admin/bookings/{id} — get booking by ID
+// GET /bookings/{id} — get booking by ID
 // ---------------------------------------------------------------------------
 export const getRoomBookingById = oc
 	.route({
 		method: "GET",
-		path: "/admin/bookings/{id}",
+		path: "/bookings/{id}",
 		summary: "Get conference room booking by ID",
 		description: "Returns full details for a single booking.",
 		tags: ["Room Booking", "Admin"],
@@ -52,12 +52,12 @@ export const getRoomBookingById = oc
 	.output(RoomBookingResponseSchema);
 
 // ---------------------------------------------------------------------------
-// POST /admin/bookings — create a booking
+// POST /bookings — create a booking
 // ---------------------------------------------------------------------------
 export const createRoomBooking = oc
 	.route({
 		method: "POST",
-		path: "/admin/bookings",
+		path: "/bookings",
 		summary: "Create a conference room booking",
 		description:
 			"Creates a booking request. Status is auto-set to CONFIRMED for direct-path roles or PENDING for councilors. A conflict check against CONFIRMED bookings is performed.",
@@ -74,12 +74,12 @@ export const createRoomBooking = oc
 	.output(RoomBookingResponseSchema);
 
 // ---------------------------------------------------------------------------
-// PATCH /admin/bookings/{id}/status — approve or reject a pending booking
+// PATCH /bookings/{id}/status — approve or reject a pending booking
 // ---------------------------------------------------------------------------
 export const updateRoomBookingStatus = oc
 	.route({
 		method: "PATCH",
-		path: "/admin/bookings/{id}/status",
+		path: "/bookings/{id}/status",
 		summary: "Approve or reject a pending booking",
 		description:
 			"Transitions a PENDING booking to CONFIRMED or REJECTED. Re-runs conflict detection before confirming. Restricted to head_admin, vice_mayor, and admin_staff.",
@@ -97,15 +97,15 @@ export const updateRoomBookingStatus = oc
 	.output(RoomBookingResponseSchema);
 
 // ---------------------------------------------------------------------------
-// PUT /admin/bookings/{id} — edit a booking
+// PUT /bookings/{id} — edit a booking
 // ---------------------------------------------------------------------------
 export const updateRoomBooking = oc
 	.route({
 		method: "PUT",
-		path: "/admin/bookings/{id}",
+		path: "/bookings/{id}",
 		summary: "Edit a conference room booking",
 		description:
-			"Updates booking details. Ownership check enforced: users can only edit their own bookings unless they are an admin-level role. Conflict detection is re-run when times change.",
+			"Updates booking details. Ownership check enforced: users can only edit their own bookings. Conflict detection is re-run when times change.",
 		tags: ["Room Booking", "Admin"],
 	})
 	.errors({
@@ -120,12 +120,12 @@ export const updateRoomBooking = oc
 	.output(RoomBookingResponseSchema);
 
 // ---------------------------------------------------------------------------
-// DELETE /admin/bookings/{id} — delete a booking
+// DELETE /bookings/{id} — delete a booking
 // ---------------------------------------------------------------------------
 export const deleteRoomBooking = oc
 	.route({
 		method: "DELETE",
-		path: "/admin/bookings/{id}",
+		path: "/bookings/{id}",
 		summary: "Delete a conference room booking",
 		description:
 			"Deletes a booking. Ownership check enforced: users can only delete their own bookings unless they are an admin-level role.",
@@ -141,12 +141,12 @@ export const deleteRoomBooking = oc
 	.output(z.object({ success: z.boolean() }));
 
 // ---------------------------------------------------------------------------
-// POST /admin/bookings/upload-url — generate signed upload URL for attachment
+// POST /bookings/upload-url — generate signed upload URL for attachment
 // ---------------------------------------------------------------------------
 export const generateBookingUploadUrl = oc
 	.route({
 		method: "POST",
-		path: "/admin/bookings/upload-url",
+		path: "/bookings/upload-url",
 		summary: "Generate a signed upload URL for a booking attachment",
 		description:
 			"Returns a short-lived Supabase signed upload URL. The client uploads the file directly to Supabase Storage and then passes the resulting path in CreateRoomBooking.attachmentUrl. File must be PDF, JPEG, or JPG and ≤ 10 MB.",

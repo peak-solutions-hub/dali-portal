@@ -8,6 +8,8 @@ import type { TimeSlot } from "@/utils/time-utils";
 
 export interface CalendarBooking {
 	id: string;
+	bookedBy: string;
+	bookedByName: string | null;
 	date: Date;
 	/** "9:00 AM" formatted for display */
 	startTime: string;
@@ -51,6 +53,7 @@ export function isoToTime24(iso: string): string {
 
 interface ApiBooking {
 	id: string;
+	bookedBy: string;
 	startTime: string;
 	endTime: string;
 	room: string;
@@ -58,12 +61,15 @@ interface ApiBooking {
 	requestedFor: string;
 	status: string;
 	attachmentUrl: string | null;
+	user?: { id: string; fullName: string } | null;
 }
 
 /** Map raw API booking objects to the CalendarBooking shape used by UI components. */
 export function mapApiBookings(bookings: ApiBooking[]): CalendarBooking[] {
 	return bookings.map((b) => ({
 		id: b.id,
+		bookedBy: b.bookedBy,
+		bookedByName: b.user?.fullName ?? null,
 		date: new Date(b.startTime),
 		startTime: isoToTimeStr(b.startTime),
 		endTime: isoToTimeStr(b.endTime),

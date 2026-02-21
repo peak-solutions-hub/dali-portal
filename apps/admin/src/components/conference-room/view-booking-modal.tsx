@@ -23,6 +23,8 @@ interface ViewBookingModalProps {
 	booking: CalendarBooking | null;
 	onEdit: (booking: CalendarBooking) => void;
 	onDelete: (booking: CalendarBooking) => void;
+	canEdit: boolean;
+	canApprove: boolean;
 }
 
 export function ViewBookingModal({
@@ -31,6 +33,8 @@ export function ViewBookingModal({
 	booking,
 	onEdit,
 	onDelete,
+	canEdit,
+	canApprove,
 }: ViewBookingModalProps) {
 	const { updateStatus, isUpdating } = useUpdateBookingStatus(() => {
 		onClose();
@@ -50,11 +54,17 @@ export function ViewBookingModal({
 	).toLowerCase();
 	const isPdf = urlPath.endsWith(".pdf");
 	const isImage = /\.(jpe?g|png|gif|webp)$/.test(urlPath);
+	const attachmentFileName = booking.attachmentUrl
+		? decodeURIComponent(
+				(booking.attachmentUrl.split("?")[0] ?? "").split("/").pop() ??
+					"attachment",
+			)
+		: null;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 			<div
-				className={`bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden flex flex-col ${booking.attachmentUrl ? "max-w-4xl" : "max-w-lg"}`}
+				className={`bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden flex flex-col max-w-lg`}
 			>
 				{/* Header */}
 				<div className="bg-white border-b border-gray-200 px-6 py-4 flex items-start justify-between shrink-0">
@@ -111,43 +121,33 @@ export function ViewBookingModal({
 						<p className="text-sm text-gray-900">{booking.requestedFor}</p>
 					</div>
 
-					{/* Attachment - inline embed */}
-					{booking.attachmentUrl && (
+					{/* Attachment — file card */}
+					{booking.attachmentUrl && attachmentFileName && (
 						<div>
 							<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
 								Attachment
 							</p>
-							<div className="border border-gray-200 rounded-lg overflow-hidden">
-								{isPdf && (
-									<iframe
-										src={booking.attachmentUrl}
-										className="w-full h-96 border-0"
-										title="PDF Attachment"
-									/>
-								)}
-								{isImage && (
-									<img
-										src={booking.attachmentUrl}
-										alt="Booking attachment"
-										className="w-full max-h-96 object-contain bg-gray-50"
-									/>
-								)}
-								{!isImage && !isPdf && (
-									<div className="flex items-center gap-3 p-3 bg-gray-50">
-										<FileText className="w-8 h-8 text-gray-400 shrink-0" />
-										<p className="text-sm text-gray-600">File attached</p>
-									</div>
-								)}
-								<a
-									href={booking.attachmentUrl}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors border-t border-gray-200"
-								>
-									<ExternalLink className="w-4 h-4" />
-									Open attachment
-								</a>
-							</div>
+							<a
+								href={booking.attachmentUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+								title={`View ${attachmentFileName}`}
+							>
+								<div className="p-2 rounded-lg bg-gray-100">
+									<FileText className="h-5 w-5 text-gray-600" />
+								</div>
+								<div className="flex flex-col min-w-0 flex-1">
+									<span className="text-sm font-medium text-gray-900 truncate">
+										{attachmentFileName}
+									</span>
+									<span className="text-xs text-gray-500">
+										{isPdf ? "PDF Document" : isImage ? "Image" : "File"} —
+										Click to view
+									</span>
+								</div>
+								<ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
+							</a>
 						</div>
 					)}
 				</div>
@@ -155,7 +155,7 @@ export function ViewBookingModal({
 				{/* Actions */}
 				<div className="px-6 py-4 border-t border-gray-200 flex flex-wrap gap-2 justify-between shrink-0 bg-white">
 					<div className="flex gap-2">
-						{!isRejected && (
+						{canEdit && !isRejected && (
 							<Button
 								variant="outline"
 								size="sm"
@@ -178,7 +178,7 @@ export function ViewBookingModal({
 						</Button>
 					</div>
 
-					{isPending && (
+					{isPending && canApprove && (
 						<div className="flex gap-2">
 							<Button
 								variant="outline"

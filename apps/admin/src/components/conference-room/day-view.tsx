@@ -17,6 +17,7 @@ interface DayViewProps {
 	selectedDate: Date;
 	today: Date;
 	now: Date;
+	canCreateBookings: boolean;
 	bookings: CalendarBooking[];
 	isLoading: boolean;
 	timeLinePosition: number | null;
@@ -32,6 +33,7 @@ export function DayView({
 	selectedDate,
 	today,
 	now,
+	canCreateBookings,
 	bookings,
 	isLoading,
 	timeLinePosition,
@@ -58,19 +60,43 @@ export function DayView({
 		onSelectRange: onSelectTimeRange,
 	});
 
-	// Check if a time slot is already booked
-	const isSlotBooked = (index: number): boolean => {
+	const getBookingForSlot = (index: number): CalendarBooking | null => {
 		const slot = timeSlots[index];
-		if (!slot) return false;
-		return bookings.some((booking) =>
-			isTimeSlotBooked(
-				slot.hour,
-				slot.minute,
-				booking.startTime,
-				booking.endTime,
-			),
+		if (!slot) return null;
+
+		return (
+			bookings.find((booking) =>
+				isTimeSlotBooked(
+					slot.hour,
+					slot.minute,
+					booking.startTime,
+					booking.endTime,
+				),
+			) ?? null
 		);
 	};
+
+	const dragPreviewClassName = useMemo(() => {
+		if (dragStartIndex === null || dragEndIndex === null) {
+			return "bg-blue-600 text-white";
+		}
+
+		const start = Math.min(dragStartIndex, dragEndIndex);
+		const end = Math.max(dragStartIndex, dragEndIndex);
+
+		for (let i = start; i <= end; i++) {
+			const booking = getBookingForSlot(i);
+			if (!booking) continue;
+
+			if (booking.status === "pending") {
+				return "bg-yellow-500 text-white";
+			}
+
+			return CONFERENCE_ROOM_COLORS[booking.roomKey].chip;
+		}
+
+		return "bg-blue-600 text-white";
+	}, [dragStartIndex, dragEndIndex, bookings, timeSlots]);
 
 	return (
 		<div
@@ -105,6 +131,11 @@ export function DayView({
 					</div>
 				</div>
 				<div className="flex items-center gap-2">
+					{!canCreateBookings && (
+						<span className="text-xs font-medium text-gray-500">
+							Past date (view only)
+						</span>
+					)}
 					<Button onClick={onSwitchToMonth} variant="outline" size="sm">
 						Month View
 					</Button>
@@ -144,20 +175,31 @@ export function DayView({
 
 					{/* Time Slot Rows */}
 					{timeSlots.map((slot, index) => {
-						const slotIsBooked = isSlotBooked(index);
-						const booking = slotIsBooked
-							? bookings.find((b) =>
-									isTimeSlotBooked(
-										slot.hour,
-										slot.minute,
-										b.startTime,
-										b.endTime,
-									),
-								)
-							: null;
+						const booking = getBookingForSlot(index);
+						const slotIsBooked = booking !== null;
 						const roomColors = booking
 							? CONFERENCE_ROOM_COLORS[booking.roomKey]
 							: null;
+						const isSelected = isSlotSelected(index);
+
+						const selectedClassName = isSelected
+							? booking
+								? booking.status === "pending"
+									? "bg-yellow-100 border-l-4 border-l-yellow-500"
+									: roomColors
+										? `${roomColors.bg} border-l-4 ${roomColors.border}`
+										: "bg-blue-100"
+								: "bg-blue-100"
+							: "";
+
+						const bookedClassName =
+							slotIsBooked && booking
+								? booking.status === "pending"
+									? "bg-yellow-50 border-l-4 border-l-yellow-500"
+									: roomColors
+										? roomColors.bg + " border-l-4 " + roomColors.border
+										: "bg-blue-50 border-l-4 border-l-blue-500"
+								: "bg-white";
 
 						return (
 							<div key={`${slot.time}-${index}`} className="relative">
@@ -168,22 +210,20 @@ export function DayView({
 									</div>
 								)}
 								<button
-									onMouseDown={() => handleMouseDown(index)}
-									onMouseEnter={() => handleMouseEnter(index)}
+									onMouseDown={() => {
+										if (!canCreateBookings) return;
+										handleMouseDown(index);
+									}}
+									onMouseEnter={() => {
+										if (!canCreateBookings) return;
+										handleMouseEnter(index);
+									}}
 									onMouseUp={handleMouseUp}
 									className={`flex items-start p-0 w-full text-left h-5 ${
 										slot.minute === 0 ? "border-t border-gray-100" : ""
 									} transition-colors relative ${
-										isSlotSelected(index)
-											? "bg-blue-100"
-											: slotIsBooked && booking
-												? booking.status === "pending"
-													? "bg-yellow-50 border-l-4 border-l-yellow-500"
-													: roomColors
-														? roomColors.bg + " border-l-4 " + roomColors.border
-														: "bg-blue-50 border-l-4 border-l-blue-500"
-												: "bg-white"
-									}`}
+										canCreateBookings ? "cursor-pointer" : "cursor-default"
+									} ${isSelected ? selectedClassName : bookedClassName}`}
 								/>
 							</div>
 						);
@@ -283,7 +323,9 @@ export function DayView({
 								}}
 							>
 								<div className="h-full ml-px pl-4 flex items-center">
-									<div className="bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-lg font-medium text-sm">
+									<div
+										className={`px-3 py-1.5 rounded-lg shadow-lg font-medium text-sm ${dragPreviewClassName}`}
+									>
 										{dragPreviewTime}
 									</div>
 								</div>

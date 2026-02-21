@@ -91,9 +91,15 @@ export class RoomBookingService {
 
 	async getList(
 		input: GetRoomBookingListInput,
+		userRole: RoleType,
 	): Promise<RoomBookingListResponse> {
-		const { status, room, date, limit, page } = input;
+		const { status, room, date, startDate, endDate, bookedBy, limit, page } =
+			input;
 		const skip = (page - 1) * limit;
+
+		if (status === "pending" && !this.isAdminRole(userRole)) {
+			throw new AppError("ROOM_BOOKING.FORBIDDEN");
+		}
 
 		// Build date range filter when a specific day is requested.
 		// Use +08:00 (Philippine Standard Time) so the boundaries align with
@@ -104,12 +110,19 @@ export class RoomBookingService {
 			const startOfDay = new Date(`${date}T00:00:00.000+08:00`);
 			const endOfDay = new Date(`${date}T23:59:59.999+08:00`);
 			dateFilter = { gte: startOfDay, lt: endOfDay };
+		} else if (startDate && endDate) {
+			// Multi-day range: startDate is inclusive, endDate is exclusive
+			dateFilter = {
+				gte: new Date(`${startDate}T00:00:00.000+08:00`),
+				lt: new Date(`${endDate}T00:00:00.000+08:00`),
+			};
 		}
 
 		const where = {
 			...(status && { status: status as never }),
 			...(room && { room: room as never }),
 			...(dateFilter && { startTime: dateFilter }),
+			...(bookedBy && { bookedBy }),
 		};
 
 		const [totalItems, bookings] = await Promise.all([
@@ -285,7 +298,6 @@ export class RoomBookingService {
 	async update(
 		input: UpdateRoomBookingInput,
 		userId: string,
-		userRole: RoleType,
 	): Promise<RoomBookingResponse> {
 		const booking = await this.db.roomBooking.findUnique({
 			where: { id: input.id },
@@ -296,8 +308,8 @@ export class RoomBookingService {
 			throw new AppError("ROOM_BOOKING.NOT_FOUND");
 		}
 
-		// Scenario 1 — Ownership check
-		if (booking.bookedBy !== userId && !this.isAdminRole(userRole)) {
+		// Scenario 1 — Ownership check (owner-only editing)
+		if (booking.bookedBy !== userId) {
 			throw new AppError("ROOM_BOOKING.FORBIDDEN");
 		}
 

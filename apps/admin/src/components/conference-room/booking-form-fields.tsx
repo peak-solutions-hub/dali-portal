@@ -9,6 +9,14 @@ import {
 import { Button } from "@repo/ui/components/button";
 import { Calendar } from "@repo/ui/components/calendar";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@repo/ui/components/dialog";
+import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
@@ -22,7 +30,8 @@ import {
 } from "@repo/ui/components/select";
 import { TimePicker } from "@repo/ui/components/time-picker";
 import { cn } from "@repo/ui/lib/utils";
-import { CalendarIcon, X } from "lucide-react";
+import { CalendarIcon, FileText, X } from "lucide-react";
+import { useState } from "react";
 
 export interface BookingFormValues {
 	room: string;
@@ -61,6 +70,8 @@ export function BookingFormFields({
 	fileError,
 	onFileError,
 }: BookingFormFieldsProps) {
+	const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
@@ -83,9 +94,6 @@ export function BookingFormFields({
 		) as HTMLInputElement;
 		if (fileInput) fileInput.value = "";
 	};
-
-	const canToggleExistingAttachment =
-		Boolean(existingAttachmentUrl) && !values.attachment;
 
 	return (
 		<div className="space-y-6">
@@ -241,14 +249,61 @@ export function BookingFormFields({
 					className="block text-sm font-semibold text-gray-900 mb-2"
 				>
 					Attach Letter (Optional)
-					{existingAttachmentUrl && !values.attachment && (
-						<span className="ml-2 text-xs text-gray-400 font-normal">
-							{removeExistingAttachment
-								? "(current file will be removed when saved)"
-								: "(current file will be kept unless changed)"}
-						</span>
-					)}
 				</label>
+
+				{/* Existing attachment file card (edit mode) */}
+				{existingAttachmentUrl &&
+					!removeExistingAttachment &&
+					!values.attachment && (
+						<div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 mb-3">
+							<div className="p-2 rounded-lg bg-gray-100">
+								<FileText className="h-5 w-5 text-gray-600" />
+							</div>
+							<div className="flex flex-col min-w-0 flex-1">
+								<span className="text-sm font-medium text-gray-900 truncate">
+									{decodeURIComponent(
+										(existingAttachmentUrl.split("?")[0] ?? "")
+											.split("/")
+											.pop() ?? "attachment",
+									)}
+								</span>
+								<span className="text-xs text-gray-500">
+									Current attachment
+								</span>
+							</div>
+							{onRemoveExistingAttachmentChange && (
+								<button
+									type="button"
+									onClick={() => setShowRemoveConfirm(true)}
+									className="p-2 hover:bg-red-50 rounded-md transition-colors shrink-0 text-gray-400 hover:text-red-600"
+									aria-label="Remove attachment"
+								>
+									<X className="w-4 h-4" />
+								</button>
+							)}
+						</div>
+					)}
+
+				{/* Show "removed" notice if marked for removal */}
+				{existingAttachmentUrl &&
+					removeExistingAttachment &&
+					!values.attachment && (
+						<div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 mb-3 text-sm text-gray-500">
+							<FileText className="h-4 w-4 text-gray-400" />
+							<span>Attachment will be removed on save</span>
+							{onRemoveExistingAttachmentChange && (
+								<button
+									type="button"
+									onClick={() => onRemoveExistingAttachmentChange(false)}
+									className="ml-auto text-xs text-blue-600 hover:text-blue-800 font-medium"
+								>
+									Undo
+								</button>
+							)}
+						</div>
+					)}
+
+				{/* File chooser + new file card */}
 				<div className="flex items-center gap-2">
 					<div className="flex-1 relative">
 						<input
@@ -281,24 +336,43 @@ export function BookingFormFields({
 						</button>
 					)}
 				</div>
-				{canToggleExistingAttachment && onRemoveExistingAttachmentChange && (
-					<button
-						type="button"
-						onClick={() =>
-							onRemoveExistingAttachmentChange(!removeExistingAttachment)
-						}
-						className="mt-2 text-sm text-blue-700 hover:text-blue-800 underline"
-					>
-						{removeExistingAttachment
-							? "Keep current attachment"
-							: "Remove current attachment"}
-					</button>
-				)}
 				{fileError && <p className="text-sm text-red-600 mt-2">{fileError}</p>}
 				<p className="text-xs text-gray-500 mt-1">
 					Accepted formats: JPG, PDF (Max size: 5MB)
 				</p>
 			</div>
+
+			{/* Remove attachment confirmation dialog */}
+			<Dialog open={showRemoveConfirm} onOpenChange={setShowRemoveConfirm}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>Remove Attachment</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to remove the current attachment? This
+							change will take effect when you save.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setShowRemoveConfirm(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={() => {
+								onRemoveExistingAttachmentChange?.(true);
+								setShowRemoveConfirm(false);
+							}}
+						>
+							Remove
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

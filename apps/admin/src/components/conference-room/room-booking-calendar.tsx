@@ -1,13 +1,14 @@
 "use client";
 
+import { isAdminBookingRole } from "@repo/shared";
 import { useEffect, useMemo, useState } from "react";
-import { useRoomBookings } from "@/hooks/room-booking";
+import { useMonthBookings, useRoomBookings } from "@/hooks/room-booking";
+import { useAuthStore } from "@/stores/auth-store";
 import {
 	type CalendarBooking,
 	getTimeLinePosition,
 	mapApiBookings,
 } from "@/utils/booking-helpers";
-import { isSameDay } from "@/utils/date-utils";
 import { CalendarSidebar } from "./calendar-sidebar";
 import { CreateBookingModal } from "./create-booking-modal";
 import { DayView } from "./day-view";
@@ -23,6 +24,10 @@ export function RoomBookingCalendar() {
 	const [selectedDate, setSelectedDate] = useState(today);
 	const [viewMode, setViewMode] = useState<"day" | "month">("day");
 	const [now, setNow] = useState(new Date());
+	const userProfile = useAuthStore((state) => state.userProfile);
+	const userId = userProfile?.id ?? null;
+	const userRole = userProfile?.role.name;
+	const canApprove = userRole ? isAdminBookingRole(userRole) : false;
 
 	// Modal states
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -42,10 +47,22 @@ export function RoomBookingCalendar() {
 	const { data: bookingsData, isLoading: isBookingsLoading } =
 		useRoomBookings(selectedDate);
 
+	// Fetch all bookings for the current month (used by month view)
+	const { data: monthData } = useMonthBookings(
+		currentDate.getFullYear(),
+		currentDate.getMonth(),
+	);
+
 	const bookingsForSelectedDate = useMemo(
 		(): CalendarBooking[] =>
 			bookingsData?.bookings ? mapApiBookings(bookingsData.bookings) : [],
 		[bookingsData],
+	);
+
+	const monthBookings = useMemo(
+		(): CalendarBooking[] =>
+			monthData?.bookings ? mapApiBookings(monthData.bookings) : [],
+		[monthData],
 	);
 
 	// Update time for the red indicator line
@@ -58,6 +75,14 @@ export function RoomBookingCalendar() {
 		() => getTimeLinePosition(selectedDate, today, now),
 		[selectedDate, now, today],
 	);
+
+	const isPastSelectedDate = useMemo(() => {
+		const selected = new Date(selectedDate);
+		selected.setHours(0, 0, 0, 0);
+		const todayStart = new Date(today);
+		todayStart.setHours(0, 0, 0, 0);
+		return selected < todayStart;
+	}, [selectedDate, today]);
 
 	// --- Navigation handlers ---
 	const handlePrevMonth = () =>
@@ -76,9 +101,18 @@ export function RoomBookingCalendar() {
 			day,
 		);
 		setSelectedDate(newDate);
+
+		const newDateStart = new Date(newDate);
+		newDateStart.setHours(0, 0, 0, 0);
+		const todayStart = new Date(today);
+		todayStart.setHours(0, 0, 0, 0);
+		const canCreateOnDate = newDateStart >= todayStart;
+
 		if (viewMode === "month") {
 			setSelectedTimeSlot("");
-			setIsCreateOpen(true);
+			if (canCreateOnDate) {
+				setIsCreateOpen(true);
+			}
 		}
 	};
 
@@ -121,9 +155,17 @@ export function RoomBookingCalendar() {
 	};
 
 	const handleSelectTimeRange = (timeRange: string) => {
+		if (isPastSelectedDate) {
+			return;
+		}
 		setSelectedTimeSlot(timeRange);
 		setIsCreateOpen(true);
 	};
+
+	const canEditViewedBooking =
+		viewingBooking !== null &&
+		userId !== null &&
+		viewingBooking.bookedBy === userId;
 
 	return (
 		<div className="flex gap-6 p-6 h-screen max-h-screen overflow-hidden bg-gray-50">
@@ -143,6 +185,7 @@ export function RoomBookingCalendar() {
 						selectedDate={selectedDate}
 						today={today}
 						now={now}
+						canCreateBookings={!isPastSelectedDate}
 						bookings={bookingsForSelectedDate}
 						isLoading={isBookingsLoading}
 						timeLinePosition={timeLinePosition}
@@ -159,7 +202,7 @@ export function RoomBookingCalendar() {
 					currentDate={currentDate}
 					selectedDate={selectedDate}
 					today={today}
-					bookings={bookingsForSelectedDate}
+					bookings={monthBookings}
 					onPrevMonth={handlePrevMonth}
 					onNextMonth={handleNextMonth}
 					onToday={handleToday}
@@ -175,6 +218,8 @@ export function RoomBookingCalendar() {
 				booking={viewingBooking}
 				onEdit={handleEditFromView}
 				onDelete={handleDeleteFromView}
+				canEdit={canEditViewedBooking}
+				canApprove={canApprove}
 			/>
 
 			<CreateBookingModal

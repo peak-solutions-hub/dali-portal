@@ -92,9 +92,13 @@ export function MonthView({
 							? isSameDay(dateAtSlot, today)
 							: false;
 
-						// Show bookings only for the currently selected (fetched) date
-						const dayBookings =
-							dateAtSlot && isSameDay(dateAtSlot, selectedDate) ? bookings : [];
+						// Filter bookings for this specific day
+						const dayBookings = dateAtSlot
+							? bookings.filter((b) => isSameDay(b.date, dateAtSlot))
+							: [];
+						const maxVisible = 3;
+						const visibleBookings = dayBookings.slice(0, maxVisible);
+						const overflowCount = dayBookings.length - maxVisible;
 
 						return (
 							<div
@@ -117,7 +121,7 @@ export function MonthView({
 										</div>
 										{/* Booking chips */}
 										<div className="space-y-1 mt-1 overflow-hidden">
-											{dayBookings.map((booking) => (
+											{visibleBookings.map((booking) => (
 												<div
 													key={booking.id}
 													className={`text-[9px] px-1.5 py-0.5 rounded truncate ${
@@ -130,6 +134,11 @@ export function MonthView({
 													{booking.purpose}
 												</div>
 											))}
+											{overflowCount > 0 && (
+												<div className="text-[9px] px-1.5 py-0.5 text-gray-500 font-medium">
+													+{overflowCount} more
+												</div>
+											)}
 										</div>
 									</>
 								)}

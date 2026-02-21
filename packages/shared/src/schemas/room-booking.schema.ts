@@ -86,6 +86,12 @@ export const GetRoomBookingListSchema = z.object({
 	room: ConferenceRoomEnum.optional(),
 	/** Filter by date (ISO date string: YYYY-MM-DD). Returns bookings whose start_time falls on this day. */
 	date: z.iso.date().optional(),
+	/** Inclusive start of a date range (ISO date: YYYY-MM-DD). Use with `endDate` for multi-day queries. */
+	startDate: z.iso.date().optional(),
+	/** Exclusive end of a date range (ISO date: YYYY-MM-DD). Use with `startDate` for multi-day queries. */
+	endDate: z.iso.date().optional(),
+	/** Filter by the user who created the booking. */
+	bookedBy: z.uuid().optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
 	page: z.coerce.number().int().min(1).default(1),
 });
