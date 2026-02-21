@@ -7,7 +7,7 @@ import type {
 	SessionManagementSession as Session,
 } from "@repo/shared";
 import { formatSessionDate } from "@repo/shared";
-import { Loader2, Lock } from "@repo/ui/lib/lucide-react";
+import { AlertCircle, Loader2, Lock } from "@repo/ui/lib/lucide-react";
 import { getSessionTypeLabel } from "@repo/ui/lib/session-ui";
 import { useState } from "react";
 import { AgendaItemCard } from "./agenda-item-card";
@@ -94,6 +94,18 @@ export function AgendaPanel({
 	isFetchingNextPage?: boolean;
 	onLoadMoreSessions?: () => void;
 }) {
+	const [dndError, setDndError] = useState<string | null>(null);
+	const [dndErrorTimer, setDndErrorTimer] = useState<ReturnType<
+		typeof setTimeout
+	> | null>(null);
+
+	const showDndError = (message: string) => {
+		if (dndErrorTimer) clearTimeout(dndErrorTimer);
+		setDndError(message);
+		const timer = setTimeout(() => setDndError(null), 4000);
+		setDndErrorTimer(timer);
+	};
+
 	const [showMarkCompleteDialog, setShowMarkCompleteDialog] = useState(false);
 	const [showUnpublishDialog, setShowUnpublishDialog] = useState(false);
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -198,13 +210,36 @@ export function AgendaPanel({
 
 	/** Handle DnD reorder via @hello-pangea/dnd */
 	const handleDragEnd = (result: DropResult) => {
-		const { source, destination } = result;
+		const { source, destination, draggableId } = result;
 		if (!destination) return; // dropped outside a droppable
 		if (
 			source.droppableId === destination.droppableId &&
 			source.index === destination.index
 		)
 			return; // dropped in the same spot
+
+		// draggableId format: "<sourceSectionId>::<docId>"
+		// Extract the actual document id so we can check for duplicates.
+		const docId = draggableId.includes("::")
+			? draggableId.split("::")[1]
+			: draggableId;
+
+		// If the document is being moved to a DIFFERENT section, check whether
+		// that destination section already contains this document and bail out
+		// to prevent cross-section duplicates.
+		if (source.droppableId !== destination.droppableId) {
+			const destDocs = documentsByAgendaItem[destination.droppableId] ?? [];
+			if (destDocs.some((doc) => doc.id === docId)) {
+				const destItem = agendaItems.find(
+					(i) => i.id === destination.droppableId,
+				);
+				const sectionName = destItem?.title ?? "that section";
+				showDndError(
+					`This document already exists in "${sectionName}" and cannot be added again.`,
+				);
+				return; // would create a duplicate — cancel
+			}
+		}
 
 		onDndReorder?.(
 			source.droppableId,
@@ -257,6 +292,22 @@ export function AgendaPanel({
 									<p className="text-sm text-gray-600">
 										This session is completed and locked from editing.
 									</p>
+								</div>
+							)}
+
+							{/* DnD duplicate-drop error banner */}
+							{dndError && (
+								<div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 animate-in fade-in slide-in-from-top-1 duration-200">
+									<AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-500" />
+									<span>{dndError}</span>
+									<button
+										type="button"
+										onClick={() => setDndError(null)}
+										className="ml-auto shrink-0 text-red-400 hover:text-red-600 transition-colors"
+										aria-label="Dismiss"
+									>
+										✕
+									</button>
 								</div>
 							)}
 

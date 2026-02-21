@@ -1,9 +1,10 @@
 "use client";
 
 import type { SessionManagementSession as SessionUI } from "@repo/shared";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
+import { useDraftStore } from "@/stores";
 import type {
 	AttachedDocument,
 	UseAgendaBuilderReturn,
@@ -27,11 +28,16 @@ export function useSessionActions({
 	invalidateSessions,
 }: UseSessionActionsOptions) {
 	const {
+		contentTextMap,
+		documentsByAgendaItem,
+		agendaItemOrder,
+		hasChanges,
 		setContentTextMap,
 		setDocumentsByAgendaItem,
 		buildAgendaItems,
 		snapshotSavedState,
 		resetEditorState,
+		loadEditorState,
 		normalizeMap,
 		savedContentTextRef,
 		savedDocsByAgendaRef,
@@ -39,11 +45,19 @@ export function useSessionActions({
 		defaultOrder,
 	} = builder;
 
+	// --- Draft-store selectors (stable refs, no re-render) ---
+	const saveDraft = useDraftStore((s) => s.saveDraft);
+	const clearDraft = useDraftStore((s) => s.clearDraft);
+	const getDraft = useDraftStore((s) => s.getDraft);
+
 	const [actionInFlight, setActionInFlight] = useState<string | null>(null);
 	const [isUploadingPdf, setIsUploadingPdf] = useState(false);
 	const [isRemovingPdf, setIsRemovingPdf] = useState(false);
 	const [isLoadingSession, setIsLoadingSession] = useState(false);
 	const [pendingSaveForScheduled, setPendingSaveForScheduled] = useState(false);
+
+	// Guard so the sync effect doesn't run while the server load is in progress
+	const isLoadingRef = useRef(false);
 
 	/** Wrapper that flags a pending save when docs change on a scheduled session */
 	const handleDocumentsChange = useCallback(
@@ -53,14 +67,31 @@ export function useSessionActions({
 			if (session?.status === "scheduled") {
 				setPendingSaveForScheduled(true);
 			}
+			// Immediately sync the updated docs to localStorage so that a refresh
+			// after a document removal doesn't restore the stale (pre-removal) draft.
+			if (selectedSession) {
+				saveDraft(selectedSession, {
+					contentTextMap,
+					documentsByAgendaItem: docs,
+					agendaItemOrder,
+				});
+			}
 		},
-		[sessions, selectedSession, setDocumentsByAgendaItem],
+		[
+			sessions,
+			selectedSession,
+			setDocumentsByAgendaItem,
+			saveDraft,
+			contentTextMap,
+			agendaItemOrder,
+		],
 	);
 
 	/** Load a session's saved agenda data into the builder */
 	const handleSessionChange = useCallback(
 		async (sessionId: string): Promise<void> => {
 			setIsLoadingSession(true);
+			isLoadingRef.current = true;
 			resetEditorState();
 
 			try {
@@ -95,8 +126,19 @@ export function useSessionActions({
 					savedDocsByAgendaRef.current = normalizeMap(newDocsByAgenda);
 					savedAgendaOrderRef.current = JSON.stringify(defaultOrder);
 				}
+
+				// Silently restore any local unsaved draft on top of server state
+				const localDraft = getDraft(sessionId);
+				if (localDraft) {
+					loadEditorState(
+						localDraft.contentTextMap,
+						localDraft.documentsByAgendaItem,
+						localDraft.agendaItemOrder,
+					);
+				}
 			} finally {
 				setIsLoadingSession(false);
+				isLoadingRef.current = false;
 			}
 		},
 		[
@@ -108,8 +150,37 @@ export function useSessionActions({
 			savedDocsByAgendaRef,
 			savedAgendaOrderRef,
 			defaultOrder,
+			getDraft,
 		],
 	);
+
+	// -----------------------------------------------------------------------
+	// Persist unsaved changes to localStorage while the user is editing.
+	// - When hasChanges is true: write the current state to the draft store.
+	// - When hasChanges is false: clear the draft so a stale entry never gets
+	//   restored on refresh (e.g. user reverts a custom minutes date back to None).
+	// -----------------------------------------------------------------------
+	useEffect(() => {
+		if (!selectedSession || isLoadingRef.current) return;
+		if (hasChanges) {
+			saveDraft(selectedSession, {
+				contentTextMap,
+				documentsByAgendaItem,
+				agendaItemOrder,
+			});
+		} else {
+			// No unsaved changes — remove any stale draft so a refresh stays clean.
+			clearDraft(selectedSession);
+		}
+	}, [
+		hasChanges,
+		selectedSession,
+		contentTextMap,
+		documentsByAgendaItem,
+		agendaItemOrder,
+		saveDraft,
+		clearDraft,
+	]);
 
 	// Auto-save agenda when docs change on a scheduled session
 	useEffect(() => {
@@ -142,6 +213,7 @@ export function useSessionActions({
 				toast.error("Failed to save draft. Please try again.");
 			} else {
 				snapshotSavedState();
+				if (selectedSession) clearDraft(selectedSession);
 				toast.success("Draft saved successfully.");
 				await invalidateSessions();
 			}
@@ -176,6 +248,7 @@ export function useSessionActions({
 				toast.error("Failed to publish session. Please try again.");
 			} else {
 				snapshotSavedState();
+				if (selectedSession) clearDraft(selectedSession);
 				toast.success("Session published successfully.");
 				await invalidateSessions();
 			}
@@ -214,6 +287,7 @@ export function useSessionActions({
 				return false;
 			}
 			toast.success("Draft deleted.");
+			clearDraft(selectedSession);
 			resetEditorState();
 			await invalidateSessions();
 			return true;

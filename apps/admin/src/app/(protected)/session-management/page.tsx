@@ -15,6 +15,7 @@ import {
 } from "@/components/session-management";
 import { useAgendaBuilder, useSessionActions } from "@/hooks";
 import { api, orpc } from "@/lib/api.client";
+import { useDraftStore } from "@/stores";
 
 /**
  * Transform API session to the shape the UI components expect
@@ -50,6 +51,15 @@ export default function SessionManagement() {
 
 function AgendaBuilderPage() {
 	const queryClient = useQueryClient();
+
+	// Prune stale drafts once when the page mounts
+	const clearExpiredDrafts = useDraftStore((s) => s.clearExpiredDrafts);
+	const lastSessionId = useDraftStore((s) => s.lastSessionId);
+	const setLastSessionId = useDraftStore((s) => s.setLastSessionId);
+	const clearDraft = useDraftStore((s) => s.clearDraft);
+	useEffect(() => {
+		clearExpiredDrafts();
+	}, [clearExpiredDrafts]);
 
 	// Fetch sessions with TanStack infinite query (page-based)
 	const sessionsQuery = useInfiniteQuery(
@@ -157,8 +167,38 @@ function AgendaBuilderPage() {
 
 	const handleSessionChange = async (sessionId: string) => {
 		setSelectedSession(sessionId);
+		setLastSessionId(sessionId);
 		await loadSession(sessionId);
 	};
+
+	// After sessions have loaded, restore the last open session automatically.
+	// Guard: only run once (when selectedSession is still null).
+	//
+	// IMPORTANT: do NOT check against the in-memory `sessions` array to decide
+	// whether the session still exists. The list is paginated (20 per page) so a
+	// draft session that isn't in the first page would be incorrectly treated as
+	// deleted, causing lastSessionId to be cleared and the user to land on the
+	// wrong (scheduled) session after a refresh. Instead, verify via direct API.
+	const [autoRestoreDone, setAutoRestoreDone] = useState(false);
+	useEffect(() => {
+		if (autoRestoreDone) return;
+		if (sessionsQuery.isLoading || !lastSessionId) return;
+
+		const restore = async () => {
+			setAutoRestoreDone(true);
+			const [err, data] = await api.sessions.adminGetById({
+				id: lastSessionId,
+			});
+			if (err || !data) {
+				// Session no longer exists on the server – clear the stale reference
+				setLastSessionId(null);
+				return;
+			}
+			await handleSessionChange(lastSessionId);
+		};
+		restore();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [sessionsQuery.isLoading, lastSessionId, autoRestoreDone]);
 
 	const handleAddDocument = (agendaItemId: string) => {
 		console.log("Add document to agenda item:", agendaItemId);
@@ -168,6 +208,7 @@ function AgendaBuilderPage() {
 		const deleted = await handleDeleteDraft();
 		if (deleted) {
 			setSelectedSession(null);
+			setLastSessionId(null);
 		}
 	};
 
@@ -246,7 +287,10 @@ function AgendaBuilderPage() {
 							isRemovingPdf={isRemovingPdf}
 							isLoadingSession={isLoadingSession}
 							onDndReorder={handleDndReorder}
-							onDiscardChanges={revertToSaved}
+							onDiscardChanges={() => {
+								revertToSaved();
+								if (selectedSession) clearDraft(selectedSession);
+							}}
 							isSessionEmpty={isSessionEmpty}
 							hasNextPage={sessionsQuery.hasNextPage}
 							isFetchingNextPage={sessionsQuery.isFetchingNextPage}
@@ -260,10 +304,13 @@ function AgendaBuilderPage() {
 					open={showCreateDialog}
 					onOpenChange={setShowCreateDialog}
 					onSessionCreated={async (id) => {
-						// Reset editor state before switching to the new session
+						// Reset editor state before switching to the new session.
+						// Persist lastSessionId so a refresh correctly restores this draft.
 						resetEditorState();
 						setSelectedSession(id);
+						setLastSessionId(id);
 						await invalidateSessions();
+						await loadSession(id);
 						toast.success("New session created.");
 					}}
 				/>

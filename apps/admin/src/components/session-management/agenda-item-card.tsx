@@ -4,6 +4,12 @@ import type {
 	SessionManagementSession,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { Calendar as CalendarComponent } from "@repo/ui/components/calendar";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@repo/ui/components/popover";
 import {
 	Select,
 	SelectContent,
@@ -12,6 +18,7 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import {
+	Calendar,
 	ChevronDown,
 	ExternalLink,
 	FileText,
@@ -23,7 +30,7 @@ import {
 	getClassificationLabel,
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
-import Link from "next/link";
+import { format, isBefore, startOfDay } from "date-fns";
 import { useState } from "react";
 import { RichTextEditor } from "./rich-text-editor";
 
@@ -91,6 +98,29 @@ export function AgendaItemCard({
 	const [editingSummaryId, setEditingSummaryId] = useState<string | null>(null);
 	const [summaryDraft, setSummaryDraft] = useState("");
 
+	// Custom minutes entry state
+	const [isCustomMinutes, setIsCustomMinutes] = useState<boolean>(() => {
+		return false;
+	});
+
+	// Parse customDate and customSessionType from contentText on mount so they
+	// survive page reload. contentText format:
+	// "Reading and/or approval of the Minutes of MMMM dd, yyyy SessionType"
+	const [customDate, setCustomDate] = useState<Date | undefined>(() => {
+		if (!contentText) return undefined;
+		const match = contentText.match(
+			/of (\w+ \d{2}, \d{4}) (Regular Session|Special Session)/,
+		);
+		if (!match) return undefined;
+		const parsed = new Date(match[1]!);
+		return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+	});
+	const [customSessionType, setCustomSessionType] = useState<string>(() => {
+		if (!contentText) return "";
+		const match = contentText.match(/(Regular Session|Special Session)$/);
+		return match ? match[1]! : "";
+	});
+
 	const isMinutesSection = item.section === MINUTES_SECTION;
 
 	// Sessions eligible for minutes approval: only completed sessions, excluding current
@@ -98,11 +128,37 @@ export function AgendaItemCard({
 		(s) => s.id !== selectedSessionId && s.status === "completed",
 	);
 
+	// Derive whether the current contentText is a custom entry (not matching any known session).
+	// This handles page-refresh restoration: if contentText has a value but matches
+	// no completed session, the custom inputs must be shown.
+	const contentMatchesKnownSession =
+		!!contentText &&
+		minutesSessions.some((s) => {
+			const dateFormatted = formatMinutesDate(s.date);
+			const typeLabel = getSessionTypeLabel(s.type);
+			return (
+				contentText.includes(dateFormatted) && contentText.includes(typeLabel)
+			);
+		});
+	const isCustomMinutesResolved =
+		isCustomMinutes || (!!contentText && !contentMatchesKnownSession);
+
 	const handleMinutesSessionSelect = (sessionId: string) => {
 		if (sessionId === "__none__") {
+			setIsCustomMinutes(false);
+			setCustomDate(undefined);
+			setCustomSessionType("");
 			onContentTextChange?.(item.id, "");
 			return;
 		}
+		if (sessionId === "__custom__") {
+			setIsCustomMinutes(true);
+			// Don't clear contentText yet — keep whatever partial text exists
+			return;
+		}
+		setIsCustomMinutes(false);
+		setCustomDate(undefined);
+		setCustomSessionType("");
 		const session = sessions.find((s) => s.id === sessionId);
 		if (!session) return;
 		const dateFormatted = formatMinutesDate(session.date);
@@ -111,16 +167,26 @@ export function AgendaItemCard({
 		onContentTextChange?.(item.id, text);
 	};
 
+	const handleCustomMinutesChange = (date: Date | undefined, type: string) => {
+		const datePart = date ? format(date, "MMMM dd, yyyy") : "[date]";
+		const typePart = type || "[session type]";
+		const text = `Reading and/or approval of the Minutes of ${datePart} ${typePart}`;
+		onContentTextChange?.(item.id, text);
+	};
+
 	/** Derive selected session ID from contentText (for controlled Select) */
 	const derivedMinutesSessionId = (() => {
-		if (!contentText || !isMinutesSection) return undefined;
-		return minutesSessions.find((s) => {
+		if (!isMinutesSection) return "__none__";
+		if (isCustomMinutesResolved) return "__custom__";
+		if (!contentText) return "__none__";
+		const matched = minutesSessions.find((s) => {
 			const dateFormatted = formatMinutesDate(s.date);
 			const typeLabel = getSessionTypeLabel(s.type);
 			return (
 				contentText.includes(dateFormatted) && contentText.includes(typeLabel)
 			);
-		})?.id;
+		});
+		return matched?.id ?? "__none__";
 	})();
 
 	const handleStartEditSummary = (doc: Document) => {
@@ -255,37 +321,37 @@ export function AgendaItemCard({
 									dangerouslySetInnerHTML={{ __html: doc.summary }}
 								/>
 								<style jsx global>{`
-  .summary-display ul,
-  .summary-display ol {
-    padding-left: 1.5rem;
-    margin-bottom: 0.25rem;
-  }
-  .summary-display li {
-    list-style-type: disc;
-    display: list-item;
-    margin-bottom: 0.2rem;
-    padding-left: 0.25rem;
-  }
-  .summary-display ol li {
-    list-style-type: decimal;
-  }
-  .summary-display li.ql-indent-1 {
-    margin-left: 1.5rem;
-    list-style-type: circle;
-  }
-  .summary-display li.ql-indent-2 {
-    margin-left: 3rem;
-    list-style-type: square;
-  }
-  .summary-display li.ql-indent-3 {
-    margin-left: 4.5rem;
-    list-style-type: disc;
-  }
-  .summary-display p {
-    margin-bottom: 0.25rem;
-    word-break: break-word;
-  }
-`}</style>
+								.summary-display ul,
+								.summary-display ol {
+									padding-left: 1.5rem;
+									margin-bottom: 0.25rem;
+								}
+								.summary-display li {
+									list-style-type: disc;
+									display: list-item;
+									margin-bottom: 0.2rem;
+									padding-left: 0.25rem;
+								}
+								.summary-display ol li {
+									list-style-type: decimal;
+								}
+								.summary-display li.ql-indent-1 {
+									margin-left: 1.5rem;
+									list-style-type: circle;
+								}
+								.summary-display li.ql-indent-2 {
+									margin-left: 3rem;
+									list-style-type: square;
+								}
+								.summary-display li.ql-indent-3 {
+									margin-left: 4.5rem;
+									list-style-type: disc;
+								}
+								.summary-display p {
+									margin-bottom: 0.25rem;
+									word-break: break-word;
+								}
+								`}</style>
 							</div>
 						</div>
 					</div>
@@ -341,8 +407,17 @@ export function AgendaItemCard({
 		);
 
 		if (isDndEnabled) {
+			// draggableId must be globally unique across ALL sections.
+			// A document that appears in multiple sections would share doc.id,
+			// causing hello-pangea/dnd to confuse the two DOM nodes and make
+			// the "top" duplicate vanish when dragging.
+			const uniqueDraggableId = `${item.id}::${doc.id}`;
 			return (
-				<Draggable key={doc.id} draggableId={doc.id} index={indexInSection}>
+				<Draggable
+					key={uniqueDraggableId}
+					draggableId={uniqueDraggableId}
+					index={indexInSection}
+				>
 					{(provided, snapshot) => (
 						<div
 							ref={provided.innerRef}
@@ -390,7 +465,7 @@ export function AgendaItemCard({
 						Select session minutes to approve
 					</label>
 					<Select
-						value={derivedMinutesSessionId ?? "__none__"}
+						value={derivedMinutesSessionId}
 						onValueChange={handleMinutesSessionSelect}
 					>
 						<SelectTrigger className="w-full cursor-pointer">
@@ -405,11 +480,103 @@ export function AgendaItemCard({
 							</SelectItem>
 							{minutesSessions.map((s) => (
 								<SelectItem key={s.id} value={s.id} className="cursor-pointer">
-									{formatMinutesDate(s.date)} — {getSessionTypeLabel(s.type)}
+									<div className="flex items-center gap-2">
+										<span>
+											{formatMinutesDate(s.date)} —{" "}
+											{getSessionTypeLabel(s.type)}
+										</span>
+										<span className="inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+											Completed
+										</span>
+									</div>
 								</SelectItem>
 							))}
+							<SelectItem
+								value="__custom__"
+								className="cursor-pointer text-blue-600"
+							>
+								Enter custom date &amp; session type…
+							</SelectItem>
 						</SelectContent>
 					</Select>
+
+					{/* Custom date + session type inputs */}
+					{isCustomMinutesResolved && (
+						<div className="mt-2 flex flex-col gap-2 sm:flex-row sm:gap-3">
+							<div className="flex-1 space-y-1">
+								<label className="text-xs font-medium text-gray-600">
+									Date
+								</label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											className="w-full justify-start text-left font-normal cursor-pointer bg-white"
+										>
+											<Calendar className="mr-2 h-4 w-4" />
+											{customDate ? format(customDate, "PPP") : "Pick a date"}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-auto p-0" align="start">
+										<CalendarComponent
+											mode="single"
+											selected={customDate}
+											onSelect={(date) => {
+												setCustomDate(date);
+												handleCustomMinutesChange(date, customSessionType);
+											}}
+											defaultMonth={customDate ?? new Date()}
+											captionLayout="dropdown"
+											fromYear={2000}
+											toYear={new Date().getFullYear()}
+											classNames={{
+												today: "bg-transparent text-yellow-400 font-normal",
+												day_selected:
+													"bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+											}}
+										/>
+									</PopoverContent>
+								</Popover>
+							</div>
+							<div className="flex-1 space-y-1">
+								<label className="text-xs font-medium text-gray-600">
+									Session type
+								</label>
+								<Select
+									value={customSessionType || "__none__"}
+									onValueChange={(val) => {
+										const type = val === "__none__" ? "" : val;
+										setCustomSessionType(type);
+										handleCustomMinutesChange(customDate, type);
+									}}
+								>
+									<SelectTrigger className="w-full cursor-pointer bg-white">
+										<SelectValue placeholder="Select type…" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem
+											value="__none__"
+											className="cursor-pointer text-gray-400"
+										>
+											Select type…
+										</SelectItem>
+										<SelectItem
+											value="Regular Session"
+											className="cursor-pointer"
+										>
+											Regular Session
+										</SelectItem>
+										<SelectItem
+											value="Special Session"
+											className="cursor-pointer"
+										>
+											Special Session
+										</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+					)}
 					{contentText && (
 						<div className="text-xs text-gray-500 italic mt-1">
 							<span>Preview: </span>
@@ -492,40 +659,41 @@ export function AgendaItemCard({
 				</Droppable>
 			)}
 
-			{/* Empty Droppable when section has no documents (allows dropping into empty sections) */}
-			{!isCommitteeReports && documents.length === 0 && isDndEnabled && (
-				<Droppable droppableId={item.id}>
-					{(provided, snapshot) => (
-						<div
-							ref={provided.innerRef}
-							{...provided.droppableProps}
-							className={`min-h-[32px] rounded border border-dashed transition-colors ${
-								snapshot.isDraggingOver
-									? "border-blue-400 bg-blue-50/50"
-									: "border-gray-200 bg-gray-50/30"
-							}`}
-						>
-							{snapshot.isDraggingOver && (
-								<p className="text-xs text-blue-500 text-center py-2">
-									Drop here
-								</p>
-							)}
-							{provided.placeholder}
-						</div>
-					)}
-				</Droppable>
-			)}
-
-			{/* Add Document Button - hidden when locked */}
-			{onAddDocument && (
-				<button
-					type="button"
-					onClick={() => onAddDocument(item.id)}
-					className="flex h-9 w-full items-center justify-between rounded-md bg-[#f3f3f5] px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
-				>
-					<span>+ Add document</span>
-				</button>
-			)}
+			{/* Drag a document here — wraps a Droppable when empty so it accepts drops;
+			     plain button when docs already exist (the list droppable handles drops there) */}
+			{onAddDocument &&
+				(documents.length === 0 && isDndEnabled ? (
+					<Droppable droppableId={item.id}>
+						{(provided, snapshot) => (
+							<div
+								ref={provided.innerRef}
+								{...provided.droppableProps}
+								className={`flex h-9 w-full items-center justify-center gap-2 rounded-md border border-dashed px-3 py-1 text-sm transition-colors ${
+									snapshot.isDraggingOver
+										? "border-blue-400 bg-blue-50 text-blue-500"
+										: "border-gray-300 bg-[#f3f3f5] text-gray-400"
+								}`}
+							>
+								{!snapshot.isDraggingOver && (
+									<>
+										<GripVertical className="h-3.5 w-3.5" />
+										<span>Drag a document here</span>
+									</>
+								)}
+								{provided.placeholder}
+							</div>
+						)}
+					</Droppable>
+				) : (
+					<button
+						type="button"
+						onClick={() => onAddDocument(item.id)}
+						className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-dashed border-gray-300 bg-[#f3f3f5] px-3 py-1 text-sm text-gray-400 hover:bg-gray-200 hover:border-gray-400 hover:text-gray-500 transition-colors cursor-pointer"
+					>
+						<GripVertical className="h-3.5 w-3.5" />
+						<span>Drag a document here</span>
+					</button>
+				))}
 		</div>
 	);
 }

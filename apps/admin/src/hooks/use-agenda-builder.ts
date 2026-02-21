@@ -526,6 +526,29 @@ export function useAgendaBuilder() {
 		setSaveTick((t) => t + 1);
 	}, [defaultOrder]);
 
+	/**
+	 * Load editor state from an external source (e.g. local draft recovery)
+	 * WITHOUT touching the saved snapshots.
+	 *
+	 * Because snapshots are left unchanged, `hasChanges` will correctly report
+	 * `true` after this call (restored content ≠ last server-saved snapshot),
+	 * which lets the user see the Save button become active.
+	 */
+	const loadEditorState = useCallback(
+		(
+			content: Record<string, string>,
+			docs: Record<string, AttachedDocument[]>,
+			order: string[],
+		) => {
+			setContentTextMap(content);
+			setDocumentsByAgendaItem(docs);
+			setAgendaItemOrder(order.length > 0 ? order : defaultOrder);
+			// Bump the save tick so hasChanges / changedSections recompute immediately.
+			setSaveTick((t) => t + 1);
+		},
+		[defaultOrder],
+	);
+
 	/** Build the agenda items array for API submission */
 	const buildAgendaItems = useCallback((): BuildAgendaItem[] => {
 		const agendaItems: BuildAgendaItem[] = [];
@@ -593,6 +616,7 @@ export function useAgendaBuilder() {
 		moveDocumentToSection,
 		isDocumentFirstGlobal,
 		isDocumentLastGlobal,
+		loadEditorState,
 		resetEditorState,
 		revertToSaved,
 		buildAgendaItems,
