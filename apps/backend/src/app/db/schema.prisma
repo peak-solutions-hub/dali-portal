@@ -208,15 +208,17 @@ model Role {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model RoomBooking {
-  id           String            @id(map: "room_bookings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bookedBy     String            @map("booked_by") @db.Uuid
-  title        String
-  startTime    DateTime          @map("start_time") @db.Timestamptz(6)
-  endTime      DateTime          @map("end_time") @db.Timestamptz(6)
-  requestedFor String            @map("requested_for")
-  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  status       RoomBookingStatus
-  user         User              @relation(fields: [bookedBy], references: [id], map: "room_bookings_booked_by_fkey")
+  id            String            @id(map: "room_bookings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookedBy      String            @map("booked_by") @db.Uuid
+  title         String
+  startTime     DateTime          @map("start_time") @db.Timestamptz(6)
+  endTime       DateTime          @map("end_time") @db.Timestamptz(6)
+  requestedFor  String            @map("requested_for")
+  room          ConferenceRoom
+  attachmentUrl String?           @map("attachment_url")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  status        RoomBookingStatus
+  user          User              @relation(fields: [bookedBy], references: [id], map: "room_bookings_booked_by_fkey")
 
   @@map("room_booking")
 }
@@ -441,6 +443,13 @@ enum DecisionType {
   assign_representative
 
   @@map("decision_type")
+}
+
+enum ConferenceRoom {
+  room_a
+  room_b
+
+  @@map("conference_room")
 }
 
 enum RoomBookingStatus {

@@ -4,7 +4,7 @@ import { Button } from "@repo/ui/components/button";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import {
-	BookingModal,
+	CreateBookingModal,
 	RoomBookingCalendar,
 } from "@/components/conference-room";
 
@@ -32,11 +32,11 @@ export default function ConferenceRoomBooking() {
 				<RoomBookingCalendar />
 			</div>
 
-			<BookingModal
+			<CreateBookingModal
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
 				selectedTime=""
-				selectedDate=""
+				selectedDate={new Date()}
 			/>
 		</div>
 	);
