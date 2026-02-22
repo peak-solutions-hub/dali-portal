@@ -25,7 +25,11 @@ import {
 } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
 import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
-import { type CalendarBooking, mapApiBookings } from "@/utils/booking-helpers";
+import {
+	type CalendarBooking,
+	mapApiBookings,
+	resolveConferenceRoom,
+} from "@/utils/booking-helpers";
 import { formatFullDate } from "@/utils/date-utils";
 import { BookingStatusBadge } from "./booking-status-badge";
 import { DeleteBookingDialog } from "./delete-booking-dialog";
@@ -67,7 +71,10 @@ export function BookingRequestsList() {
 			id: booking.id,
 			title: booking.purpose,
 			requestedFor: booking.requestedFor,
-			room: booking.roomKey,
+			room: resolveConferenceRoom(
+				booking.roomKey || booking.room,
+				booking.room,
+			),
 			date: booking.date,
 			startTime: booking.startTime24,
 			endTime: booking.endTime24,

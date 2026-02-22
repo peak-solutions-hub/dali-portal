@@ -23,7 +23,11 @@ import { useMemo, useState } from "react";
 import { useMyBookings } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
 import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
-import { type CalendarBooking, mapApiBookings } from "@/utils/booking-helpers";
+import {
+	type CalendarBooking,
+	mapApiBookings,
+	resolveConferenceRoom,
+} from "@/utils/booking-helpers";
 import { formatFullDate } from "@/utils/date-utils";
 import { BookingStatusBadge } from "./booking-status-badge";
 import { DeleteBookingDialog } from "./delete-booking-dialog";
@@ -61,7 +65,10 @@ export function MyBookingsList() {
 			id: booking.id,
 			title: booking.purpose,
 			requestedFor: booking.requestedFor,
-			room: booking.roomKey,
+			room: resolveConferenceRoom(
+				booking.roomKey || booking.room,
+				booking.room,
+			),
 			date: booking.date,
 			startTime: booking.startTime24,
 			endTime: booking.endTime24,
@@ -195,7 +202,7 @@ export function MyBookingsList() {
 												>
 													<Eye className="w-4 h-4" />
 												</Button>
-												{booking.status === "pending" && (
+												{booking.status !== "rejected" && (
 													<>
 														<Button
 															variant="ghost"
@@ -206,7 +213,10 @@ export function MyBookingsList() {
 																	id: booking.id,
 																	title: booking.purpose,
 																	requestedFor: booking.requestedFor,
-																	room: booking.roomKey,
+																	room: resolveConferenceRoom(
+																		booking.roomKey || booking.room,
+																		booking.room,
+																	),
 																	date: booking.date,
 																	startTime: booking.startTime24,
 																	endTime: booking.endTime24,
@@ -250,7 +260,7 @@ export function MyBookingsList() {
 				booking={viewingBooking}
 				onEdit={handleEditFromView}
 				onDelete={handleDeleteFromView}
-				canEdit={viewingBooking?.status === "pending"}
+				canEdit={viewingBooking?.status !== "rejected"}
 				canApprove={false}
 			/>
 

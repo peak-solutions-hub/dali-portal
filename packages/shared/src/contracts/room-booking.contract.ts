@@ -105,7 +105,7 @@ export const updateRoomBooking = oc
 		path: "/bookings/{id}",
 		summary: "Edit a conference room booking",
 		description:
-			"Updates booking details. Ownership check enforced: users can only edit their own bookings. Conflict detection is re-run when times change.",
+			"Allow booking owners to edit their booking details. If a confirmed booking's schedule or room is edited, its status is reset to pending for re-approval.",
 		tags: ["Room Booking", "Admin"],
 	})
 	.errors({

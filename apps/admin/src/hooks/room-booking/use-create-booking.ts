@@ -1,6 +1,5 @@
 "use client";
 
-import { isDefinedError } from "@orpc/client";
 import type { AttachmentMimeType, ConferenceRoom } from "@repo/shared";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -9,15 +8,11 @@ import { useInvalidateRoomBookings } from "./use-room-bookings";
 
 export interface CreateBookingInput {
 	title: string;
-	/** The booking date (only date part is used alongside startTime/endTime) */
 	date: Date;
-	/** "HH:MM" 24-hour local time */
 	startTime: string;
-	/** "HH:MM" 24-hour local time */
 	endTime: string;
 	requestedFor: string;
 	room: ConferenceRoom;
-	/** Optional attachment file to upload before creating the booking */
 	attachmentFile?: File;
 }
 
@@ -28,7 +23,6 @@ export interface UseCreateBookingReturn {
 	clearError: () => void;
 }
 
-/** Convert a local date + "HH:MM" string to an ISO 8601 UTC datetime string. */
 function toISODateTime(date: Date, timeStr: string): string {
 	const parts = timeStr.split(":");
 	const hours = Number(parts[0] ?? 0);
@@ -38,13 +32,25 @@ function toISODateTime(date: Date, timeStr: string): string {
 	return d.toISOString();
 }
 
+function inferAttachmentMimeType(fileName: string): AttachmentMimeType {
+	const extension = fileName.split(".").pop()?.toLowerCase();
+
+	if (extension === "pdf") return "application/pdf";
+	if (extension === "jpeg") return "image/jpeg";
+	if (extension === "jpg") return "image/jpg";
+
+	throw new Error(
+		"Unsupported attachment type. Please upload PDF or JPG/JPEG.",
+	);
+}
+
 export function useCreateBooking(
 	onSuccess?: () => void,
 ): UseCreateBookingReturn {
 	const [isCreating, setIsCreating] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const invalidate = useInvalidateRoomBookings();
 
+	const invalidate = useInvalidateRoomBookings();
 	const clearError = useCallback(() => setError(null), []);
 
 	const createBooking = useCallback(
@@ -55,42 +61,41 @@ export function useCreateBooking(
 			try {
 				let attachmentUrl: string | undefined;
 
-				// Step 1 — Upload attachment if provided
 				if (input.attachmentFile) {
-					const file = input.attachmentFile;
-
+					const mimeType = inferAttachmentMimeType(input.attachmentFile.name);
 					const [uploadErr, uploadData] =
 						await api.roomBookings.generateUploadUrl({
-							fileName: file.name,
-							mimeType: file.type as AttachmentMimeType,
+							fileName: input.attachmentFile.name,
+							mimeType,
 						});
 
-					if (uploadErr) {
-						const msg = isDefinedError(uploadErr)
-							? uploadErr.message
-							: "Failed to generate upload URL";
-						setError(msg);
-						toast.error(msg);
+					if (uploadErr || !uploadData) {
+						const message =
+							uploadErr?.message || "Failed to generate upload URL";
+						setError(message);
+						toast.error(message);
 						return { success: false };
 					}
 
-					const uploadResponse = await fetch(uploadData!.uploadUrl, {
+					const uploadResponse = await fetch(uploadData.uploadUrl, {
 						method: "PUT",
-						body: file,
-						headers: { "Content-Type": file.type },
+						headers: {
+							"Content-Type":
+								input.attachmentFile.type || "application/octet-stream",
+						},
+						body: input.attachmentFile,
 					});
 
 					if (!uploadResponse.ok) {
-						const msg = "Failed to upload attachment";
-						setError(msg);
-						toast.error(msg);
+						const message = `Failed to upload attachment (${uploadResponse.status})`;
+						setError(message);
+						toast.error(message);
 						return { success: false };
 					}
 
-					attachmentUrl = uploadData!.path;
+					attachmentUrl = uploadData.path;
 				}
 
-				// Step 2 — Create booking
 				const [err] = await api.roomBookings.create({
 					title: input.title,
 					startTime: toISODateTime(input.date, input.startTime),
@@ -101,9 +106,9 @@ export function useCreateBooking(
 				});
 
 				if (err) {
-					const msg = err.message || "Failed to create booking";
-					setError(msg);
-					toast.error(msg);
+					const message = err.message || "Failed to create booking";
+					setError(message);
+					toast.error(message);
 					return { success: false };
 				}
 
@@ -112,9 +117,9 @@ export function useCreateBooking(
 				onSuccess?.();
 				return { success: true };
 			} catch {
-				const msg = "An unexpected error occurred";
-				setError(msg);
-				toast.error(msg);
+				const message = "An unexpected error occurred";
+				setError(message);
+				toast.error(message);
 				return { success: false };
 			} finally {
 				setIsCreating(false);

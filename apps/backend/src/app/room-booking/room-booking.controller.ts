@@ -16,7 +16,7 @@ export class RoomBookingController {
 	constructor(private readonly roomBookingService: RoomBookingService) {}
 
 	// ---------------------------------------------------------------------------
-	// GET /admin/bookings
+	// GET bookings
 	// ---------------------------------------------------------------------------
 
 	@SkipThrottle({ short: true, default: true })
@@ -38,7 +38,7 @@ export class RoomBookingController {
 	}
 
 	// ---------------------------------------------------------------------------
-	// GET /admin/bookings/{id}
+	// GET /bookings/{id}
 	// ---------------------------------------------------------------------------
 
 	@SkipThrottle({ short: true, default: true })
@@ -53,7 +53,7 @@ export class RoomBookingController {
 	}
 
 	// ---------------------------------------------------------------------------
-	// POST /admin/bookings
+	// POST /bookings
 	// ---------------------------------------------------------------------------
 
 	// 10 requests per minute per user
@@ -76,7 +76,7 @@ export class RoomBookingController {
 	}
 
 	// ---------------------------------------------------------------------------
-	// PATCH /admin/bookings/{id}/status
+	// PATCH /bookings/{id}/status
 	// ---------------------------------------------------------------------------
 
 	@Throttle({ default: { limit: 20, ttl: 60000 } })
@@ -98,7 +98,7 @@ export class RoomBookingController {
 	}
 
 	// ---------------------------------------------------------------------------
-	// PUT /admin/bookings/{id}
+	// PUT /bookings/{id}
 	// ---------------------------------------------------------------------------
 
 	@Throttle({ default: { limit: 20, ttl: 60000 } })
@@ -120,7 +120,7 @@ export class RoomBookingController {
 	}
 
 	// ---------------------------------------------------------------------------
-	// DELETE /admin/bookings/{id}
+	// DELETE /bookings/{id}
 	// ---------------------------------------------------------------------------
 
 	@Throttle({ default: { limit: 10, ttl: 60000 } })

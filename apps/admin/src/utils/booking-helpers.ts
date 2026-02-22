@@ -2,6 +2,66 @@ import { CONFERENCE_ROOM_LABELS, type ConferenceRoom } from "@repo/shared";
 import { isSameDay } from "@/utils/date-utils";
 import type { TimeSlot } from "@/utils/time-utils";
 
+const ROOM_KEYS = Object.keys(CONFERENCE_ROOM_LABELS) as ConferenceRoom[];
+
+function normalizeRoomToken(input: string): string {
+	return input.toLowerCase().trim().replace(/\s+/g, "_").replace(/-/g, "_");
+}
+
+export function resolveConferenceRoom(
+	roomValue: string | null | undefined,
+	roomLabel?: string | null,
+): ConferenceRoom {
+	const value = roomValue ?? "";
+
+	if (ROOM_KEYS.includes(value as ConferenceRoom)) {
+		return value as ConferenceRoom;
+	}
+
+	const normalized = normalizeRoomToken(value);
+	if (ROOM_KEYS.includes(normalized as ConferenceRoom)) {
+		return normalized as ConferenceRoom;
+	}
+
+	const byLabel = ROOM_KEYS.find(
+		(key) => CONFERENCE_ROOM_LABELS[key] === value,
+	);
+	if (byLabel) {
+		return byLabel;
+	}
+
+	if (roomLabel) {
+		const normalizedLabel = normalizeRoomToken(roomLabel);
+		const byProvidedLabel = ROOM_KEYS.find(
+			(key) =>
+				normalizeRoomToken(CONFERENCE_ROOM_LABELS[key]) === normalizedLabel,
+		);
+		if (byProvidedLabel) {
+			return byProvidedLabel;
+		}
+	}
+
+	const byNormalizedLabel = ROOM_KEYS.find(
+		(key) => normalizeRoomToken(CONFERENCE_ROOM_LABELS[key]) === normalized,
+	);
+	if (byNormalizedLabel) {
+		return byNormalizedLabel;
+	}
+
+	const fallback = ROOM_KEYS[0] ?? "room_a";
+	console.warn("[room] Invalid room value; using fallback", {
+		roomValue,
+		roomLabel,
+		normalized,
+		fallback,
+	});
+	return fallback;
+}
+
+function normalizeRoomKey(room: string): ConferenceRoom {
+	return resolveConferenceRoom(room);
+}
+
 // ---------------------------------------------------------------------------
 // CalendarBooking — shared interface used across all calendar sub-components
 // ---------------------------------------------------------------------------
@@ -66,22 +126,26 @@ interface ApiBooking {
 
 /** Map raw API booking objects to the CalendarBooking shape used by UI components. */
 export function mapApiBookings(bookings: ApiBooking[]): CalendarBooking[] {
-	return bookings.map((b) => ({
-		id: b.id,
-		bookedBy: b.bookedBy,
-		bookedByName: b.user?.fullName ?? null,
-		date: new Date(b.startTime),
-		startTime: isoToTimeStr(b.startTime),
-		endTime: isoToTimeStr(b.endTime),
-		startTime24: isoToTime24(b.startTime),
-		endTime24: isoToTime24(b.endTime),
-		roomKey: b.room as ConferenceRoom,
-		room: CONFERENCE_ROOM_LABELS[b.room as ConferenceRoom] ?? b.room,
-		purpose: b.title,
-		requestedFor: b.requestedFor,
-		status: b.status as "pending" | "confirmed" | "rejected",
-		attachmentUrl: b.attachmentUrl,
-	}));
+	return bookings.map((b) => {
+		const roomKey = normalizeRoomKey(b.room);
+
+		return {
+			id: b.id,
+			bookedBy: b.bookedBy,
+			bookedByName: b.user?.fullName ?? null,
+			date: new Date(b.startTime),
+			startTime: isoToTimeStr(b.startTime),
+			endTime: isoToTimeStr(b.endTime),
+			startTime24: isoToTime24(b.startTime),
+			endTime24: isoToTime24(b.endTime),
+			roomKey,
+			room: CONFERENCE_ROOM_LABELS[roomKey],
+			purpose: b.title,
+			requestedFor: b.requestedFor,
+			status: b.status as "pending" | "confirmed" | "rejected",
+			attachmentUrl: b.attachmentUrl,
+		};
+	});
 }
 
 // ---------------------------------------------------------------------------

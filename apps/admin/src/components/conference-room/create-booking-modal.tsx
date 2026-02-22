@@ -1,9 +1,11 @@
 "use client";
 
-import type { ConferenceRoom } from "@repo/shared";
+import { CONFERENCE_ROOM_OPTIONS, type ConferenceRoom } from "@repo/shared";
 import { Loader2, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useCreateBooking } from "@/hooks/room-booking";
+import { useEffect, useMemo, useState } from "react";
+import { useCreateBooking } from "@/hooks/room-booking/use-create-booking";
+import { useRoomBookings } from "@/hooks/room-booking/use-room-bookings";
+import { mapApiBookings } from "@/utils/booking-helpers";
 import { convertTo24HourFormat } from "@/utils/time-utils";
 import {
 	BookingFormFields,
@@ -25,6 +27,8 @@ export function CreateBookingModal({
 	selectedTime,
 	selectedDate,
 }: CreateBookingModalProps) {
+	type BookingFieldErrors = Partial<Record<keyof BookingFormValues, string>>;
+
 	const [values, setValues] = useState<BookingFormValues>({
 		room: "",
 		date: undefined,
@@ -35,6 +39,10 @@ export function CreateBookingModal({
 		attachment: null,
 	});
 	const [fileError, setFileError] = useState<string | null>(null);
+	const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
+
+	const currentDate = values.date ?? selectedDate;
+	const { data: dateBookingsData } = useRoomBookings(currentDate);
 
 	const { createBooking, isCreating, error, clearError } = useCreateBooking(
 		() => {
@@ -42,11 +50,80 @@ export function CreateBookingModal({
 		},
 	);
 
+	const roomAvailability = useMemo(() => {
+		const toMinutes = (time: string): number | null => {
+			if (!time || !time.includes(":")) return null;
+			const [hoursRaw, minutesRaw] = time.split(":");
+			const hours = Number(hoursRaw);
+			const minutes = Number(minutesRaw);
+			if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+			return hours * 60 + minutes;
+		};
+
+		const startMinutes = toMinutes(values.startTime);
+		const endMinutes = toMinutes(values.endTime);
+
+		const empty: Partial<
+			Record<ConferenceRoom, { disabled: boolean; note?: string }>
+		> = {};
+
+		if (
+			startMinutes === null ||
+			endMinutes === null ||
+			startMinutes >= endMinutes
+		) {
+			return empty;
+		}
+
+		const bookings = dateBookingsData?.bookings
+			? mapApiBookings(dateBookingsData.bookings)
+			: [];
+
+		for (const roomOption of CONFERENCE_ROOM_OPTIONS) {
+			const roomBookings = bookings.filter(
+				(booking) =>
+					booking.roomKey === roomOption.value &&
+					booking.status === "confirmed",
+			);
+
+			const overlapping = roomBookings.filter((booking) => {
+				const bookingStart = toMinutes(booking.startTime24);
+				const bookingEnd = toMinutes(booking.endTime24);
+				if (bookingStart === null || bookingEnd === null) return false;
+				return startMinutes < bookingEnd && endMinutes > bookingStart;
+			});
+
+			if (overlapping.length > 0) {
+				const first = overlapping[0];
+				if (!first) continue;
+				const moreCount = overlapping.length - 1;
+				empty[roomOption.value] = {
+					disabled: true,
+					note:
+						moreCount > 0
+							? `Booked at ${first.startTime} - ${first.endTime} (+${moreCount} more)`
+							: `Booked at ${first.startTime} - ${first.endTime}`,
+				};
+			}
+		}
+
+		return empty;
+	}, [dateBookingsData, values.startTime, values.endTime]);
+
+	useEffect(() => {
+		if (!values.room) return;
+		const room = values.room as ConferenceRoom;
+		if (roomAvailability[room]?.disabled) {
+			setValues((prev) => ({ ...prev, room: "" }));
+		}
+	}, [roomAvailability, values.room]);
+
 	// Populate form on open
 	useEffect(() => {
 		if (!isOpen) return;
 		clearError();
 		setFileError(null);
+		setFieldErrors({});
 
 		let startTime = "";
 		let endTime = "";
@@ -70,21 +147,83 @@ export function CreateBookingModal({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen]);
 
+	const parseMinutes = (time: string): number | null => {
+		if (!time || !time.includes(":")) return null;
+		const [hoursRaw, minutesRaw] = time.split(":");
+		const hours = Number(hoursRaw);
+		const minutes = Number(minutesRaw);
+		if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+		return hours * 60 + minutes;
+	};
+
+	const validateForm = (): BookingFieldErrors => {
+		const errors: BookingFieldErrors = {};
+
+		if (!values.room) {
+			errors.room = "Conference room is required.";
+		}
+
+		if (!values.date) {
+			errors.date = "Date is required.";
+		}
+
+		if (!values.startTime) {
+			errors.startTime = "Start time is required.";
+		}
+
+		if (!values.endTime) {
+			errors.endTime = "End time is required.";
+		}
+
+		if (!values.title.trim()) {
+			errors.title = "Title is required.";
+		}
+
+		if (!values.requestedFor.trim()) {
+			errors.requestedFor = "Requested for is required.";
+		}
+
+		const startMinutes = parseMinutes(values.startTime);
+		const endMinutes = parseMinutes(values.endTime);
+		if (
+			startMinutes !== null &&
+			endMinutes !== null &&
+			endMinutes <= startMinutes
+		) {
+			errors.endTime = "End time must be later than start time.";
+		}
+
+		return errors;
+	};
+
 	const handleChange = (field: keyof BookingFormValues, value: unknown) => {
 		setValues((prev) => ({ ...prev, [field]: value }));
+		setFieldErrors((prev) => {
+			if (!prev[field]) return prev;
+			const next = { ...prev };
+			delete next[field];
+			return next;
+		});
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!values.date || !values.room || !values.startTime || !values.endTime)
+		const errors = validateForm();
+		setFieldErrors(errors);
+		if (Object.keys(errors).length > 0) {
 			return;
+		}
+
+		if (!values.date) {
+			return;
+		}
 
 		await createBooking({
-			title: values.title,
+			title: values.title.trim(),
 			date: values.date,
 			startTime: values.startTime,
 			endTime: values.endTime,
-			requestedFor: values.requestedFor,
+			requestedFor: values.requestedFor.trim(),
 			room: values.room as ConferenceRoom,
 			...(values.attachment ? { attachmentFile: values.attachment } : {}),
 		});
@@ -121,6 +260,8 @@ export function CreateBookingModal({
 					<BookingFormFields
 						values={values}
 						onChange={handleChange}
+						fieldErrors={fieldErrors}
+						roomAvailability={roomAvailability}
 						error={error}
 						fileError={fileError}
 						onFileError={setFileError}

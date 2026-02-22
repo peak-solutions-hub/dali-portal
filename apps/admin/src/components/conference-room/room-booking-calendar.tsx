@@ -8,6 +8,7 @@ import {
 	type CalendarBooking,
 	getTimeLinePosition,
 	mapApiBookings,
+	resolveConferenceRoom,
 } from "@/utils/booking-helpers";
 import { CalendarSidebar } from "./calendar-sidebar";
 import { CreateBookingModal } from "./create-booking-modal";
@@ -141,7 +142,10 @@ export function RoomBookingCalendar() {
 			id: booking.id,
 			title: booking.purpose,
 			requestedFor: booking.requestedFor,
-			room: booking.roomKey,
+			room: resolveConferenceRoom(
+				booking.roomKey || booking.room,
+				booking.room,
+			),
 			date: booking.date,
 			startTime: booking.startTime24,
 			endTime: booking.endTime24,

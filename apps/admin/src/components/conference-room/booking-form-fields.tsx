@@ -3,6 +3,7 @@
 import {
 	CONFERENCE_ROOM_OPTIONS,
 	type ConferenceRoom,
+	FILE_UPLOAD_PRESETS,
 	MAX_ATTACHMENT_SIZE_BYTES,
 	TEXT_LIMITS,
 } from "@repo/shared";
@@ -16,6 +17,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/dialog";
+import { formatBytes } from "@repo/ui/components/dropzone";
 import {
 	Popover,
 	PopoverContent,
@@ -29,9 +31,16 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { TimePicker } from "@repo/ui/components/time-picker";
+import { useSupabaseUpload } from "@repo/ui/hooks/use-supabase-upload";
 import { cn } from "@repo/ui/lib/utils";
-import { CalendarIcon, FileText, X } from "lucide-react";
-import { useState } from "react";
+import {
+	AlertCircle,
+	CalendarIcon,
+	FileText,
+	Paperclip,
+	X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 export interface BookingFormValues {
 	room: string;
@@ -47,6 +56,11 @@ export interface BookingFormValues {
 interface BookingFormFieldsProps {
 	values: BookingFormValues;
 	onChange: (field: keyof BookingFormValues, value: unknown) => void;
+	fieldErrors?: Partial<Record<keyof BookingFormValues, string>>;
+	/** Optional room availability metadata used to disable and annotate room options. */
+	roomAvailability?: Partial<
+		Record<ConferenceRoom, { disabled: boolean; note?: string }>
+	>;
 	/** Whether there is an existing attachment on the server (edit mode). */
 	existingAttachmentUrl?: string | null;
 	/** Whether existing attachment is marked for removal on save (edit mode). */
@@ -63,6 +77,8 @@ interface BookingFormFieldsProps {
 export function BookingFormFields({
 	values,
 	onChange,
+	fieldErrors,
+	roomAvailability,
 	existingAttachmentUrl,
 	removeExistingAttachment,
 	onRemoveExistingAttachmentChange,
@@ -71,37 +87,72 @@ export function BookingFormFields({
 	onFileError,
 }: BookingFormFieldsProps) {
 	const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+	const { maxFileSize } = FILE_UPLOAD_PRESETS.ATTACHMENTS;
 
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (file) {
-			if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-				onFileError("File size must not exceed 5MB");
-				onChange("attachment", null);
-				e.target.value = "";
-			} else {
-				onFileError(null);
-				onChange("attachment", file);
+	const {
+		files,
+		setFiles,
+		getRootProps,
+		getInputProps,
+		isDragActive,
+		hasFileErrors,
+	} = useSupabaseUpload({
+		path: "room-bookings",
+		maxFiles: 1,
+		maxFileSize: MAX_ATTACHMENT_SIZE_BYTES,
+		allowedMimeTypes: ["application/pdf", "image/jpeg", "image/jpg"],
+	});
+
+	const selectedRoomLabel =
+		CONFERENCE_ROOM_OPTIONS.find((opt) => opt.value === values.room)?.label ??
+		"";
+
+	useEffect(() => {
+		console.log("[BookingFormFields] values", values);
+		console.log("[BookingFormFields] room debug", {
+			roomValue: values.room,
+			selectedRoomLabel,
+			availableRoomValues: CONFERENCE_ROOM_OPTIONS.map((opt) => opt.value),
+		});
+	}, [values, selectedRoomLabel]);
+
+	useEffect(() => {
+		const validFile = files.find((file) => file.errors.length === 0) ?? null;
+		const firstInvalidFile = files.find((file) => file.errors.length > 0);
+
+		if (validFile) {
+			if (
+				!values.attachment ||
+				values.attachment.name !== validFile.name ||
+				values.attachment.size !== validFile.size
+			) {
+				onChange("attachment", validFile);
 			}
+			onFileError(null);
+			return;
 		}
-	};
+
+		if (firstInvalidFile) {
+			onFileError(firstInvalidFile.errors[0]?.message || "Invalid file");
+		}
+
+		if (!hasFileErrors) {
+			if (values.attachment !== null) {
+				onChange("attachment", null);
+			}
+			onFileError(null);
+		}
+	}, [files, hasFileErrors, onChange, onFileError, values.attachment]);
 
 	const handleRemoveFile = () => {
+		setFiles([]);
 		onChange("attachment", null);
 		onFileError(null);
-		const fileInput = document.getElementById(
-			"booking-attachment",
-		) as HTMLInputElement;
-		if (fileInput) fileInput.value = "";
 	};
 
 	return (
 		<div className="space-y-6">
-			{error && (
-				<div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 border border-red-200">
-					{error}
-				</div>
-			)}
+			{error ? null : null}
 
 			{/* Conference Room */}
 			<div>
@@ -113,20 +164,48 @@ export function BookingFormFields({
 				</label>
 				<Select
 					value={values.room}
-					onValueChange={(v) => onChange("room", v)}
-					required
+					onValueChange={(v) => {
+						if (!v) return;
+						onChange("room", v);
+					}}
 				>
-					<SelectTrigger className="w-full px-4 py-3 bg-gray-50 border-0 text-gray-900">
-						<SelectValue placeholder="Select a conference room" />
+					<SelectTrigger
+						className={cn(
+							"w-full px-4 py-3 bg-gray-50 border-0 text-gray-900 focus:ring-2 focus:ring-[#a60202]/20",
+							fieldErrors?.room &&
+								"ring-2 ring-red-500/30 border border-red-500 bg-red-50/30",
+						)}
+					>
+						<SelectValue placeholder="Select a conference room">
+							{selectedRoomLabel}
+						</SelectValue>
 					</SelectTrigger>
 					<SelectContent>
-						{CONFERENCE_ROOM_OPTIONS.map((opt) => (
-							<SelectItem key={opt.value} value={opt.value}>
-								{opt.label}
-							</SelectItem>
-						))}
+						{CONFERENCE_ROOM_OPTIONS.map((opt) => {
+							const availability = roomAvailability?.[opt.value];
+							const note = availability?.note;
+							return (
+								<SelectItem
+									key={opt.value}
+									value={opt.value}
+									disabled={availability?.disabled}
+								>
+									<span className="flex items-center gap-2">
+										<span>{opt.label}</span>
+										{note && (
+											<span className="text-xs text-muted-foreground">
+												({note})
+											</span>
+										)}
+									</span>
+								</SelectItem>
+							);
+						})}
 					</SelectContent>
 				</Select>
+				{fieldErrors?.room && (
+					<p className="text-sm text-red-600 mt-2">{fieldErrors.room}</p>
+				)}
 			</div>
 
 			{/* Date */}
@@ -142,8 +221,10 @@ export function BookingFormFields({
 						<Button
 							variant="outline"
 							className={cn(
-								"w-full px-4 py-3 justify-start text-left font-normal border border-blue-500 hover:bg-gray-50",
+								"w-full px-4 py-3 justify-start text-left font-normal border border-blue-500 hover:bg-gray-50 focus:ring-2 focus:ring-[#a60202]/20",
 								!values.date && "text-muted-foreground",
+								fieldErrors?.date &&
+									"ring-2 ring-red-500/30 border-red-500 bg-red-50/30",
 							)}
 						>
 							<CalendarIcon className="mr-2 h-4 w-4" />
@@ -167,6 +248,9 @@ export function BookingFormFields({
 						/>
 					</PopoverContent>
 				</Popover>
+				{fieldErrors?.date && (
+					<p className="text-sm text-red-600 mt-2">{fieldErrors.date}</p>
+				)}
 			</div>
 
 			{/* Start/End Time */}
@@ -182,7 +266,15 @@ export function BookingFormFields({
 						value={values.startTime}
 						onChange={(v) => onChange("startTime", v)}
 						placeholder="Select start time"
+						className={cn(
+							"focus:ring-2 focus:ring-[#a60202]/20",
+							fieldErrors?.startTime &&
+								"ring-2 ring-red-500/30 border-red-500 bg-red-50/30",
+						)}
 					/>
+					{fieldErrors?.startTime && (
+						<p className="text-sm text-red-600 mt-2">{fieldErrors.startTime}</p>
+					)}
 				</div>
 				<div>
 					<label
@@ -195,7 +287,15 @@ export function BookingFormFields({
 						value={values.endTime}
 						onChange={(v) => onChange("endTime", v)}
 						placeholder="Select end time"
+						className={cn(
+							"focus:ring-2 focus:ring-[#a60202]/20",
+							fieldErrors?.endTime &&
+								"ring-2 ring-red-500/30 border-red-500 bg-red-50/30",
+						)}
 					/>
+					{fieldErrors?.endTime && (
+						<p className="text-sm text-red-600 mt-2">{fieldErrors.endTime}</p>
+					)}
 				</div>
 			</div>
 
@@ -213,13 +313,19 @@ export function BookingFormFields({
 					value={values.title}
 					onChange={(e) => onChange("title", e.target.value)}
 					maxLength={TEXT_LIMITS.XS}
-					className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					className={cn(
+						"w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#a60202]/20",
+						fieldErrors?.title &&
+							"ring-2 ring-red-500/30 border border-red-500 bg-red-50/30",
+					)}
 					placeholder="Enter booking title..."
-					required
 				/>
 				<p className="text-xs text-gray-500 mt-1">
 					{values.title.length}/{TEXT_LIMITS.XS} characters
 				</p>
+				{fieldErrors?.title && (
+					<p className="text-sm text-red-600 mt-2">{fieldErrors.title}</p>
+				)}
 			</div>
 
 			{/* Requested For */}
@@ -236,10 +342,18 @@ export function BookingFormFields({
 					value={values.requestedFor}
 					onChange={(e) => onChange("requestedFor", e.target.value)}
 					maxLength={TEXT_LIMITS.XS}
-					className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					className={cn(
+						"w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#a60202]/20",
+						fieldErrors?.requestedFor &&
+							"ring-2 ring-red-500/30 border border-red-500 bg-red-50/30",
+					)}
 					placeholder="Name of person or group requesting the room..."
-					required
 				/>
+				{fieldErrors?.requestedFor && (
+					<p className="text-sm text-red-600 mt-2">
+						{fieldErrors.requestedFor}
+					</p>
+				)}
 			</div>
 
 			{/* Attachment */}
@@ -303,43 +417,99 @@ export function BookingFormFields({
 						</div>
 					)}
 
-				{/* File chooser + new file card */}
-				<div className="flex items-center gap-2">
-					<div className="flex-1 relative">
-						<input
-							id="booking-attachment"
-							type="file"
-							accept=".jpg,.jpeg,.pdf"
-							onChange={handleFileChange}
-							className="hidden"
-						/>
-						<label
-							htmlFor="booking-attachment"
-							className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-md text-sm font-semibold hover:bg-blue-100 cursor-pointer transition-colors"
-						>
-							Choose File
-						</label>
-						{values.attachment && (
-							<span className="ml-3 text-sm text-gray-600">
-								{values.attachment.name}
-							</span>
-						)}
+				{isDragActive && (
+					<div className="border-2 border-dashed border-primary bg-primary/10 rounded-lg p-3 text-center text-sm text-primary">
+						Drop file here...
 					</div>
-					{values.attachment && (
-						<button
-							type="button"
-							onClick={handleRemoveFile}
-							className="p-2 hover:bg-gray-100 rounded-md transition-colors shrink-0"
-							aria-label="Remove file"
-						>
-							<X className="w-4 h-4 text-gray-500" />
-						</button>
-					)}
+				)}
+
+				<div
+					{...getRootProps({
+						className:
+							"relative border-2 border-dashed rounded-2xl p-6 transition-all text-center bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer",
+					})}
+				>
+					<input {...getInputProps()} aria-label="Upload booking attachment" />
+					<div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
+						<div className="p-3 bg-white rounded-full shadow-sm border border-gray-100 mb-1">
+							<Paperclip className="h-6 w-6 text-[#a60202]" />
+						</div>
+						<p className="text-sm font-medium text-gray-900">
+							Click to upload or drag and drop
+						</p>
+						<p className="text-xs text-gray-500">
+							PDF, JPG, JPEG • Max 1 file • {formatBytes(maxFileSize)}
+						</p>
+					</div>
 				</div>
+
+				{files.length > 0 && (
+					<div className="grid gap-3 animate-in fade-in slide-in-from-top-1 mt-3">
+						{files.map((file, index) => {
+							const hasError = file.errors && file.errors.length > 0;
+							return (
+								<div
+									key={`${file.name}-${index}`}
+									className={`flex items-center justify-between p-3 rounded-xl border shadow-sm group transition-all ${
+										hasError
+											? "bg-red-50 border-red-200 hover:border-red-300"
+											: "bg-white border-gray-200 hover:border-[#a60202]/30"
+									}`}
+								>
+									<div className="flex items-center gap-3 overflow-hidden">
+										<div
+											className={`p-2.5 rounded-lg ${
+												hasError
+													? "bg-red-100 text-red-600"
+													: "bg-red-50 text-[#a60202]"
+											}`}
+										>
+											{hasError ? (
+												<AlertCircle className="h-4 w-4" />
+											) : (
+												<FileText className="h-4 w-4" />
+											)}
+										</div>
+										<div className="flex flex-col min-w-0">
+											<span
+												className={`text-sm font-medium truncate transition-colors ${
+													hasError
+														? "text-red-700"
+														: "text-gray-700 group-hover:text-[#a60202]"
+												}`}
+											>
+												{file.name}
+											</span>
+											<div className="flex items-center gap-2">
+												<span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+													{formatBytes(file.size, 2)}
+												</span>
+												{hasError && (
+													<span className="text-[10px] text-red-600 font-medium">
+														{file.errors[0]?.message || "Invalid file"}
+													</span>
+												)}
+											</div>
+										</div>
+									</div>
+									<button
+										type="button"
+										onClick={(e) => {
+											e.stopPropagation();
+											handleRemoveFile();
+										}}
+										className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
+										aria-label={`Remove ${file.name}`}
+									>
+										<X className="h-4 w-4" />
+									</button>
+								</div>
+							);
+						})}
+					</div>
+				)}
+
 				{fileError && <p className="text-sm text-red-600 mt-2">{fileError}</p>}
-				<p className="text-xs text-gray-500 mt-1">
-					Accepted formats: JPG, PDF (Max size: 5MB)
-				</p>
 			</div>
 
 			{/* Remove attachment confirmation dialog */}

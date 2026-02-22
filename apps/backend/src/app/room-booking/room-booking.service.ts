@@ -86,7 +86,7 @@ export class RoomBookingService {
 	}
 
 	// ---------------------------------------------------------------------------
-	// GET /admin/bookings
+	// GET /bookings
 	// ---------------------------------------------------------------------------
 
 	async getList(
@@ -96,6 +96,19 @@ export class RoomBookingService {
 		const { status, room, date, startDate, endDate, bookedBy, limit, page } =
 			input;
 		const skip = (page - 1) * limit;
+
+		this.logger.debug(
+			`getList filters: ${JSON.stringify({
+				status,
+				room,
+				date,
+				startDate,
+				endDate,
+				bookedBy,
+				limit,
+				page,
+			})}`,
+		);
 
 		if (status === "pending" && !this.isAdminRole(userRole)) {
 			throw new AppError("ROOM_BOOKING.FORBIDDEN");
@@ -140,16 +153,32 @@ export class RoomBookingService {
 
 		// Sign attachment URLs so clients can access them directly
 		const rawBookings = bookings.map(toResponse);
-		const signedBookings = await Promise.all(
-			rawBookings.map(async (b) => {
-				if (!b.attachmentUrl) return b;
-				const { signedUrl } = await this.storage.getSignedUrl(
-					BOOKING_ATTACHMENTS_BUCKET,
-					b.attachmentUrl,
-				);
-				return { ...b, attachmentUrl: signedUrl };
-			}),
+		const attachmentPaths = rawBookings
+			.map((booking) => booking.attachmentUrl)
+			.filter((path): path is string => Boolean(path));
+
+		const signedAttachments = await this.storage.getSignedUrls(
+			BOOKING_ATTACHMENTS_BUCKET,
+			attachmentPaths,
 		);
+
+		const signedUrlByPath = new Map(
+			signedAttachments.map((attachment) => [
+				attachment.path,
+				attachment.signedUrl,
+			]),
+		);
+
+		const signedBookings = rawBookings.map((booking) => {
+			if (!booking.attachmentUrl) {
+				return booking;
+			}
+
+			return {
+				...booking,
+				attachmentUrl: signedUrlByPath.get(booking.attachmentUrl) ?? null,
+			};
+		});
 
 		return {
 			bookings: signedBookings,
@@ -180,7 +209,7 @@ export class RoomBookingService {
 
 		const response = toResponse(booking);
 		if (response.attachmentUrl) {
-			const { signedUrl } = await this.storage.getSignedUrl(
+			const { signedUrl } = await this.storage.getSignedUrlOrThrow(
 				BOOKING_ATTACHMENTS_BUCKET,
 				response.attachmentUrl,
 			);
@@ -190,7 +219,7 @@ export class RoomBookingService {
 	}
 
 	// ---------------------------------------------------------------------------
-	// POST /admin/bookings
+	// POST /bookings
 	// ---------------------------------------------------------------------------
 
 	async create(
@@ -240,7 +269,7 @@ export class RoomBookingService {
 	}
 
 	// ---------------------------------------------------------------------------
-	// PATCH /admin/bookings/{id}/status
+	// PATCH /bookings/{id}/status
 	// ---------------------------------------------------------------------------
 
 	async updateStatus(
@@ -292,7 +321,7 @@ export class RoomBookingService {
 	}
 
 	// ---------------------------------------------------------------------------
-	// PUT /admin/bookings/{id}
+	// PUT /bookings/{id}
 	// ---------------------------------------------------------------------------
 
 	async update(
@@ -324,6 +353,7 @@ export class RoomBookingService {
 			input.startTime !== undefined ||
 			input.endTime !== undefined ||
 			input.room !== undefined;
+		const shouldResetToPending = timesChanged && booking.status === "confirmed";
 
 		if (timesChanged) {
 			// Scenario 3 — Validate new time range
@@ -355,9 +385,16 @@ export class RoomBookingService {
 				}),
 				startTime: newStartTime,
 				endTime: newEndTime,
+				...(shouldResetToPending && { status: "pending" }),
 			},
 			include: USER_INCLUDE,
 		});
+
+		if (shouldResetToPending) {
+			this.logger.debug(
+				`Booking ${booking.id} status reset to pending after schedule/room edit`,
+			);
+		}
 
 		const oldAttachmentPath = booking.attachmentUrl;
 		const newAttachmentPath = updated.attachmentUrl;
@@ -375,7 +412,7 @@ export class RoomBookingService {
 	}
 
 	// ---------------------------------------------------------------------------
-	// DELETE /admin/bookings/{id}
+	// DELETE /bookings/{id}
 	// ---------------------------------------------------------------------------
 
 	async delete(
@@ -411,7 +448,7 @@ export class RoomBookingService {
 	}
 
 	// ---------------------------------------------------------------------------
-	// POST /admin/bookings/upload-url
+	// POST /bookings/upload-url
 	// ---------------------------------------------------------------------------
 
 	async generateUploadUrl(

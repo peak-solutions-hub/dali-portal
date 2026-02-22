@@ -3,7 +3,8 @@
 import type { ConferenceRoom } from "@repo/shared";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useUpdateBooking } from "@/hooks/room-booking";
+import { useUpdateBooking } from "@/hooks/room-booking/use-update-booking";
+import { resolveConferenceRoom } from "@/utils/booking-helpers";
 import {
 	BookingFormFields,
 	type BookingFormValues,
@@ -13,7 +14,7 @@ export interface EditBookingData {
 	id: string;
 	title: string;
 	requestedFor: string;
-	room: ConferenceRoom;
+	room: string;
 	date: Date;
 	/** "HH:MM" 24-hour local time */
 	startTime: string;
@@ -55,11 +56,17 @@ export function EditBookingModal({
 	// Populate form when modal opens with booking data
 	useEffect(() => {
 		if (!isOpen || !booking) return;
+		const resolvedRoom = resolveConferenceRoom(booking.room);
+		console.log("[EditBookingModal] opened with props", {
+			isOpen,
+			booking,
+			resolvedRoom,
+		});
 		clearError();
 		setFileError(null);
 
 		setValues({
-			room: booking.room,
+			room: resolvedRoom,
 			date: booking.date,
 			startTime: booking.startTime,
 			endTime: booking.endTime,
@@ -72,6 +79,15 @@ export function EditBookingModal({
 	}, [isOpen, booking]);
 
 	const handleChange = (field: keyof BookingFormValues, value: unknown) => {
+		if (field === "room") {
+			if (typeof value !== "string" || !value) return;
+			setValues((prev) => ({
+				...prev,
+				room: resolveConferenceRoom(value),
+			}));
+			return;
+		}
+
 		if (field === "attachment" && value) {
 			setRemoveExistingAttachment(false);
 		}

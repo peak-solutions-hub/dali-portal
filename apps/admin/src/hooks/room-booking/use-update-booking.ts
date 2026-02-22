@@ -1,6 +1,5 @@
 "use client";
 
-import { isDefinedError } from "@orpc/client";
 import type { AttachmentMimeType, ConferenceRoom } from "@repo/shared";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -11,8 +10,8 @@ export interface UpdateBookingInput {
 	id: string;
 	title?: string;
 	date?: Date;
-	startTime?: string; // "HH:MM" 24-hour
-	endTime?: string; // "HH:MM" 24-hour
+	startTime?: string;
+	endTime?: string;
 	requestedFor?: string;
 	room?: ConferenceRoom;
 	attachmentFile?: File;
@@ -28,9 +27,22 @@ function toISODateTime(date: Date, timeStr: string): string {
 	return d.toISOString();
 }
 
+function inferAttachmentMimeType(fileName: string): AttachmentMimeType {
+	const extension = fileName.split(".").pop()?.toLowerCase();
+
+	if (extension === "pdf") return "application/pdf";
+	if (extension === "jpeg") return "image/jpeg";
+	if (extension === "jpg") return "image/jpg";
+
+	throw new Error(
+		"Unsupported attachment type. Please upload PDF or JPG/JPEG.",
+	);
+}
+
 export function useUpdateBooking(onSuccess?: () => void) {
 	const [isUpdating, setIsUpdating] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
 	const invalidate = useInvalidateRoomBookings();
 	const clearError = useCallback(() => setError(null), []);
 
@@ -38,36 +50,43 @@ export function useUpdateBooking(onSuccess?: () => void) {
 		async (input: UpdateBookingInput): Promise<{ success: boolean }> => {
 			setIsUpdating(true);
 			setError(null);
+
 			try {
 				let attachmentUrl = input.attachmentUrl;
 
 				if (input.attachmentFile) {
-					const file = input.attachmentFile;
+					const mimeType = inferAttachmentMimeType(input.attachmentFile.name);
 					const [uploadErr, uploadData] =
 						await api.roomBookings.generateUploadUrl({
-							fileName: file.name,
-							mimeType: file.type as AttachmentMimeType,
+							fileName: input.attachmentFile.name,
+							mimeType,
 						});
-					if (uploadErr) {
-						const msg = isDefinedError(uploadErr)
-							? uploadErr.message
-							: "Failed to generate upload URL";
-						setError(msg);
-						toast.error(msg);
+
+					if (uploadErr || !uploadData) {
+						const message =
+							uploadErr?.message || "Failed to generate upload URL";
+						setError(message);
+						toast.error(message);
 						return { success: false };
 					}
-					const uploadResponse = await fetch(uploadData!.uploadUrl, {
+
+					const uploadResponse = await fetch(uploadData.uploadUrl, {
 						method: "PUT",
-						body: file,
-						headers: { "Content-Type": file.type },
+						headers: {
+							"Content-Type":
+								input.attachmentFile.type || "application/octet-stream",
+						},
+						body: input.attachmentFile,
 					});
+
 					if (!uploadResponse.ok) {
-						const msg = "Failed to upload attachment";
-						setError(msg);
-						toast.error(msg);
+						const message = `Failed to upload attachment (${uploadResponse.status})`;
+						setError(message);
+						toast.error(message);
 						return { success: false };
 					}
-					attachmentUrl = uploadData!.path;
+
+					attachmentUrl = uploadData.path;
 				}
 
 				const [err] = await api.roomBookings.update({
@@ -89,9 +108,9 @@ export function useUpdateBooking(onSuccess?: () => void) {
 				});
 
 				if (err) {
-					const msg = err.message || "Failed to update booking";
-					setError(msg);
-					toast.error(msg);
+					const message = err.message || "Failed to update booking";
+					setError(message);
+					toast.error(message);
 					return { success: false };
 				}
 
@@ -100,9 +119,9 @@ export function useUpdateBooking(onSuccess?: () => void) {
 				onSuccess?.();
 				return { success: true };
 			} catch {
-				const msg = "An unexpected error occurred";
-				setError(msg);
-				toast.error(msg);
+				const message = "An unexpected error occurred";
+				setError(message);
+				toast.error(message);
 				return { success: false };
 			} finally {
 				setIsUpdating(false);
