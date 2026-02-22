@@ -15,14 +15,12 @@ export function BookingStatusBadge({
 	roomKey,
 	className = "",
 }: BookingStatusBadgeProps) {
-	const roomColors = CONFERENCE_ROOM_COLORS[roomKey];
-
 	const colorClass =
 		status === "pending"
 			? "bg-yellow-100 text-yellow-700"
 			: status === "rejected"
 				? "bg-red-100 text-red-700"
-				: roomColors.label;
+				: "bg-green-100 text-green-700";
 
 	return (
 		<span

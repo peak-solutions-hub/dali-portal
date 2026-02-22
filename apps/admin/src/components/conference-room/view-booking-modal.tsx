@@ -2,10 +2,13 @@
 
 import { Button } from "@repo/ui/components/button";
 import {
+	Calendar as CalendarIcon,
 	CheckCircle,
+	Clock,
 	ExternalLink,
 	FileText,
 	Loader2,
+	MapPin,
 	Pencil,
 	Trash2,
 	X,
@@ -78,7 +81,10 @@ export function ViewBookingModal({
 								roomKey={booking.roomKey}
 							/>
 						</div>
-						<p className={`text-sm font-medium ${roomColors.text}`}>
+						<p
+							className={`text-sm font-medium flex items-center gap-1.5 ${roomColors.text}`}
+						>
+							<MapPin className="w-4 h-4 opacity-70 shrink-0" />
 							{booking.room}
 						</p>
 					</div>
@@ -96,7 +102,8 @@ export function ViewBookingModal({
 					{/* Date & Time */}
 					<div className="grid grid-cols-2 gap-4">
 						<div>
-							<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+							<p className="flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+								<CalendarIcon className="w-3.5 h-3.5 shrink-0" />
 								Date
 							</p>
 							<p className="text-sm text-gray-900">
@@ -104,7 +111,8 @@ export function ViewBookingModal({
 							</p>
 						</div>
 						<div>
-							<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+							<p className="flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+								<Clock className="w-3.5 h-3.5 shrink-0" />
 								Time
 							</p>
 							<p className="text-sm text-gray-900">

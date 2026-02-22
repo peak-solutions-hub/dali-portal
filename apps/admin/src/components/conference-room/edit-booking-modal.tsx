@@ -34,6 +34,8 @@ export function EditBookingModal({
 	onClose,
 	booking,
 }: EditBookingModalProps) {
+	type BookingFieldErrors = Partial<Record<keyof BookingFormValues, string>>;
+
 	const [values, setValues] = useState<BookingFormValues>({
 		room: "",
 		date: undefined,
@@ -44,6 +46,7 @@ export function EditBookingModal({
 		attachment: null,
 	});
 	const [fileError, setFileError] = useState<string | null>(null);
+	const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
 	const [removeExistingAttachment, setRemoveExistingAttachment] =
 		useState(false);
 
@@ -57,13 +60,9 @@ export function EditBookingModal({
 	useEffect(() => {
 		if (!isOpen || !booking) return;
 		const resolvedRoom = resolveConferenceRoom(booking.room);
-		console.log("[EditBookingModal] opened with props", {
-			isOpen,
-			booking,
-			resolvedRoom,
-		});
 		clearError();
 		setFileError(null);
+		setFieldErrors({});
 
 		setValues({
 			room: resolvedRoom,
@@ -78,6 +77,50 @@ export function EditBookingModal({
 		setRemoveExistingAttachment(false);
 	}, [isOpen, booking]);
 
+	const parseMinutes = (time: string): number | null => {
+		if (!time || !time.includes(":")) return null;
+		const [hoursRaw, minutesRaw] = time.split(":");
+		const hours = Number(hoursRaw);
+		const minutes = Number(minutesRaw);
+		if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+		return hours * 60 + minutes;
+	};
+
+	const validateForm = (): BookingFieldErrors => {
+		const errors: BookingFieldErrors = {};
+
+		if (!values.room) {
+			errors.room = "Conference room is required.";
+		}
+		if (!values.date) {
+			errors.date = "Date is required.";
+		}
+		if (!values.startTime) {
+			errors.startTime = "Start time is required.";
+		}
+		if (!values.endTime) {
+			errors.endTime = "End time is required.";
+		}
+		if (!values.title.trim()) {
+			errors.title = "Title is required.";
+		}
+		if (!values.requestedFor.trim()) {
+			errors.requestedFor = "Requested for is required.";
+		}
+
+		const startMinutes = parseMinutes(values.startTime);
+		const endMinutes = parseMinutes(values.endTime);
+		if (
+			startMinutes !== null &&
+			endMinutes !== null &&
+			endMinutes <= startMinutes
+		) {
+			errors.endTime = "End time must be later than start time.";
+		}
+
+		return errors;
+	};
+
 	const handleChange = (field: keyof BookingFormValues, value: unknown) => {
 		if (field === "room") {
 			if (typeof value !== "string" || !value) return;
@@ -85,17 +128,29 @@ export function EditBookingModal({
 				...prev,
 				room: resolveConferenceRoom(value),
 			}));
-			return;
+		} else {
+			if (field === "attachment" && value) {
+				setRemoveExistingAttachment(false);
+			}
+			setValues((prev) => ({ ...prev, [field]: value }));
 		}
 
-		if (field === "attachment" && value) {
-			setRemoveExistingAttachment(false);
-		}
-		setValues((prev) => ({ ...prev, [field]: value }));
+		setFieldErrors((prev) => {
+			if (!prev[field]) return prev;
+			const next = { ...prev };
+			delete next[field];
+			return next;
+		});
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		const errors = validateForm();
+		setFieldErrors(errors);
+		if (Object.keys(errors).length > 0) {
+			return;
+		}
+
 		if (
 			!booking ||
 			!values.date ||
@@ -150,6 +205,7 @@ export function EditBookingModal({
 						key={`${booking.id}-${booking.room}`}
 						values={values}
 						onChange={handleChange}
+						fieldErrors={fieldErrors}
 						existingAttachmentUrl={booking.attachmentUrl}
 						removeExistingAttachment={removeExistingAttachment}
 						onRemoveExistingAttachmentChange={setRemoveExistingAttachment}

@@ -114,7 +114,7 @@ export class RoomBookingController {
 					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
 				}
 
-				return await this.roomBookingService.update(input, user.id);
+				return await this.roomBookingService.update(input, user.id, user.role);
 			},
 		);
 	}

@@ -36,7 +36,9 @@ import { cn } from "@repo/ui/lib/utils";
 import {
 	AlertCircle,
 	CalendarIcon,
+	Clock,
 	FileText,
+	MapPin,
 	Paperclip,
 	X,
 } from "lucide-react";
@@ -108,15 +110,6 @@ export function BookingFormFields({
 		"";
 
 	useEffect(() => {
-		console.log("[BookingFormFields] values", values);
-		console.log("[BookingFormFields] room debug", {
-			roomValue: values.room,
-			selectedRoomLabel,
-			availableRoomValues: CONFERENCE_ROOM_OPTIONS.map((opt) => opt.value),
-		});
-	}, [values, selectedRoomLabel]);
-
-	useEffect(() => {
 		const validFile = files.find((file) => file.errors.length === 0) ?? null;
 		const firstInvalidFile = files.find((file) => file.errors.length > 0);
 
@@ -158,9 +151,10 @@ export function BookingFormFields({
 			<div>
 				<label
 					htmlFor="room"
-					className="block text-sm font-semibold text-gray-900 mb-2"
+					className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2"
 				>
-					Conference Room <span className="text-red-500">*</span>
+					<MapPin className="w-4 h-4 text-gray-500 shrink-0" /> Conference Room{" "}
+					<span className="text-red-500">*</span>
 				</label>
 				<Select
 					value={values.room}
@@ -212,9 +206,10 @@ export function BookingFormFields({
 			<div>
 				<label
 					htmlFor="date"
-					className="block text-sm font-semibold text-gray-900 mb-2"
+					className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2"
 				>
-					Date <span className="text-red-500">*</span>
+					<CalendarIcon className="w-4 h-4 text-gray-500 shrink-0" /> Date{" "}
+					<span className="text-red-500">*</span>
 				</label>
 				<Popover>
 					<PopoverTrigger asChild>
@@ -258,9 +253,10 @@ export function BookingFormFields({
 				<div>
 					<label
 						htmlFor="startTime"
-						className="block text-sm font-semibold text-gray-900 mb-2"
+						className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2"
 					>
-						Start Time <span className="text-red-500">*</span>
+						<Clock className="w-4 h-4 text-gray-500 shrink-0" /> Start Time{" "}
+						<span className="text-red-500">*</span>
 					</label>
 					<TimePicker
 						value={values.startTime}
@@ -279,9 +275,10 @@ export function BookingFormFields({
 				<div>
 					<label
 						htmlFor="endTime"
-						className="block text-sm font-semibold text-gray-900 mb-2"
+						className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2"
 					>
-						End Time <span className="text-red-500">*</span>
+						<Clock className="w-4 h-4 text-gray-500 shrink-0" /> End Time{" "}
+						<span className="text-red-500">*</span>
 					</label>
 					<TimePicker
 						value={values.endTime}

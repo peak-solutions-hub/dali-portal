@@ -117,6 +117,20 @@ export function RoomBookingCalendar() {
 		}
 	};
 
+	const handleDateNumberClick = (day: number) => {
+		const newDate = new Date(
+			currentDate.getFullYear(),
+			currentDate.getMonth(),
+			day,
+		);
+		setSelectedDate(newDate);
+
+		if (viewMode === "month") {
+			setSelectedTimeSlot("");
+			setViewMode("day");
+		}
+	};
+
 	const handleToday = () => {
 		setCurrentDate(today);
 		setSelectedDate(today);
@@ -212,6 +226,8 @@ export function RoomBookingCalendar() {
 					onToday={handleToday}
 					onSwitchToDay={() => setViewMode("day")}
 					onDateClick={handleDateClick}
+					onDateNumberClick={handleDateNumberClick}
+					onViewBooking={handleViewBooking}
 				/>
 			)}
 

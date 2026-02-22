@@ -1,7 +1,13 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	Clock,
+	Loader2,
+	MapPin,
+} from "lucide-react";
 import { useMemo } from "react";
 import { useDragSelect } from "@/hooks/room-booking";
 import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
@@ -176,7 +182,6 @@ export function DayView({
 					{/* Time Slot Rows */}
 					{timeSlots.map((slot, index) => {
 						const booking = getBookingForSlot(index);
-						const slotIsBooked = booking !== null;
 						const roomColors = booking
 							? CONFERENCE_ROOM_COLORS[booking.roomKey]
 							: null;
@@ -187,19 +192,12 @@ export function DayView({
 								? booking.status === "pending"
 									? "bg-yellow-100 border-l-4 border-l-yellow-500"
 									: roomColors
-										? `${roomColors.bg} border-l-4 ${roomColors.border}`
+										? `bg-gray-200 border-l-4 ${roomColors.border}`
 										: "bg-blue-100"
 								: "bg-blue-100"
 							: "";
 
-						const bookedClassName =
-							slotIsBooked && booking
-								? booking.status === "pending"
-									? "bg-yellow-50 border-l-4 border-l-yellow-500"
-									: roomColors
-										? roomColors.bg + " border-l-4 " + roomColors.border
-										: "bg-blue-50 border-l-4 border-l-blue-500"
-								: "bg-white";
+						const bookedClassName = "bg-white";
 
 						return (
 							<div key={`${slot.time}-${index}`} className="relative">
@@ -230,85 +228,229 @@ export function DayView({
 					})}
 
 					{/* Booking Overlays */}
-					{bookings.map((booking) => {
-						const firstSlotIndex = timeSlots.findIndex((slot) =>
-							isTimeSlotBooked(
-								slot.hour,
-								slot.minute,
-								booking.startTime,
-								booking.endTime,
-							),
-						);
-						if (firstSlotIndex === -1) return null;
+					{(() => {
+						// 1. Map bookings to their absolute start and end indices
+						const layoutBookings = bookings
+							.map((booking) => {
+								const firstSlotIndex = timeSlots.findIndex((slot) =>
+									isTimeSlotBooked(
+										slot.hour,
+										slot.minute,
+										booking.startTime,
+										booking.endTime,
+									),
+								);
 
-						// Count how many slots this booking spans
-						let slotCount = 0;
-						for (let i = firstSlotIndex; i < timeSlots.length; i++) {
-							const slot = timeSlots[i];
-							if (!slot) break;
-							if (
-								isTimeSlotBooked(
-									slot.hour,
-									slot.minute,
-									booking.startTime,
-									booking.endTime,
-								)
-							) {
-								slotCount++;
+								if (firstSlotIndex === -1) return null;
+
+								let slotCount = 0;
+								for (let i = firstSlotIndex; i < timeSlots.length; i++) {
+									const slot = timeSlots[i];
+									if (!slot) break;
+									if (
+										isTimeSlotBooked(
+											slot.hour,
+											slot.minute,
+											booking.startTime,
+											booking.endTime,
+										)
+									) {
+										slotCount++;
+									} else {
+										break;
+									}
+								}
+
+								return {
+									booking,
+									startIndex: firstSlotIndex,
+									endIndex: firstSlotIndex + slotCount - 1,
+								};
+							})
+							.filter((b): b is NonNullable<typeof b> => b !== null)
+							// 2. Sort by start index, then descending by end index
+							.sort((a, b) => {
+								if (a.startIndex !== b.startIndex) {
+									return a.startIndex - b.startIndex;
+								}
+								return b.endIndex - a.endIndex;
+							});
+
+						// 3. Group and assign columns
+						const processedBookings = [];
+						let currentGroup: typeof layoutBookings = [];
+						let maxGroupEnd = -1;
+
+						for (const b of layoutBookings) {
+							if (currentGroup.length === 0) {
+								currentGroup.push(b);
+								maxGroupEnd = b.endIndex;
+							} else if (b.startIndex <= maxGroupEnd) {
+								// Overlaps with the current group
+								currentGroup.push(b);
+								maxGroupEnd = Math.max(maxGroupEnd, b.endIndex);
 							} else {
-								break;
+								// Calculate columns for the previous group
+								const columns: (typeof layoutBookings)[] = [];
+								for (const gb of currentGroup) {
+									let placed = false;
+									for (const col of columns) {
+										const lastInCol = col[col.length - 1];
+										if (lastInCol && gb.startIndex > lastInCol.endIndex) {
+											col.push(gb);
+											placed = true;
+											break;
+										}
+									}
+									if (!placed) {
+										columns.push([gb]);
+									}
+								}
+
+								const numCols = columns.length;
+								for (let c = 0; c < numCols; c++) {
+									for (const gb of columns[c]!) {
+										processedBookings.push({
+											...gb,
+											column: c,
+											totalColumns: numCols,
+										});
+									}
+								}
+
+								// Start new group
+								currentGroup = [b];
+								maxGroupEnd = b.endIndex;
 							}
 						}
 
-						const topPosition = firstSlotIndex * 20;
-						const height = slotCount * 20;
-						const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
-						const isPending = booking.status === "pending";
+						// Process the last group
+						if (currentGroup.length > 0) {
+							const columns: (typeof layoutBookings)[] = [];
+							for (const gb of currentGroup) {
+								let placed = false;
+								for (const col of columns) {
+									const lastInCol = col[col.length - 1];
+									if (lastInCol && gb.startIndex > lastInCol.endIndex) {
+										col.push(gb);
+										placed = true;
+										break;
+									}
+								}
+								if (!placed) {
+									columns.push([gb]);
+								}
+							}
 
-						return (
-							<button
-								key={booking.id}
-								type="button"
-								onClick={() => onViewBooking(booking)}
-								className="absolute left-24 right-0 z-20 text-left group/booking"
-								style={{
-									top: `${topPosition}px`,
-									height: `${height}px`,
-								}}
-							>
-								<div
-									className={`h-full ml-px pl-4 flex flex-col justify-center gap-1 rounded-r-md group-hover/booking:brightness-95 transition-[filter] ${
-										isPending ? "bg-yellow-50" : roomColors.bg
-									}`}
-								>
-									<div className="flex items-center gap-2">
-										<span
-											className={`text-xs font-semibold ${
-												isPending ? "text-yellow-700" : roomColors.text
+							const numCols = columns.length;
+							for (let c = 0; c < numCols; c++) {
+								for (const gb of columns[c]!) {
+									processedBookings.push({
+										...gb,
+										column: c,
+										totalColumns: numCols,
+									});
+								}
+							}
+						}
+
+						// 4. Render
+						return processedBookings.map(
+							({ booking, startIndex, endIndex, column, totalColumns }) => {
+								const topPosition = startIndex * 20;
+								const height = (endIndex - startIndex + 1) * 20;
+								const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
+								const isPending = booking.status === "pending";
+
+								const widthPercentage = 100 / totalColumns;
+								const leftPercentage = column * widthPercentage;
+
+								return (
+									<button
+										key={booking.id}
+										type="button"
+										onClick={() => onViewBooking(booking)}
+										className="absolute z-20 text-left group/booking"
+										style={{
+											top: `${topPosition}px`,
+											height: `${height}px`,
+											// Keep it pinned to right bounds of its relative column
+											left: `calc(6rem + calc(calc(100% - 6rem) * ${leftPercentage / 100}))`,
+											width: `calc(calc(100% - 6rem) * ${widthPercentage / 100} - 4px)`,
+										}}
+									>
+										<div
+											className={`h-full ml-px ${
+												height <= 20 ? "pl-2" : "pl-2 md:pl-4"
+											} flex flex-col justify-center gap-0.5 md:gap-1 rounded-r-md group-hover/booking:brightness-95 transition-[filter] shadow-sm overflow-hidden ${
+												isPending ? "bg-[#f6bf26]" : roomColors.bg
 											}`}
 										>
-											{booking.purpose}
-										</span>
-										<span
-											className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${
-												isPending
-													? "bg-yellow-100 text-yellow-700"
-													: roomColors.label
-											}`}
-										>
-											{booking.status}
-										</span>
-										<span className="text-[10px] text-gray-400">
-											{booking.room}
-										</span>
-									</div>
-									<span className="text-[10px] text-gray-500">
-										{booking.startTime} - {booking.endTime}
-									</span>
-								</div>
-							</button>
+											{height <= 20 ? (
+												<div className="flex items-center gap-2 truncate pr-2 w-full">
+													<span className="text-[10px] font-bold text-white truncate shrink-0">
+														{booking.purpose}
+													</span>
+													<div className="flex items-center gap-1 text-[9px] text-white/90 min-w-0">
+														<MapPin className="w-2.5 h-2.5 shrink-0 opacity-80" />
+														<span className="truncate max-w-[80px]">
+															{booking.room}
+														</span>
+														<Clock className="w-2.5 h-2.5 shrink-0 opacity-80 ml-1" />
+														<span className="truncate whitespace-nowrap">
+															{booking.startTime} - {booking.endTime}
+														</span>
+													</div>
+												</div>
+											) : height <= 40 ? (
+												<>
+													<div className="flex items-center truncate pr-2 w-full">
+														<span className="text-[11px] font-bold text-white truncate leading-tight">
+															{booking.purpose}
+														</span>
+													</div>
+													<div className="flex items-center gap-2 text-[9px] md:text-[10px] text-white/90 truncate pr-2 w-full">
+														<div className="flex items-center gap-1 shrink-0 min-w-0">
+															<MapPin className="w-3 h-3 shrink-0 opacity-80" />
+															<span className="truncate max-w-[100px]">
+																{booking.room}
+															</span>
+														</div>
+														<div className="flex items-center gap-1 shrink-0 min-w-0">
+															<Clock className="w-3 h-3 shrink-0 opacity-80" />
+															<span className="truncate">
+																{booking.startTime} - {booking.endTime}
+															</span>
+														</div>
+													</div>
+												</>
+											) : (
+												<>
+													<div className="flex items-center gap-1 md:gap-2 truncate pr-2 w-full">
+														<span className="text-xs font-bold text-white truncate">
+															{booking.purpose}
+														</span>
+													</div>
+													<div className="flex flex-col gap-0.5 text-[9px] md:text-[10px] text-white/90 w-full">
+														<div className="flex items-center gap-1 min-w-0">
+															<MapPin className="w-3 h-3 shrink-0 opacity-80" />
+															<span className="truncate">{booking.room}</span>
+														</div>
+														<div className="flex items-center gap-1 min-w-0 pr-2">
+															<Clock className="w-3 h-3 shrink-0 opacity-80" />
+															<span className="truncate">
+																{booking.startTime} - {booking.endTime}
+															</span>
+														</div>
+													</div>
+												</>
+											)}
+										</div>
+									</button>
+								);
+							},
 						);
-					})}
+					})()}
 
 					{/* Drag Preview */}
 					{isDragging &&
@@ -316,7 +458,7 @@ export function DayView({
 						dragStartIndex !== null &&
 						dragEndIndex !== null && (
 							<div
-								className="absolute left-24 right-0 pointer-events-none z-40"
+								className="absolute left-[6rem] w-[calc(100%-6rem)] pointer-events-none z-40"
 								style={{
 									top: `${Math.min(dragStartIndex, dragEndIndex) * 20}px`,
 									height: `${(Math.abs(dragEndIndex - dragStartIndex) + 1) * 20}px`,

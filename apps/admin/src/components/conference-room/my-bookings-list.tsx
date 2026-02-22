@@ -112,19 +112,10 @@ export function MyBookingsList() {
 						<TableHeader>
 							<TableRow className="hover:bg-transparent">
 								<TableHead className="h-8 text-xs font-semibold">
-									Title
+									Details
 								</TableHead>
 								<TableHead className="h-8 text-xs font-semibold">
-									Room
-								</TableHead>
-								<TableHead className="h-8 text-xs font-semibold">
-									Date
-								</TableHead>
-								<TableHead className="h-8 text-xs font-semibold">
-									Time
-								</TableHead>
-								<TableHead className="h-8 text-xs font-semibold">
-									Requested For
+									Schedule & Room
 								</TableHead>
 								<TableHead className="h-8 text-xs font-semibold">
 									Attachment
@@ -146,27 +137,38 @@ export function MyBookingsList() {
 										key={booking.id}
 										className="hover:bg-gray-50 transition-colors"
 									>
-										<TableCell className="font-medium text-gray-900 max-w-50 truncate">
-											{booking.purpose}
-										</TableCell>
-										<TableCell>
-											<span
-												className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ${roomColors.label}`}
-											>
+										<TableCell className="max-w-[200px] align-top">
+											<div className="flex flex-col gap-0.5">
 												<span
-													className={`w-2 h-2 rounded-full ${roomColors.dot}`}
-												/>
-												{CONFERENCE_ROOM_LABELS[booking.roomKey]}
-											</span>
+													className="font-medium text-gray-900 truncate"
+													title={booking.purpose}
+												>
+													{booking.purpose}
+												</span>
+												<span
+													className="text-xs text-gray-500 truncate"
+													title={`For: ${booking.requestedFor}`}
+												>
+													For: {booking.requestedFor}
+												</span>
+											</div>
 										</TableCell>
-										<TableCell className="text-gray-700 whitespace-nowrap">
-											{formatFullDate(booking.date)}
-										</TableCell>
-										<TableCell className="text-gray-700 whitespace-nowrap">
-											{booking.startTime} – {booking.endTime}
-										</TableCell>
-										<TableCell className="text-gray-700 max-w-40 truncate">
-											{booking.requestedFor}
+										<TableCell className="align-top">
+											<div className="flex flex-col items-start gap-1">
+												<span
+													className={`inline-flex items-center gap-1.5 text-[11px] leading-none font-medium px-2 py-0.5 rounded-full ${roomColors.label}`}
+												>
+													{CONFERENCE_ROOM_LABELS[booking.roomKey]}
+												</span>
+												<div className="flex flex-col text-xs text-gray-600 mt-0.5">
+													<span className="font-medium">
+														{formatFullDate(booking.date)}
+													</span>
+													<span>
+														{booking.startTime} – {booking.endTime}
+													</span>
+												</div>
+											</div>
 										</TableCell>
 										<TableCell>
 											{booking.attachmentUrl ? (

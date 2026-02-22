@@ -327,6 +327,7 @@ export class RoomBookingService {
 	async update(
 		input: UpdateRoomBookingInput,
 		userId: string,
+		userRole: RoleType,
 	): Promise<RoomBookingResponse> {
 		const booking = await this.db.roomBooking.findUnique({
 			where: { id: input.id },
@@ -353,7 +354,10 @@ export class RoomBookingService {
 			input.startTime !== undefined ||
 			input.endTime !== undefined ||
 			input.room !== undefined;
-		const shouldResetToPending = timesChanged && booking.status === "confirmed";
+		const shouldResetToPending =
+			userRole === "councilor" &&
+			timesChanged &&
+			booking.status === "confirmed";
 
 		if (timesChanged) {
 			// Scenario 3 — Validate new time range
