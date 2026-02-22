@@ -401,7 +401,14 @@ export function AgendaItemCard({
 								/* ── Alignment (sanitizeQuillHtml sets inline style) */
 								.summary-display .ql-align-center  { text-align: center; }
 								.summary-display .ql-align-right   { text-align: right; }
-								.summary-display .ql-align-justify { text-align: justify; }
+								.summary-display .ql-align-justify,
+								.summary-display [style*="text-align: justify"] {
+									text-align: justify;
+									text-align-last: left;
+									hyphens: auto;
+									-webkit-hyphens: auto;
+									word-spacing: -0.01em;
+								}
 								`}</style>
 							</div>
 						</div>

@@ -314,7 +314,7 @@ async function SessionDetailContent({
 																						 * No fixed width on the number — it's just inline.
 																						 */}
 																						<div className="flex items-start gap-3 ml-8 sm:ml-10">
-																							<span className="text-xs sm:text-sm font-bold text-gray-900 shrink-0 w-6 sm:w-8 leading-snug pt-px">
+																							<span className="text-xs sm:text-sm font-bold text-gray-900 shrink-0 leading-snug pt-px">
 																								{groupIdx + 1}.
 																							</span>
 																							<h4 className="text-xs sm:text-sm font-bold text-gray-900 uppercase leading-snug flex-1 min-w-0">
@@ -333,7 +333,7 @@ async function SessionDetailContent({
 																						 * ≈ ml-14 sm:ml-18
 																						 * → "a." aligns under the "COMMITTEE ON …" text.
 																						 */}
-																						<div className="ml-[4.25rem] sm:ml-[5.25rem] space-y-1">
+																						<div className="ml-14 sm:ml-18 space-y-1">
 																							{items.map((item, itemIdx) => {
 																								const doc = item.document!;
 																								const subLetter = `${String.fromCharCode(97 + itemIdx)}.`;
@@ -403,7 +403,7 @@ async function SessionDetailContent({
 																			key={item.id}
 																			className="flex items-start gap-3 ml-8 sm:ml-10 rounded-sm py-0.5 hover:bg-gray-50 transition-colors -mx-1 px-1"
 																		>
-																			<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 w-6 sm:w-8 leading-snug pt-px">
+																			<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 leading-snug pt-px">
 																				{subNumber}
 																			</span>
 																			<div className="flex-1 min-w-0 leading-snug">
@@ -495,7 +495,14 @@ async function SessionDetailContent({
 				.portal-content sub    { vertical-align: sub;   font-size: 0.75em; line-height: 0; }
 				.portal-content .ql-align-center  { text-align: center; }
 				.portal-content .ql-align-right   { text-align: right; }
-				.portal-content .ql-align-justify { text-align: justify; }
+				.portal-content .ql-align-justify,
+				.portal-content [style*="text-align: justify"] {
+					text-align: justify;
+					text-align-last: left;
+					hyphens: auto;
+					-webkit-hyphens: auto;
+					word-spacing: -0.01em;
+				}
 
 				/* ── Inline mode ─────────────────────────────────────────────── */
 				.portal-inline {

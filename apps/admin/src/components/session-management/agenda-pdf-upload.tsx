@@ -21,7 +21,6 @@ interface AgendaPdfUploadProps {
 	selectedSession: Session;
 	onRemoveAgendaPdf?: () => void;
 	isRemovingPdf?: boolean;
-	/** Called after a successful upload + DB save so the parent can invalidate */
 	onUploadSuccess?: () => Promise<void>;
 }
 
@@ -34,7 +33,6 @@ export function AgendaPdfUpload({
 	const [isUploading, setIsUploading] = useState(false);
 	const [isLoadingViewUrl, setIsLoadingViewUrl] = useState(false);
 
-	/** Fetch a signed read URL and open the PDF in a new tab */
 	const handleViewPdf = async () => {
 		if (!selectedSession.agendaFilePath) return;
 		setIsLoadingViewUrl(true);
@@ -54,17 +52,12 @@ export function AgendaPdfUpload({
 		}
 	};
 
-	// ── useSupabaseUpload wired to the backend signed-URL endpoint ──────────
-	// getSignedUploadUrls: fetches a signed URL from our backend, which
-	// also generates the correct storage path inside the "agendas" bucket.
 	const { files, getRootProps, getInputProps, isDragActive, reset } =
 		useSupabaseUpload({
 			path: `session-${selectedSession.id}`,
 			allowedMimeTypes: ["application/pdf"],
 			maxFiles: 1,
 			maxFileSize: MAX_PDF_SIZE,
-			// Signed-URL mode: backend controls the bucket path. No direct
-			// Supabase client credentials needed on the frontend.
 			getSignedUploadUrls: async (_folder, fileNames) => {
 				const [err, data] = await api.sessions.getAgendaUploadUrl({
 					id: selectedSession.id,
@@ -85,7 +78,6 @@ export function AgendaPdfUpload({
 			},
 		});
 
-	// Derived state from the dropzone files array
 	const pickedFile = files.find((f) => f.errors.length === 0) ?? null;
 	const fileError =
 		files[0]?.errors[0]?.message ??
@@ -93,48 +85,36 @@ export function AgendaPdfUpload({
 			? `File exceeds 5 MB limit (${(pickedFile.size / 1024 / 1024).toFixed(1)} MB)`
 			: null);
 
-	// ── Handle upload: call useSupabaseUpload's onUpload then saveAgendaPdf ─
 	const handleUpload = async () => {
 		if (!pickedFile) return;
 		setIsUploading(true);
 		try {
-			// 1. Get signed URL + upload to Supabase storage
 			const [err, urlData] = await api.sessions.getAgendaUploadUrl({
 				id: selectedSession.id,
 				fileName: pickedFile.name,
 			});
-
 			if (err || !urlData) {
 				toast.error("Failed to get upload URL. Please try again.");
 				return;
 			}
-
-			// 2. PUT the file to the signed URL
 			const uploadRes = await fetch(urlData.signedUrl, {
 				method: "PUT",
-				headers: {
-					"Content-Type": "application/pdf",
-				},
+				headers: { "Content-Type": "application/pdf" },
 				body: pickedFile,
 			});
-
 			if (!uploadRes.ok) {
 				toast.error(`Upload failed (${uploadRes.status}). Please try again.`);
 				return;
 			}
-
-			// 3. Persist the path on the session record
 			const [saveErr] = await api.sessions.saveAgendaPdf({
 				id: selectedSession.id,
 				filePath: urlData.path,
 				fileName: pickedFile.name,
 			});
-
 			if (saveErr) {
 				toast.error("File uploaded but failed to save. Please try again.");
 				return;
 			}
-
 			toast.success("Agenda PDF uploaded successfully.");
 			reset();
 			await onUploadSuccess?.();
@@ -146,15 +126,12 @@ export function AgendaPdfUpload({
 		}
 	};
 
+	// ── Content only — no outer wrapper. The parent (ScheduledActionBar)
+	// owns the blue container so there's no double border/background.
 	return (
-		<div className="rounded-lg border border-blue-200 bg-blue-50/60 p-2.5">
-			<label className="flex items-center gap-2 text-sm font-semibold text-blue-800 mb-1.5">
-				<FileText className="h-4 w-4 text-blue-600" />
-				Agenda PDF (Public)
-			</label>
-
-			{/* ── Already has an uploaded PDF ── */}
+		<div className="space-y-1.5">
 			{selectedSession.agendaFilePath ? (
+				/* ── Uploaded ── */
 				<div className="flex items-center gap-2 p-2.5 bg-white border border-green-200 rounded-lg">
 					<CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
 					<div className="flex-1 min-w-0">
@@ -165,7 +142,6 @@ export function AgendaPdfUpload({
 							{selectedSession.agendaFilePath.split("/").pop()}
 						</p>
 					</div>
-					{/* View in new tab */}
 					<Button
 						variant="ghost"
 						size="sm"
@@ -180,7 +156,6 @@ export function AgendaPdfUpload({
 							<ExternalLink className="h-4 w-4" />
 						)}
 					</Button>
-					{/* Remove */}
 					<Button
 						variant="ghost"
 						size="sm"
@@ -197,13 +172,13 @@ export function AgendaPdfUpload({
 					</Button>
 				</div>
 			) : isUploading ? (
-				/* ── Uploading in progress ── */
+				/* ── Uploading ── */
 				<div className="flex items-center justify-center gap-2 p-3 bg-white border border-blue-200 rounded-lg">
 					<Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
 					<span className="text-sm text-blue-700">Uploading PDF...</span>
 				</div>
 			) : pickedFile ? (
-				/* ── File picked, waiting for confirmation ── */
+				/* ── File picked ── */
 				<div className="space-y-2">
 					<div className="flex items-center gap-2 p-2.5 bg-white border border-blue-200 rounded-lg">
 						<FileText className="h-4 w-4 text-blue-600 shrink-0" />
@@ -234,7 +209,7 @@ export function AgendaPdfUpload({
 					</Button>
 				</div>
 			) : (
-				/* ── Dropzone / pick file ── */
+				/* ── Dropzone ── */
 				<div
 					{...getRootProps()}
 					className={`cursor-pointer w-full border border-dashed rounded-lg bg-white flex items-center justify-center px-3 py-2.5 text-sm transition-colors ${
@@ -251,8 +226,8 @@ export function AgendaPdfUpload({
 				</div>
 			)}
 
-			{fileError && <p className="text-xs text-red-600 mt-1">{fileError}</p>}
-			<p className="text-xs text-blue-600/70 mt-1.5">
+			{fileError && <p className="text-xs text-red-600">{fileError}</p>}
+			<p className="text-xs text-blue-600/70">
 				Publicly visible on the portal. Max 5 MB, PDF only.
 			</p>
 		</div>

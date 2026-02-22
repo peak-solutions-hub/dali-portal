@@ -61,28 +61,20 @@ export function SessionSelectorDropdown({
 		setStatusFilter("all");
 	};
 
-	// Filter sessions based on type, status, and search query
 	const filteredSessions = sessions.filter((session) => {
 		if (typeFilter !== "all" && session.type !== typeFilter) return false;
 		if (statusFilter !== "all" && session.status !== statusFilter) return false;
-
 		if (searchQuery) {
 			const query = searchQuery.toLowerCase();
-			const sessionNum = session.sessionNumber.toString();
-			const date = formatSessionDate(session.date).toLowerCase();
-			const type = getSessionTypeLabel(session.type).toLowerCase();
-
 			return (
-				sessionNum.includes(query) ||
-				date.includes(query) ||
-				type.includes(query)
+				session.sessionNumber.toString().includes(query) ||
+				formatSessionDate(session.date).toLowerCase().includes(query) ||
+				getSessionTypeLabel(session.type).toLowerCase().includes(query)
 			);
 		}
-
 		return true;
 	});
 
-	// Group sessions by status
 	const groupedSessions = {
 		draft: filteredSessions.filter((s) => s.status === "draft"),
 		scheduled: filteredSessions.filter((s) => s.status === "scheduled"),
@@ -94,28 +86,32 @@ export function SessionSelectorDropdown({
 
 	return (
 		<div className="border-b border-gray-200 pb-3">
-			<label className="block text-sm font-medium text-gray-700 mb-2">
+			<label className="block text-sm font-medium text-gray-700 mb-1.5">
 				Current Session
 			</label>
 			<Popover open={showSessionDropdown} onOpenChange={setShowSessionDropdown}>
 				<PopoverTrigger asChild>
+					{/*
+					 * Trigger: two-line layout kept but reduced vertical padding.
+					 * py-6 → py-3 saves ~24px without losing readability.
+					 */}
 					<Button
 						variant="outline"
-						className="w-full justify-between px-4 py-6 h-auto border-2 hover:border-[#a60202] hover:bg-gray-50 transition-all cursor-pointer"
+						className="w-full justify-between px-4 py-3 h-auto border-2 hover:border-[#a60202] hover:bg-gray-50 transition-all cursor-pointer"
 					>
 						{selectedSession ? (
 							<div className="flex-1 text-left">
 								<div className="flex items-center gap-2">
-									<span className="text-base font-semibold text-gray-900">
+									<span className="text-sm font-semibold text-gray-900">
 										Session #{selectedSession.sessionNumber}
 									</span>
 									<span
-										className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${getSessionStatusBadgeClass(selectedSession.status)} text-white`}
+										className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium ${getSessionStatusBadgeClass(selectedSession.status)} text-white`}
 									>
 										{getSessionStatusLabel(selectedSession.status)}
 									</span>
 								</div>
-								<div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+								<div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
 									<span>{getSessionTypeLabel(selectedSession.type)}</span>
 									<span>•</span>
 									<span>{formatSessionDate(selectedSession.date)}</span>
@@ -128,22 +124,22 @@ export function SessionSelectorDropdown({
 								</div>
 							</div>
 						) : (
-							<span className="text-gray-500">Select a session...</span>
+							<span className="text-gray-500 text-sm">Select a session...</span>
 						)}
 						<ChevronDown
-							className={`h-5 w-5 text-gray-400 transition-transform ${showSessionDropdown ? "rotate-180" : ""}`}
+							className={`h-4 w-4 text-gray-400 shrink-0 ml-2 transition-transform ${showSessionDropdown ? "rotate-180" : ""}`}
 						/>
 					</Button>
 				</PopoverTrigger>
+
 				<PopoverContent
 					className="p-0"
 					align="start"
 					style={{ width: "var(--radix-popover-trigger-width)" }}
 				>
 					<div className="flex flex-col w-full">
-						{/* Search and Filters */}
-						<div className="p-4 space-y-3 border-b border-gray-200 shrink-0 w-full">
-							{/* Search */}
+						{/* Search + filters — slightly tighter than original p-4 */}
+						<div className="p-3 space-y-2.5 border-b border-gray-200">
 							<div className="relative">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
 								<Input
@@ -151,11 +147,11 @@ export function SessionSelectorDropdown({
 									placeholder="Search sessions..."
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
-									className="pl-9"
+									className="pl-9 h-8 text-sm"
 								/>
 							</div>
 
-							{/* Filters Row */}
+							{/* Filters + inline Clear */}
 							<div className="flex gap-2">
 								<Select value={typeFilter} onValueChange={setTypeFilter}>
 									<SelectTrigger className="flex-1 h-8 text-xs cursor-pointer">
@@ -178,41 +174,32 @@ export function SessionSelectorDropdown({
 										<SelectItem value="completed">Completed</SelectItem>
 									</SelectContent>
 								</Select>
-							</div>
-
-							{/* Active Filters Summary */}
-							<div className="flex items-center justify-between text-xs min-h-5">
-								{hasActiveFilters ? (
-									<>
-										<span className="text-gray-600">
-											{filteredSessions.length} session
-											{filteredSessions.length !== 1 ? "s" : ""} found
-										</span>
-										<button
-											onClick={() => {
-												setTypeFilter("all");
-												setStatusFilter("all");
-												setSearchQuery("");
-											}}
-											className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 text-[#a60202] hover:bg-red-100 font-medium transition-colors cursor-pointer"
-										>
-											<X className="h-3 w-3" />
-											Clear filters
-										</button>
-									</>
-								) : (
-									<span className="text-gray-500">
-										{sessions.length} session
-										{sessions.length !== 1 ? "s" : ""} total
-									</span>
+								{hasActiveFilters && (
+									<button
+										onClick={() => {
+											setTypeFilter("all");
+											setStatusFilter("all");
+											setSearchQuery("");
+										}}
+										className="flex items-center gap-1 px-2 rounded text-xs font-medium bg-red-50 text-[#a60202] hover:bg-red-100 transition-colors cursor-pointer shrink-0"
+									>
+										<X className="h-3 w-3" />
+										Clear
+									</button>
 								)}
 							</div>
+
+							{/* Result count */}
+							<p className="text-xs text-gray-500">
+								{hasActiveFilters
+									? `${filteredSessions.length} of ${sessions.length} sessions found`
+									: `${sessions.length} session${sessions.length !== 1 ? "s" : ""} total`}
+							</p>
 						</div>
 
-						{/* Sessions List */}
-						<div className="p-3 h-96 overflow-y-auto shrink-0 w-full">
-							<div className="space-y-4">
-								{/* Draft Sessions */}
+						{/* Sessions list — h-72 (down from h-96, up from h-56) */}
+						<div className="p-3 h-72 overflow-y-auto">
+							<div className="space-y-3">
 								{groupedSessions.draft.length > 0 &&
 									(statusFilter === "all" || statusFilter === "draft") && (
 										<SessionGroup
@@ -231,7 +218,6 @@ export function SessionSelectorDropdown({
 										/>
 									)}
 
-								{/* Scheduled Sessions */}
 								{groupedSessions.scheduled.length > 0 &&
 									(statusFilter === "all" || statusFilter === "scheduled") && (
 										<SessionGroup
@@ -250,7 +236,6 @@ export function SessionSelectorDropdown({
 										/>
 									)}
 
-								{/* Completed Sessions */}
 								{groupedSessions.completed.length > 0 &&
 									(statusFilter === "all" || statusFilter === "completed") && (
 										<SessionGroup
@@ -269,25 +254,23 @@ export function SessionSelectorDropdown({
 										/>
 									)}
 
-								{/* No Results */}
 								{filteredSessions.length === 0 && (
 									<div className="text-center py-8">
-										<p className="text-sm text-gray-500 mb-3">
+										<p className="text-sm text-gray-500 mb-1">
 											No sessions found
 										</p>
-										<p className="text-xs text-gray-400 mb-4">
+										<p className="text-xs text-gray-400">
 											Try adjusting your filters or search query
 										</p>
 									</div>
 								)}
 
-								{/* Load more sessions from server */}
 								{hasNextPage && (
 									<button
 										type="button"
 										onClick={() => onLoadMoreSessions?.()}
 										disabled={isFetchingNextPage}
-										className="w-full mt-2 py-2 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										className="w-full mt-1 py-2 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 									>
 										{isFetchingNextPage
 											? "Loading more sessions..."
@@ -303,7 +286,6 @@ export function SessionSelectorDropdown({
 	);
 }
 
-/** Renders a status-grouped list of session buttons with "Show more" pagination */
 function SessionGroup({
 	label,
 	dotColor,
@@ -323,24 +305,24 @@ function SessionGroup({
 }) {
 	return (
 		<div>
-			<div className="flex items-center gap-2 px-2 mb-2">
+			<div className="flex items-center gap-2 px-2 mb-1.5">
 				<div className={`h-2 w-2 rounded-full ${dotColor}`} />
-				<h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+				<h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
 					{label} ({sessions.length})
 				</h3>
 			</div>
-			<div className="space-y-1">
+			<div className="space-y-0.5">
 				{sessions.slice(0, limit).map((session) => (
 					<button
 						key={session.id}
 						onClick={() => onSelect(session.id)}
-						className={`w-full text-left px-3 py-2.5 rounded-lg transition-all cursor-pointer ${
+						className={`w-full text-left px-3 py-2 rounded-lg transition-all cursor-pointer ${
 							selectedSessionId === session.id
 								? "bg-red-50 border border-[#a60202]"
 								: "hover:bg-gray-50 border border-transparent"
 						}`}
 					>
-						<div className="flex items-center gap-2 mb-1">
+						<div className="flex items-center gap-2 mb-0.5">
 							<span className="text-sm font-semibold text-gray-900">
 								Session #{session.sessionNumber}
 							</span>
@@ -350,10 +332,8 @@ function SessionGroup({
 								{getSessionStatusLabel(session.status)}
 							</span>
 						</div>
-						<div className="flex items-center gap-1.5 text-xs text-gray-600">
-							<span className="font-medium">
-								{getSessionTypeLabel(session.type)}
-							</span>
+						<div className="flex items-center gap-1.5 text-xs text-gray-500">
+							<span>{getSessionTypeLabel(session.type)}</span>
 							<span>•</span>
 							<span>{formatSessionDate(session.date)}</span>
 							{session.time && (

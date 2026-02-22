@@ -242,7 +242,7 @@ export const DOCUMENT_TYPE_BADGE_COLORS: Record<string, string> = {
  * Human-readable labels for document classification enum values.
  * Converts snake_case DB values to title-case labels.
  */
-const CLASSIFICATION_LABELS: Record<string, string> = {
+export const CLASSIFICATION_LABELS: Record<string, string> = {
 	agriculture_fisheries_aquatic_and_natural_resources:
 		"Agriculture, Fisheries, Aquatic & Natural Resources",
 	animal_welfare: "Animal Welfare",
