@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "react-quill-new/dist/quill.snow.css";
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
@@ -13,13 +13,46 @@ interface RichTextEditorProps {
 	placeholder?: string;
 }
 
+/**
+ * Strip HTML tags and decode common HTML entities to get accurate plain-text
+ * character count. Quill encodes spaces as &nbsp; (6 chars) which inflates the
+ * count if we just strip tags without decoding entities first.
+ */
+function getPlainTextLength(html: string): number {
+	if (!html) return 0;
+	return (
+		html
+			// Decode common HTML entities before stripping tags
+			.replace(/&nbsp;/gi, " ")
+			.replace(/&amp;/gi, "&")
+			.replace(/&lt;/gi, "<")
+			.replace(/&gt;/gi, ">")
+			.replace(/&quot;/gi, '"')
+			.replace(/&#39;/gi, "'")
+			// Strip all remaining HTML tags
+			.replace(/<[^>]*>/g, "").length
+	);
+}
+
 export function RichTextEditor({
 	value,
 	onChange,
 	maxLength = 1000,
 	placeholder,
 }: RichTextEditorProps) {
-	const [textLength, setTextLength] = useState(0);
+	// Initialize count from the current value so it's correct on first render
+	// (fixes the "shows 0 until you start typing" bug).
+	const [textLength, setTextLength] = useState(() => getPlainTextLength(value));
+
+	// Keep count in sync if the value prop changes externally (e.g. when editing
+	// a different document's summary the draft is loaded into the editor).
+	const prevValueRef = useRef(value);
+	useEffect(() => {
+		if (prevValueRef.current !== value) {
+			prevValueRef.current = value;
+			setTextLength(getPlainTextLength(value));
+		}
+	}, [value]);
 
 	const modules = useMemo(
 		() => ({
@@ -50,15 +83,10 @@ export function RichTextEditor({
 
 	const handleChange = useCallback(
 		(content: string) => {
-			// Quill produces <p><br></p> for truly empty content.
-			// Only treat exact empty-editor states as empty — do NOT strip
-			// content that has HTML structure (line breaks, paragraphs).
 			const isEmpty =
 				!content || content === "<p><br></p>" || content === "<p></p>";
 
-			const plainText = content.replace(/<[^>]*>/g, "");
-			setTextLength(plainText.length);
-
+			setTextLength(getPlainTextLength(content));
 			onChange(isEmpty ? "" : content);
 		},
 		[onChange],
@@ -118,15 +146,11 @@ export function RichTextEditor({
 				.rich-text-editor-wrapper .ql-editor ol {
 					padding-left: 1.25rem;
 				}
-				.rich-text-editor-wrapper .ql-editor ul,
-				.rich-text-editor-wrapper .ql-editor ol {
-				padding-left: 1.25rem;
-				}
 				.rich-text-editor-wrapper .ql-editor li.ql-indent-1 {
-				padding-left: 2.5rem;
+					padding-left: 2.5rem;
 				}
 				.rich-text-editor-wrapper .ql-editor li.ql-indent-2 {
-				padding-left: 3.75rem;
+					padding-left: 3.75rem;
 				}
 			`}</style>
 		</div>

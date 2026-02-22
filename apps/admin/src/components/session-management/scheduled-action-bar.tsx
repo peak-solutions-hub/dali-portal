@@ -10,9 +10,8 @@ interface ScheduledActionBarProps {
 	actionInFlight?: string | null;
 	onShowUnpublishDialog: () => void;
 	onShowMarkCompleteDialog: () => void;
-	onUploadAgendaPdf?: (file: File) => void;
 	onRemoveAgendaPdf?: () => void;
-	isUploadingPdf?: boolean;
+	onAgendaPdfUploadSuccess?: () => Promise<void>;
 	isRemovingPdf?: boolean;
 }
 
@@ -21,9 +20,8 @@ export function ScheduledActionBar({
 	actionInFlight,
 	onShowUnpublishDialog,
 	onShowMarkCompleteDialog,
-	onUploadAgendaPdf,
 	onRemoveAgendaPdf,
-	isUploadingPdf,
+	onAgendaPdfUploadSuccess,
 	isRemovingPdf,
 }: ScheduledActionBarProps) {
 	return (
@@ -31,9 +29,8 @@ export function ScheduledActionBar({
 			{/* Agenda PDF Upload — prominent, above actions */}
 			<AgendaPdfUpload
 				selectedSession={selectedSession}
-				onUploadAgendaPdf={onUploadAgendaPdf}
 				onRemoveAgendaPdf={onRemoveAgendaPdf}
-				isUploadingPdf={isUploadingPdf}
+				onUploadSuccess={onAgendaPdfUploadSuccess}
 				isRemovingPdf={isRemovingPdf}
 			/>
 

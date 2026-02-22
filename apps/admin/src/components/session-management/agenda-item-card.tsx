@@ -30,8 +30,10 @@ import {
 	getClassificationLabel,
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
-import { format, isBefore, startOfDay } from "date-fns";
+import { format } from "date-fns";
+import parse from "html-react-parser";
 import { useState } from "react";
+import { sanitizeQuillHtml } from "@/utils/quill-html-utils.client";
 import { RichTextEditor } from "./rich-text-editor";
 
 interface Document {
@@ -129,8 +131,6 @@ export function AgendaItemCard({
 	);
 
 	// Derive whether the current contentText is a custom entry (not matching any known session).
-	// This handles page-refresh restoration: if contentText has a value but matches
-	// no completed session, the custom inputs must be shown.
 	const contentMatchesKnownSession =
 		!!contentText &&
 		minutesSessions.some((s) => {
@@ -153,7 +153,6 @@ export function AgendaItemCard({
 		}
 		if (sessionId === "__custom__") {
 			setIsCustomMinutes(true);
-			// Don't clear contentText yet — keep whatever partial text exists
 			return;
 		}
 		setIsCustomMinutes(false);
@@ -316,46 +315,99 @@ export function AgendaItemCard({
 								<p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide font-medium">
 									Public summary
 								</p>
-								<div
-									className="summary-display text-xs text-gray-700 leading-relaxed break-words"
-									dangerouslySetInnerHTML={{ __html: doc.summary }}
-								/>
+								{/* html-react-parser replaces dangerouslySetInnerHTML.        */}
+								{/* It converts the HTML string into real React elements so    */}
+								{/* there is no raw HTML injection — XSS-safe by construction. */}
+								<div className="summary-display text-gray-700">
+									{parse(sanitizeQuillHtml(doc.summary) ?? "")}
+								</div>
 								<style jsx global>{`
+								/*
+								 * Mirrors the Quill snow editor so the public summary looks
+								 * identical to what the user typed in the editor.
+								 */
+
+								/* ── Base ──────────────────────────────────────── */
+								.summary-display {
+									font-size: 0.75rem;
+									line-height: 1.42;
+									overflow-wrap: break-word;
+									word-break: normal;
+								}
+
+								/* ── Paragraphs ─────────────────────────────────── */
+								/* Every line is wrapped in <p>. Empty lines are     */
+								/* <p><br></p> and must render as a full blank line. */
+								.summary-display p {
+									margin: 0;
+									padding: 0;
+								}
+
+								/* ── Text indentation on <p> (ql-indent-N classes) ─ */
+								/* 3em per level, matching Quill snow default          */
+								.summary-display .ql-indent-1:not(li) { padding-left: 3em; }
+								.summary-display .ql-indent-2:not(li) { padding-left: 6em; }
+								.summary-display .ql-indent-3:not(li) { padding-left: 9em; }
+								.summary-display .ql-indent-4:not(li) { padding-left: 12em; }
+								.summary-display .ql-indent-5:not(li) { padding-left: 15em; }
+								.summary-display .ql-indent-6:not(li) { padding-left: 18em; }
+								.summary-display .ql-indent-7:not(li) { padding-left: 21em; }
+								.summary-display .ql-indent-8:not(li) { padding-left: 24em; }
+
+								/* ── Lists ──────────────────────────────────────── */
+								/*
+								 * Root fix: give ul/ol a proper left padding so the bullet
+								 * marker has room to render OUTSIDE the text column.
+								 * list-style-position: outside (default) means markers sit in
+								 * the padding area — so the container needs the space.
+								 * Setting padding-left: 0 (old) collapsed that space and pushed
+								 * bullets into the text, causing the wide-indent visual bug.
+								 */
 								.summary-display ul,
 								.summary-display ol {
-									padding-left: 1.5rem;
-									margin-bottom: 0.25rem;
+									padding-left: 1.5em;
+									margin: 0.2em 0;
+									list-style-position: outside;
 								}
 								.summary-display li {
-									list-style-type: disc;
 									display: list-item;
-									margin-bottom: 0.2rem;
-									padding-left: 0.25rem;
+									margin: 0;
+									padding-left: 0;
 								}
-								.summary-display ol li {
-									list-style-type: decimal;
-								}
-								.summary-display li.ql-indent-1 {
-									margin-left: 1.5rem;
-									list-style-type: circle;
-								}
-								.summary-display li.ql-indent-2 {
-									margin-left: 3rem;
-									list-style-type: square;
-								}
-								.summary-display li.ql-indent-3 {
-									margin-left: 4.5rem;
-									list-style-type: disc;
-								}
-								.summary-display p {
-									margin-bottom: 0.25rem;
-									word-break: break-word;
-								}
+								.summary-display ul > li { list-style-type: disc; }
+								.summary-display ol > li { list-style-type: decimal; }
+
+								/* ── List indentation (ql-indent-N on <li>) ─────── */
+								/* Quill snow: base 1.5em + 2.5em per indent level.  */
+								/* We use padding-left on the <li> itself so the      */
+								/* marker stays at the correct column.               */
+								.summary-display li.ql-indent-1 { padding-left: 2.5em;  list-style-type: circle;  }
+								.summary-display li.ql-indent-2 { padding-left: 5em;    list-style-type: square;  }
+								.summary-display li.ql-indent-3 { padding-left: 7.5em;  list-style-type: disc;    }
+								.summary-display li.ql-indent-4 { padding-left: 10em;   list-style-type: circle;  }
+								.summary-display li.ql-indent-5 { padding-left: 12.5em; list-style-type: square;  }
+								.summary-display li.ql-indent-6 { padding-left: 15em;   list-style-type: disc;    }
+								.summary-display li.ql-indent-7 { padding-left: 17.5em; list-style-type: circle;  }
+								.summary-display li.ql-indent-8 { padding-left: 20em;   list-style-type: square;  }
+
+								/* ── Inline formatting ──────────────────────────── */
+								.summary-display strong { font-weight: 700; }
+								.summary-display em     { font-style: italic; }
+								.summary-display u      { text-decoration: underline; }
+								.summary-display s      { text-decoration: line-through; }
+								.summary-display sup    { vertical-align: super; font-size: 0.75em; line-height: 0; }
+								.summary-display sub    { vertical-align: sub;   font-size: 0.75em; line-height: 0; }
+
+								/* ── Alignment (sanitizeQuillHtml sets inline style) */
+								.summary-display .ql-align-center  { text-align: center; }
+								.summary-display .ql-align-right   { text-align: right; }
+								.summary-display .ql-align-justify { text-align: justify; }
 								`}</style>
 							</div>
 						</div>
 					</div>
 				)}
+
 				{/* Summary editor */}
 				{editingSummaryId === doc.id && (
 					<div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-2 bg-blue-50/50">
@@ -407,10 +459,6 @@ export function AgendaItemCard({
 		);
 
 		if (isDndEnabled) {
-			// draggableId must be globally unique across ALL sections.
-			// A document that appears in multiple sections would share doc.id,
-			// causing hello-pangea/dnd to confuse the two DOM nodes and make
-			// the "top" duplicate vanish when dragging.
 			const uniqueDraggableId = `${item.id}::${doc.id}`;
 			return (
 				<Draggable
@@ -580,17 +628,18 @@ export function AgendaItemCard({
 					{contentText && (
 						<div className="text-xs text-gray-500 italic mt-1">
 							<span>Preview: </span>
-							<span dangerouslySetInnerHTML={{ __html: contentText }} />
+							{/* Plain text only here — no HTML formatting needed */}
+							<span>{contentText}</span>
 						</div>
 					)}
 				</div>
 			)}
+
 			{isMinutesSection && !onContentTextChange && contentText && (
 				<div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-					<div
-						className="text-sm text-gray-700 [&>ul]:list-disc [&>ul]:ml-4 [&>ol]:list-decimal [&>ol]:ml-4"
-						dangerouslySetInnerHTML={{ __html: contentText }}
-					/>
+					<div className="text-sm text-gray-700">
+						{parse(sanitizeQuillHtml(contentText) ?? "")}
+					</div>
 				</div>
 			)}
 
@@ -659,8 +708,7 @@ export function AgendaItemCard({
 				</Droppable>
 			)}
 
-			{/* Drag a document here — wraps a Droppable when empty so it accepts drops;
-			     plain button when docs already exist (the list droppable handles drops there) */}
+			{/* Drag a document here */}
 			{onAddDocument &&
 				(documents.length === 0 && isDndEnabled ? (
 					<Droppable droppableId={item.id}>

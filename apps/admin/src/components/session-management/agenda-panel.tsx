@@ -51,10 +51,9 @@ export function AgendaPanel({
 	onViewDocument,
 	hasChanges = true,
 	changedSections,
-	onUploadAgendaPdf,
 	onRemoveAgendaPdf,
-	isUploadingPdf = false,
 	isRemovingPdf = false,
+	onAgendaPdfUploadSuccess,
 	isLoadingSession = false,
 	onDndReorder,
 	onDiscardChanges,
@@ -77,10 +76,10 @@ export function AgendaPanel({
 	onViewDocument?: (documentId: string) => void;
 	hasChanges?: boolean;
 	changedSections?: Set<string>;
-	onUploadAgendaPdf?: (file: File) => void;
 	onRemoveAgendaPdf?: () => void;
-	isUploadingPdf?: boolean;
 	isRemovingPdf?: boolean;
+	/** Called after agenda PDF is successfully uploaded so parent can invalidate */
+	onAgendaPdfUploadSuccess?: () => Promise<void>;
 	isLoadingSession?: boolean;
 	onDndReorder?: (
 		sourceSectionId: string,
@@ -280,9 +279,8 @@ export function AgendaPanel({
 									onShowMarkCompleteDialog={() =>
 										setShowMarkCompleteDialog(true)
 									}
-									onUploadAgendaPdf={onUploadAgendaPdf}
 									onRemoveAgendaPdf={onRemoveAgendaPdf}
-									isUploadingPdf={isUploadingPdf}
+									onAgendaPdfUploadSuccess={onAgendaPdfUploadSuccess}
 									isRemovingPdf={isRemovingPdf}
 								/>
 							)}

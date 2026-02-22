@@ -51,7 +51,6 @@ export function useSessionActions({
 	const getDraft = useDraftStore((s) => s.getDraft);
 
 	const [actionInFlight, setActionInFlight] = useState<string | null>(null);
-	const [isUploadingPdf, setIsUploadingPdf] = useState(false);
 	const [isRemovingPdf, setIsRemovingPdf] = useState(false);
 	const [isLoadingSession, setIsLoadingSession] = useState(false);
 	const [pendingSaveForScheduled, setPendingSaveForScheduled] = useState(false);
@@ -299,51 +298,9 @@ export function useSessionActions({
 		}
 	}, [selectedSession, resetEditorState, invalidateSessions]);
 
-	const handleUploadAgendaPdf = useCallback(
-		async (file: File) => {
-			if (!selectedSession) return;
-			setIsUploadingPdf(true);
-			try {
-				const [urlErr, urlData] = await api.sessions.getAgendaUploadUrl({
-					id: selectedSession,
-					fileName: file.name,
-				});
-				if (urlErr || !urlData) {
-					toast.error("Failed to get upload URL. Please try again.");
-					return;
-				}
-
-				const formData = new FormData();
-				formData.append("", file);
-				const uploadRes = await fetch(urlData.signedUrl, {
-					method: "PUT",
-					body: formData,
-				});
-				if (!uploadRes.ok) {
-					toast.error("Failed to upload file. Please try again.");
-					return;
-				}
-
-				const [saveErr] = await api.sessions.saveAgendaPdf({
-					id: selectedSession,
-					filePath: urlData.path,
-					fileName: file.name,
-				});
-				if (saveErr) {
-					toast.error("Failed to save agenda PDF. Please try again.");
-					return;
-				}
-
-				toast.success("Agenda PDF uploaded successfully.");
-				await invalidateSessions();
-			} catch {
-				toast.error("Failed to upload agenda PDF. Please try again.");
-			} finally {
-				setIsUploadingPdf(false);
-			}
-		},
-		[selectedSession, invalidateSessions],
-	);
+	// handleUploadAgendaPdf removed — upload is now handled entirely inside
+	// AgendaPdfUpload component using useSupabaseUpload + direct API calls.
+	// The component calls onUploadSuccess (= invalidateSessions) when done.
 
 	const handleRemoveAgendaPdf = useCallback(async () => {
 		if (!selectedSession) return;
@@ -385,7 +342,6 @@ export function useSessionActions({
 
 	return {
 		actionInFlight,
-		isUploadingPdf,
 		isRemovingPdf,
 		isLoadingSession,
 		handleSessionChange,
@@ -394,7 +350,6 @@ export function useSessionActions({
 		handlePublish,
 		handleUnpublish,
 		handleDeleteDraft,
-		handleUploadAgendaPdf,
 		handleRemoveAgendaPdf,
 		handleMarkComplete,
 	};

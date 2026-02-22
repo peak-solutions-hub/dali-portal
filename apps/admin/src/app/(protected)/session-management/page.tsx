@@ -136,7 +136,6 @@ function AgendaBuilderPage() {
 	});
 	const {
 		actionInFlight,
-		isUploadingPdf,
 		isRemovingPdf,
 		isLoadingSession,
 		handleSessionChange: loadSession,
@@ -145,7 +144,6 @@ function AgendaBuilderPage() {
 		handlePublish,
 		handleUnpublish,
 		handleDeleteDraft,
-		handleUploadAgendaPdf,
 		handleRemoveAgendaPdf,
 		handleMarkComplete,
 	} = actions;
@@ -281,9 +279,8 @@ function AgendaBuilderPage() {
 							onViewDocument={setViewerDocumentId}
 							hasChanges={hasChanges}
 							changedSections={changedSections}
-							onUploadAgendaPdf={handleUploadAgendaPdf}
 							onRemoveAgendaPdf={handleRemoveAgendaPdf}
-							isUploadingPdf={isUploadingPdf}
+							onAgendaPdfUploadSuccess={invalidateSessions}
 							isRemovingPdf={isRemovingPdf}
 							isLoadingSession={isLoadingSession}
 							onDndReorder={handleDndReorder}
