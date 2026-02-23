@@ -1,7 +1,7 @@
 import type { InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
-import { Clock, Info, Mail, User } from "@repo/ui/lib/lucide-react";
+import { Clock, Info, Mail, User, UserCheck } from "@repo/ui/lib/lucide-react";
 
 interface InquirySidebarProps {
 	ticket: InquiryTicketWithMessagesAndAttachmentsResponse;
@@ -32,6 +32,24 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 									{statusDescriptions[ticket.status]}
 								</p>
 							</div>
+						</div>
+
+						<div>
+							<p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1">
+								Handled By
+							</p>
+							{ticket.user ? (
+								<div className="flex items-center gap-2 mt-1 text-sm font-medium">
+									<div className="bg-gray-100 p-1.5 rounded-full">
+										<UserCheck className="h-3 w-3 text-gray-600" />
+									</div>
+									{ticket.user.fullName}
+								</div>
+							) : (
+								<p className="text-sm text-gray-400 italic mt-1">
+									Pending assignment
+								</p>
+							)}
 						</div>
 
 						<div>

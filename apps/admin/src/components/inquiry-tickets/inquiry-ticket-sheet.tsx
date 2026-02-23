@@ -336,11 +336,41 @@ export function InquiryTicketSheet({
 									</div>
 								</div>
 							) : !ticket.assignedTo ? (
-								<div className="p-6 bg-muted/30 text-center space-y-3">
-									<p className="text-sm text-muted-foreground">
-										This inquiry is unassigned. Assign it to yourself to reply.
-									</p>
-								</div>
+								<>
+									{/* Disabled composer overlay — only Assign to Me / Reject are live */}
+									<div className="relative">
+										<MessageComposer
+											isClosed={isClosed}
+											closedStatus={ticket.status}
+											totalAttachments={totalAttachments}
+											onSend={handleSend}
+											isSending={isSending}
+											getSignedUploadUrls={getSignedUploadUrls}
+										/>
+										{/* Overlay sits on top and blocks click events by default */}
+										<div className="absolute inset-0 bg-muted/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-1 cursor-not-allowed border border-border">
+											<LockKeyhole className="h-5 w-5 text-foreground" />
+											<p className="text-xs text-foreground font-medium">
+												Assign this inquiry to reply
+											</p>
+										</div>
+									</div>
+
+									<InquiryTicketActions
+										ticket={ticket}
+										onAssign={() =>
+											handleAssignToMe(() => openConfirmationDialog("assign"))
+										}
+										onResolve={() =>
+											handleResolve(() => openConfirmationDialog("resolve"))
+										}
+										onReject={() =>
+											handleReject(() => openConfirmationDialog("reject"))
+										}
+										isUpdating={isUpdatingStatus}
+										currentUserId={userProfile?.id}
+									/>
+								</>
 							) : (
 								<>
 									<MessageComposer

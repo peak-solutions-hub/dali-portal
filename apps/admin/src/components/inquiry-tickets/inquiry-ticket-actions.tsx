@@ -21,9 +21,12 @@ export function InquiryTicketActions({
 }: InquiryTicketActionsProps) {
 	const isAssigned = !!ticket.user;
 	const isAssignedToCurrentUser = ticket.assignedTo === currentUserId;
+	const isClosed = ticket.status === "resolved" || ticket.status === "rejected";
+
+	if (isClosed) return null;
 
 	return (
-		<div className="space-y-3 mt-6">
+		<div className="space-y-3 px-6 pb-6 pt-4">
 			<p className="text-sm font-medium text-muted-foreground">Actions</p>
 			<div className="grid grid-cols-3 gap-2">
 				{isAssigned ? (
