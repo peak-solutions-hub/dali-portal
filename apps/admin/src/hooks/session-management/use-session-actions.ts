@@ -1,14 +1,16 @@
 "use client";
 
 import type { SessionManagementSession as SessionUI } from "@repo/shared";
+import { SessionStatus } from "@repo/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
 import { useDraftStore } from "@/stores";
+import { UseAgendaBuilderReturn } from "./use-agenda-builder";
 import type {
 	AttachedDocument,
-	UseAgendaBuilderReturn,
-} from "./use-agenda-builder";
+	CustomTextItem,
+} from "./use-agenda-builder.types";
 
 export interface UseSessionActionsOptions {
 	selectedSession: string | null;
@@ -30,17 +32,21 @@ export function useSessionActions({
 	const {
 		contentTextMap,
 		documentsByAgendaItem,
+		customTextsBySection,
 		agendaItemOrder,
 		hasChanges,
 		setContentTextMap,
 		setDocumentsByAgendaItem,
+		setCustomTextsBySection,
 		buildAgendaItems,
 		snapshotSavedState,
+		snapshotWithOverrides,
 		resetEditorState,
 		loadEditorState,
 		normalizeMap,
 		savedContentTextRef,
 		savedDocsByAgendaRef,
+		savedCustomTextsRef,
 		savedAgendaOrderRef,
 		defaultOrder,
 	} = builder;
@@ -54,36 +60,29 @@ export function useSessionActions({
 	const [isRemovingPdf, setIsRemovingPdf] = useState(false);
 	const [isLoadingSession, setIsLoadingSession] = useState(false);
 	const [pendingSaveForScheduled, setPendingSaveForScheduled] = useState(false);
+	/** IDs (doc or custom-text) currently mid-remove on a scheduled session. */
+	const [removingItemIds, setRemovingItemIds] = useState<Set<string>>(
+		new Set(),
+	);
 
 	// Guard so the sync effect doesn't run while the server load is in progress
 	const isLoadingRef = useRef(false);
 
-	/** Wrapper that flags a pending save when docs change on a scheduled session */
+	/**
+	 * Wrapper that flags a pending save when docs change on a scheduled session.
+	 * Draft persistence is handled entirely by the debounced effect below —
+	 * no inline saveDraft call here to avoid stale-closure bugs when multiple
+	 * documents are added to a section in rapid succession.
+	 */
 	const handleDocumentsChange = useCallback(
 		(docs: Record<string, AttachedDocument[]>) => {
 			setDocumentsByAgendaItem(docs);
 			const session = sessions.find((s) => s.id === selectedSession);
-			if (session?.status === "scheduled") {
+			if (session?.status === SessionStatus.SCHEDULED) {
 				setPendingSaveForScheduled(true);
 			}
-			// Immediately sync the updated docs to localStorage so that a refresh
-			// after a document removal doesn't restore the stale (pre-removal) draft.
-			if (selectedSession) {
-				saveDraft(selectedSession, {
-					contentTextMap,
-					documentsByAgendaItem: docs,
-					agendaItemOrder,
-				});
-			}
 		},
-		[
-			sessions,
-			selectedSession,
-			setDocumentsByAgendaItem,
-			saveDraft,
-			contentTextMap,
-			agendaItemOrder,
-		],
+		[sessions, selectedSession, setDocumentsByAgendaItem],
 	);
 
 	/** Load a session's saved agenda data into the builder */
@@ -98,31 +97,73 @@ export function useSessionActions({
 				if (!err && data && data.agendaItems.length > 0) {
 					const newContentTextMap: Record<string, string> = {};
 					const newDocsByAgenda: Record<string, AttachedDocument[]> = {};
+					const newCustomTexts: Record<string, CustomTextItem[]> = {};
 
-					for (const agendaItem of data.agendaItems) {
+					// Sort by DB orderIndex so docs + custom texts load in their true saved order
+					const sorted = [...data.agendaItems].sort(
+						(a, b) => a.orderIndex - b.orderIndex,
+					);
+
+					for (const agendaItem of sorted) {
 						const sectionKey = agendaItem.section;
 
 						if (agendaItem.document) {
+							// ── Linked document ──────────────────────────────────────────
 							const docs = newDocsByAgenda[sectionKey] || [];
 							docs.push({
 								id: agendaItem.document.id,
-								key: agendaItem.document.codeNumber,
+								codeNumber: agendaItem.document.codeNumber,
 								title: agendaItem.document.title,
 								summary: agendaItem.contentText ?? undefined,
 								classification: agendaItem.document.classification ?? undefined,
+								// Carry the DB orderIndex — shared namespace with custom texts
+								orderIndex: agendaItem.orderIndex,
 							});
 							newDocsByAgenda[sectionKey] = docs;
+						} else if (
+							// ── Custom text item ─────────────────────────────────────────
+							// Detect via the isCustomText flag (set by adminGetById) OR by
+							// the <!--classification:--> marker we embed in contentText for
+							// committee custom texts — whichever the API returns.
+							(agendaItem.isCustomText ||
+								agendaItem.contentText?.startsWith("<!--classification:")) &&
+							agendaItem.contentText
+						) {
+							const existing = newCustomTexts[sectionKey] || [];
+							// Strip the encoded classification marker before loading into the editor.
+							const classificationMarkerMatch = agendaItem.contentText.match(
+								/^<!--classification:(.*?)-->/,
+							);
+							const cleanContent = agendaItem.contentText.replace(
+								/^<!--classification:.*?-->/,
+								"",
+							);
+							const inferredClassification =
+								classificationMarkerMatch?.[1] ??
+								agendaItem.classification ??
+								undefined;
+							existing.push({
+								id: agendaItem.id,
+								content: cleanContent,
+								classification: inferredClassification,
+								orderIndex: agendaItem.orderIndex,
+							});
+							newCustomTexts[sectionKey] = existing;
 						} else if (agendaItem.contentText) {
+							// ── Plain section text (minutes, header text, etc.) ──────────
+							// Overwrite is intentional — section text is a single value per section.
 							newContentTextMap[sectionKey] = agendaItem.contentText;
 						}
 					}
 
 					setContentTextMap(newContentTextMap);
 					setDocumentsByAgendaItem(newDocsByAgenda);
+					setCustomTextsBySection(newCustomTexts);
 
 					// Snapshot the saved state for dirty-tracking
 					savedContentTextRef.current = normalizeMap(newContentTextMap);
 					savedDocsByAgendaRef.current = normalizeMap(newDocsByAgenda);
+					savedCustomTextsRef.current = normalizeMap(newCustomTexts);
 					savedAgendaOrderRef.current = JSON.stringify(defaultOrder);
 				}
 
@@ -133,6 +174,7 @@ export function useSessionActions({
 						localDraft.contentTextMap,
 						localDraft.documentsByAgendaItem,
 						localDraft.agendaItemOrder,
+						localDraft.customTextsBySection,
 					);
 				}
 			} finally {
@@ -144,38 +186,50 @@ export function useSessionActions({
 			resetEditorState,
 			setContentTextMap,
 			setDocumentsByAgendaItem,
+			setCustomTextsBySection,
 			normalizeMap,
 			savedContentTextRef,
 			savedDocsByAgendaRef,
+			savedCustomTextsRef,
 			savedAgendaOrderRef,
 			defaultOrder,
 			getDraft,
+			loadEditorState,
 		],
 	);
 
-	// -----------------------------------------------------------------------
-	// Persist unsaved changes to localStorage while the user is editing.
-	// - When hasChanges is true: write the current state to the draft store.
-	// - When hasChanges is false: clear the draft so a stale entry never gets
-	//   restored on refresh (e.g. user reverts a custom minutes date back to None).
-	// -----------------------------------------------------------------------
+	// Persist unsaved changes to localStorage; clear when no changes remain.
+	// Debounced by 300 ms so that rapid multi-doc additions (which trigger many
+	// sequential state updates) only flush once everything has settled — preventing
+	// stale intermediate snapshots from being written to the draft store.
 	useEffect(() => {
 		if (!selectedSession || isLoadingRef.current) return;
-		if (hasChanges) {
-			saveDraft(selectedSession, {
-				contentTextMap,
-				documentsByAgendaItem,
-				agendaItemOrder,
-			});
-		} else {
+
+		if (!hasChanges) {
 			// No unsaved changes — remove any stale draft so a refresh stays clean.
 			clearDraft(selectedSession);
+			return;
 		}
+
+		// Capture a fresh snapshot into the closure right now (not stale).
+		const snapshot = {
+			contentTextMap,
+			documentsByAgendaItem,
+			agendaItemOrder,
+			customTextsBySection,
+		};
+
+		const timer = setTimeout(() => {
+			saveDraft(selectedSession, snapshot);
+		}, 300);
+
+		return () => clearTimeout(timer);
 	}, [
 		hasChanges,
 		selectedSession,
 		contentTextMap,
 		documentsByAgendaItem,
+		customTextsBySection,
 		agendaItemOrder,
 		saveDraft,
 		clearDraft,
@@ -194,11 +248,20 @@ export function useSessionActions({
 			if (err) {
 				toast.error("Failed to save changes.");
 			} else {
+				// Snapshot current state so hasChanges → false and no unsaved banner shows.
+				snapshotSavedState();
+				clearDraft(selectedSession);
 				toast.success("Changes saved.");
 			}
 		};
 		save();
-	}, [pendingSaveForScheduled, selectedSession, buildAgendaItems]);
+	}, [
+		pendingSaveForScheduled,
+		selectedSession,
+		buildAgendaItems,
+		snapshotSavedState,
+		clearDraft,
+	]);
 
 	const handleSaveDraft = useCallback(async () => {
 		if (!selectedSession) return;
@@ -340,12 +403,153 @@ export function useSessionActions({
 		}
 	}, [selectedSession, invalidateSessions]);
 
+	/** Non-optimistic remove for a document on a scheduled session. Saves to server first; applies state only on success. */
+	const handleScheduledRemoveDocument = useCallback(
+		async (agendaItemId: string, documentId: string) => {
+			if (!selectedSession) return;
+
+			// Count total items across the entire session — block removal only if it's the very last one
+			const totalDocsInSession = Object.values(documentsByAgendaItem).reduce(
+				(sum, docs) => sum + docs.length,
+				0,
+			);
+			const totalCustomTextsInSession = Object.values(
+				customTextsBySection,
+			).reduce((sum, texts) => sum + texts.length, 0);
+			const totalItemsInSession =
+				totalDocsInSession + totalCustomTextsInSession;
+			if (totalItemsInSession <= 1) {
+				toast.error("At least one item must remain in the session.");
+				return;
+			}
+
+			setRemovingItemIds((prev) => new Set([...prev, documentId]));
+
+			const newDocs = {
+				...documentsByAgendaItem,
+				[agendaItemId]: (documentsByAgendaItem[agendaItemId] ?? []).filter(
+					(d) => d.id !== documentId,
+				),
+			};
+
+			try {
+				const [err] = await api.sessions.saveDraft({
+					id: selectedSession,
+					agendaItems: buildAgendaItems({ docs: newDocs }),
+				});
+				if (err) {
+					toast.error("Failed to remove item. Please try again.");
+				} else {
+					// Apply state change only after server confirms success
+					setDocumentsByAgendaItem(newDocs);
+					// Snapshot with the new docs so hasChanges is immediately false
+					snapshotWithOverrides({ docs: newDocs });
+					clearDraft(selectedSession);
+					toast.success("Removed successfully.");
+				}
+			} catch {
+				toast.error("Failed to remove item. Please try again.");
+			} finally {
+				setRemovingItemIds((prev) => {
+					const next = new Set(prev);
+					next.delete(documentId);
+					return next;
+				});
+			}
+		},
+		[
+			selectedSession,
+			documentsByAgendaItem,
+			buildAgendaItems,
+			setDocumentsByAgendaItem,
+			snapshotWithOverrides,
+			clearDraft,
+		],
+	);
+
+	/** Remove a custom text item. Draft: immediate. Scheduled: non-optimistic, saves to server first. */
+	const handleRemoveCustomText = useCallback(
+		async (sectionId: string, itemId: string) => {
+			const session = sessions.find((s) => s.id === selectedSession);
+
+			if (session?.status !== SessionStatus.SCHEDULED) {
+				// Draft or other statuses: just remove from state immediately
+				builder.removeCustomText(sectionId, itemId);
+				return;
+			}
+
+			// Scheduled: non-optimistic path
+			if (!selectedSession) return;
+
+			// Block removal only if this is the very last item across the entire session
+			const totalDocsInSession = Object.values(documentsByAgendaItem).reduce(
+				(sum, docs) => sum + docs.length,
+				0,
+			);
+			const totalCustomTextsInSession = Object.values(
+				customTextsBySection,
+			).reduce((sum, texts) => sum + texts.length, 0);
+			const totalItemsInSession =
+				totalDocsInSession + totalCustomTextsInSession;
+			if (totalItemsInSession <= 1) {
+				toast.error("At least one item must remain in the session.");
+				return;
+			}
+
+			setRemovingItemIds((prev) => new Set([...prev, itemId]));
+
+			const currentItems = customTextsBySection[sectionId] ?? [];
+			const newCustomTexts = {
+				...customTextsBySection,
+				[sectionId]: currentItems
+					.filter((i) => i.id !== itemId)
+					.map((i, idx) => ({ ...i, orderIndex: idx })),
+			};
+
+			try {
+				const [err] = await api.sessions.saveDraft({
+					id: selectedSession,
+					agendaItems: buildAgendaItems({ customTexts: newCustomTexts }),
+				});
+				if (err) {
+					toast.error("Failed to remove item. Please try again.");
+				} else {
+					setCustomTextsBySection(newCustomTexts);
+					snapshotWithOverrides({ customTexts: newCustomTexts });
+					clearDraft(selectedSession);
+					toast.success("Removed successfully.");
+				}
+			} catch {
+				toast.error("Failed to remove item. Please try again.");
+			} finally {
+				setRemovingItemIds((prev) => {
+					const next = new Set(prev);
+					next.delete(itemId);
+					return next;
+				});
+			}
+		},
+		[
+			sessions,
+			selectedSession,
+			builder,
+			customTextsBySection,
+			buildAgendaItems,
+			setCustomTextsBySection,
+			snapshotWithOverrides,
+			clearDraft,
+		],
+	);
+
 	return {
 		actionInFlight,
 		isRemovingPdf,
 		isLoadingSession,
+		removingItemIds,
 		handleSessionChange,
 		handleDocumentsChange,
+		handleScheduledRemoveDocument,
+		handleRemoveCustomText,
 		handleSaveDraft,
 		handlePublish,
 		handleUnpublish,

@@ -117,15 +117,75 @@ function AgendaBuilderPage() {
 	const {
 		contentTextMap,
 		documentsByAgendaItem,
+		setDocumentsByAgendaItem,
+		customTextsBySection,
 		hasChanges,
 		changedSections,
 		orderedAgendaItems,
 		isSessionEmpty,
 		handleDndReorder,
 		handleContentTextChange,
+		addCustomText,
+		updateCustomText,
+		moveCustomTextToSection,
 		resetEditorState,
 		revertToSaved,
 	} = builder;
+
+	/**
+	 * Move a document across committee groups and update its classification field.
+	 * Called when a doc is dragged from one committee-group droppable to another.
+	 */
+	const handleCommitteeDocClassify = useCallback(
+		(
+			docId: string,
+			sourceSectionId: string,
+			sourceIndex: number,
+			destSectionId: string,
+			destIndex: number,
+			targetClassification: string,
+		) => {
+			setDocumentsByAgendaItem((prev) => {
+				const srcDocs = [...(prev[sourceSectionId] ?? [])].sort(
+					(a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
+				);
+				const [moved] = srcDocs.splice(sourceIndex, 1);
+				if (!moved) return prev;
+
+				if (sourceSectionId === destSectionId) {
+					// Intra-committee: update classification and reinsert at dest position
+					const updated = { ...moved, classification: targetClassification };
+					// Remove from source position, insert at dest
+					const remaining = srcDocs;
+					remaining.splice(
+						destIndex > sourceIndex ? destIndex - 1 : destIndex,
+						0,
+						updated,
+					);
+					return {
+						...prev,
+						[sourceSectionId]: remaining.map((d, i) => ({
+							...d,
+							orderIndex: i,
+						})),
+					};
+				}
+
+				// Cross-section (shouldn't normally happen for committee, but handle it)
+				const destDocs = [...(prev[destSectionId] ?? [])].sort(
+					(a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
+				);
+				const updated = { ...moved, classification: targetClassification };
+				destDocs.splice(destIndex, 0, updated);
+				return {
+					...prev,
+					[sourceSectionId]: srcDocs.map((d, i) => ({ ...d, orderIndex: i })),
+					[destSectionId]: destDocs.map((d, i) => ({ ...d, orderIndex: i })),
+				};
+			});
+		},
+		[setDocumentsByAgendaItem],
+	);
 
 	// --- Session action handlers (save, publish, delete, PDF upload, etc.) ---
 	const actions = useSessionActions({
@@ -138,8 +198,11 @@ function AgendaBuilderPage() {
 		actionInFlight,
 		isRemovingPdf,
 		isLoadingSession,
+		removingItemIds,
 		handleSessionChange: loadSession,
 		handleDocumentsChange,
+		handleScheduledRemoveDocument,
+		handleRemoveCustomText,
 		handleSaveDraft,
 		handlePublish,
 		handleUnpublish,
@@ -284,10 +347,20 @@ function AgendaBuilderPage() {
 							isRemovingPdf={isRemovingPdf}
 							isLoadingSession={isLoadingSession}
 							onDndReorder={handleDndReorder}
+							onMixedDndReorder={builder.handleMixedDndReorder}
+							onCommitteeDocClassify={handleCommitteeDocClassify}
 							onDiscardChanges={() => {
 								revertToSaved();
 								if (selectedSession) clearDraft(selectedSession);
 							}}
+							customTextsBySection={customTextsBySection}
+							onAddCustomText={addCustomText}
+							onUpdateCustomText={updateCustomText}
+							onRemoveCustomText={handleRemoveCustomText}
+							onReorderCustomTexts={builder.reorderCustomTexts}
+							onMoveCustomText={moveCustomTextToSection}
+							onScheduledRemoveDocument={handleScheduledRemoveDocument}
+							removingItemIds={removingItemIds}
 							isSessionEmpty={isSessionEmpty}
 							hasNextPage={sessionsQuery.hasNextPage}
 							isFetchingNextPage={sessionsQuery.isFetchingNextPage}

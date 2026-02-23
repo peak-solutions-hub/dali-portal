@@ -216,11 +216,19 @@ async function SessionDetailContent({
 										const sectionItems = session.agendaItems.filter(
 											(item) => item.section === sectionKey,
 										);
+										// Sort by orderIndex to preserve interleaved order
+										const sortedSectionItems = [...sectionItems].sort(
+											(a, b) => a.orderIndex - b.orderIndex,
+										);
 										const textItems = sectionItems.filter(
 											(item) => !item.document,
 										);
-										const docItems = sectionItems.filter(
-											(item) => !!item.document,
+										// Non-custom text-only items (minutes, etc.)
+										const pureTextItems = textItems.filter(
+											// Exclude custom text items — by isCustomText flag OR the <!--classification:--> marker
+											(item) =>
+												!(item as { isCustomText?: boolean }).isCustomText &&
+												!item.contentText?.startsWith("<!--classification:"),
 										);
 
 										const isMinutes =
@@ -229,8 +237,20 @@ async function SessionDetailContent({
 											sectionKey === "committee_reports";
 
 										const minutesText = isMinutes
-											? textItems[0]?.contentText
+											? pureTextItems[0]?.contentText
 											: null;
+
+										// Strip HTML tags to get plain text, then check for a date pattern
+										const minutesPlainText = minutesText
+											? minutesText.replace(/<[^>]*>/g, "").trim()
+											: null;
+										const minutesHasDate = minutesPlainText
+											? /\b(January|February|March|April|May|June|July|August|September|October|November|December)\b.+\d{4}/.test(
+													minutesPlainText,
+												)
+											: false;
+										const minutesHeadingText =
+											isMinutes && minutesHasDate ? minutesPlainText : null;
 
 										return (
 											<div
@@ -248,56 +268,74 @@ async function SessionDetailContent({
 												 */}
 												<h3 className="flex items-start gap-3 text-sm sm:text-base font-semibold text-red-700 leading-snug">
 													<span className="shrink-0 w-5 sm:w-7">{letter}.</span>
-													<span>
-														{isMinutes && minutesText ? minutesText : label}
-													</span>
+													<span>{minutesHeadingText ?? label}</span>
 												</h3>
 
 												{sectionItems.length > 0 && (
 													<div className="mt-3 space-y-4">
-														{/* ── Rich-text section items (not minutes header, not docs) ── */}
-														{textItems
-															.filter(
-																(item) => !(isMinutes && item === textItems[0]),
-															)
-															.map((item) => (
-																<div
-																	key={item.id}
-																	className="ml-4 sm:ml-6 space-y-1"
-																>
-																	{item.contentText && (
-																		<QuillContent html={item.contentText} />
-																	)}
-																	{item.attachmentPath &&
-																		item.attachmentName && (
-																			<p className="text-xs sm:text-sm text-gray-500">
-																				Attachment: {item.attachmentName}
-																			</p>
-																		)}
-																</div>
-															))}
-
 														{/* ── Committee reports grouped by classification ── */}
-														{isCommitteeReports && docItems.length > 0
+														{isCommitteeReports
 															? (() => {
-																	const groups: Record<
-																		string,
-																		typeof docItems
-																	> = {};
-																	for (const item of docItems) {
-																		const doc = item.document!;
-																		if (
-																			doc.status !== "published" &&
-																			doc.purpose !== "for_agenda"
-																		)
-																			continue;
-																		const key =
-																			doc.classification || "uncategorized";
-																		groups[key] ??= [];
-																		groups[key].push(item);
+																	// Group BOTH doc items AND custom text items by classification.
+																	// Doc items: classification comes from the linked document.
+																	// Custom text items: classification was encoded as an HTML comment
+																	// at save time: <!--classification:key--><actual content>
+																	const CLASSIFICATION_RE =
+																		/^<!--classification:(.*?)-->/;
+
+																	type AnyItem =
+																		(typeof sortedSectionItems)[number] & {
+																			_cleanContent?: string;
+																		};
+																	const groups: Record<string, AnyItem[]> = {};
+
+																	for (const item of sortedSectionItems) {
+																		if (item.document) {
+																			const doc = item.document;
+																			if (
+																				doc.status !== "published" &&
+																				doc.purpose !== "for_agenda"
+																			)
+																				continue;
+																			const key =
+																				doc.classification || "uncategorized";
+																			groups[key] ??= [];
+																			groups[key].push(item as AnyItem);
+																		} else if (
+																			!item.document &&
+																			item.contentText?.startsWith(
+																				"<!--classification:",
+																			)
+																		) {
+																			// Detect committee custom texts by the encoded marker in contentText.
+																			// We can't rely on isCustomText — the public API may not return that field.
+																			const match =
+																				item.contentText.match(
+																					CLASSIFICATION_RE,
+																				);
+																			const key = match?.[1] || "uncategorized";
+																			const cleanContent =
+																				item.contentText.replace(
+																					CLASSIFICATION_RE,
+																					"",
+																				);
+																			groups[key] ??= [];
+																			groups[key].push({
+																				...item,
+																				_cleanContent: cleanContent,
+																			} as AnyItem);
+																		}
 																	}
+
 																	const groupEntries = Object.entries(groups);
 																	if (!groupEntries.length) return null;
+
+																	// Preserve saved order within each group via orderIndex
+																	for (const [, items] of groupEntries) {
+																		items.sort(
+																			(a, b) => a.orderIndex - b.orderIndex,
+																		);
+																	}
 
 																	return (
 																		<div className="space-y-5">
@@ -307,12 +345,6 @@ async function SessionDetailContent({
 																						key={classification}
 																						className="space-y-2"
 																					>
-																						{/*
-																						 * Committee heading: "1. COMMITTEE ON …"
-																						 *
-																						 * ml-8 sm:ml-10 aligns "1." with the section label text.
-																						 * No fixed width on the number — it's just inline.
-																						 */}
 																						<div className="flex items-start gap-3 ml-8 sm:ml-10">
 																							<span className="text-xs sm:text-sm font-bold text-gray-900 shrink-0 leading-snug pt-px">
 																								{groupIdx + 1}.
@@ -324,19 +356,38 @@ async function SessionDetailContent({
 																								).toUpperCase()}
 																							</h4>
 																						</div>
-
-																						{/*
-																						 * Sub-items: "a.", "b.", …
-																						 *
-																						 * ml-8 sm:ml-10  (parent heading offset)
-																						 * + natural width of "1. " + gap-3
-																						 * ≈ ml-14 sm:ml-18
-																						 * → "a." aligns under the "COMMITTEE ON …" text.
-																						 */}
 																						<div className="ml-14 sm:ml-18 space-y-1">
 																							{items.map((item, itemIdx) => {
-																								const doc = item.document!;
 																								const subLetter = `${String.fromCharCode(97 + itemIdx)}.`;
+																								// Custom texts have _cleanContent set during grouping (marker was stripped).
+																								// We use this instead of isCustomText which may be absent from the public API response.
+																								if (
+																									item._cleanContent !==
+																									undefined
+																								) {
+																									return (
+																										<div
+																											key={item.id}
+																											className="flex items-start gap-3 rounded-sm py-0.5 hover:bg-gray-50 transition-colors -mx-1 px-1"
+																										>
+																											<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 w-2 sm:w-5 leading-snug pt-px">
+																												{subLetter}
+																											</span>
+																											<div className="flex-1 min-w-0 leading-snug">
+																												{item._cleanContent && (
+																													<QuillContent
+																														html={
+																															item._cleanContent
+																														}
+																													/>
+																												)}
+																											</div>
+																										</div>
+																									);
+																								}
+
+																								// Document item
+																								const doc = item.document!;
 																								return (
 																									<div
 																										key={item.id}
@@ -384,52 +435,97 @@ async function SessionDetailContent({
 																		</div>
 																	);
 																})()
-															: /* ── Non-committee doc sub-items (e.01, f.01 …) ── */
-																docItems.map((item, docIndex) => {
-																	const subNumber = formatAgendaItemNumber(
-																		sectionKey,
-																		docIndex,
-																		true,
+															: /* ── Non-committee: interleaved docs + custom texts + pureText in orderIndex order ── */
+																(() => {
+																	// Apply the status/purpose filter here so ineligible docs don't
+																	// consume a sub-number slot inside .map() below.
+																	const mixedItems = sortedSectionItems.filter(
+																		(si) => {
+																			if (si.document) {
+																				const doc = si.document;
+																				return (
+																					doc.status === "published" ||
+																					doc.purpose === "for_agenda"
+																				);
+																			}
+																			const isCustom = (
+																				si as { isCustomText?: boolean }
+																			).isCustomText;
+																			if (isCustom) return true;
+																			// pureTextItem: exclude the minutes item only if it's shown in the heading
+																			if (
+																				isMinutes &&
+																				minutesHeadingText &&
+																				si === pureTextItems[0]
+																			)
+																				return false;
+																			return !!si.contentText;
+																		},
 																	);
-																	const doc = item.document!;
-																	if (
-																		doc.status !== "published" &&
-																		doc.purpose !== "for_agenda"
-																	)
-																		return null;
-
-																	return (
-																		<div
-																			key={item.id}
-																			className="flex items-start gap-3 ml-8 sm:ml-10 rounded-sm py-0.5 hover:bg-gray-50 transition-colors -mx-1 px-1"
-																		>
-																			<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 leading-snug pt-px">
-																				{subNumber}
-																			</span>
-																			<div className="flex-1 min-w-0 leading-snug">
-																				{item.contentText ? (
-																					<QuillContent
-																						html={item.contentText}
-																					/>
-																				) : (
-																					<span className="text-xs sm:text-sm text-gray-900">
-																						{doc.title}
+																	return mixedItems.map((si, mixedIndex) => {
+																		const subNumber = formatAgendaItemNumber(
+																			sectionKey,
+																			mixedIndex,
+																			true,
+																		);
+																		const isCustomTextItem = (
+																			si as { isCustomText?: boolean }
+																		).isCustomText;
+																		const isPureText =
+																			!si.document && !isCustomTextItem;
+																		if (isCustomTextItem || isPureText) {
+																			return (
+																				<div
+																					key={si.id}
+																					className="flex items-start gap-3 ml-8 sm:ml-10 rounded-sm py-0.5 hover:bg-gray-50 transition-colors -mx-1 px-1"
+																				>
+																					<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 leading-snug pt-px">
+																						{subNumber}
 																					</span>
-																				)}
+																					<div className="flex-1 min-w-0 leading-snug">
+																						{si.contentText && (
+																							<QuillContent
+																								html={si.contentText}
+																							/>
+																						)}
+																					</div>
+																				</div>
+																			);
+																		}
+																		const doc = si.document!;
+																		return (
+																			<div
+																				key={si.id}
+																				className="flex items-start gap-3 ml-8 sm:ml-10 rounded-sm py-0.5 hover:bg-gray-50 transition-colors -mx-1 px-1"
+																			>
+																				<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 leading-snug pt-px">
+																					{subNumber}
+																				</span>
+																				<div className="flex-1 min-w-0 leading-snug">
+																					{si.contentText ? (
+																						<QuillContent
+																							html={si.contentText}
+																						/>
+																					) : (
+																						<span className="text-xs sm:text-sm text-gray-900">
+																							{doc.title}
+																						</span>
+																					)}
+																				</div>
+																				<DocumentViewButton
+																					documentId={doc.id}
+																					codeNumber={doc.codeNumber}
+																					documentTitle={doc.title}
+																					documentType={doc.type}
+																					classification={doc.classification}
+																					receivedAt={doc.receivedAt}
+																					authors={doc.authors}
+																					sponsors={doc.sponsors}
+																				/>
 																			</div>
-																			<DocumentViewButton
-																				documentId={doc.id}
-																				codeNumber={doc.codeNumber}
-																				documentTitle={doc.title}
-																				documentType={doc.type}
-																				classification={doc.classification}
-																				receivedAt={doc.receivedAt}
-																				authors={doc.authors}
-																				sponsors={doc.sponsors}
-																			/>
-																		</div>
-																	);
-																})}
+																		);
+																	});
+																})()}{" "}
 													</div>
 												)}
 											</div>

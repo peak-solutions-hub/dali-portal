@@ -59,6 +59,8 @@ export const SessionAgendaItemSchema = z.object({
 	attachmentPath: z.string().nullable(),
 	attachmentName: z.string().nullable(),
 	section: SessionSectionEnum,
+	isCustomText: z.boolean().nullable().optional(),
+	classification: z.string().nullable().optional(),
 });
 
 /**
@@ -274,6 +276,8 @@ export const AdminAgendaItemInputSchema = z.object({
 	linkedDocument: z.string().uuid().nullable().optional(),
 	attachmentPath: z.string().nullable().optional(),
 	attachmentName: z.string().nullable().optional(),
+	isCustomText: z.boolean().optional(),
+	classification: z.string().nullable().optional(),
 });
 
 /**

@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AttachedDocument } from "@/hooks/use-agenda-builder";
+import { AttachedDocument, CustomTextItem } from "@/hooks/session-management";
 
 /** How long (ms) a draft survives without being touched before it is pruned. */
 const DRAFT_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -11,6 +11,7 @@ export interface SessionDraft {
 	contentTextMap: Record<string, string>;
 	documentsByAgendaItem: Record<string, AttachedDocument[]>;
 	agendaItemOrder: string[];
+	customTextsBySection: Record<string, CustomTextItem[]>;
 	/** Unix timestamp (ms) of when the draft was last written. */
 	savedAt: number;
 }
@@ -69,7 +70,21 @@ export const useDraftStore = create<DraftStore>()(
 		}),
 		{
 			name: "dali-portal-drafts",
-			version: 1,
+			version: 2,
+			migrate: (persistedState: unknown, version: number) => {
+				const state = persistedState as {
+					drafts?: Record<string, SessionDraft>;
+				};
+				if (version < 2 && state.drafts) {
+					// Backfill customTextsBySection on old drafts
+					for (const draft of Object.values(state.drafts)) {
+						if (!draft.customTextsBySection) {
+							draft.customTextsBySection = {};
+						}
+					}
+				}
+				return state;
+			},
 		},
 	),
 );
