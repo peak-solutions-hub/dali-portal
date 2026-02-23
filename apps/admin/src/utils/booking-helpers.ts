@@ -165,7 +165,17 @@ export function getTimeLinePosition(
 ): number | null {
 	if (!isSameDay(selectedDate, today)) return null;
 	const totalMinutes = now.getHours() * 60 + now.getMinutes();
-	return (totalMinutes / 1440) * 100;
+
+	const START_MINUTES = 420; // 7:00 AM
+	const END_MINUTES = 1020; // 5:00 PM
+
+	if (totalMinutes < START_MINUTES) return 0;
+	if (totalMinutes > END_MINUTES) return 100;
+
+	const rangeMinutes = END_MINUTES - START_MINUTES;
+	const currentInRange = totalMinutes - START_MINUTES;
+
+	return (currentInRange / rangeMinutes) * 100;
 }
 
 // ---------------------------------------------------------------------------

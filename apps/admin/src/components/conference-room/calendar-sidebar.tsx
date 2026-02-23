@@ -143,7 +143,7 @@ export function CalendarSidebar({
 
 				{/* Bookings for Selected Date */}
 				{hasBookings ? (
-					<div className="mt-6 pt-4 border-t border-gray-200 flex-1 flex flex-col min-h-0">
+					<div className="mt-4 pt-4 border-t border-gray-200 flex-1 flex flex-col min-h-0">
 						<h4 className="shrink-0 text-sm font-semibold text-gray-900 mb-3">
 							Bookings for {formatFullDate(selectedDate)}
 						</h4>
@@ -213,7 +213,7 @@ export function CalendarSidebar({
 						</div>
 					</div>
 				) : (
-					<div className="mt-6 pt-4 border-t border-gray-200">
+					<div className="mt-4 pt-4 border-t border-gray-200">
 						<div className="flex flex-col items-center justify-center py-6 text-center">
 							<Calendar className="w-10 h-10 text-gray-300 mb-3" />
 							<p className="text-sm text-gray-500 font-medium">

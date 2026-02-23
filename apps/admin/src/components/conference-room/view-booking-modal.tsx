@@ -174,16 +174,19 @@ export function ViewBookingModal({
 								Edit
 							</Button>
 						)}
-						<Button
-							variant="outline"
-							size="sm"
-							className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-							onClick={() => onDelete(booking)}
-							disabled={isUpdating}
-						>
-							<Trash2 className="w-4 h-4 mr-1" />
-							Delete
-						</Button>
+						{/* Only the booking owner can delete their own bookings */}
+						{canEdit && (
+							<Button
+								variant="outline"
+								size="sm"
+								className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+								onClick={() => onDelete(booking)}
+								disabled={isUpdating}
+							>
+								<Trash2 className="w-4 h-4 mr-1" />
+								Delete
+							</Button>
+						)}
 					</div>
 
 					{isPending && canApprove && (

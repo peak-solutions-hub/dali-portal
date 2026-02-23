@@ -118,6 +118,22 @@ export function EditBookingModal({
 			errors.endTime = "End time must be later than start time.";
 		}
 
+		const SEVEN_AM_MINUTES = 7 * 60; // 420
+		const FIVE_PM_MINUTES = 17 * 60; // 1020
+
+		if (
+			startMinutes !== null &&
+			(startMinutes < SEVEN_AM_MINUTES || startMinutes > FIVE_PM_MINUTES)
+		) {
+			errors.startTime = "Start time must be between 7:00 AM and 5:00 PM.";
+		}
+		if (
+			endMinutes !== null &&
+			(endMinutes < SEVEN_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
+		) {
+			errors.endTime = "End time must be between 7:00 AM and 5:00 PM.";
+		}
+
 		return errors;
 	};
 

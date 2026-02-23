@@ -262,6 +262,8 @@ export function BookingFormFields({
 						value={values.startTime}
 						onChange={(v) => onChange("startTime", v)}
 						placeholder="Select start time"
+						minTime="07:00"
+						maxTime="17:00"
 						className={cn(
 							"focus:ring-2 focus:ring-[#a60202]/20",
 							fieldErrors?.startTime &&
@@ -284,6 +286,8 @@ export function BookingFormFields({
 						value={values.endTime}
 						onChange={(v) => onChange("endTime", v)}
 						placeholder="Select end time"
+						minTime="07:00"
+						maxTime="17:00"
 						className={cn(
 							"focus:ring-2 focus:ring-[#a60202]/20",
 							fieldErrors?.endTime &&

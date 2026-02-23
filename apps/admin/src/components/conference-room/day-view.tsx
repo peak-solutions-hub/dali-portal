@@ -160,7 +160,7 @@ export function DayView({
 					</div>
 				)}
 
-				<div className="relative">
+				<div className="relative my-12">
 					{/* Real-time Indicator Line */}
 					{timeLinePosition !== null && (
 						<div
@@ -226,6 +226,13 @@ export function DayView({
 							</div>
 						);
 					})}
+
+					{/* End of day border & label */}
+					<div className="relative border-t border-gray-100">
+						<div className="absolute left-0 top-0 -translate-y-1/2 z-10 w-24 px-6 text-[11px] font-medium text-gray-400 pointer-events-none">
+							5:00 PM
+						</div>
+					</div>
 
 					{/* Booking Overlays */}
 					{(() => {
