@@ -360,7 +360,19 @@ export function DayView({
 								const topPosition = startIndex * 20;
 								const height = (endIndex - startIndex + 1) * 20;
 								const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
-								const isPending = booking.status === "pending";
+								const isDone = booking.isPast && booking.status === "confirmed";
+								const isExpired =
+									booking.isPast && booking.status === "pending";
+								const isPending =
+									!booking.isPast && booking.status === "pending";
+
+								const containerBg = isDone
+									? "bg-gray-400"
+									: isExpired
+										? "bg-red-400"
+										: isPending
+											? "bg-[#f6bf26]"
+											: roomColors.bg;
 
 								const widthPercentage = 100 / totalColumns;
 								const leftPercentage = column * widthPercentage;
@@ -382,9 +394,7 @@ export function DayView({
 										<div
 											className={`h-full ml-px ${
 												height <= 20 ? "pl-2" : "pl-2 md:pl-4"
-											} flex flex-col justify-center gap-0.5 md:gap-1 rounded-r-md group-hover/booking:brightness-95 transition-[filter] shadow-sm overflow-hidden ${
-												isPending ? "bg-[#f6bf26]" : roomColors.bg
-											}`}
+											} flex flex-col justify-center gap-0.5 md:gap-1 rounded-r-md group-hover/booking:brightness-95 transition-[filter] shadow-sm overflow-hidden ${containerBg}`}
 										>
 											{height <= 20 ? (
 												<div className="flex items-center gap-2 truncate pr-2 w-full">

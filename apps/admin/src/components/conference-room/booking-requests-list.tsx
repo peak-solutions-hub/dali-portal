@@ -45,11 +45,20 @@ export function BookingRequestsList() {
 
 	const { data, isLoading } = usePendingRoomBookings(true);
 
-	const bookings = useMemo(
-		(): CalendarBooking[] =>
-			data?.bookings ? mapApiBookings(data.bookings) : [],
-		[data],
-	);
+	const bookings = useMemo((): CalendarBooking[] => {
+		if (!data?.bookings) return [];
+		const mapped = mapApiBookings(data.bookings);
+
+		mapped.sort((a, b) => {
+			const aIsDone = a.isPast && a.status === "confirmed";
+			const bIsDone = b.isPast && b.status === "confirmed";
+			if (aIsDone && !bIsDone) return 1;
+			if (!aIsDone && bIsDone) return -1;
+			return b.date.getTime() - a.date.getTime();
+		});
+
+		return mapped;
+	}, [data]);
 
 	// Modal states
 	const [viewingBooking, setViewingBooking] = useState<CalendarBooking | null>(
@@ -90,7 +99,8 @@ export function BookingRequestsList() {
 	const canEditViewedBooking =
 		viewingBooking !== null &&
 		userId !== null &&
-		viewingBooking.bookedBy === userId;
+		viewingBooking.bookedBy === userId &&
+		!(viewingBooking.isPast && viewingBooking.status === "confirmed");
 
 	if (isLoading) {
 		return (
@@ -210,6 +220,7 @@ export function BookingRequestsList() {
 											<BookingStatusBadge
 												status={booking.status}
 												roomKey={booking.roomKey}
+												isPast={booking.isPast}
 											/>
 										</TableCell>
 										<TableCell>
@@ -222,39 +233,41 @@ export function BookingRequestsList() {
 												>
 													<Eye className="w-4 h-4" />
 												</Button>
-												{canApprove && booking.status === "pending" && (
-													<>
-														<Button
-															size="sm"
-															className="h-8 px-2.5 bg-green-600 hover:bg-green-700 text-white"
-															onClick={() =>
-																updateStatus(booking.id, "confirmed")
-															}
-															disabled={isUpdating}
-														>
-															{isUpdating ? (
-																<Loader2 className="w-3.5 h-3.5 animate-spin" />
-															) : (
-																<CheckCircle className="w-3.5 h-3.5" />
-															)}
-														</Button>
-														<Button
-															variant="outline"
-															size="sm"
-															className="h-8 px-2.5 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-															onClick={() =>
-																updateStatus(booking.id, "rejected")
-															}
-															disabled={isUpdating}
-														>
-															{isUpdating ? (
-																<Loader2 className="w-3.5 h-3.5 animate-spin" />
-															) : (
-																<XCircle className="w-3.5 h-3.5" />
-															)}
-														</Button>
-													</>
-												)}
+												{canApprove &&
+													booking.status === "pending" &&
+													!booking.isPast && (
+														<>
+															<Button
+																size="sm"
+																className="h-8 px-2.5 bg-green-600 hover:bg-green-700 text-white"
+																onClick={() =>
+																	updateStatus(booking.id, "confirmed")
+																}
+																disabled={isUpdating}
+															>
+																{isUpdating ? (
+																	<Loader2 className="w-3.5 h-3.5 animate-spin" />
+																) : (
+																	<CheckCircle className="w-3.5 h-3.5" />
+																)}
+															</Button>
+															<Button
+																variant="outline"
+																size="sm"
+																className="h-8 px-2.5 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+																onClick={() =>
+																	updateStatus(booking.id, "rejected")
+																}
+																disabled={isUpdating}
+															>
+																{isUpdating ? (
+																	<Loader2 className="w-3.5 h-3.5 animate-spin" />
+																) : (
+																	<XCircle className="w-3.5 h-3.5" />
+																)}
+															</Button>
+														</>
+													)}
 											</div>
 										</TableCell>
 									</TableRow>

@@ -135,6 +135,10 @@ export function CalendarSidebar({
 						<div className="w-3 h-3 bg-[#f6bf26] rounded" />
 						<span className="text-xs text-gray-600">Pending</span>
 					</div>
+					<div className="flex items-center gap-2">
+						<div className="w-3 h-3 bg-gray-400 rounded" />
+						<span className="text-xs text-gray-600">Done</span>
+					</div>
 				</div>
 
 				{/* Bookings for Selected Date */}
@@ -146,15 +150,32 @@ export function CalendarSidebar({
 						<div className="space-y-3 flex-1 overflow-y-auto pr-2 pb-2">
 							{bookings.map((booking) => {
 								const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
-								const isPending = booking.status === "pending";
+								const isDone = booking.isPast && booking.status === "confirmed";
+								const isExpired =
+									booking.isPast && booking.status === "pending";
+								const isPending =
+									!booking.isPast && booking.status === "pending";
+
+								const containerBg = isDone
+									? "bg-gray-400"
+									: isExpired
+										? "bg-red-400"
+										: isPending
+											? "bg-[#f6bf26]"
+											: roomColors.bg;
+
+								const displayStatus = isDone
+									? "done"
+									: isExpired
+										? "expired"
+										: booking.status;
+
 								return (
 									<button
 										key={booking.id}
 										type="button"
 										onClick={() => onViewBooking(booking)}
-										className={`w-full text-left p-3 rounded-lg border hover:brightness-95 transition-[filter] flex flex-col gap-1 border-transparent ${
-											isPending ? "bg-[#f6bf26]" : roomColors.bg
-										}`}
+										className={`w-full text-left p-3 rounded-lg border hover:brightness-95 transition-[filter] flex flex-col gap-1 border-transparent ${containerBg}`}
 									>
 										<div className="flex justify-between items-start gap-3 w-full">
 											<div className="flex-1 min-w-0 pr-2">
@@ -183,7 +204,7 @@ export function CalendarSidebar({
 												</div>
 											</div>
 											<span className="text-[10px] px-2 py-0.5 rounded-full font-bold capitalize shrink-0 shadow-sm bg-white/20 text-white border border-white/30">
-												{booking.status}
+												{displayStatus}
 											</span>
 										</div>
 									</button>

@@ -85,6 +85,7 @@ export interface CalendarBooking {
 	requestedFor: string;
 	status: "pending" | "confirmed" | "rejected";
 	attachmentUrl: string | null;
+	isPast: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,6 +145,7 @@ export function mapApiBookings(bookings: ApiBooking[]): CalendarBooking[] {
 			requestedFor: b.requestedFor,
 			status: b.status as "pending" | "confirmed" | "rejected",
 			attachmentUrl: b.attachmentUrl,
+			isPast: new Date(b.endTime) < new Date(),
 		};
 	});
 }

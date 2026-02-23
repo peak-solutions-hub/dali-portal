@@ -183,7 +183,8 @@ export function RoomBookingCalendar() {
 	const canEditViewedBooking =
 		viewingBooking !== null &&
 		userId !== null &&
-		viewingBooking.bookedBy === userId;
+		viewingBooking.bookedBy === userId &&
+		!viewingBooking.isPast;
 
 	return (
 		<div className="flex gap-6 p-3 h-screen max-h-screen overflow-hidden bg-gray-50">

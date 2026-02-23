@@ -148,25 +148,38 @@ export function MonthView({
 
 										{/* Booking chips */}
 										<div className="space-y-1 mt-1">
-											{visibleBookings.map((booking) => (
-												<button
-													type="button"
-													key={booking.id}
-													onClick={(e) => {
-														e.stopPropagation();
-														onViewBooking(booking);
-													}}
-													className={`w-full text-left text-[9px] px-1.5 py-0.5 rounded truncate hover:opacity-80 transition-opacity ${
-														booking.status === "pending"
+											{visibleBookings.map((booking) => {
+												const isDone =
+													booking.isPast && booking.status === "confirmed";
+												const isExpired =
+													booking.isPast && booking.status === "pending";
+												const isPending =
+													!booking.isPast && booking.status === "pending";
+
+												const containerBg = isDone
+													? "bg-gray-400 text-white border border-transparent"
+													: isExpired
+														? "bg-red-400 text-white border border-transparent"
+														: isPending
 															? "bg-[#f6bf26] text-white border border-transparent"
 															: CONFERENCE_ROOM_COLORS[booking.roomKey]?.chip ||
-																"bg-gray-200"
-													}`}
-													title={booking.purpose}
-												>
-													{booking.purpose}
-												</button>
-											))}
+																"bg-gray-200";
+
+												return (
+													<button
+														type="button"
+														key={booking.id}
+														onClick={(e) => {
+															e.stopPropagation();
+															onViewBooking(booking);
+														}}
+														className={`w-full text-left text-[9px] px-1.5 py-0.5 rounded truncate hover:opacity-80 transition-opacity ${containerBg}`}
+														title={booking.purpose}
+													>
+														{booking.purpose}
+													</button>
+												);
+											})}
 											{overflowCount > 0 && (
 												<Popover
 													open={isExpanded}
@@ -212,26 +225,42 @@ export function MonthView({
 															</button>
 														</div>
 														<div className="p-2 space-y-1 max-h-[250px] overflow-y-auto">
-															{dayBookings.map((booking) => (
-																<button
-																	type="button"
-																	key={`expanded-${booking.id}`}
-																	onClick={(e) => {
-																		e.stopPropagation();
-																		setExpandedDate(null);
-																		onViewBooking(booking);
-																	}}
-																	className={`w-full text-left text-[11px] px-2 py-1.5 rounded font-medium hover:brightness-95 transition-[filter] truncate ${
-																		booking.status === "pending"
+															{dayBookings.map((booking) => {
+																const isDone =
+																	booking.isPast &&
+																	booking.status === "confirmed";
+																const isExpired =
+																	booking.isPast &&
+																	booking.status === "pending";
+																const isPending =
+																	!booking.isPast &&
+																	booking.status === "pending";
+
+																const containerBg = isDone
+																	? "bg-gray-400 text-white border border-transparent"
+																	: isExpired
+																		? "bg-red-400 text-white border border-transparent"
+																		: isPending
 																			? "bg-[#f6bf26] text-white border border-transparent"
 																			: CONFERENCE_ROOM_COLORS[booking.roomKey]
-																					?.chip || "bg-gray-200"
-																	}`}
-																	title={booking.purpose}
-																>
-																	{booking.startTime} - {booking.purpose}
-																</button>
-															))}
+																					?.chip || "bg-gray-200";
+
+																return (
+																	<button
+																		type="button"
+																		key={`expanded-${booking.id}`}
+																		onClick={(e) => {
+																			e.stopPropagation();
+																			setExpandedDate(null);
+																			onViewBooking(booking);
+																		}}
+																		className={`w-full text-left text-[11px] px-2 py-1.5 rounded font-medium hover:brightness-95 transition-[filter] truncate ${containerBg}`}
+																		title={booking.purpose}
+																	>
+																		{booking.startTime} - {booking.purpose}
+																	</button>
+																);
+															})}
 														</div>
 													</PopoverContent>
 												</Popover>

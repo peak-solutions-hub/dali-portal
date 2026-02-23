@@ -1,0 +1,355 @@
+apps\admin\src\components\conference-room\booking-requests-list.tsx format ━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     46  46 │   	const { data, isLoading } = usePendingRoomBookings(true);
+     47  47 │   
+     48     │ - → const·bookings·=·useMemo(
+     49     │ - → → ():·CalendarBooking[]·=>·{
+     50     │ - → → → if·(!data?.bookings)·return·[];
+     51     │ - → → → const·mapped·=·mapApiBookings(data.bookings);
+     52     │ - → → → 
+     53     │ - → → → mapped.sort((a,·b)·=>·{
+     54     │ - → → → → const·aIsDone·=·a.isPast·&&·a.status·===·"confirmed";
+     55     │ - → → → → const·bIsDone·=·b.isPast·&&·b.status·===·"confirmed";
+     56     │ - → → → → if·(aIsDone·&&·!bIsDone)·return·1;
+     57     │ - → → → → if·(!aIsDone·&&·bIsDone)·return·-1;
+     58     │ - → → → → return·b.date.getTime()·-·a.date.getTime();
+     59     │ - → → → });
+         48 │ + → const·bookings·=·useMemo(():·CalendarBooking[]·=>·{
+         49 │ + → → if·(!data?.bookings)·return·[];
+         50 │ + → → const·mapped·=·mapApiBookings(data.bookings);
+         51 │ + 
+         52 │ + → → mapped.sort((a,·b)·=>·{
+         53 │ + → → → const·aIsDone·=·a.isPast·&&·a.status·===·"confirmed";
+         54 │ + → → → const·bIsDone·=·b.isPast·&&·b.status·===·"confirmed";
+         55 │ + → → → if·(aIsDone·&&·!bIsDone)·return·1;
+         56 │ + → → → if·(!aIsDone·&&·bIsDone)·return·-1;
+         57 │ + → → → return·b.date.getTime()·-·a.date.getTime();
+         58 │ + → → });
+     60  59 │   
+     61     │ - → → → return·mapped;
+     62     │ - → → },
+     63     │ - → → [data],
+     64     │ - → );
+         60 │ + → → return·mapped;
+         61 │ + → },·[data]);
+     65  62 │   
+     66  63 │   	// Modal states
+    ······· │ 
+    237 234 │   													<Eye className="w-4 h-4" />
+    238 235 │   												</Button>
+    239     │ - → → → → → → → → → → → → {canApprove·&&·booking.status·===·"pending"·&&·!booking.isPast·&&·(
+    240     │ - → → → → → → → → → → → → → <>
+    241     │ - → → → → → → → → → → → → → → <Button
+    242     │ - → → → → → → → → → → → → → → → size="sm"
+    243     │ - → → → → → → → → → → → → → → → className="h-8·px-2.5·bg-green-600·hover:bg-green-700·text-white"
+    244     │ - → → → → → → → → → → → → → → → onClick={()·=>
+    245     │ - → → → → → → → → → → → → → → → → updateStatus(booking.id,·"confirmed")
+    246     │ - → → → → → → → → → → → → → → → }
+    247     │ - → → → → → → → → → → → → → → → disabled={isUpdating}
+    248     │ - → → → → → → → → → → → → → → >
+    249     │ - → → → → → → → → → → → → → → → {isUpdating·?·(
+    250     │ - → → → → → → → → → → → → → → → → <Loader2·className="w-3.5·h-3.5·animate-spin"·/>
+    251     │ - → → → → → → → → → → → → → → → )·:·(
+    252     │ - → → → → → → → → → → → → → → → → <CheckCircle·className="w-3.5·h-3.5"·/>
+    253     │ - → → → → → → → → → → → → → → → )}
+    254     │ - → → → → → → → → → → → → → → </Button>
+    255     │ - → → → → → → → → → → → → → → <Button
+    256     │ - → → → → → → → → → → → → → → → variant="outline"
+    257     │ - → → → → → → → → → → → → → → → size="sm"
+    258     │ - → → → → → → → → → → → → → → → className="h-8·px-2.5·text-red-600·border-red-200·hover:bg-red-50·hover:text-red-700"
+    259     │ - → → → → → → → → → → → → → → → onClick={()·=>
+    260     │ - → → → → → → → → → → → → → → → → updateStatus(booking.id,·"rejected")
+    261     │ - → → → → → → → → → → → → → → → }
+    262     │ - → → → → → → → → → → → → → → → disabled={isUpdating}
+    263     │ - → → → → → → → → → → → → → → >
+    264     │ - → → → → → → → → → → → → → → → {isUpdating·?·(
+    265     │ - → → → → → → → → → → → → → → → → <Loader2·className="w-3.5·h-3.5·animate-spin"·/>
+    266     │ - → → → → → → → → → → → → → → → )·:·(
+    267     │ - → → → → → → → → → → → → → → → → <XCircle·className="w-3.5·h-3.5"·/>
+    268     │ - → → → → → → → → → → → → → → → )}
+    269     │ - → → → → → → → → → → → → → → </Button>
+    270     │ - → → → → → → → → → → → → → </>
+    271     │ - → → → → → → → → → → → → )}
+        236 │ + → → → → → → → → → → → → {canApprove·&&
+        237 │ + → → → → → → → → → → → → → booking.status·===·"pending"·&&
+        238 │ + → → → → → → → → → → → → → !booking.isPast·&&·(
+        239 │ + → → → → → → → → → → → → → → <>
+        240 │ + → → → → → → → → → → → → → → → <Button
+        241 │ + → → → → → → → → → → → → → → → → size="sm"
+        242 │ + → → → → → → → → → → → → → → → → className="h-8·px-2.5·bg-green-600·hover:bg-green-700·text-white"
+        243 │ + → → → → → → → → → → → → → → → → onClick={()·=>
+        244 │ + → → → → → → → → → → → → → → → → → updateStatus(booking.id,·"confirmed")
+        245 │ + → → → → → → → → → → → → → → → → }
+        246 │ + → → → → → → → → → → → → → → → → disabled={isUpdating}
+        247 │ + → → → → → → → → → → → → → → → >
+        248 │ + → → → → → → → → → → → → → → → → {isUpdating·?·(
+        249 │ + → → → → → → → → → → → → → → → → → <Loader2·className="w-3.5·h-3.5·animate-spin"·/>
+        250 │ + → → → → → → → → → → → → → → → → )·:·(
+        251 │ + → → → → → → → → → → → → → → → → → <CheckCircle·className="w-3.5·h-3.5"·/>
+        252 │ + → → → → → → → → → → → → → → → → )}
+        253 │ + → → → → → → → → → → → → → → → </Button>
+        254 │ + → → → → → → → → → → → → → → → <Button
+        255 │ + → → → → → → → → → → → → → → → → variant="outline"
+        256 │ + → → → → → → → → → → → → → → → → size="sm"
+        257 │ + → → → → → → → → → → → → → → → → className="h-8·px-2.5·text-red-600·border-red-200·hover:bg-red-50·hover:text-red-700"
+        258 │ + → → → → → → → → → → → → → → → → onClick={()·=>
+        259 │ + → → → → → → → → → → → → → → → → → updateStatus(booking.id,·"rejected")
+        260 │ + → → → → → → → → → → → → → → → → }
+        261 │ + → → → → → → → → → → → → → → → → disabled={isUpdating}
+        262 │ + → → → → → → → → → → → → → → → >
+        263 │ + → → → → → → → → → → → → → → → → {isUpdating·?·(
+        264 │ + → → → → → → → → → → → → → → → → → <Loader2·className="w-3.5·h-3.5·animate-spin"·/>
+        265 │ + → → → → → → → → → → → → → → → → )·:·(
+        266 │ + → → → → → → → → → → → → → → → → → <XCircle·className="w-3.5·h-3.5"·/>
+        267 │ + → → → → → → → → → → → → → → → → )}
+        268 │ + → → → → → → → → → → → → → → → </Button>
+        269 │ + → → → → → → → → → → → → → → </>
+        270 │ + → → → → → → → → → → → → → )}
+    272 271 │   											</div>
+    273 272 │   										</TableCell>
+  
+
+apps\admin\src\components\conference-room\calendar-sidebar.tsx format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    152 152 │   								const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
+    153 153 │   								const isDone = booking.isPast && booking.status === "confirmed";
+    154     │ - → → → → → → → → const·isExpired·=·booking.isPast·&&·booking.status·===·"pending";
+    155     │ - → → → → → → → → const·isPending·=·!booking.isPast·&&·booking.status·===·"pending";
+        154 │ + → → → → → → → → const·isExpired·=
+        155 │ + → → → → → → → → → booking.isPast·&&·booking.status·===·"pending";
+        156 │ + → → → → → → → → const·isPending·=
+        157 │ + → → → → → → → → → !booking.isPast·&&·booking.status·===·"pending";
+    156 158 │   
+    157 159 │   								const containerBg = isDone
+  
+
+apps\admin\src\components\conference-room\day-view.tsx format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    362 362 │   								const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
+    363 363 │   								const isDone = booking.isPast && booking.status === "confirmed";
+    364     │ - → → → → → → → → const·isExpired·=·booking.isPast·&&·booking.status·===·"pending";
+    365     │ - → → → → → → → → const·isPending·=·!booking.isPast·&&·booking.status·===·"pending";
+        364 │ + → → → → → → → → const·isExpired·=
+        365 │ + → → → → → → → → → booking.isPast·&&·booking.status·===·"pending";
+        366 │ + → → → → → → → → const·isPending·=
+        367 │ + → → → → → → → → → !booking.isPast·&&·booking.status·===·"pending";
+    366 368 │   
+    367 369 │   								const containerBg = isDone
+  
+
+apps\admin\src\components\conference-room\month-view.tsx format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    150 150 │   										<div className="space-y-1 mt-1">
+    151 151 │   											{visibleBookings.map((booking) => {
+    152     │ - → → → → → → → → → → → → const·isDone·=·booking.isPast·&&·booking.status·===·"confirmed";
+    153     │ - → → → → → → → → → → → → const·isExpired·=·booking.isPast·&&·booking.status·===·"pending";
+    154     │ - → → → → → → → → → → → → const·isPending·=·!booking.isPast·&&·booking.status·===·"pending";
+        152 │ + → → → → → → → → → → → → const·isDone·=
+        153 │ + → → → → → → → → → → → → → booking.isPast·&&·booking.status·===·"confirmed";
+        154 │ + → → → → → → → → → → → → const·isExpired·=
+        155 │ + → → → → → → → → → → → → → booking.isPast·&&·booking.status·===·"pending";
+        156 │ + → → → → → → → → → → → → const·isPending·=
+        157 │ + → → → → → → → → → → → → → !booking.isPast·&&·booking.status·===·"pending";
+    155 158 │   
+    156 159 │   												const containerBg = isDone
+    ······· │ 
+    224 227 │   														<div className="p-2 space-y-1 max-h-[250px] overflow-y-auto">
+    225 228 │   															{dayBookings.map((booking) => {
+    226     │ - → → → → → → → → → → → → → → → → const·isDone·=·booking.isPast·&&·booking.status·===·"confirmed";
+    227     │ - → → → → → → → → → → → → → → → → const·isExpired·=·booking.isPast·&&·booking.status·===·"pending";
+    228     │ - → → → → → → → → → → → → → → → → const·isPending·=·!booking.isPast·&&·booking.status·===·"pending";
+        229 │ + → → → → → → → → → → → → → → → → const·isDone·=
+        230 │ + → → → → → → → → → → → → → → → → → booking.isPast·&&
+        231 │ + → → → → → → → → → → → → → → → → → booking.status·===·"confirmed";
+        232 │ + → → → → → → → → → → → → → → → → const·isExpired·=
+        233 │ + → → → → → → → → → → → → → → → → → booking.isPast·&&
+        234 │ + → → → → → → → → → → → → → → → → → booking.status·===·"pending";
+        235 │ + → → → → → → → → → → → → → → → → const·isPending·=
+        236 │ + → → → → → → → → → → → → → → → → → !booking.isPast·&&
+        237 │ + → → → → → → → → → → → → → → → → → booking.status·===·"pending";
+    229 238 │   
+    230 239 │   																const containerBg = isDone
+    ······· │ 
+    234 243 │   																		: isPending
+    235 244 │   																			? "bg-[#f6bf26] text-white border border-transparent"
+    236     │ - → → → → → → → → → → → → → → → → → → → :·CONFERENCE_ROOM_COLORS[booking.roomKey]?.chip·||
+    237     │ - → → → → → → → → → → → → → → → → → → → → "bg-gray-200";
+        245 │ + → → → → → → → → → → → → → → → → → → → :·CONFERENCE_ROOM_COLORS[booking.roomKey]
+        246 │ + → → → → → → → → → → → → → → → → → → → → → ?.chip·||·"bg-gray-200";
+    238 247 │   
+    239 248 │   																return (
+  
+
+apps\admin\src\components\conference-room\my-bookings-list.tsx format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     46  46 │   	>("all");
+     47  47 │   
+     48     │ - → const·bookings·=·useMemo(
+     49     │ - → → ():·CalendarBooking[]·=>·{
+     50     │ - → → → if·(!data?.bookings)·return·[];
+     51     │ - → → → let·mapped·=·mapApiBookings(data.bookings);
+         48 │ + → const·bookings·=·useMemo(():·CalendarBooking[]·=>·{
+         49 │ + → → if·(!data?.bookings)·return·[];
+         50 │ + → → let·mapped·=·mapApiBookings(data.bookings);
+     52  51 │   
+     53     │ - → → → if·(statusFilter·!==·"all")·{
+     54     │ - → → → → mapped·=·mapped.filter((b)·=>·{
+     55     │ - → → → → → const·isDone·=·b.isPast·&&·b.status·===·"confirmed";
+     56     │ - → → → → → return·statusFilter·===·"done"
+     57     │ - → → → → → → ?·isDone
+     58     │ - → → → → → → :·!isDone·&&·b.status·===·statusFilter;
+     59     │ - → → → → });
+     60     │ - → → → }
+         52 │ + → → if·(statusFilter·!==·"all")·{
+         53 │ + → → → mapped·=·mapped.filter((b)·=>·{
+         54 │ + → → → → const·isDone·=·b.isPast·&&·b.status·===·"confirmed";
+         55 │ + → → → → return·statusFilter·===·"done"
+         56 │ + → → → → → ?·isDone
+         57 │ + → → → → → :·!isDone·&&·b.status·===·statusFilter;
+         58 │ + → → → });
+         59 │ + → → }
+     61  60 │   
+     62     │ - → → → mapped.sort((a,·b)·=>·{
+     63     │ - → → → → const·aIsDone·=·a.isPast·&&·a.status·===·"confirmed";
+     64     │ - → → → → const·bIsDone·=·b.isPast·&&·b.status·===·"confirmed";
+     65     │ - → → → → if·(aIsDone·&&·!bIsDone)·return·1;
+     66     │ - → → → → if·(!aIsDone·&&·bIsDone)·return·-1;
+     67     │ - → → → → return·b.date.getTime()·-·a.date.getTime();
+     68     │ - → → → });
+         61 │ + → → mapped.sort((a,·b)·=>·{
+         62 │ + → → → const·aIsDone·=·a.isPast·&&·a.status·===·"confirmed";
+         63 │ + → → → const·bIsDone·=·b.isPast·&&·b.status·===·"confirmed";
+         64 │ + → → → if·(aIsDone·&&·!bIsDone)·return·1;
+         65 │ + → → → if·(!aIsDone·&&·bIsDone)·return·-1;
+         66 │ + → → → return·b.date.getTime()·-·a.date.getTime();
+         67 │ + → → });
+     69  68 │   
+     70     │ - → → → return·mapped;
+     71     │ - → → },
+     72     │ - → → [data,·statusFilter],
+     73     │ - → );
+         69 │ + → → return·mapped;
+         70 │ + → },·[data,·statusFilter]);
+     74  71 │   
+     75  72 │   	// Modal states
+    ······· │ 
+    182 179 │   				<div className="rounded-xl border border-gray-200 bg-white shadow-sm p-3">
+    183 180 │   					<div className="overflow-x-auto">
+    184     │ - → → → → → <Table>
+    185     │ - → → → → → → <TableHeader>
+    186     │ - → → → → → → → <TableRow·className="hover:bg-transparent">
+    187     │ - → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold">
+    188     │ - → → → → → → → → → Details
+    189     │ - → → → → → → → → </TableHead>
+    190     │ - → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold">
+    191     │ - → → → → → → → → → Schedule·&·Room
+    192     │ - → → → → → → → → </TableHead>
+    193     │ - → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold">
+    194     │ - → → → → → → → → → Attachment
+    195     │ - → → → → → → → → </TableHead>
+    196     │ - → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold">
+    197     │ - → → → → → → → → → Status
+    198     │ - → → → → → → → → </TableHead>
+    199     │ - → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold·text-right">
+    200     │ - → → → → → → → → → Actions
+    201     │ - → → → → → → → → </TableHead>
+    202     │ - → → → → → → → </TableRow>
+    203     │ - → → → → → → </TableHeader>
+    204     │ - → → → → → → <TableBody>
+    205     │ - → → → → → → → {bookings.map((booking)·=>·{
+    206     │ - → → → → → → → → const·roomColors·=·CONFERENCE_ROOM_COLORS[booking.roomKey];
+        181 │ + → → → → → → <Table>
+        182 │ + → → → → → → → <TableHeader>
+        183 │ + → → → → → → → → <TableRow·className="hover:bg-transparent">
+        184 │ + → → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold">
+        185 │ + → → → → → → → → → → Details
+        186 │ + → → → → → → → → → </TableHead>
+        187 │ + → → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold">
+        188 │ + → → → → → → → → → → Schedule·&·Room
+        189 │ + → → → → → → → → → </TableHead>
+        190 │ + → → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold">
+        191 │ + → → → → → → → → → → Attachment
+        192 │ + → → → → → → → → → </TableHead>
+        193 │ + → → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold">
+        194 │ + → → → → → → → → → → Status
+        195 │ + → → → → → → → → → </TableHead>
+        196 │ + → → → → → → → → → <TableHead·className="h-8·text-xs·font-semibold·text-right">
+        197 │ + → → → → → → → → → → Actions
+        198 │ + → → → → → → → → → </TableHead>
+        199 │ + → → → → → → → → </TableRow>
+        200 │ + → → → → → → → </TableHeader>
+        201 │ + → → → → → → → <TableBody>
+        202 │ + → → → → → → → → {bookings.map((booking)·=>·{
+        203 │ + → → → → → → → → → const·roomColors·=·CONFERENCE_ROOM_COLORS[booking.roomKey];
+    207 204 │   
+    208     │ - → → → → → → → → return·(
+    209     │ - → → → → → → → → → <TableRow
+    210     │ - → → → → → → → → → → key={booking.id}
+    211     │ - → → → → → → → → → → className="hover:bg-gray-50·transition-colors"
+    212     │ - → → → → → → → → → >
+    213     │ - → → → → → → → → → → <TableCell·className="max-w-[200px]·align-top">
+    214     │ - → → → → → → → → → → → <div·className="flex·flex-col·gap-0.5">
+    215     │ - → → → → → → → → → → → → <span
+    216     │ - → → → → → → → → → → → → → className="font-medium·text-gray-900·truncate"
+    217     │ - → → → → → → → → → → → → → title={booking.purpose}
+    218     │ - → → → → → → → → → → → → >
+    219     │ - → → → → → → → → → → → → → {booking.purpose}
+    220     │ - → → → → → → → → → → → → </span>
+    221     │ - → → → → → → → → → → → → <span
+    222     │ - → → → → → → → → → → → → → className="text-xs·text-gray-500·truncate"
+    223     │ - → → → → → → → → → → → → → title={`For:·${booking.requestedFor}`}
+    224     │ - → → → → → → → → → → → → >
+    225     │ - → → → → → → → → → → → → → For:·{booking.requestedFor}
+    226     │ - → → → → → → → → → → → → </span>
+    227     │ - → → → → → → → → → → → </div>
+    228     │ - → → → → → → → → → → </TableCell>
+    229     │ - → → → → → → → → → → <TableCell·className="align-top">
+    230     │ - → → → → → → → → → → → <div·className="flex·flex-col·items-start·gap-1">
+    231     │ - → → → → → → → → → → → → <span
+    232     │ - → → → → → → → → → → → → → className={`inline-flex·items-center·gap-1.5·text-[11px]·leading-none·font-medium·px-2·py-0.5·rounded-full·${roomColors.label}`}
+    233     │ - → → → → → → → → → → → → >
+    234     │ - → → → → → → → → → → → → → {CONFERENCE_ROOM_LABELS[booking.roomKey]}
+    235     │ - → → → → → → → → → → → → </span>
+    236     │ - → → → → → → → → → → → → <div·className="flex·flex-col·text-xs·text-gray-600·mt-0.5">
+    237     │ - → → → → → → → → → → → → → <span·className="font-medium">
+    238     │ - → → → → → → → → → → → → → → {formatFullDate(booking.date)}
+    239     │ - → → → → → → → → → → → → → </span>
+    240     │ - → → → → → → → → → → → → → <span>
+    241     │ - → → → → → → → → → → → → → → {booking.startTime}·–·{booking.endTime}
+    242     │ - → → → → → → → → → → → → → </span>
+    243     │ - → → → → → → → → → → → → </div>
+    244     │ - → → → → → → → → → → → </div>
+    245     │ - → → → → → → → → → → </TableCell>
+    246     │ - → → → → → → → → → → <TableCell>
+    247     │ - → → → → → → → → → → → {booking.attachmentUrl·?·(
+    248     │ - → → → → → → → → → → → → <a
+    249     │ - → → → → → → → → → → → → → href={booking.attachmentUrl}
+    250     │ - → → → → → → → → → → → → → target="_blank"
+    251     │ - → → → → → → → → → → → → → rel="noopener·noreferrer"
+    252     │ - → → → → → → → → → → → → → className="inline-flex·items-center·gap-1·text-blue-600·hover:text-blue-800·text-xs·font-medium"
+    253     │ - → → → → → → → → → → → → → title="View·attachment"
+    254     │ - → → → → → → → → → → → → >
+    255     │ - → → → → → → → → → → → → → <FileText·className="w-3.5·h-3.5"·/>
+    256     │ - → → → → → → → → → → → → → View
+    257     │ - → → → → → → → → → → → → → <ExternalLink·className="w-3·h-3"·/>
+    258     │ - → → → → → → → → → → → → </a>
+  209 more lines truncated
+  
+
+Checked 13 files in 63ms. No fixes applied.
+Found 5 errors.
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+

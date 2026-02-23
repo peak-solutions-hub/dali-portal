@@ -149,7 +149,7 @@ export const generateBookingUploadUrl = oc
 		path: "/bookings/upload-url",
 		summary: "Generate a signed upload URL for a booking attachment",
 		description:
-			"Returns a short-lived Supabase signed upload URL. The client uploads the file directly to Supabase Storage and then passes the resulting path in CreateRoomBooking.attachmentUrl. File must be PDF, JPEG, or JPG and ≤ 10 MB.",
+			"Returns a short-lived Supabase signed upload URL. The client uploads the file directly to Supabase Storage and then passes the resulting path in CreateRoomBooking.attachmentUrl. File must be PDF, JPEG, or JPG and ≤ 5 MB.",
 		tags: ["Room Booking", "Admin"],
 	})
 	.errors({
