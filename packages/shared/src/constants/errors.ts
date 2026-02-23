@@ -179,7 +179,7 @@ export const ERRORS = {
 		},
 		INVALID_ATTACHMENT: {
 			status: 400,
-			message: "File must be a PDF, JPEG, or JPG and must not exceed 10MB.",
+			message: "File must be a PDF, JPEG, or JPG and must not exceed 5MB.",
 		},
 		CANNOT_APPROVE: {
 			status: 400,

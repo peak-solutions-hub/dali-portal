@@ -4,7 +4,6 @@ import {
 	CONFERENCE_ROOM_OPTIONS,
 	type ConferenceRoom,
 	FILE_UPLOAD_PRESETS,
-	MAX_ATTACHMENT_SIZE_BYTES,
 	TEXT_LIMITS,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
@@ -101,7 +100,7 @@ export function BookingFormFields({
 	} = useSupabaseUpload({
 		path: "room-bookings",
 		maxFiles: 1,
-		maxFileSize: MAX_ATTACHMENT_SIZE_BYTES,
+		maxFileSize,
 		allowedMimeTypes: ["application/pdf", "image/jpeg", "image/jpg"],
 	});
 

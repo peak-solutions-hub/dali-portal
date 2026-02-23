@@ -1,6 +1,6 @@
 "use client";
 
-import { CONFERENCE_ROOM_LABELS } from "@repo/shared";
+import { CONFERENCE_ROOM_COLORS, CONFERENCE_ROOM_LABELS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Table,
@@ -22,7 +22,6 @@ import {
 import { useMemo, useState } from "react";
 import { useMyBookings } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
-import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
 import {
 	type CalendarBooking,
 	mapApiBookings,
@@ -42,7 +41,7 @@ export function MyBookingsList() {
 	const { data, isLoading } = useMyBookings(userId);
 
 	const [statusFilter, setStatusFilter] = useState<
-		"all" | "pending" | "confirmed" | "done"
+		"all" | "pending" | "confirmed" | "done" | "expired"
 	>("all");
 
 	const bookings = useMemo((): CalendarBooking[] => {
@@ -52,17 +51,20 @@ export function MyBookingsList() {
 		if (statusFilter !== "all") {
 			mapped = mapped.filter((b) => {
 				const isDone = b.isPast && b.status === "confirmed";
-				return statusFilter === "done"
-					? isDone
-					: !isDone && b.status === statusFilter;
+				const isExpired = b.isPast && b.status === "pending";
+				if (statusFilter === "done") return isDone;
+				if (statusFilter === "expired") return isExpired;
+				return !isDone && !isExpired && b.status === statusFilter;
 			});
 		}
 
 		mapped.sort((a, b) => {
-			const aIsDone = a.isPast && a.status === "confirmed";
-			const bIsDone = b.isPast && b.status === "confirmed";
-			if (aIsDone && !bIsDone) return 1;
-			if (!aIsDone && bIsDone) return -1;
+			const aIsPast =
+				a.isPast && (a.status === "confirmed" || a.status === "pending");
+			const bIsPast =
+				b.isPast && (b.status === "confirmed" || b.status === "pending");
+			if (aIsPast && !bIsPast) return 1;
+			if (!aIsPast && bIsPast) return -1;
 			return b.date.getTime() - a.date.getTime();
 		});
 
@@ -161,6 +163,17 @@ export function MyBookingsList() {
 						}`}
 					>
 						Done
+					</button>
+					<button
+						type="button"
+						onClick={() => setStatusFilter("expired")}
+						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+							statusFilter === "expired"
+								? "bg-white text-red-600 shadow-sm ring-1 ring-gray-200"
+								: "text-gray-500 hover:text-gray-700"
+						}`}
+					>
+						Expired
 					</button>
 				</div>
 			</div>
@@ -278,46 +291,44 @@ export function MyBookingsList() {
 													{!(
 														booking.isPast && booking.status === "confirmed"
 													) && (
-														<>
-															<Button
-																variant="ghost"
-																size="sm"
-																className="h-8 px-2 text-blue-600 hover:text-blue-700"
-																onClick={() =>
-																	setEditingBooking({
-																		id: booking.id,
-																		title: booking.purpose,
-																		requestedFor: booking.requestedFor,
-																		room: resolveConferenceRoom(
-																			booking.roomKey || booking.room,
-																			booking.room,
-																		),
-																		date: booking.date,
-																		startTime: booking.startTime24,
-																		endTime: booking.endTime24,
-																		attachmentUrl: booking.attachmentUrl,
-																	})
-																}
-																title="Edit booking"
-															>
-																<Pencil className="w-4 h-4" />
-															</Button>
-															<Button
-																variant="ghost"
-																size="sm"
-																className="h-8 px-2 text-red-600 hover:text-red-700"
-																onClick={() =>
-																	setDeletingBooking({
-																		id: booking.id,
-																		title: booking.purpose,
-																	})
-																}
-																title="Delete booking"
-															>
-																<Trash2 className="w-4 h-4" />
-															</Button>
-														</>
+														<Button
+															variant="ghost"
+															size="sm"
+															className="h-8 px-2 text-blue-600 hover:text-blue-700"
+															onClick={() =>
+																setEditingBooking({
+																	id: booking.id,
+																	title: booking.purpose,
+																	requestedFor: booking.requestedFor,
+																	room: resolveConferenceRoom(
+																		booking.roomKey || booking.room,
+																		booking.room,
+																	),
+																	date: booking.date,
+																	startTime: booking.startTime24,
+																	endTime: booking.endTime24,
+																	attachmentUrl: booking.attachmentUrl,
+																})
+															}
+															title="Edit booking"
+														>
+															<Pencil className="w-4 h-4" />
+														</Button>
 													)}
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-8 px-2 text-red-600 hover:text-red-700"
+														onClick={() =>
+															setDeletingBooking({
+																id: booking.id,
+																title: booking.purpose,
+															})
+														}
+														title="Delete booking"
+													>
+														<Trash2 className="w-4 h-4" />
+													</Button>
 												</div>
 											</TableCell>
 										</TableRow>
@@ -341,6 +352,7 @@ export function MyBookingsList() {
 						? !(viewingBooking.isPast && viewingBooking.status === "confirmed")
 						: false
 				}
+				canDelete={!!viewingBooking}
 				canApprove={false}
 			/>
 

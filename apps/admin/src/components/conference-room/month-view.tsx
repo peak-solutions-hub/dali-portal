@@ -1,5 +1,6 @@
 "use client";
 
+import { CONFERENCE_ROOM_COLORS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Popover,
@@ -8,7 +9,6 @@ import {
 } from "@repo/ui/components/popover";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useState } from "react";
-import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
 import type { CalendarBooking } from "@/utils/booking-helpers";
 import {
 	dayNames,

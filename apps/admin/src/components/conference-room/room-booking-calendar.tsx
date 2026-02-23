@@ -186,6 +186,11 @@ export function RoomBookingCalendar() {
 		viewingBooking.bookedBy === userId &&
 		!viewingBooking.isPast;
 
+	const canDeleteViewedBooking =
+		viewingBooking !== null &&
+		userId !== null &&
+		(viewingBooking.bookedBy === userId || canApprove);
+
 	return (
 		<div className="flex gap-6 p-3 h-screen max-h-screen overflow-hidden bg-gray-50">
 			{viewMode === "day" ? (
@@ -240,6 +245,7 @@ export function RoomBookingCalendar() {
 				onEdit={handleEditFromView}
 				onDelete={handleDeleteFromView}
 				canEdit={canEditViewedBooking}
+				canDelete={canDeleteViewedBooking}
 				canApprove={canApprove}
 			/>
 

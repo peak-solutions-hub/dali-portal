@@ -338,8 +338,8 @@ export class RoomBookingService {
 			throw new AppError("ROOM_BOOKING.NOT_FOUND");
 		}
 
-		// Scenario 1 — Ownership check (owner-only editing)
-		if (booking.bookedBy !== userId) {
+		// Scenario 1 — Ownership check (admins bypass)
+		if (booking.bookedBy !== userId && !this.isAdminRole(userRole)) {
 			throw new AppError("ROOM_BOOKING.FORBIDDEN");
 		}
 

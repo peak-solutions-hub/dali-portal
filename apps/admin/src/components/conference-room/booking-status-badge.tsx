@@ -1,7 +1,7 @@
 "use client";
 
 import type { ConferenceRoom } from "@repo/shared";
-import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
+import { CONFERENCE_ROOM_COLORS } from "@repo/shared";
 
 interface BookingStatusBadgeProps {
 	status: "pending" | "confirmed" | "rejected";

@@ -1,5 +1,6 @@
 "use client";
 
+import { CONFERENCE_ROOM_COLORS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	ChevronLeft,
@@ -10,7 +11,6 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { useDragSelect } from "@/hooks/room-booking";
-import { CONFERENCE_ROOM_COLORS } from "@/utils/booking-color-utils";
 import type { CalendarBooking } from "@/utils/booking-helpers";
 import { formatDayName, formatFullDate, isSameDay } from "@/utils/date-utils";
 import {
@@ -401,7 +401,7 @@ export function DayView({
 										<div
 											className={`h-full ml-px ${
 												height <= 20 ? "pl-2" : "pl-2 md:pl-4"
-											} flex flex-col justify-center gap-0.5 md:gap-1 rounded-r-md group-hover/booking:brightness-95 transition-[filter] shadow-sm overflow-hidden ${containerBg}`}
+											} flex flex-col justify-center gap-0.5 md:gap-1 rounded-r-md group-hover/booking:brightness-95 transition-[filter] shadow-sm overflow-hidden border border-white ${containerBg} ${column > 0 && totalColumns > 1 ? "border-l-2 border-white" : ""}`}
 										>
 											{height <= 20 ? (
 												<div className="flex items-center gap-2 truncate pr-2 w-full">

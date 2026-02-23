@@ -1,3 +1,4 @@
+import { FILE_SIZE_LIMITS } from "../constants";
 import type { RoleType } from "../enums/role";
 import type { ConferenceRoom } from "../enums/room";
 
@@ -69,7 +70,7 @@ export const BOOKING_ATTACHMENTS_BUCKET = "attachments";
 export const BOOKING_UPLOAD_FOLDER = "room_bookings";
 
 /** Maximum allowed attachment file size in bytes (5 MB). */
-export const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
+export const MAX_ATTACHMENT_SIZE_BYTES = FILE_SIZE_LIMITS.XS;
 
 /** Allowed MIME types and their expected file extensions. */
 export const MIME_EXTENSIONS: Record<string, string[]> = {
@@ -113,19 +114,19 @@ export const CONFERENCE_ROOM_COLORS: Record<
 	}
 > = {
 	room_a: {
-		bg: "bg-blue-50",
-		border: "border-l-blue-500",
-		text: "text-blue-700",
-		label: "bg-blue-100 text-blue-700",
-		dot: "bg-blue-500",
-		chip: "bg-blue-600 text-white",
+		bg: "bg-[#039be5]",
+		border: "border-l-[#0288d1]",
+		text: "text-white",
+		label: "bg-[#039be5] text-white",
+		dot: "bg-[#039be5]",
+		chip: "bg-[#039be5] text-white border border-transparent",
 	},
 	room_b: {
-		bg: "bg-purple-100",
-		border: "border-l-purple-500",
-		text: "text-purple-700",
-		label: "bg-purple-100 text-purple-700",
-		dot: "bg-purple-500",
-		chip: "bg-purple-600 text-white",
+		bg: "bg-[#0b8043]",
+		border: "border-l-[#096a36]",
+		text: "text-white",
+		label: "bg-[#0b8043] text-white",
+		dot: "bg-[#0b8043]",
+		chip: "bg-[#0b8043] text-white border border-transparent",
 	},
 };
