@@ -1,9 +1,17 @@
 "use client";
 
-import type { AttachmentMimeType, ConferenceRoom } from "@repo/shared";
+import {
+	type AttachmentMimeType,
+	type ConferenceRoom,
+	isAdminBookingRole,
+	type RoomBookingListResponse,
+	type RoomBookingResponse,
+} from "@repo/shared";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api.client";
+import { api, orpc } from "@/lib/api.client";
+import { useAuthStore } from "@/stores/auth-store";
 import { useInvalidateRoomBookings } from "./use-room-bookings";
 
 export interface CreateBookingInput {
@@ -47,86 +55,140 @@ function inferAttachmentMimeType(fileName: string): AttachmentMimeType {
 export function useCreateBooking(
 	onSuccess?: () => void,
 ): UseCreateBookingReturn {
-	const [isCreating, setIsCreating] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-
-	const invalidate = useInvalidateRoomBookings();
 	const clearError = useCallback(() => setError(null), []);
+	const queryClient = useQueryClient();
+	const userProfile = useAuthStore((s) => s.userProfile);
+
+	const mutation = useMutation({
+		mutationFn: async (input: CreateBookingInput) => {
+			let attachmentUrl: string | undefined;
+
+			if (input.attachmentFile) {
+				const mimeType = inferAttachmentMimeType(input.attachmentFile.name);
+				const [uploadErr, uploadData] =
+					await api.roomBookings.generateUploadUrl({
+						fileName: input.attachmentFile.name,
+						mimeType,
+					});
+
+				if (uploadErr || !uploadData) {
+					throw new Error(
+						uploadErr?.message || "Failed to generate upload URL",
+					);
+				}
+
+				const uploadResponse = await fetch(uploadData.uploadUrl, {
+					method: "PUT",
+					headers: {
+						"Content-Type":
+							input.attachmentFile.type || "application/octet-stream",
+					},
+					body: input.attachmentFile,
+				});
+
+				if (!uploadResponse.ok) {
+					throw new Error(
+						`Failed to upload attachment (${uploadResponse.status})`,
+					);
+				}
+
+				attachmentUrl = uploadData.path;
+			}
+
+			const [err, data] = await api.roomBookings.create({
+				title: input.title,
+				startTime: toISODateTime(input.date, input.startTime),
+				endTime: toISODateTime(input.date, input.endTime),
+				requestedFor: input.requestedFor,
+				room: input.room,
+				...(attachmentUrl ? { attachmentUrl } : {}),
+			});
+
+			if (err) {
+				throw new Error(err.message || "Failed to create booking");
+			}
+
+			return data;
+		},
+		onMutate: async (newBooking) => {
+			await queryClient.cancelQueries({
+				queryKey: orpc.roomBookings.getList.key(),
+			});
+
+			const previousQueries = queryClient.getQueriesData({
+				queryKey: orpc.roomBookings.getList.key(),
+			});
+
+			const optimisticStatus =
+				userProfile?.role.name && isAdminBookingRole(userProfile.role.name)
+					? "confirmed"
+					: "pending";
+
+			const optimisticBooking: RoomBookingResponse = {
+				id: `temp-${Date.now()}`,
+				bookedBy: userProfile?.id ?? "",
+				title: newBooking.title,
+				startTime: toISODateTime(newBooking.date, newBooking.startTime),
+				endTime: toISODateTime(newBooking.date, newBooking.endTime),
+				requestedFor: newBooking.requestedFor,
+				room: newBooking.room,
+				attachmentUrl: null,
+				status: optimisticStatus,
+				createdAt: new Date().toISOString(),
+				user: userProfile
+					? {
+							id: userProfile.id,
+							fullName: userProfile.fullName,
+						}
+					: null,
+			};
+
+			queryClient.setQueriesData(
+				{ queryKey: orpc.roomBookings.getList.key() },
+				(old: RoomBookingListResponse | undefined) => {
+					if (!old || !old.bookings) return old;
+					return {
+						...old,
+						bookings: [...old.bookings, optimisticBooking],
+					};
+				},
+			);
+
+			return { previousQueries };
+		},
+		onError: (err, newBooking, context) => {
+			setError(err.message);
+			toast.error(err.message);
+			if (context?.previousQueries) {
+				context.previousQueries.forEach(([queryKey, data]) => {
+					queryClient.setQueryData(queryKey, data);
+				});
+			}
+		},
+		onSuccess: () => {
+			toast.success("Booking created successfully");
+			onSuccess?.();
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({
+				queryKey: orpc.roomBookings.getList.key(),
+			});
+		},
+	});
 
 	const createBooking = useCallback(
 		async (input: CreateBookingInput): Promise<{ success: boolean }> => {
-			setIsCreating(true);
 			setError(null);
-
 			try {
-				let attachmentUrl: string | undefined;
-
-				if (input.attachmentFile) {
-					const mimeType = inferAttachmentMimeType(input.attachmentFile.name);
-					const [uploadErr, uploadData] =
-						await api.roomBookings.generateUploadUrl({
-							fileName: input.attachmentFile.name,
-							mimeType,
-						});
-
-					if (uploadErr || !uploadData) {
-						const message =
-							uploadErr?.message || "Failed to generate upload URL";
-						setError(message);
-						toast.error(message);
-						return { success: false };
-					}
-
-					const uploadResponse = await fetch(uploadData.uploadUrl, {
-						method: "PUT",
-						headers: {
-							"Content-Type":
-								input.attachmentFile.type || "application/octet-stream",
-						},
-						body: input.attachmentFile,
-					});
-
-					if (!uploadResponse.ok) {
-						const message = `Failed to upload attachment (${uploadResponse.status})`;
-						setError(message);
-						toast.error(message);
-						return { success: false };
-					}
-
-					attachmentUrl = uploadData.path;
-				}
-
-				const [err] = await api.roomBookings.create({
-					title: input.title,
-					startTime: toISODateTime(input.date, input.startTime),
-					endTime: toISODateTime(input.date, input.endTime),
-					requestedFor: input.requestedFor,
-					room: input.room,
-					...(attachmentUrl ? { attachmentUrl } : {}),
-				});
-
-				if (err) {
-					const message = err.message || "Failed to create booking";
-					setError(message);
-					toast.error(message);
-					return { success: false };
-				}
-
-				toast.success("Booking created successfully");
-				await invalidate();
-				onSuccess?.();
+				await mutation.mutateAsync(input);
 				return { success: true };
 			} catch {
-				const message = "An unexpected error occurred";
-				setError(message);
-				toast.error(message);
 				return { success: false };
-			} finally {
-				setIsCreating(false);
 			}
 		},
-		[invalidate, onSuccess],
+		[mutation],
 	);
 
-	return { createBooking, isCreating, error, clearError };
+	return { createBooking, isCreating: mutation.isPending, error, clearError };
 }

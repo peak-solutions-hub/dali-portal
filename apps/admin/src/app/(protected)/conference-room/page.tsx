@@ -16,6 +16,11 @@ import {
 	MyBookingsList,
 	RoomBookingCalendar,
 } from "@/components/conference-room";
+import {
+	useMyBookings,
+	usePendingRoomBookings,
+	useRoomBookings,
+} from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores";
 
 export default function ConferenceRoomBooking() {
@@ -23,6 +28,11 @@ export default function ConferenceRoomBooking() {
 	const userProfile = useAuthStore((s) => s.userProfile);
 	const userRole = userProfile?.role.name;
 	const canManageRequests = userRole ? isAdminBookingRole(userRole) : false;
+
+	// Pre-fetch data for all tabs on initial load
+	useRoomBookings(new Date());
+	useMyBookings(userProfile?.id ?? null);
+	usePendingRoomBookings(canManageRequests);
 
 	return (
 		<div className="min-h-screen">

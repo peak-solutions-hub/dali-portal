@@ -220,7 +220,7 @@ export function MyBookingsList() {
 											key={booking.id}
 											className="hover:bg-gray-50 transition-colors"
 										>
-											<TableCell className="max-w-[200px] align-top">
+											<TableCell className="max-w-50 align-top">
 												<div className="flex flex-col gap-0.5">
 													<span
 														className="font-medium text-gray-900 truncate"

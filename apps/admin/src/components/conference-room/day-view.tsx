@@ -401,7 +401,7 @@ export function DayView({
 										<div
 											className={`h-full ml-px ${
 												height <= 20 ? "pl-2" : "pl-2 md:pl-4"
-											} flex flex-col justify-center gap-0.5 md:gap-1 rounded-r-md group-hover/booking:brightness-95 transition-[filter] shadow-sm overflow-hidden border border-white ${containerBg} ${column > 0 && totalColumns > 1 ? "border-l-2 border-white" : ""}`}
+											} flex flex-col justify-center gap-0.5 md:gap-1 rounded-r-md group-hover/booking:brightness-95 transition-[filter] shadow-sm overflow-hidden border border-white ${containerBg}`}
 										>
 											{height <= 20 ? (
 												<div className="flex items-center gap-2 truncate pr-2 w-full">
@@ -410,7 +410,7 @@ export function DayView({
 													</span>
 													<div className="flex items-center gap-1 text-[9px] text-white/90 min-w-0">
 														<MapPin className="w-2.5 h-2.5 shrink-0 opacity-80" />
-														<span className="truncate max-w-[80px]">
+														<span className="truncate max-w-20">
 															{booking.room}
 														</span>
 														<Clock className="w-2.5 h-2.5 shrink-0 opacity-80 ml-1" />
@@ -429,7 +429,7 @@ export function DayView({
 													<div className="flex items-center gap-2 text-[9px] md:text-[10px] text-white/90 truncate pr-2 w-full">
 														<div className="flex items-center gap-1 shrink-0 min-w-0">
 															<MapPin className="w-3 h-3 shrink-0 opacity-80" />
-															<span className="truncate max-w-[100px]">
+															<span className="truncate max-w-25">
 																{booking.room}
 															</span>
 														</div>
@@ -475,7 +475,7 @@ export function DayView({
 						dragStartIndex !== null &&
 						dragEndIndex !== null && (
 							<div
-								className="absolute left-[6rem] w-[calc(100%-6rem)] pointer-events-none z-40"
+								className="absolute left-24 w-[calc(100%-6rem)] pointer-events-none z-40"
 								style={{
 									top: `${Math.min(dragStartIndex, dragEndIndex) * 20}px`,
 									height: `${(Math.abs(dragEndIndex - dragStartIndex) + 1) * 20}px`,

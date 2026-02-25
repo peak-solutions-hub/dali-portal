@@ -2,6 +2,7 @@
 
 import { isAdminBookingRole } from "@repo/shared";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useMonthBookings, useRoomBookings } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
 import {
@@ -113,6 +114,8 @@ export function RoomBookingCalendar() {
 			setSelectedTimeSlot("");
 			if (canCreateOnDate) {
 				setIsCreateOpen(true);
+			} else {
+				toast.error("Cannot create bookings in the past");
 			}
 		}
 	};
@@ -174,6 +177,7 @@ export function RoomBookingCalendar() {
 
 	const handleSelectTimeRange = (timeRange: string) => {
 		if (isPastSelectedDate) {
+			toast.error("Cannot create bookings in the past");
 			return;
 		}
 		setSelectedTimeSlot(timeRange);
