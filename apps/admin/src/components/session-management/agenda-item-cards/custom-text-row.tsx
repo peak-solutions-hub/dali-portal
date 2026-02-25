@@ -7,7 +7,7 @@ import {
 	Pencil,
 } from "@repo/ui/lib/lucide-react";
 import parse from "html-react-parser";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CustomTextItem } from "@/hooks/session-management";
 import { sanitizeQuillHtml } from "@/utils/quill-html-utils.client";
 import { RichTextEditor } from "../rich-text-editor";
@@ -34,6 +34,8 @@ interface CustomTextRowProps {
 	activeEditorId?: string | null;
 	/** Called when this row opens its editor */
 	onEditorFocus?: (id: string) => void;
+	/** If provided, registers a flush fn while editing so save/publish can commit the draft. */
+	flushRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export function CustomTextRow({
@@ -50,6 +52,7 @@ export function CustomTextRow({
 	isRemoving,
 	activeEditorId,
 	onEditorFocus,
+	flushRef,
 }: CustomTextRowProps) {
 	const isEditing =
 		activeEditorId === item.id ||
@@ -57,6 +60,46 @@ export function CustomTextRow({
 	const [draft, setDraft] = useState(item.content);
 
 	const isEmpty = !draft || draft.replace(/<[^>]*>/g, "").trim().length === 0;
+
+	// Stable ref so the flush fn always sees the latest typed value
+	const draftRef = useRef(draft);
+	useEffect(() => {
+		draftRef.current = draft;
+	}, [draft]);
+
+	// Register/unregister flush fn while this editor is open
+	useEffect(() => {
+		if (!flushRef) return;
+		if (isEditing) {
+			flushRef.current = () => {
+				const current = draftRef.current;
+				const hasContent =
+					current && current.replace(/<[^>]*>/g, "").trim().length > 0;
+				if (hasContent) {
+					onUpdate(sectionId, item.id, current);
+					return true; // real content was committed
+				} else if (!item.content) {
+					// Empty new item (never saved) — auto-discard on flush (e.g. publish/save)
+					onRemove(sectionId, item.id);
+				}
+				// Empty but already-saved item: leave as-is (content stays unchanged)
+				return false;
+			};
+		} else {
+			flushRef.current = null;
+		}
+		return () => {
+			if (flushRef) flushRef.current = null;
+		};
+	}, [
+		isEditing,
+		flushRef,
+		onUpdate,
+		onRemove,
+		sectionId,
+		item.id,
+		item.content,
+	]);
 
 	const handleOpenEditor = () => {
 		setDraft(item.content);
@@ -166,6 +209,16 @@ export function CustomTextRow({
 						placeholder="Enter custom text…"
 					/>
 					<div className="flex items-center justify-end gap-1.5">
+						{!isEmpty && (
+							<Button
+								variant="ghost"
+								size="sm"
+								className="cursor-pointer text-xs h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+								onClick={() => setDraft("")}
+							>
+								Clear All
+							</Button>
+						)}
 						<Button
 							variant="ghost"
 							size="sm"

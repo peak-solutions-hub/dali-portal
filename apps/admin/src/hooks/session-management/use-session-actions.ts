@@ -152,7 +152,25 @@ export function useSessionActions({
 						} else if (agendaItem.contentText) {
 							// ── Plain section text (minutes, header text, etc.) ──────────
 							// Overwrite is intentional — section text is a single value per section.
-							newContentTextMap[sectionKey] = agendaItem.contentText;
+							// Guard: if contentText contains HTML tags it is almost certainly a
+							// custom text item whose isCustomText flag was not returned by the API
+							// (e.g. older saved data). Treat it as a custom text so it doesn't
+							// bleed into the minutes picker preview.
+							const looksLikeHtml = /<[a-z][\s\S]*>/i.test(
+								agendaItem.contentText,
+							);
+							if (looksLikeHtml) {
+								const existing = newCustomTexts[sectionKey] || [];
+								existing.push({
+									id: agendaItem.id,
+									content: agendaItem.contentText,
+									classification: agendaItem.classification ?? undefined,
+									orderIndex: agendaItem.orderIndex,
+								});
+								newCustomTexts[sectionKey] = existing;
+							} else {
+								newContentTextMap[sectionKey] = agendaItem.contentText;
+							}
 						}
 					}
 
@@ -319,7 +337,13 @@ export function useSessionActions({
 		} finally {
 			setActionInFlight(null);
 		}
-	}, [selectedSession, buildAgendaItems, invalidateSessions]);
+	}, [
+		selectedSession,
+		buildAgendaItems,
+		invalidateSessions,
+		snapshotSavedState,
+		clearDraft,
+	]);
 
 	const handleUnpublish = useCallback(async () => {
 		if (!selectedSession) return;

@@ -13,13 +13,37 @@ export function useCustomTextOperations({
 			const id = crypto.randomUUID();
 			setCustomTextsBySection((prev) => {
 				const existing = prev[sectionId] ?? [];
+
+				// Silently discard any empty items in the same section+classification
+				// before adding the new one. An empty item has no value so nothing is lost.
+				const withoutEmpties = existing.filter((item) => {
+					const isEmpty =
+						!item.content ||
+						item.content.replace(/<[^>]*>/g, "").trim().length === 0;
+					if (!isEmpty) return true;
+					// For committee reports, only discard empties in the same classification group
+					if (sectionId === "committee_reports") {
+						return (
+							(item.classification ?? "uncategorized") !==
+							(classification ?? "uncategorized")
+						);
+					}
+					return false;
+				});
+
 				const newItem: CustomTextItem = {
 					id,
 					content: "",
 					classification,
-					orderIndex: existing.length,
+					orderIndex: withoutEmpties.length,
 				};
-				return { ...prev, [sectionId]: [...existing, newItem] };
+				return {
+					...prev,
+					[sectionId]: [...withoutEmpties, newItem].map((item, idx) => ({
+						...item,
+						orderIndex: idx,
+					})),
+				};
 			});
 			return id;
 		},

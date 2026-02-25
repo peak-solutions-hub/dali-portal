@@ -27,13 +27,33 @@ export function useDirtyTracking({
 	const normalizeMap = useCallback((map: Record<string, unknown>) => {
 		const cleaned: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(map)) {
+			// Strip empty CustomTextItems from arrays before comparing —
+			// an unsaved empty editor box should not count as a real change.
+			const value = Array.isArray(v)
+				? v.filter((item) => {
+						if (
+							item !== null &&
+							typeof item === "object" &&
+							"content" in item &&
+							"orderIndex" in item
+						) {
+							const content = (item as { content: string }).content;
+							return (
+								typeof content === "string" &&
+								content.replace(/<[^>]*>/g, "").trim().length > 0
+							);
+						}
+						return true;
+					})
+				: v;
+
 			if (
-				v !== "" &&
-				v !== undefined &&
-				v !== null &&
-				!(Array.isArray(v) && v.length === 0)
+				value !== "" &&
+				value !== undefined &&
+				value !== null &&
+				!(Array.isArray(value) && value.length === 0)
 			) {
-				cleaned[k] = v;
+				cleaned[k] = value;
 			}
 		}
 		return JSON.stringify(cleaned);

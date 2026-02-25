@@ -1,5 +1,6 @@
-export type { UseAgendaBuilderReturn } from "./use-agenda-builder";
 // ─── Hook ────────────────────────────────────────────────────────────────────
+
+export type { UseAgendaBuilderReturn } from "./use-agenda-builder";
 export { useAgendaBuilder } from "./use-agenda-builder";
 
 // Types

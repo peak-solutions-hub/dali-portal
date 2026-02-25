@@ -9,7 +9,7 @@ import type {
 import { formatSessionDate } from "@repo/shared";
 import { AlertCircle, Loader2, Lock } from "@repo/ui/lib/lucide-react";
 import { getSessionTypeLabel } from "@repo/ui/lib/session-ui";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { CustomTextItem } from "@/hooks/session-management";
 import { AgendaItemCard } from "./agenda-item-card";
 import {
@@ -73,6 +73,7 @@ export function AgendaPanel({
 	onWriteCommitteeState,
 	onCommitteeDocClassify,
 	onScheduledRemoveDocument,
+	onScheduledRemoveCustomText,
 	removingItemIds,
 }: AgendaPanelProps & {
 	sessions: Session[];
@@ -153,6 +154,11 @@ export function AgendaPanel({
 		agendaItemId: string,
 		documentId: string,
 	) => Promise<void>;
+	/** Non-optimistic remove for custom text items on a scheduled session */
+	onScheduledRemoveCustomText?: (
+		sectionId: string,
+		itemId: string,
+	) => Promise<void>;
 	/** IDs currently mid-remove (showing spinner). */
 	removingItemIds?: Set<string>;
 }) {
@@ -177,8 +183,47 @@ export function AgendaPanel({
 		useState(false);
 	const [showConfirmDiscard, setShowConfirmDiscard] = useState(false);
 
+	// One flush ref per AgendaItemCard, keyed by item.id
+	const cardFlushRefs = useRef<
+		Map<string, React.MutableRefObject<(() => void) | null>>
+	>(new Map());
+	const getOrCreateCardFlushRef = useCallback((itemId: string) => {
+		if (!cardFlushRefs.current.has(itemId)) {
+			cardFlushRefs.current.set(itemId, { current: null });
+		}
+		return cardFlushRefs.current.get(itemId)!;
+	}, []);
+
+	// Track which card is currently active so cross-card editor switches flush the previous one
+	const activeCardItemId = useRef<string | null>(null);
+	const handleCardEditorOpen = useCallback((itemId: string) => {
+		const prev = activeCardItemId.current;
+		if (prev && prev !== itemId) {
+			cardFlushRefs.current.get(prev)?.current?.();
+		}
+		activeCardItemId.current = itemId;
+	}, []);
+
+	/** Commit all open editors across every card before saving/publishing.
+	 *  Returns true if any editor had real content that was committed (i.e. a
+	 *  change was made). Returns false if all open editors were empty new items
+	 *  that were auto-discarded. */
+	const flushAllEditors = useCallback(() => {
+		let hadContent = false;
+		for (const ref of cardFlushRefs.current.values()) {
+			if (ref.current?.()) hadContent = true;
+		}
+		activeCardItemId.current = null;
+		return hadContent;
+	}, []);
+
 	const handlePublishClick = () => {
-		if (hasChanges) {
+		// Flush any open editor draft into state before checking for changes.
+		// - If the editor had content  → it's committed and hasChanges becomes true → show unsaved modal
+		// - If the editor was empty+new → it's auto-discarded (no change) → proceed normally
+		const editorHadContent = flushAllEditors();
+
+		if (hasChanges || editorHadContent) {
 			setShowUnsavedBeforePublish(true);
 		} else {
 			setShowPublishDialog(true);
@@ -186,6 +231,7 @@ export function AgendaPanel({
 	};
 
 	const handleSaveAndProceedToPublish = async () => {
+		flushAllEditors();
 		if (onSaveDraft) await onSaveDraft();
 		setShowUnsavedBeforePublish(false);
 		setShowPublishDialog(true);
@@ -239,6 +285,14 @@ export function AgendaPanel({
 				doc.id === documentId ? { ...doc, summary } : doc,
 			),
 		});
+	};
+
+	const handleRemoveCustomText = (sectionId: string, itemId: string) => {
+		if (isScheduled && onScheduledRemoveCustomText) {
+			onScheduledRemoveCustomText(sectionId, itemId);
+			return;
+		}
+		onRemoveCustomText?.(sectionId, itemId);
 	};
 
 	const handleDragOver = (e: React.DragEvent, agendaItemId: string) => {
@@ -650,7 +704,24 @@ export function AgendaPanel({
 													onViewDocument={onViewDocument}
 													isDndEnabled={isDraft && !!onDndReorder}
 													isModified={changedSections?.has(item.id)}
-													removingItemIds={removingItemIds}
+													removingItemIds={(() => {
+														// If any item in this section is mid-remove, disable ALL Remove buttons.
+														if (!isScheduled || !removingItemIds?.size)
+															return removingItemIds;
+														const sectionDocs =
+															documentsByAgendaItem[item.id] ?? [];
+														const sectionCustoms =
+															customTextsBySection?.[item.id] ?? [];
+														const allIds = [
+															...sectionDocs.map((d) => d.id),
+															...sectionCustoms.map((c) => c.id),
+														];
+														const sectionBusy = allIds.some((id) =>
+															removingItemIds.has(id),
+														);
+														if (!sectionBusy) return removingItemIds;
+														return new Set([...removingItemIds, ...allIds]);
+													})()}
 													customTexts={customTextsBySection?.[item.id]}
 													onAddCustomText={
 														isDraft ? onAddCustomText : undefined
@@ -659,12 +730,14 @@ export function AgendaPanel({
 														isDraft ? onUpdateCustomText : undefined
 													}
 													onRemoveCustomText={
-														!isCompleted ? onRemoveCustomText : undefined
+														!isCompleted ? handleRemoveCustomText : undefined
 													}
 													onReorderCustomTexts={
 														isDraft ? onReorderCustomTexts : undefined
 													}
 													isCustomTextReadOnly={!isDraft}
+													flushRef={getOrCreateCardFlushRef(item.id)}
+													onEditorOpen={() => handleCardEditorOpen(item.id)}
 												/>
 											</div>
 										))}
@@ -722,13 +795,19 @@ export function AgendaPanel({
 						open={showSaveDraftDialog}
 						onOpenChange={setShowSaveDraftDialog}
 						sessionNumber={selectedSession.sessionNumber.toString()}
-						onConfirm={onSaveDraft}
+						onConfirm={async () => {
+							flushAllEditors();
+							await onSaveDraft?.();
+						}}
 					/>
 					<PublishSessionDialog
 						open={showPublishDialog}
 						onOpenChange={setShowPublishDialog}
 						sessionNumber={selectedSession.sessionNumber.toString()}
-						onConfirm={onPublish}
+						onConfirm={async () => {
+							flushAllEditors();
+							await onPublish?.();
+						}}
 					/>
 				</>
 			)}

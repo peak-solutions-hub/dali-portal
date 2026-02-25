@@ -216,16 +216,13 @@ async function SessionDetailContent({
 										const sectionItems = session.agendaItems.filter(
 											(item) => item.section === sectionKey,
 										);
-										// Sort by orderIndex to preserve interleaved order
 										const sortedSectionItems = [...sectionItems].sort(
 											(a, b) => a.orderIndex - b.orderIndex,
 										);
 										const textItems = sectionItems.filter(
 											(item) => !item.document,
 										);
-										// Non-custom text-only items (minutes, etc.)
 										const pureTextItems = textItems.filter(
-											// Exclude custom text items — by isCustomText flag OR the <!--classification:--> marker
 											(item) =>
 												!(item as { isCustomText?: boolean }).isCustomText &&
 												!item.contentText?.startsWith("<!--classification:"),
@@ -240,7 +237,6 @@ async function SessionDetailContent({
 											? pureTextItems[0]?.contentText
 											: null;
 
-										// Strip HTML tags to get plain text, then check for a date pattern
 										const minutesPlainText = minutesText
 											? minutesText.replace(/<[^>]*>/g, "").trim()
 											: null;
@@ -258,14 +254,6 @@ async function SessionDetailContent({
 												id={`section-${sectionKey}`}
 												className="border-l-4 border-primary pl-3 sm:pl-6 py-1"
 											>
-												{/*
-												 * ── Section header ──────────────────────────────────────
-												 * Fixed-width letter column: w-5 sm:w-7
-												 * Label text starts after letter col + gap-3.
-												 * Sub-items use ml-8 sm:ml-10 to align with this label.
-												 *   w-5 (1.25rem) + gap-3 (0.75rem) = 2rem   → ml-8
-												 *   w-7 (1.75rem) + gap-3 (0.75rem) = 2.5rem → ml-10
-												 */}
 												<h3 className="flex items-start gap-3 text-sm sm:text-base font-semibold text-red-700 leading-snug">
 													<span className="shrink-0 w-5 sm:w-7">{letter}.</span>
 													<span>{minutesHeadingText ?? label}</span>
@@ -273,13 +261,9 @@ async function SessionDetailContent({
 
 												{sectionItems.length > 0 && (
 													<div className="mt-3 space-y-4">
-														{/* ── Committee reports grouped by classification ── */}
+														{/* ── Committee reports ── */}
 														{isCommitteeReports
 															? (() => {
-																	// Group BOTH doc items AND custom text items by classification.
-																	// Doc items: classification comes from the linked document.
-																	// Custom text items: classification was encoded as an HTML comment
-																	// at save time: <!--classification:key--><actual content>
 																	const CLASSIFICATION_RE =
 																		/^<!--classification:(.*?)-->/;
 
@@ -307,8 +291,6 @@ async function SessionDetailContent({
 																				"<!--classification:",
 																			)
 																		) {
-																			// Detect committee custom texts by the encoded marker in contentText.
-																			// We can't rely on isCustomText — the public API may not return that field.
 																			const match =
 																				item.contentText.match(
 																					CLASSIFICATION_RE,
@@ -330,7 +312,6 @@ async function SessionDetailContent({
 																	const groupEntries = Object.entries(groups);
 																	if (!groupEntries.length) return null;
 
-																	// Preserve saved order within each group via orderIndex
 																	for (const [, items] of groupEntries) {
 																		items.sort(
 																			(a, b) => a.orderIndex - b.orderIndex,
@@ -345,8 +326,12 @@ async function SessionDetailContent({
 																						key={classification}
 																						className="space-y-2"
 																					>
+																						{/* ── Committee name row ──
+																						    "1." + "COMMITTEE ON …" aligned with
+																						    section label text (ml-8 sm:ml-10)
+																						    matching non-committee item rows. */}
 																						<div className="flex items-start gap-3 ml-8 sm:ml-10">
-																							<span className="text-xs sm:text-sm font-bold text-gray-900 shrink-0 leading-snug pt-px">
+																							<span className="text-xs sm:text-sm font-bold text-gray-900 shrink-0 w-5 sm:w-7 leading-snug pt-px">
 																								{groupIdx + 1}.
 																							</span>
 																							<h4 className="text-xs sm:text-sm font-bold text-gray-900 uppercase leading-snug flex-1 min-w-0">
@@ -356,11 +341,11 @@ async function SessionDetailContent({
 																								).toUpperCase()}
 																							</h4>
 																						</div>
-																						<div className="ml-14 sm:ml-18 space-y-1">
+																						{/* Sub-items: indent = ml-8/ml-10 (row) + w-5/w-7 (num col) + gap-3
+																						    so "a." aligns exactly with "COMMITTEE ON…" text */}
+																						<div className="ml-[4rem] sm:ml-[5rem] space-y-1">
 																							{items.map((item, itemIdx) => {
 																								const subLetter = `${String.fromCharCode(97 + itemIdx)}.`;
-																								// Custom texts have _cleanContent set during grouping (marker was stripped).
-																								// We use this instead of isCustomText which may be absent from the public API response.
 																								if (
 																									item._cleanContent !==
 																									undefined
@@ -370,7 +355,7 @@ async function SessionDetailContent({
 																											key={item.id}
 																											className="flex items-start gap-3 rounded-sm py-0.5 hover:bg-gray-50 transition-colors -mx-1 px-1"
 																										>
-																											<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 w-2 sm:w-5 leading-snug pt-px">
+																											<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 w-5 sm:w-7 leading-snug pt-px">
 																												{subLetter}
 																											</span>
 																											<div className="flex-1 min-w-0 leading-snug">
@@ -386,14 +371,13 @@ async function SessionDetailContent({
 																									);
 																								}
 
-																								// Document item
 																								const doc = item.document!;
 																								return (
 																									<div
 																										key={item.id}
 																										className="flex items-start gap-3 rounded-sm py-0.5 hover:bg-gray-50 transition-colors -mx-1 px-1"
 																									>
-																										<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 w-2 sm:w-5 leading-snug pt-px">
+																										<span className="text-xs sm:text-sm font-semibold text-gray-700 shrink-0 w-5 sm:w-7 leading-snug pt-px">
 																											{subLetter}
 																										</span>
 																										<div className="flex-1 min-w-0 leading-snug">
@@ -435,10 +419,7 @@ async function SessionDetailContent({
 																		</div>
 																	);
 																})()
-															: /* ── Non-committee: interleaved docs + custom texts + pureText in orderIndex order ── */
-																(() => {
-																	// Apply the status/purpose filter here so ineligible docs don't
-																	// consume a sub-number slot inside .map() below.
+															: (() => {
 																	const mixedItems = sortedSectionItems.filter(
 																		(si) => {
 																			if (si.document) {
@@ -452,7 +433,6 @@ async function SessionDetailContent({
 																				si as { isCustomText?: boolean }
 																			).isCustomText;
 																			if (isCustom) return true;
-																			// pureTextItem: exclude the minutes item only if it's shown in the heading
 																			if (
 																				isMinutes &&
 																				minutesHeadingText &&
@@ -550,11 +530,7 @@ async function SessionDetailContent({
 				@media (max-width: 639px) {
 					.portal-content { font-size: 0.75rem; }
 				}
-				.portal-content p {
-					margin: 0;
-					padding: 0;
-					min-height: 1.6em;
-				}
+				.portal-content p { margin: 0; padding: 0; min-height: 1.6em; }
 				.portal-content p.ql-indent-1,
 				.portal-content .ql-indent-1:not(li) { padding-left: 3em; }
 				.portal-content p.ql-indent-2,
@@ -565,19 +541,10 @@ async function SessionDetailContent({
 				.portal-content .ql-indent-4:not(li) { padding-left: 12em; }
 				.portal-content p.ql-indent-5,
 				.portal-content .ql-indent-5:not(li) { padding-left: 15em; }
-				.portal-content ul,
-				.portal-content ol {
-					margin: 0.35em 0;
-					padding-left: 1.75em;
-					list-style-position: outside;
-				}
+				.portal-content ul, .portal-content ol { margin: 0.35em 0; padding-left: 1.75em; list-style-position: outside; }
 				.portal-content ul { list-style-type: disc; }
 				.portal-content ol { list-style-type: decimal; }
-				.portal-content li {
-					display: list-item;
-					margin: 0.15em 0;
-					padding-left: 0.25em;
-				}
+				.portal-content li { display: list-item; margin: 0.15em 0; padding-left: 0.25em; }
 				.portal-content li.ql-indent-1 { padding-left: 4.5em;  list-style-type: circle; }
 				.portal-content li.ql-indent-2 { padding-left: 7.5em;  list-style-type: square; }
 				.portal-content li.ql-indent-3 { padding-left: 10.5em; list-style-type: disc;   }
@@ -593,43 +560,16 @@ async function SessionDetailContent({
 				.portal-content .ql-align-right   { text-align: right; }
 				.portal-content .ql-align-justify,
 				.portal-content [style*="text-align: justify"] {
-					text-align: justify;
-					text-align-last: left;
-					hyphens: auto;
-					-webkit-hyphens: auto;
-					word-spacing: -0.01em;
+					text-align: justify; text-align-last: left; hyphens: auto; -webkit-hyphens: auto; word-spacing: -0.01em;
 				}
-
 				/* ── Inline mode ─────────────────────────────────────────────── */
-				.portal-inline {
-					font-size: 0.875rem;
-					line-height: 1.5;
-					color: #111827;
-					overflow-wrap: break-word;
-					word-break: normal;
-				}
-				@media (max-width: 639px) {
-					.portal-inline { font-size: 0.75rem; }
-				}
-				.portal-inline p {
-					display: inline;
-					margin: 0;
-					padding: 0;
-				}
-				.portal-inline ul,
-				.portal-inline ol {
-					display: block;
-					margin: 0.25em 0;
-					padding-left: 1.5em;
-					list-style-position: outside;
-				}
+				.portal-inline { font-size: 0.875rem; line-height: 1.5; color: #111827; overflow-wrap: break-word; word-break: normal; }
+				@media (max-width: 639px) { .portal-inline { font-size: 0.75rem; } }
+				.portal-inline p { display: inline; margin: 0; padding: 0; }
+				.portal-inline ul, .portal-inline ol { display: block; margin: 0.25em 0; padding-left: 1.5em; list-style-position: outside; }
 				.portal-inline ul { list-style-type: disc; }
 				.portal-inline ol { list-style-type: decimal; }
-				.portal-inline li {
-					display: list-item;
-					margin: 0.1em 0;
-					padding-left: 0.25em;
-				}
+				.portal-inline li { display: list-item; margin: 0.1em 0; padding-left: 0.25em; }
 				.portal-inline strong { font-weight: 700; }
 				.portal-inline em     { font-style: italic; }
 				.portal-inline u      { text-decoration: underline; }

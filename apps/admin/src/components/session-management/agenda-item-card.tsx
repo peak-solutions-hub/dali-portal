@@ -10,7 +10,7 @@ import {
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import { format } from "date-fns";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CustomTextItem } from "@/hooks/session-management";
 import {
 	AddTextButton,
@@ -72,6 +72,12 @@ interface AgendaItemCardProps {
 	) => void;
 	isCustomTextReadOnly?: boolean;
 	removingItemIds?: Set<string>;
+	/** When true, all open editors close immediately (e.g. action in flight). */
+	closeEditors?: boolean;
+	/** Assign a flush fn here — calling it auto-saves any open editor before save/publish. */
+	flushRef?: React.MutableRefObject<(() => void) | null>;
+	/** Called when any editor inside this card opens — lets the panel flush other cards. */
+	onEditorOpen?: () => void;
 }
 
 export function AgendaItemCard({
@@ -94,12 +100,64 @@ export function AgendaItemCard({
 	onReorderCustomTexts,
 	isCustomTextReadOnly = false,
 	removingItemIds,
+	closeEditors,
+	flushRef,
+	onEditorOpen,
 }: AgendaItemCardProps) {
 	const [editingSummaryId, setEditingSummaryId] = useState<string | null>(null);
 	const [summaryDraft, setSummaryDraft] = useState("");
 	const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
 	const [showClassificationPicker, setShowClassificationPicker] =
 		useState(false);
+
+	// Per-custom-text flush refs keyed by item id
+	const customFlushRefs = useRef<
+		Map<string, React.MutableRefObject<(() => void) | null>>
+	>(new Map());
+	const getOrCreateFlushRef = useCallback((id: string) => {
+		if (!customFlushRefs.current.has(id)) {
+			customFlushRefs.current.set(id, { current: null });
+		}
+		return customFlushRefs.current.get(id)!;
+	}, []);
+
+	// Stable ref to summaryDraft so flush always captures latest typed value
+	const summaryDraftRef = useRef(summaryDraft);
+	useEffect(() => {
+		summaryDraftRef.current = summaryDraft;
+	}, [summaryDraft]);
+
+	// Register card-level flush fn — agenda-panel calls this before save/publish
+	useEffect(() => {
+		if (!flushRef) return;
+		flushRef.current = () => {
+			let hadContent = false;
+			if (editingSummaryId) {
+				onUpdateDocumentSummary?.(
+					item.id,
+					editingSummaryId,
+					summaryDraftRef.current,
+				);
+				setEditingSummaryId(null);
+				setSummaryDraft("");
+				hadContent = true;
+			}
+			for (const ref of customFlushRefs.current.values()) {
+				if (ref.current?.()) hadContent = true;
+			}
+			setActiveEditorId(null);
+			return hadContent;
+		};
+	});
+
+	// Close all editors when an action is in flight (publish/save confirms)
+	useEffect(() => {
+		if (closeEditors) {
+			setEditingSummaryId(null);
+			setSummaryDraft("");
+			setActiveEditorId(null);
+		}
+	}, [closeEditors]);
 
 	const [isCustomMinutes, setIsCustomMinutes] = useState(false);
 	const [customDate, setCustomDate] = useState<Date | undefined>(() => {
@@ -178,6 +236,11 @@ export function AgendaItemCard({
 	};
 
 	const handleStartEditSummary = (doc: AgendaDocument) => {
+		onEditorOpen?.(); // let panel flush other cards
+		// Flush any open custom text editor within this card
+		for (const ref of customFlushRefs.current.values()) {
+			ref.current?.();
+		}
 		setEditingSummaryId(doc.id);
 		setSummaryDraft(doc.summary ?? "");
 		setActiveEditorId(`summary::${doc.id}`);
@@ -197,10 +260,42 @@ export function AgendaItemCard({
 		if (!id) {
 			setActiveEditorId(null);
 		} else {
-			setEditingSummaryId(null);
-			setSummaryDraft("");
+			onEditorOpen?.(); // let panel flush other cards
+			// Flush open summary if switching to a custom text editor
+			if (editingSummaryId) {
+				onUpdateDocumentSummary?.(
+					item.id,
+					editingSummaryId,
+					summaryDraftRef.current,
+				);
+				setEditingSummaryId(null);
+				setSummaryDraft("");
+			}
+			// Flush any other open custom text editor within this card
+			for (const [ctId, ref] of customFlushRefs.current.entries()) {
+				if (ctId !== id) ref.current?.();
+			}
 			setActiveEditorId(`custom::${id}`);
 		}
+	};
+
+	/** Flush any open editor in this card, then delegate to onAddCustomText */
+	const handleAddCustomText = (sectionId: string, classification?: string) => {
+		// Save & close any open custom text editor before opening a new one
+		if (editingSummaryId) {
+			onUpdateDocumentSummary?.(
+				item.id,
+				editingSummaryId,
+				summaryDraftRef.current,
+			);
+			setEditingSummaryId(null);
+			setSummaryDraft("");
+		}
+		for (const ref of customFlushRefs.current.values()) {
+			ref.current?.();
+		}
+		setActiveEditorId(null);
+		onAddCustomText?.(sectionId, classification);
 	};
 
 	const committeeGroups = useMemo(() => {
@@ -394,6 +489,7 @@ export function AgendaItemCard({
 															activeEditorId={resolveCustomTextActiveEditorId(
 																ct.id,
 															)}
+															flushRef={getOrCreateFlushRef(ct.id)}
 															{...customTextSharedProps}
 														/>
 													);
@@ -402,7 +498,7 @@ export function AgendaItemCard({
 												{onAddCustomText && (
 													<AddTextButton
 														onClick={() =>
-															onAddCustomText(item.id, classification)
+															handleAddCustomText(item.id, classification)
 														}
 													/>
 												)}
@@ -424,7 +520,7 @@ export function AgendaItemCard({
 								<ClassificationPicker
 									excludeKeys={usedClassifications}
 									onSelect={(key) => {
-										onAddCustomText(item.id, key);
+										handleAddCustomText(item.id, key);
 										setShowClassificationPicker(false);
 									}}
 									onClose={() => setShowClassificationPicker(false)}
@@ -516,6 +612,7 @@ export function AgendaItemCard({
 													activeEditorId={resolveCustomTextActiveEditorId(
 														ct.id,
 													)}
+													flushRef={getOrCreateFlushRef(ct.id)}
 													{...customTextSharedProps}
 												/>
 											);
@@ -546,7 +643,7 @@ export function AgendaItemCard({
 						))}
 
 					{onAddCustomText && (
-						<AddTextButton onClick={() => onAddCustomText(item.id)} />
+						<AddTextButton onClick={() => handleAddCustomText(item.id)} />
 					)}
 				</>
 			)}
