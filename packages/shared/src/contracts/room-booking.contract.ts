@@ -60,12 +60,13 @@ export const createRoomBooking = oc
 		path: "/bookings",
 		summary: "Create a conference room booking",
 		description:
-			"Creates a booking request. Status is auto-set to CONFIRMED for direct-path roles or PENDING for councilors. A conflict check against CONFIRMED bookings is performed.",
+			"Creates a booking request. Status is auto-set to CONFIRMED for direct-path roles or PENDING for councilors. A conflict check against CONFIRMED and PENDING bookings is performed.",
 		tags: ["Room Booking", "Admin"],
 	})
 	.errors({
 		CONFLICT: ERRORS.ROOM_BOOKING.CONFLICT,
 		INVALID_TIME_RANGE: ERRORS.ROOM_BOOKING.INVALID_TIME_RANGE,
+		PAST_BOOKING: ERRORS.ROOM_BOOKING.PAST_BOOKING,
 		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
 		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 		TOO_MANY_REQUESTS: ERRORS.GENERAL.TOO_MANY_REQUESTS,
@@ -113,6 +114,7 @@ export const updateRoomBooking = oc
 		CONFLICT: ERRORS.ROOM_BOOKING.CONFLICT,
 		FORBIDDEN: ERRORS.ROOM_BOOKING.FORBIDDEN,
 		INVALID_TIME_RANGE: ERRORS.ROOM_BOOKING.INVALID_TIME_RANGE,
+		PAST_BOOKING: ERRORS.ROOM_BOOKING.PAST_BOOKING,
 		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
 		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	})

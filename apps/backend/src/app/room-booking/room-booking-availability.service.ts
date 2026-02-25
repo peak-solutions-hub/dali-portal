@@ -19,7 +19,7 @@ export class RoomBookingAvailabilityService {
 		const conflicting = await this.db.roomBooking.findFirst({
 			where: {
 				room: room as never, // cast to Prisma enum
-				status: "confirmed",
+				status: { in: ["confirmed", "pending"] },
 				...(excludeBookingId && {
 					id: { not: excludeBookingId },
 				}),

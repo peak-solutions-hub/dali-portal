@@ -1,15 +1,17 @@
 import type { ConferenceRoom } from "@repo/shared";
 
+export type ConferenceRoomColorConfig = {
+	bg: string;
+	border: string;
+	text: string;
+	label: string;
+	dot: string;
+	chip: string;
+};
+
 export const CONFERENCE_ROOM_COLORS: Record<
 	ConferenceRoom,
-	{
-		bg: string;
-		border: string;
-		text: string;
-		label: string;
-		dot: string;
-		chip: string;
-	}
+	ConferenceRoomColorConfig
 > = {
 	room_a: {
 		bg: "bg-[#039be5]",

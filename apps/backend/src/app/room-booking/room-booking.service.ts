@@ -73,6 +73,11 @@ export class RoomBookingService {
 	// ---------------------------------------------------------------------------
 
 	private validateTimeRange(startTime: Date, endTime: Date): void {
+		const now = new Date();
+		if (startTime < now) {
+			throw new AppError("ROOM_BOOKING.PAST_BOOKING");
+		}
+
 		const durationMs = endTime.getTime() - startTime.getTime();
 		const durationMinutes = durationMs / (1000 * 60);
 
@@ -233,7 +238,7 @@ export class RoomBookingService {
 		// Scenario 3 — Validate time range
 		this.validateTimeRange(startTime, endTime);
 
-		// Edge Case: Conflict check against CONFIRMED bookings
+		// Edge Case: Conflict check against CONFIRMED and PENDING bookings
 		const available = await this.availability.checkAvailability(
 			startTime,
 			endTime,

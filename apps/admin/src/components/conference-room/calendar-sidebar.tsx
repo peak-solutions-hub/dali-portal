@@ -1,6 +1,6 @@
 "use client";
 
-import { CONFERENCE_ROOM_COLORS } from "@repo/shared";
+import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
 	Calendar,
 	ChevronLeft,

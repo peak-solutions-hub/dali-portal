@@ -1,10 +1,6 @@
 "use client";
 
-import {
-	CONFERENCE_ROOM_COLORS,
-	CONFERENCE_ROOM_LABELS,
-	isAdminBookingRole,
-} from "@repo/shared";
+import { CONFERENCE_ROOM_LABELS, isAdminBookingRole } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Table,
@@ -14,6 +10,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
+import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
 	CheckCircle,
 	ExternalLink,

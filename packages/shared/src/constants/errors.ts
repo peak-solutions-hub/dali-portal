@@ -166,7 +166,11 @@ export const ERRORS = {
 		},
 		CONFLICT: {
 			status: 409,
-			message: "This time slot is already taken by a confirmed booking.",
+			message: "This time slot is already taken by another booking.",
+		},
+		PAST_BOOKING: {
+			status: 400,
+			message: "Cannot book a time slot in the past.",
 		},
 		FORBIDDEN: {
 			status: 403,

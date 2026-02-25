@@ -56,6 +56,40 @@ export function isAdminBookingRole(role: RoleType): boolean {
 	return (ADMIN_BOOKING_ROLES as string[]).includes(role);
 }
 
+/** Parses an `HH:mm` time string into minutes from midnight. */
+export function parseTimeToMinutes(time: string): number | null {
+	if (!time || !time.includes(":")) return null;
+	const [hoursRaw, minutesRaw] = time.split(":");
+	const hours = Number(hoursRaw);
+	const minutes = Number(minutesRaw);
+
+	if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+		return null;
+	}
+
+	return hours * 60 + minutes;
+}
+
+/** Returns true when the given date + `HH:mm` time is already in the past. */
+export function isPastDateTime(
+	date: Date,
+	time: string,
+	referenceDate: Date = new Date(),
+): boolean {
+	const minutes = parseTimeToMinutes(time);
+
+	if (minutes === null) {
+		return false;
+	}
+
+	const hours = Math.floor(minutes / 60);
+	const mins = minutes % 60;
+	const dateTime = new Date(date);
+	dateTime.setHours(hours, mins, 0, 0);
+
+	return dateTime.getTime() < referenceDate.getTime();
+}
+
 // ---------------------------------------------------------------------------
 // Booking rules
 // ---------------------------------------------------------------------------
@@ -97,36 +131,3 @@ export const CONFERENCE_ROOM_OPTIONS: {
 	{ value: "room_a", label: CONFERENCE_ROOM_LABELS.room_a },
 	{ value: "room_b", label: CONFERENCE_ROOM_LABELS.room_b },
 ];
-
-/**
- * Tailwind class sets for each conference room.
- * Used to apply consistent colors across calendar views.
- */
-export const CONFERENCE_ROOM_COLORS: Record<
-	ConferenceRoom,
-	{
-		bg: string;
-		border: string;
-		text: string;
-		label: string;
-		dot: string;
-		chip: string;
-	}
-> = {
-	room_a: {
-		bg: "bg-[#039be5]",
-		border: "border-l-[#0288d1]",
-		text: "text-white",
-		label: "bg-[#039be5] text-white",
-		dot: "bg-[#039be5]",
-		chip: "bg-[#039be5] text-white border border-transparent",
-	},
-	room_b: {
-		bg: "bg-[#0b8043]",
-		border: "border-l-[#096a36]",
-		text: "text-white",
-		label: "bg-[#0b8043] text-white",
-		dot: "bg-[#0b8043]",
-		chip: "bg-[#0b8043] text-white border border-transparent",
-	},
-};

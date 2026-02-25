@@ -1,6 +1,11 @@
 "use client";
 
-import { CONFERENCE_ROOM_OPTIONS, type ConferenceRoom } from "@repo/shared";
+import {
+	CONFERENCE_ROOM_OPTIONS,
+	type ConferenceRoom,
+	isPastDateTime,
+	parseTimeToMinutes,
+} from "@repo/shared";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useCreateBooking } from "@/hooks/room-booking/use-create-booking";
@@ -51,17 +56,8 @@ export function CreateBookingModal({
 	);
 
 	const roomAvailability = useMemo(() => {
-		const toMinutes = (time: string): number | null => {
-			if (!time || !time.includes(":")) return null;
-			const [hoursRaw, minutesRaw] = time.split(":");
-			const hours = Number(hoursRaw);
-			const minutes = Number(minutesRaw);
-			if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-			return hours * 60 + minutes;
-		};
-
-		const startMinutes = toMinutes(values.startTime);
-		const endMinutes = toMinutes(values.endTime);
+		const startMinutes = parseTimeToMinutes(values.startTime);
+		const endMinutes = parseTimeToMinutes(values.endTime);
 
 		const empty: Partial<
 			Record<ConferenceRoom, { disabled: boolean; note?: string }>
@@ -83,12 +79,12 @@ export function CreateBookingModal({
 			const roomBookings = bookings.filter(
 				(booking) =>
 					booking.roomKey === roomOption.value &&
-					booking.status === "confirmed",
+					(booking.status === "confirmed" || booking.status === "pending"),
 			);
 
 			const overlapping = roomBookings.filter((booking) => {
-				const bookingStart = toMinutes(booking.startTime24);
-				const bookingEnd = toMinutes(booking.endTime24);
+				const bookingStart = parseTimeToMinutes(booking.startTime24);
+				const bookingEnd = parseTimeToMinutes(booking.endTime24);
 				if (bookingStart === null || bookingEnd === null) return false;
 				return startMinutes < bookingEnd && endMinutes > bookingStart;
 			});
@@ -147,15 +143,6 @@ export function CreateBookingModal({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen]);
 
-	const parseMinutes = (time: string): number | null => {
-		if (!time || !time.includes(":")) return null;
-		const [hoursRaw, minutesRaw] = time.split(":");
-		const hours = Number(hoursRaw);
-		const minutes = Number(minutesRaw);
-		if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-		return hours * 60 + minutes;
-	};
-
 	const validateForm = (): BookingFieldErrors => {
 		const errors: BookingFieldErrors = {};
 
@@ -183,8 +170,8 @@ export function CreateBookingModal({
 			errors.requestedFor = "Requested for is required.";
 		}
 
-		const startMinutes = parseMinutes(values.startTime);
-		const endMinutes = parseMinutes(values.endTime);
+		const startMinutes = parseTimeToMinutes(values.startTime);
+		const endMinutes = parseTimeToMinutes(values.endTime);
 		if (
 			startMinutes !== null &&
 			endMinutes !== null &&
@@ -207,6 +194,14 @@ export function CreateBookingModal({
 			(endMinutes < SEVEN_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
 		) {
 			errors.endTime = "End time must be between 7:00 AM and 5:00 PM.";
+		}
+
+		if (
+			values.date &&
+			values.startTime &&
+			isPastDateTime(values.date, values.startTime)
+		) {
+			errors.startTime = "Start time cannot be in the past.";
 		}
 
 		return errors;

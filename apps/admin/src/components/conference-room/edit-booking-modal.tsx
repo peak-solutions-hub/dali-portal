@@ -1,6 +1,10 @@
 "use client";
 
-import type { ConferenceRoom } from "@repo/shared";
+import {
+	type ConferenceRoom,
+	isPastDateTime,
+	parseTimeToMinutes,
+} from "@repo/shared";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useUpdateBooking } from "@/hooks/room-booking/use-update-booking";
@@ -77,15 +81,6 @@ export function EditBookingModal({
 		setRemoveExistingAttachment(false);
 	}, [isOpen, booking]);
 
-	const parseMinutes = (time: string): number | null => {
-		if (!time || !time.includes(":")) return null;
-		const [hoursRaw, minutesRaw] = time.split(":");
-		const hours = Number(hoursRaw);
-		const minutes = Number(minutesRaw);
-		if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-		return hours * 60 + minutes;
-	};
-
 	const validateForm = (): BookingFieldErrors => {
 		const errors: BookingFieldErrors = {};
 
@@ -108,8 +103,8 @@ export function EditBookingModal({
 			errors.requestedFor = "Requested for is required.";
 		}
 
-		const startMinutes = parseMinutes(values.startTime);
-		const endMinutes = parseMinutes(values.endTime);
+		const startMinutes = parseTimeToMinutes(values.startTime);
+		const endMinutes = parseTimeToMinutes(values.endTime);
 		if (
 			startMinutes !== null &&
 			endMinutes !== null &&
@@ -132,6 +127,14 @@ export function EditBookingModal({
 			(endMinutes < SEVEN_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
 		) {
 			errors.endTime = "End time must be between 7:00 AM and 5:00 PM.";
+		}
+
+		if (
+			values.date &&
+			values.startTime &&
+			isPastDateTime(values.date, values.startTime)
+		) {
+			errors.startTime = "Start time cannot be in the past.";
 		}
 
 		return errors;

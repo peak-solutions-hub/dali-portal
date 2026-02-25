@@ -1,12 +1,12 @@
 "use client";
 
-import { CONFERENCE_ROOM_COLORS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@repo/ui/components/popover";
+import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useState } from "react";
 import type { CalendarBooking } from "@/utils/booking-helpers";
@@ -127,7 +127,7 @@ export function MonthView({
 								onClick={() => {
 									if (day) onDateClick(day);
 								}}
-								className={`bg-white p-2 min-h-[120px] flex flex-col transition-colors relative 
+								className={`bg-white p-2 min-h-30 flex flex-col transition-colors relative 
 									${day ? "hover:bg-gray-50 cursor-pointer" : "bg-gray-50/50"}`}
 							>
 								{day && dateAtSlot && (
@@ -198,7 +198,7 @@ export function MonthView({
 														</button>
 													</PopoverTrigger>
 													<PopoverContent
-														className="w-56 p-0 shadow-xl rounded-xl border border-gray-200 z-[100] overflow-hidden"
+														className="w-56 p-0 shadow-xl rounded-xl border border-gray-200 z-100 overflow-hidden"
 														align="start"
 														sideOffset={4}
 													>
@@ -224,7 +224,7 @@ export function MonthView({
 																<X className="w-4 h-4" />
 															</button>
 														</div>
-														<div className="p-2 space-y-1 max-h-[250px] overflow-y-auto">
+														<div className="p-2 space-y-1 max-h-62.5 overflow-y-auto">
 															{dayBookings.map((booking) => {
 																const isDone =
 																	booking.isPast &&
