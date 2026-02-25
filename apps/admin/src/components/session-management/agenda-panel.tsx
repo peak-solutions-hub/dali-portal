@@ -10,7 +10,7 @@ import { formatSessionDate } from "@repo/shared";
 import { AlertCircle, Loader2, Lock } from "@repo/ui/lib/lucide-react";
 import { getSessionTypeLabel } from "@repo/ui/lib/session-ui";
 import { useCallback, useRef, useState } from "react";
-import type { CustomTextItem } from "@/hooks/session-management";
+import { CustomTextItem } from "@/hooks";
 import { AgendaItemCard } from "./agenda-item-card";
 import {
 	ConfirmDiscardDialog,

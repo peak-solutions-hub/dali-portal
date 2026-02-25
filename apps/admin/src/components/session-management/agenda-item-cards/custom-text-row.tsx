@@ -8,7 +8,7 @@ import {
 } from "@repo/ui/lib/lucide-react";
 import parse from "html-react-parser";
 import { useEffect, useRef, useState } from "react";
-import { CustomTextItem } from "@/hooks/session-management";
+import { CustomTextItem } from "@/hooks";
 import { sanitizeQuillHtml } from "@/utils/quill-html-utils.client";
 import { RichTextEditor } from "../rich-text-editor";
 

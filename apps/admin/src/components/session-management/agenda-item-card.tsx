@@ -11,7 +11,7 @@ import {
 } from "@repo/ui/lib/session-ui";
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CustomTextItem } from "@/hooks/session-management";
+import { CustomTextItem } from "@/hooks";
 import {
 	AddTextButton,
 	type AgendaDocument,
