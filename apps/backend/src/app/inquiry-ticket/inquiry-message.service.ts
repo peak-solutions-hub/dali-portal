@@ -1,9 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { ORPCError } from "@orpc/contract";
 import {
-	ERRORS,
+	AppError,
 	INQUIRY_MAX_TOTAL_ATTACHMENTS,
-	type InquiryMessage,
+	type InquiryMessageResponse,
 	type SendInquiryMessageInput,
 } from "@repo/shared";
 import { DbService } from "../db/db.service";
@@ -12,24 +11,66 @@ import { DbService } from "../db/db.service";
 export class InquiryMessageService {
 	constructor(private readonly db: DbService) {}
 
-	async send(input: SendInquiryMessageInput): Promise<InquiryMessage> {
+	async send(input: SendInquiryMessageInput): Promise<InquiryMessageResponse> {
 		const newAttachmentCount = input.attachmentPaths?.length ?? 0;
 
-		// server side validation for max attachments per inquiry conversation (you never know :))
+		// Server-side validation for max attachments per inquiry conversation
 		if (newAttachmentCount > 0) {
 			const existingCount = await this.countAttachments(input.ticketId);
 
 			if (existingCount + newAttachmentCount > INQUIRY_MAX_TOTAL_ATTACHMENTS) {
-				throw new ORPCError("ATTACHMENT_LIMIT_EXCEEDED", {
-					status: ERRORS.INQUIRY.ATTACHMENT_LIMIT_EXCEEDED.status,
-					message: ERRORS.INQUIRY.ATTACHMENT_LIMIT_EXCEEDED.message,
-				});
+				throw new AppError("INQUIRY.ATTACHMENT_LIMIT_EXCEEDED");
 			}
 		}
 
-		return await this.db.inquiryMessage.create({
+		// Get inquiry ticket details (need citizen email and info)
+		const inquiryTicket = await this.db.inquiryTicket.findUnique({
+			where: { id: input.ticketId },
+		});
+
+		if (!inquiryTicket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		// FR-02: Check if this is NOT the initial message (initial message is created during inquiry creation)
+		const messageCount = await this.db.inquiryMessage.count({
+			where: { ticketId: input.ticketId },
+		});
+
+		const isNotInitialMessage = messageCount > 0;
+		const shouldUpdateStatusForCitizen =
+			input.senderType === "citizen" &&
+			isNotInitialMessage &&
+			(inquiryTicket.status === "waiting_for_citizen" ||
+				inquiryTicket.status === "new");
+
+		// FR-01: Auto-update status when staff replies
+		const shouldUpdateStatusForStaff =
+			input.senderType === "staff" &&
+			(inquiryTicket.status === "new" || inquiryTicket.status === "open");
+
+		// Create the message
+		const message = await this.db.inquiryMessage.create({
 			data: input,
 		});
+
+		// Update status if needed
+		if (shouldUpdateStatusForStaff) {
+			await this.db.inquiryTicket.update({
+				where: { id: input.ticketId },
+				data: { status: "waiting_for_citizen" },
+			});
+		} else if (shouldUpdateStatusForCitizen) {
+			await this.db.inquiryTicket.update({
+				where: { id: input.ticketId },
+				data: { status: "open" },
+			});
+		}
+
+		return {
+			...message,
+			createdAt: message.createdAt.toISOString(),
+		};
 	}
 
 	/**

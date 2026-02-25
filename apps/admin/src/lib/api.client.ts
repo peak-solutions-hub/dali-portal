@@ -9,17 +9,8 @@ import { OpenAPILink } from "@orpc/openapi-client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { type Contract, contract } from "@repo/shared";
 
-const apiUrl =
-	process.env.NEXT_PUBLIC_API_URL ??
-	(process.env.NODE_ENV === "development"
-		? "http://localhost:8080"
-		: undefined);
-
-if (!apiUrl) {
-	throw new Error(
-		"Missing NEXT_PUBLIC_API_URL — set this environment variable for production deployments",
-	);
-}
+// Default to localhost:8080 for development
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 /**
  * Store for the current auth token

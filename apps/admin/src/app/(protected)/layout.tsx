@@ -1,4 +1,3 @@
-import { Toaster } from "sonner";
 import { MainLayout } from "@/components/layout";
 
 export default function ProtectedLayout({
@@ -6,10 +5,5 @@ export default function ProtectedLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	return (
-		<MainLayout>
-			{children}
-			<Toaster position="bottom-right" richColors />
-		</MainLayout>
-	);
+	return <MainLayout>{children}</MainLayout>;
 }

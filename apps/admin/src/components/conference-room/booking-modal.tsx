@@ -1,7 +1,23 @@
 "use client";
 
 import { TEXT_LIMITS } from "@repo/shared";
-import { X } from "lucide-react";
+import { Button } from "@repo/ui/components/button";
+import { Calendar } from "@repo/ui/components/calendar";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@repo/ui/components/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/ui/components/select";
+import { TimePicker } from "@repo/ui/components/time-picker";
+import { cn } from "@repo/ui/lib/utils";
+import { CalendarIcon, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { parseDisplayDateToInput } from "@/utils/date-utils";
 import { convertTo24HourFormat } from "@/utils/time-utils";
@@ -19,7 +35,8 @@ export function BookingModal({
 	selectedTime,
 	selectedDate,
 }: BookingModalProps) {
-	const [date, setDate] = useState("");
+	const [date, setDate] = useState<Date | undefined>(undefined);
+	const [room, setRoom] = useState("");
 	const [startTime, setStartTime] = useState("");
 	const [endTime, setEndTime] = useState("");
 	const [title, setTitle] = useState("");
@@ -31,27 +48,19 @@ export function BookingModal({
 		if (isOpen) {
 			// If selected date is provided (from calendar), use it; otherwise default to today
 			if (selectedDate) {
-				// Convert display date to YYYY-MM-DD format for date input
+				// Convert display date to Date object
 				const displayDate = parseDisplayDateToInput(selectedDate);
-				// Parse MM/DD/YYYY to YYYY-MM-DD
+				// Parse MM/DD/YYYY to Date
 				const [month, day, year] = displayDate.split("/");
 				if (month && day && year) {
-					setDate(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`);
+					setDate(new Date(Number(year), Number(month) - 1, Number(day)));
 				} else {
 					// Fallback to today if parsing fails
-					const today = new Date();
-					const y = today.getFullYear();
-					const m = String(today.getMonth() + 1).padStart(2, "0");
-					const d = String(today.getDate()).padStart(2, "0");
-					setDate(`${y}-${m}-${d}`);
+					setDate(new Date());
 				}
 			} else {
-				// Set to current date in YYYY-MM-DD format for date input
-				const today = new Date();
-				const year = today.getFullYear();
-				const month = String(today.getMonth() + 1).padStart(2, "0");
-				const day = String(today.getDate()).padStart(2, "0");
-				setDate(`${year}-${month}-${day}`);
+				// Set to current date
+				setDate(new Date());
 			}
 
 			if (selectedTime.includes(" - ")) {
@@ -66,8 +75,14 @@ export function BookingModal({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+
+		if (!date) {
+			return;
+		}
+
 		console.log("Booking submitted:", {
-			date,
+			date: date.toISOString(),
+			room,
 			startTime,
 			endTime,
 			title,
@@ -123,6 +138,29 @@ export function BookingModal({
 				</div>
 
 				<form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
+					{/* Conference Room */}
+					<div>
+						<label
+							htmlFor="room"
+							className="block text-sm font-semibold text-gray-900 mb-2"
+						>
+							Conference Room <span className="text-red-500">*</span>
+						</label>
+						<Select value={room} onValueChange={setRoom} required>
+							<SelectTrigger className="w-full px-4 py-3 bg-gray-50 border-0 text-gray-900">
+								<SelectValue placeholder="Select a conference room" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="4th-floor">
+									4th Floor Conference Room
+								</SelectItem>
+								<SelectItem value="7th-floor">
+									7th Floor Conference Room
+								</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+
 					{/* Date */}
 					<div>
 						<label
@@ -131,14 +169,38 @@ export function BookingModal({
 						>
 							Date <span className="text-red-500">*</span>
 						</label>
-						<input
-							id="date"
-							type="date"
-							value={date}
-							onChange={(e) => setDate(e.target.value)}
-							className="w-full px-4 py-3 border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-							required
-						/>
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button
+									variant="outline"
+									className={cn(
+										"w-full px-4 py-3 justify-start text-left font-normal border border-blue-500 hover:bg-gray-50",
+										!date && "text-muted-foreground",
+									)}
+								>
+									<CalendarIcon className="mr-2 h-4 w-4" />
+									{date ? (
+										date.toLocaleDateString("en-US", {
+											month: "long",
+											day: "numeric",
+											year: "numeric",
+										})
+									) : (
+										<span>Pick a date</span>
+									)}
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-auto p-0" align="start">
+								<Calendar
+									mode="single"
+									selected={date}
+									onSelect={setDate}
+									disabled={(date) =>
+										date < new Date(new Date().setHours(0, 0, 0, 0))
+									}
+								/>
+							</PopoverContent>
+						</Popover>
 					</div>
 
 					{/* Start Time and End Time */}
@@ -150,13 +212,10 @@ export function BookingModal({
 							>
 								Start Time <span className="text-red-500">*</span>
 							</label>
-							<input
-								id="startTime"
-								type="time"
+							<TimePicker
 								value={startTime}
-								onChange={(e) => setStartTime(e.target.value)}
-								className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								required
+								onChange={(value) => setStartTime(value)}
+								placeholder="Select start time"
 							/>
 						</div>
 						<div>
@@ -166,13 +225,10 @@ export function BookingModal({
 							>
 								End Time <span className="text-red-500">*</span>
 							</label>
-							<input
-								id="endTime"
-								type="time"
+							<TimePicker
 								value={endTime}
-								onChange={(e) => setEndTime(e.target.value)}
-								className="w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								required
+								onChange={(value) => setEndTime(value)}
+								placeholder="Select end time"
 							/>
 						</div>
 					</div>

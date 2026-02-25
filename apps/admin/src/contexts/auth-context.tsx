@@ -208,7 +208,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							path === "/" ||
 							path === "/login" ||
 							path === "/forgot-password" ||
-							path === "/set-password" ||
 							path.startsWith("/auth/");
 
 						// Only show global loading for real login flows from auth pages.

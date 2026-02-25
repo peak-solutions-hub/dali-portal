@@ -1,14 +1,19 @@
 import { oc } from "@orpc/contract";
 import { ERRORS } from "../constants";
 import {
+	AssignInquiryToMeSchema,
 	CreateInquiryTicketResponseSchema,
 	CreateInquiryTicketSchema,
 	GetInquiryTicketByIdSchema,
 	GetInquiryTicketListSchema,
+	InquiryMessageResponseSchema,
 	InquiryMessageSchema,
-	InquiryTicketListSchema,
+	InquiryStatusCountsSchema,
+	InquiryTicketListResponseSchema,
+	InquiryTicketResponseSchema,
 	InquiryTicketSchema,
 	InquiryTicketWithMessagesAndAttachmentsSchema,
+	InquiryTicketWithMessagesResponseSchema,
 	SendInquiryMessageSchema,
 	TrackInquiryTicketResponseSchema,
 	TrackInquiryTicketSchema,
@@ -66,7 +71,7 @@ export const sendInquiryMessage = oc
 		MESSAGE_SEND_FAILED: ERRORS.INQUIRY.MESSAGE_SEND_FAILED,
 	})
 	.input(SendInquiryMessageSchema)
-	.output(InquiryMessageSchema);
+	.output(InquiryMessageResponseSchema);
 
 export const getInquiryTicketWithMessages = oc
 	.route({
@@ -97,7 +102,7 @@ export const getInquiryTicketList = oc
 		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	})
 	.input(GetInquiryTicketListSchema)
-	.output(InquiryTicketListSchema);
+	.output(InquiryTicketListResponseSchema);
 
 export const getInquiryTicketById = oc
 	.route({
@@ -112,7 +117,7 @@ export const getInquiryTicketById = oc
 		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
 	})
 	.input(GetInquiryTicketByIdSchema)
-	.output(InquiryTicketSchema);
+	.output(InquiryTicketResponseSchema);
 
 export const updateInquiryTicketStatus = oc
 	.route({
@@ -129,7 +134,38 @@ export const updateInquiryTicketStatus = oc
 		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	})
 	.input(UpdateInquiryTicketStatusSchema)
-	.output(InquiryTicketSchema);
+	.output(InquiryTicketResponseSchema);
+
+export const getInquiryStatusCounts = oc
+	.route({
+		method: "GET",
+		path: "/inquiries/status-counts",
+		summary: "Get inquiry status counts",
+		description:
+			"Get counts of inquiries grouped by status in a single request.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+	})
+	.output(InquiryStatusCountsSchema);
+
+export const assignInquiryToMe = oc
+	.route({
+		method: "PATCH",
+		path: "/inquiries/{id}/assign-to-me",
+		summary: "Assign inquiry to current user",
+		description:
+			"Staff assigns the inquiry ticket to themselves. Status changes from 'new' to 'open' if applicable.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+	})
+	.input(AssignInquiryToMeSchema)
+	.output(InquiryTicketResponseSchema);
 
 export const createInquiryUploadUrls = oc
 	.route({
@@ -159,4 +195,6 @@ export const inquiryTicketContract = {
 	getList: getInquiryTicketList,
 	getById: getInquiryTicketById,
 	updateStatus: updateInquiryTicketStatus,
+	getStatusCounts: getInquiryStatusCounts,
+	assignToMe: assignInquiryToMe,
 };

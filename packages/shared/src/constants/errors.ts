@@ -43,6 +43,16 @@ export const ERRORS = {
 			status: 404,
 			message: "Inquiry not found.",
 		},
+		CAPTCHA_VALIDATION_FAILED: {
+			status: 400,
+			message:
+				"We couldn't verify the security check. Please try submitting again. If it still doesn't work, refresh this page and try once more.",
+		},
+		CAPTCHA_TOKEN_SPENT_OR_EXPIRED: {
+			status: 409,
+			message:
+				"Your security check has expired. Please submit your inquiry again so we can run a fresh security check.",
+		},
 		ATTACHMENT_LIMIT_EXCEEDED: {
 			status: 400,
 			message:
