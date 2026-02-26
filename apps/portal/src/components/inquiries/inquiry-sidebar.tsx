@@ -40,10 +40,12 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 							</p>
 							{ticket.user ? (
 								<div className="flex items-center gap-2 mt-1 text-sm font-medium">
-									<div className="bg-gray-100 p-1.5 rounded-full">
+									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 										<UserCheck className="h-3 w-3 text-gray-600" />
 									</div>
-									{ticket.user.fullName}
+									<span className="break-words min-w-0 line-clamp-2">
+										{ticket.user.fullName}
+									</span>
 								</div>
 							) : (
 								<p className="text-sm text-gray-400 italic mt-1">
@@ -81,16 +83,20 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 							</p>
 							<div className="space-y-2">
 								<div className="flex items-center gap-2 text-sm font-medium">
-									<div className="bg-gray-100 p-1.5 rounded-full">
+									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 										<User className="h-3 w-3 text-gray-600" />
 									</div>
-									{ticket.citizenName}
+									<span className="break-words min-w-0 line-clamp-2">
+										{ticket.citizenName}
+									</span>
 								</div>
 								<div className="flex items-center gap-2 text-sm font-medium">
-									<div className="bg-gray-100 p-1.5 rounded-full">
+									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 										<Mail className="h-3 w-3 text-gray-600" />
 									</div>
-									{ticket.citizenEmail}
+									<span className="break-all min-w-0 line-clamp-2">
+										{ticket.citizenEmail}
+									</span>
 								</div>
 							</div>
 						</div>

@@ -20,7 +20,10 @@ export function InquiryTicketHeader({ ticket }: InquiryTicketHeaderProps) {
 			<div className="flex items-start gap-4">
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-3 py-2">
-						<h1 className="text-xl font-semibold leading-tight">
+						<h1
+							className="text-xl font-semibold leading-tight truncate max-w-200"
+							title={ticket.subject}
+						>
 							{ticket.subject}
 						</h1>
 						<InquiryStatusBadge status={ticket.status} />
@@ -65,19 +68,23 @@ export function InquiryTicketHeader({ ticket }: InquiryTicketHeaderProps) {
 							className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200 cursor-default"
 							onClick={(e) => e.stopPropagation()}
 						>
-							<div className="space-y-1">
+							<div className="space-y-1 min-w-0">
 								<div className="flex items-center gap-2 text-xs text-muted-foreground">
 									<User className="h-3 w-3" />
 									Name
 								</div>
-								<p className="text-sm font-medium">{ticket.citizenName}</p>
+								<p className="text-sm font-medium break-words line-clamp-2">
+									{ticket.citizenName}
+								</p>
 							</div>
-							<div className="space-y-1">
+							<div className="space-y-1 min-w-0">
 								<div className="flex items-center gap-2 text-xs text-muted-foreground">
 									<Mail className="h-3 w-3" />
 									Email
 								</div>
-								<p className="text-sm font-medium">{ticket.citizenEmail}</p>
+								<p className="text-sm font-medium break-all line-clamp-2">
+									{ticket.citizenEmail}
+								</p>
 							</div>
 							<div className="space-y-1">
 								<div className="flex items-center gap-2 text-xs text-muted-foreground">

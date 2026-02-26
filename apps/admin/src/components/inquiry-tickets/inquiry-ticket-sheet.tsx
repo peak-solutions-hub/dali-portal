@@ -320,13 +320,39 @@ export function InquiryTicketSheet({
 								</div>
 							)}
 
-							{isAssignedToOther ? (
+							{isClosed ? (
+								<>
+									<MessageComposer
+										isClosed={isClosed}
+										closedStatus={ticket.status}
+										staffName={ticket.user?.fullName ?? undefined}
+										totalAttachments={totalAttachments}
+										onSend={handleSend}
+										isSending={isSending}
+										getSignedUploadUrls={getSignedUploadUrls}
+									/>
+									<InquiryTicketActions
+										ticket={ticket}
+										onAssign={() =>
+											handleAssignToMe(() => openConfirmationDialog("assign"))
+										}
+										onResolve={() =>
+											handleResolve(() => openConfirmationDialog("resolve"))
+										}
+										onReject={() =>
+											handleReject(() => openConfirmationDialog("reject"))
+										}
+										isUpdating={isUpdatingStatus}
+										currentUserId={userProfile?.id}
+									/>
+								</>
+							) : isAssignedToOther ? (
 								<div className="p-6 bg-muted/30 flex items-center gap-4">
 									<div className="p-3 bg-muted rounded-full">
 										<LockKeyhole className="h-5 w-5 text-muted-foreground" />
 									</div>
 									<div>
-										<p className="text-sm font-medium text-foreground/80">
+										<p className="text-sm font-medium text-foreground/80 truncate max-w-xs">
 											Assigned to {ticket.user?.fullName}
 										</p>
 										<p className="text-xs text-muted-foreground mt-1">
@@ -342,6 +368,7 @@ export function InquiryTicketSheet({
 										<MessageComposer
 											isClosed={isClosed}
 											closedStatus={ticket.status}
+											staffName={ticket.user?.fullName ?? undefined}
 											totalAttachments={totalAttachments}
 											onSend={handleSend}
 											isSending={isSending}
@@ -376,6 +403,7 @@ export function InquiryTicketSheet({
 									<MessageComposer
 										isClosed={isClosed}
 										closedStatus={ticket.status}
+										staffName={ticket.user?.fullName ?? undefined}
 										totalAttachments={totalAttachments}
 										onSend={handleSend}
 										isSending={isSending}

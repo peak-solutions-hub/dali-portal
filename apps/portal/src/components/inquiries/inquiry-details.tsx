@@ -186,7 +186,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 
 			{/* Header */}
 			<div className="mb-8">
-				<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-playfair-display">
+				<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-playfair-display break-words">
 					{ticket.subject}
 				</h1>
 				<div className="flex items-center gap-4 text-sm text-gray-500">
@@ -197,9 +197,11 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 						</span>
 					</div>
 					<div className="w-1 h-1 bg-gray-300 rounded-full" />
-					<div className="flex items-center gap-1.5">
-						<Mail className="h-4 w-4" />
-						<span>{ticket.citizenEmail}</span>
+					<div className="flex items-center gap-1.5 min-w-0">
+						<Mail className="h-4 w-4 shrink-0" />
+						<span className="break-all min-w-0 line-clamp-2">
+							{ticket.citizenEmail}
+						</span>
 					</div>
 				</div>
 			</div>
@@ -256,6 +258,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 						<MessageComposer
 							isClosed={isClosed}
 							closedStatus={ticket.status}
+							staffName={ticket.user?.fullName ?? undefined}
 							totalAttachments={totalAttachments}
 							onSend={handleSend}
 							isSending={isSending}

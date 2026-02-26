@@ -131,9 +131,11 @@ export function SuccessDialog({
 					{/* Email confirmation */}
 					<div className="flex items-start gap-3 text-sm text-gray-600">
 						<Mail className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
-						<p>
+						<p className="min-w-0">
 							Confirmation sent to{" "}
-							<span className="font-medium text-gray-900">{citizenEmail}</span>
+							<span className="font-medium text-gray-900 break-all line-clamp-2">
+								{citizenEmail}
+							</span>
 						</p>
 					</div>
 				</div>

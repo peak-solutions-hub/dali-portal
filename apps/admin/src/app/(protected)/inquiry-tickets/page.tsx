@@ -181,14 +181,20 @@ export default function InquiryTicketsPage() {
 																			1
 																		</span>
 																	</div>
-																	<span className="font-medium">
+																	<span
+																		className="font-medium truncate max-w-45"
+																		title={ticket.citizenName}
+																	>
 																		{ticket.citizenName}
 																	</span>
 																</div>
 															</TableCell>
 															<TableCell className="min-w-96">
 																<div className="space-y-2">
-																	<div className="font-medium text-sm leading-tight">
+																	<div
+																		className="font-medium text-sm leading-tight line-clamp-2 max-w-96"
+																		title={ticket.subject}
+																	>
 																		{ticket.subject}
 																	</div>
 																	<div className="flex items-center gap-1 text-xs text-muted-foreground">

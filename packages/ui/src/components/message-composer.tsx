@@ -28,6 +28,8 @@ interface MessageComposerProps {
 	isClosed: boolean;
 	/** Status label to display when closed (e.g. "resolved", "rejected") */
 	closedStatus?: string;
+	/** Name of the staff member who closed the ticket */
+	staffName?: string;
 	/** Number of attachment slots already used in the conversation */
 	totalAttachments: number;
 	/** Called when the user submits a message */
@@ -67,6 +69,7 @@ type MessageFormData = z.infer<typeof messageFormSchema>;
 export function MessageComposer({
 	isClosed,
 	closedStatus,
+	staffName,
 	totalAttachments,
 	onSend,
 	isSending,
@@ -155,8 +158,14 @@ export function MessageComposer({
 	if (isClosed) {
 		return (
 			<div className="p-4 bg-gray-100 border-t text-center text-gray-500 text-sm">
-				This ticket has been marked as <strong>{closedStatus}</strong>. You
-				cannot send new messages.
+				This ticket has been <strong>{closedStatus}</strong>
+				{staffName ? (
+					<>
+						{" "}
+						by <strong>{staffName}</strong>
+					</>
+				) : null}
+				. New messages cannot be sent.
 			</div>
 		);
 	}
