@@ -15,11 +15,14 @@ import {
 	DeleteSessionSchema,
 	GetAgendaPdfUrlSchema,
 	GetAgendaUploadUrlSchema,
+	GetPublicDocumentFileUrlSchema,
 	GetSessionByIdSchema,
 	GetSessionListAdminSchema,
 	GetSessionListSchema,
 	MarkSessionCompleteSchema,
+	PublicDocumentFileUrlResponseSchema,
 	PublishSessionSchema,
+	RemoveAgendaItemSchema,
 	RemoveAgendaPdfSchema,
 	SaveAgendaPdfSchema,
 	SaveSessionDraftSchema,
@@ -86,6 +89,30 @@ export const getAgendaPdfUrl = oc
 	})
 	.input(GetAgendaPdfUrlSchema)
 	.output(AgendaPdfUrlResponseSchema);
+
+/**
+ * Get a document file URL (Public)
+ * Only serves documents with status='approved' AND purpose='for_agenda' that
+ * are linked to an agenda item on a scheduled or completed session.
+ * Prevents leaking internal draft or unlinked documents.
+ */
+export const getPublicDocumentFileUrl = oc
+	.route({
+		method: "GET",
+		path: "/sessions/documents/{documentId}/file-url",
+		summary: "Get public document file URL",
+		description:
+			"Public endpoint to get a signed URL for a legislative document file. " +
+			"Only returns files for documents with status='approved' AND purpose='for_agenda' " +
+			"that are linked to at least one agenda item on a scheduled or completed session.",
+		tags: ["Sessions", "Public"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.GENERAL.NOT_FOUND,
+		SIGNED_URL_FAILED: ERRORS.STORAGE.SIGNED_URL_FAILED,
+	})
+	.input(GetPublicDocumentFileUrlSchema)
+	.output(PublicDocumentFileUrlResponseSchema);
 
 /* ============================
    Admin Endpoints
@@ -330,6 +357,27 @@ export const removeAgendaPdf = oc
 	.output(AdminSessionResponseSchema);
 
 /**
+ * Remove a single agenda item from a scheduled session
+ * Only allowed when session status is scheduled (not draft, not completed)
+ */
+export const removeAgendaItem = oc
+	.route({
+		method: "DELETE",
+		path: "/admin/sessions/{sessionId}/agenda-items/{agendaItemId}",
+		summary: "Remove agenda item",
+		description:
+			"Admin endpoint to remove a single agenda item from a scheduled session. " +
+			"Only permitted when the session status is scheduled.",
+		tags: ["Sessions", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
+		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+	})
+	.input(RemoveAgendaItemSchema)
+	.output(AdminSessionWithAgendaSchema);
+
+/**
  * Session contract (exported for root router)
  */
 export const sessionContract = {
@@ -337,6 +385,7 @@ export const sessionContract = {
 	list: listSessions,
 	getById: getSessionById,
 	getAgendaPdfUrl: getAgendaPdfUrl,
+	getPublicDocumentFileUrl: getPublicDocumentFileUrl,
 	// Admin
 	adminList: adminListSessions,
 	adminGetById: adminGetSessionById,
@@ -351,4 +400,5 @@ export const sessionContract = {
 	getAgendaUploadUrl: getAgendaUploadUrl,
 	saveAgendaPdf: saveAgendaPdf,
 	removeAgendaPdf: removeAgendaPdf,
+	removeAgendaItem: removeAgendaItem,
 };

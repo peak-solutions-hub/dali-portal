@@ -8,7 +8,7 @@ import {
 	RefreshCw,
 } from "@repo/ui/lib/lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useDocumentFile } from "@/hooks/sessions/use-document-file";
+import { useSessionFile } from "@/hooks";
 
 interface SessionPdfViewProps {
 	sessionId: string;
@@ -19,27 +19,21 @@ export function SessionPdfView({
 	sessionId,
 	agendaFilePath,
 }: SessionPdfViewProps) {
-	const {
-		isLoading,
-		fileUrl: signedUrl,
-		error,
-		fetchAgendaPdfUrl,
-		downloadFile,
-	} = useDocumentFile();
+	const { isLoading, signedUrl, error, fetchAgendaFileUrl, downloadFile } =
+		useSessionFile();
 
 	const [isDownloading, setIsDownloading] = useState(false);
 
 	useEffect(() => {
-		fetchAgendaPdfUrl(sessionId);
-	}, [sessionId, fetchAgendaPdfUrl]);
+		fetchAgendaFileUrl(sessionId);
+	}, [sessionId, fetchAgendaFileUrl]);
 
 	const handleDownload = useCallback(async () => {
 		if (!agendaFilePath || isDownloading) return;
 		setIsDownloading(true);
 		try {
-			// Reuse already-fetched signedUrl if available, otherwise fetch
-			const url = signedUrl ?? (await fetchAgendaPdfUrl(sessionId));
-			if (url) await downloadFile(undefined, url);
+			const url = signedUrl ?? (await fetchAgendaFileUrl(sessionId));
+			if (url) await downloadFile(url);
 		} finally {
 			setIsDownloading(false);
 		}
@@ -48,7 +42,7 @@ export function SessionPdfView({
 		agendaFilePath,
 		signedUrl,
 		isDownloading,
-		fetchAgendaPdfUrl,
+		fetchAgendaFileUrl,
 		downloadFile,
 	]);
 
@@ -68,7 +62,7 @@ export function SessionPdfView({
 				</p>
 				<Button
 					variant="outline"
-					onClick={() => fetchAgendaPdfUrl(sessionId)}
+					onClick={() => fetchAgendaFileUrl(sessionId)}
 					className="cursor-pointer"
 				>
 					<RefreshCw className="h-4 w-4 mr-2" />

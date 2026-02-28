@@ -3,7 +3,7 @@
 import { Button } from "@repo/ui/components/button";
 import { Download, Loader2 } from "@repo/ui/lib/lucide-react";
 import { useCallback } from "react";
-import { useDocumentFile } from "@/hooks/sessions/use-document-file";
+import { useSessionFile } from "@/hooks";
 
 interface DownloadAgendaButtonProps {
 	sessionId: string;
@@ -16,15 +16,15 @@ export function DownloadAgendaButton({
 }: DownloadAgendaButtonProps) {
 	const {
 		isLoading: isDownloading,
-		fetchAgendaPdfUrl,
+		fetchAgendaFileUrl,
 		downloadFile,
-	} = useDocumentFile();
+	} = useSessionFile();
 
 	const handleDownload = useCallback(async () => {
 		if (!agendaFilePath) return;
-		const url = await fetchAgendaPdfUrl(sessionId);
-		if (url) await downloadFile(undefined, url);
-	}, [sessionId, agendaFilePath, fetchAgendaPdfUrl, downloadFile]);
+		const url = await fetchAgendaFileUrl(sessionId);
+		if (url) await downloadFile(url);
+	}, [sessionId, agendaFilePath, fetchAgendaFileUrl, downloadFile]);
 
 	return (
 		<Button

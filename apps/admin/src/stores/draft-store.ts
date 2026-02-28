@@ -1,15 +1,15 @@
 "use client";
 
+import { AgendaDocument, CustomTextItem } from "@repo/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { AttachedDocument, CustomTextItem } from "@/hooks/session-management";
 
 /** How long (ms) a draft survives without being touched before it is pruned. */
 const DRAFT_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export interface SessionDraft {
 	contentTextMap: Record<string, string>;
-	documentsByAgendaItem: Record<string, AttachedDocument[]>;
+	documentsByAgendaItem: Record<string, AgendaDocument[]>;
 	agendaItemOrder: string[];
 	customTextsBySection: Record<string, CustomTextItem[]>;
 	/** Unix timestamp (ms) of when the draft was last written. */

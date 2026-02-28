@@ -22,20 +22,24 @@ import {
 	getDocumentTypeBadgeClass,
 } from "@repo/ui/lib/session-ui";
 import { useEffect, useState } from "react";
-import { useDocumentFile } from "@/hooks/sessions/use-document-file";
+import { useSessionFile } from "@/hooks/sessions/use-session-file";
 
-interface DocumentViewButtonProps {
-	documentId: string;
+/**
+ * Opens a dialog to preview and download a legislative document file.
+ * Calls GET /sessions/documents/{documentId}/file-url which verifies
+ * the document is approved/for_agenda AND linked to a scheduled/completed session.
+ */
+type DocumentViewButtonProps = {
 	codeNumber?: string;
 	label?: string;
-	/** Optional document metadata for the details panel */
 	documentTitle?: string;
 	documentType?: string;
 	classification?: string | null;
 	receivedAt?: string;
 	authors?: string[];
 	sponsors?: string[];
-}
+	documentId: string;
+};
 
 function formatDate(iso: string): string {
 	const d = new Date(iso);
@@ -59,14 +63,14 @@ export function DocumentViewButton({
 }: DocumentViewButtonProps) {
 	const [open, setOpen] = useState(false);
 	const {
-		fileUrl,
+		signedUrl: fileUrl,
 		fileName,
 		isLoading,
 		error,
 		isPdf,
-		fetchDocumentFileUrl,
+		fetchPublicDocumentFileUrl,
 		downloadFile,
-	} = useDocumentFile();
+	} = useSessionFile();
 
 	// Lock body scroll when dialog is open
 	useEffect(() => {
@@ -81,7 +85,7 @@ export function DocumentViewButton({
 
 	const handleOpen = () => {
 		setOpen(true);
-		fetchDocumentFileUrl(documentId);
+		fetchPublicDocumentFileUrl(documentId);
 	};
 
 	const hasDetails = documentType || documentTitle || classification;

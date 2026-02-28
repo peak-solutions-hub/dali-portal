@@ -7,11 +7,11 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-	AgendaPanel,
 	CreateSessionDialog,
-	DocumentsPanel,
 	DocumentViewerDialog,
 	SaveBeforeCreateDialog,
+	SessionAgendaPanel,
+	SessionDocumentsPanel,
 } from "@/components/session-management";
 import { useAgendaBuilder, useSessionActions } from "@/hooks";
 import { api, orpc } from "@/lib/api.client";
@@ -315,7 +315,7 @@ function AgendaBuilderPage() {
 				<div className="flex gap-4 flex-1 overflow-hidden">
 					{/* Left Panel - Documents (454px) */}
 					<div className="w-113.5 shrink-0 overflow-y-auto">
-						<DocumentsPanel
+						<SessionDocumentsPanel
 							documents={documents}
 							onViewDocument={setViewerDocumentId}
 						/>
@@ -323,7 +323,7 @@ function AgendaBuilderPage() {
 
 					{/* Right Panel - Agenda */}
 					<div className="flex-1 overflow-y-auto">
-						<AgendaPanel
+						<SessionAgendaPanel
 							sessions={sessions}
 							selectedSession={selectedSessionData || null}
 							agendaItems={orderedAgendaItems}

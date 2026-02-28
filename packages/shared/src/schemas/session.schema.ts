@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+	SESSION_ITEMS_PER_PAGE,
+	SESSION_MAX_ITEMS_PER_PAGE,
+	SESSION_MIN_ITEMS_PER_PAGE,
+} from "../constants/session-rules";
+import {
 	SESSION_SECTION_VALUES,
 	SESSION_STATUS_VALUES,
 	SESSION_TYPE_VALUES,
@@ -9,51 +14,33 @@ import {
    Shared Base Schemas
    ============================ */
 
-/**
- * Session Type Enum (uses values from enums/session.ts)
- */
 export const SessionTypeEnum = z.enum(
 	SESSION_TYPE_VALUES as [string, ...string[]],
 );
 
-/**
- * Session Status Enum (uses values from enums/session.ts)
- */
 export const SessionStatusEnum = z.enum(
 	SESSION_STATUS_VALUES as [string, ...string[]],
 );
 
-/**
- * Session Section Enum (uses values from enums/session.ts)
- */
 export const SessionSectionEnum = z.enum(
 	SESSION_SECTION_VALUES as [string, ...string[]],
 );
 
-/**
- * Sort direction enum
- */
 export const SortDirectionEnum = z.enum(["asc", "desc"]);
 
-/**
- * Session schema (from session table)
- */
 export const SessionSchema = z.object({
 	id: z.string().uuid(),
-	sessionNumber: z.coerce.number().int(), // Decimal in DB, coerce to number for frontend
+	sessionNumber: z.coerce.number().int(),
 	scheduleDate: z.coerce.date(),
 	agendaFilePath: z.string().nullable(),
 	type: SessionTypeEnum,
-	status: z.enum(["draft", "scheduled", "completed"]),
+	status: SessionStatusEnum,
 });
 
-/**
- * Session Agenda Item schema (from session_agenda_item table)
- */
 export const SessionAgendaItemSchema = z.object({
 	id: z.string().uuid(),
 	sessionId: z.string().uuid(),
-	orderIndex: z.coerce.number(), // Decimal in DB, coerce to number for frontend
+	orderIndex: z.coerce.number(),
 	contentText: z.string().nullable(),
 	linkedDocument: z.string().uuid().nullable(),
 	attachmentPath: z.string().nullable(),
@@ -64,7 +51,7 @@ export const SessionAgendaItemSchema = z.object({
 });
 
 /**
- * Linked document summary (embedded in agenda items for public/admin detail views)
+ * Linked document summary — embedded in agenda items for public/admin detail views.
  */
 export const LinkedDocumentSchema = z.object({
 	id: z.string().uuid(),
@@ -80,23 +67,31 @@ export const LinkedDocumentSchema = z.object({
 });
 
 /**
- * Session Agenda Item with nested document data
+ * Agenda document — lightweight document reference used in agenda item UI components.
+ * Consolidates the former AgendaDocument and AttachedDocument interfaces (they were identical).
  */
+export const AgendaDocumentSchema = z.object({
+	id: z.string(),
+	codeNumber: z.string(),
+	title: z.string(),
+	summary: z.string().optional(),
+	classification: z.string().optional(),
+	orderIndex: z.number().optional(),
+	/** DB row ID of the SessionAgendaItem that links this document.
+	 *  Populated on load so scheduled-session remove can call the
+	 *  removeAgendaItem endpoint with the correct row ID. */
+	agendaItemId: z.string().optional(),
+});
+
 export const SessionAgendaItemWithDocumentSchema =
 	SessionAgendaItemSchema.extend({
 		document: LinkedDocumentSchema.nullable(),
 	});
 
-/**
- * Session with agenda items (for detail view)
- */
 export const SessionWithAgendaSchema = SessionSchema.extend({
 	agendaItems: z.array(SessionAgendaItemWithDocumentSchema),
 });
 
-/**
- * Pagination info for offset pagination
- */
 export const SessionPaginationInfoSchema = z.object({
 	currentPage: z.number().int().min(1),
 	totalPages: z.number().int().min(0),
@@ -106,17 +101,11 @@ export const SessionPaginationInfoSchema = z.object({
 	hasPreviousPage: z.boolean(),
 });
 
-/**
- * Session list response
- */
 export const SessionListResponseSchema = z.object({
 	sessions: z.array(SessionSchema),
 	pagination: SessionPaginationInfoSchema,
 });
 
-/**
- * Get session by ID input
- */
 export const GetSessionByIdSchema = z.object({
 	id: z.string().uuid(),
 });
@@ -125,14 +114,8 @@ export const GetSessionByIdSchema = z.object({
    Portal (Public) Schemas
    ============================ */
 
-/**
- * Public session status enum (only scheduled and completed allowed for public portal)
- */
 export const PublicSessionStatusEnum = z.enum(["scheduled", "completed"]);
 
-/**
- * Get session list input with filtering and sorting (PUBLIC)
- */
 export const GetSessionListSchema = z.object({
 	type: z.union([SessionTypeEnum, z.array(SessionTypeEnum).min(1)]).optional(),
 	status: z
@@ -142,8 +125,13 @@ export const GetSessionListSchema = z.object({
 	dateTo: z.coerce.date().optional(),
 	sortBy: z.enum(["date"]).default("date"),
 	sortDirection: SortDirectionEnum.default("desc"),
-	limit: z.coerce.number().int().min(1).max(100).default(10),
-	page: z.coerce.number().int().min(1).default(1), // Page number for offset pagination
+	limit: z.coerce
+		.number()
+		.int()
+		.min(SESSION_MIN_ITEMS_PER_PAGE)
+		.max(SESSION_MAX_ITEMS_PER_PAGE)
+		.default(SESSION_ITEMS_PER_PAGE),
+	page: z.coerce.number().int().min(1).default(1),
 });
 
 /* ============================
@@ -153,6 +141,7 @@ export const GetSessionListSchema = z.object({
 export type Session = z.infer<typeof SessionSchema>;
 export type SessionAgendaItem = z.infer<typeof SessionAgendaItemSchema>;
 export type LinkedDocument = z.infer<typeof LinkedDocumentSchema>;
+export type AgendaDocument = z.infer<typeof AgendaDocumentSchema>;
 export type SessionAgendaItemWithDocument = z.infer<
 	typeof SessionAgendaItemWithDocumentSchema
 >;
@@ -167,18 +156,12 @@ export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
    Admin Schemas
    ============================ */
 
-/**
- * Admin session status enum (includes draft for admin access)
- */
 export const AdminSessionStatusEnum = z.enum([
 	"draft",
 	"scheduled",
 	"completed",
 ]);
 
-/**
- * Get session list input with filtering and sorting (ADMIN - includes draft)
- */
 export const GetSessionListAdminSchema = z.object({
 	type: z.union([SessionTypeEnum, z.array(SessionTypeEnum).min(1)]).optional(),
 	status: z
@@ -188,34 +171,15 @@ export const GetSessionListAdminSchema = z.object({
 	dateTo: z.coerce.date().optional(),
 	sortBy: z.enum(["date"]).default("date"),
 	sortDirection: SortDirectionEnum.default("desc"),
-	limit: z.coerce.number().int().min(1).max(100).default(10),
-	page: z.coerce.number().int().min(1).default(1), // Page number for offset pagination
+	limit: z.coerce
+		.number()
+		.int()
+		.min(SESSION_MIN_ITEMS_PER_PAGE)
+		.max(SESSION_MAX_ITEMS_PER_PAGE)
+		.default(SESSION_ITEMS_PER_PAGE),
+	page: z.coerce.number().int().min(1).default(1),
 });
 
-/**
- * Session presentation slide document schema (ADMIN)
- */
-export const SessionPresentationSlideDocumentSchema = z.object({
-	key: z.string(),
-	title: z.string(),
-});
-
-/**
- * Session presentation slide schema (ADMIN)
- */
-export const SessionPresentationSlideSchema = z.object({
-	id: z.string(),
-	type: z.enum(["cover", "agenda-item"]),
-	title: z.string(),
-	subtitle: z.string().optional(),
-	agendaNumber: z.string().optional(),
-	section: SessionSectionEnum.optional(),
-	documents: z.array(SessionPresentationSlideDocumentSchema).optional(),
-});
-
-/**
- * Session Management Agenda Item schema (ADMIN UI)
- */
 export const SessionManagementAgendaItemSchema = z.object({
 	id: z.string(),
 	title: z.string(),
@@ -225,9 +189,6 @@ export const SessionManagementAgendaItemSchema = z.object({
 	description: z.string().optional(),
 });
 
-/**
- * Session Management Document schema (ADMIN UI)
- */
 export const SessionManagementDocumentSchema = z.object({
 	id: z.string(),
 	title: z.string(),
@@ -241,34 +202,47 @@ export const SessionManagementDocumentSchema = z.object({
 	sponsors: z.array(z.string()),
 });
 
-/**
- * Session Management Session schema (ADMIN UI)
- */
 export const SessionManagementSessionSchema = z.object({
 	id: z.string(),
 	sessionNumber: z.coerce.number().int(),
 	date: z.string(),
 	time: z.string(),
-	type: z.enum(["regular", "special"]),
-	status: z.enum(["draft", "scheduled", "completed"]),
+	type: SessionTypeEnum,
+	status: SessionStatusEnum,
 	agendaFilePath: z.string().nullable().optional(),
+});
+
+/* ============================
+   Agenda Builder Schemas
+   ============================ */
+
+/** A free-text agenda item authored directly in the builder (not linked to a document). */
+export const CustomTextItemSchema = z.object({
+	id: z.string(),
+	content: z.string(),
+	classification: z.string().optional(),
+	orderIndex: z.number(),
+});
+
+/** A single agenda item as submitted from the agenda builder to the API. */
+export const BuildAgendaItemSchema = z.object({
+	section: SessionSectionEnum,
+	orderIndex: z.number(),
+	contentText: z.string().nullable().optional(),
+	linkedDocument: z.string().nullable().optional(),
+	classification: z.string().nullable().optional(),
+	isCustomText: z.boolean().optional(),
 });
 
 /* ============================
    Admin CRUD Schemas
    ============================ */
 
-/**
- * Create session input schema
- */
 export const CreateSessionSchema = z.object({
 	scheduleDate: z.coerce.date(),
 	type: SessionTypeEnum,
 });
 
-/**
- * Admin session agenda item input (for saving agenda items with session)
- */
 export const AdminAgendaItemInputSchema = z.object({
 	section: SessionSectionEnum,
 	orderIndex: z.number().int().min(0),
@@ -280,121 +254,88 @@ export const AdminAgendaItemInputSchema = z.object({
 	classification: z.string().nullable().optional(),
 });
 
-/**
- * Save session draft input
- */
 export const SaveSessionDraftSchema = z.object({
 	id: z.string().uuid(),
 	agendaItems: z.array(AdminAgendaItemInputSchema),
 });
 
-/**
- * Publish session (set to scheduled)
- */
 export const PublishSessionSchema = z.object({
 	id: z.string().uuid(),
 });
 
-/**
- * Unpublish session (revert to draft)
- */
 export const UnpublishSessionSchema = z.object({
 	id: z.string().uuid(),
 });
 
-/**
- * Mark session as completed
- */
 export const MarkSessionCompleteSchema = z.object({
 	id: z.string().uuid(),
 });
 
-/**
- * Delete session (draft only)
- */
 export const DeleteSessionSchema = z.object({
 	id: z.string().uuid(),
 });
 
-/**
- * Admin session response (returned from create/update)
- */
 export const AdminSessionResponseSchema = SessionSchema;
 
-/**
- * Admin session with agenda items
- */
 export const AdminSessionWithAgendaSchema = SessionSchema.extend({
 	agendaItems: z.array(SessionAgendaItemWithDocumentSchema),
 });
 
-/**
- * Admin session list response
- */
 export const AdminSessionListResponseSchema = z.object({
 	sessions: z.array(SessionSchema),
 	pagination: SessionPaginationInfoSchema,
 });
 
-/**
- * Approved document for session agenda linking
- * Same shape as SessionManagementDocumentSchema
- */
+/** Approved document for session agenda linking — same shape as SessionManagementDocumentSchema. */
 export const ApprovedDocumentSchema = SessionManagementDocumentSchema;
 
-/**
- * Approved documents list response
- */
 export const ApprovedDocumentListResponseSchema = z.object({
 	documents: z.array(ApprovedDocumentSchema),
 });
 
-/**
- * Get agenda upload URL input
- */
 export const GetAgendaUploadUrlSchema = z.object({
 	id: z.string().uuid(),
 	fileName: z.string().min(1),
 });
 
-/**
- * Agenda upload URL response
- */
 export const AgendaUploadUrlResponseSchema = z.object({
 	signedUrl: z.string(),
 	token: z.string(),
 	path: z.string(),
 });
 
-/**
- * Save agenda PDF input (after upload is completed)
- */
 export const SaveAgendaPdfSchema = z.object({
 	id: z.string().uuid(),
 	filePath: z.string().min(1),
 	fileName: z.string().min(1),
 });
 
-/**
- * Remove agenda PDF input
- */
 export const RemoveAgendaPdfSchema = z.object({
 	id: z.string().uuid(),
 });
 
-/**
- * Get agenda PDF signed URL (Public) input
- */
+export const RemoveAgendaItemSchema = z.object({
+	sessionId: z.string().uuid(),
+	agendaItemId: z.string().uuid(),
+});
+
 export const GetAgendaPdfUrlSchema = z.object({
 	id: z.string().uuid(),
 });
 
-/**
- * Agenda PDF signed URL response (Public)
- */
+export const GetPublicDocumentFileUrlSchema = z.object({
+	documentId: z.string().uuid(),
+});
+
 export const AgendaPdfUrlResponseSchema = z.object({
 	signedUrl: z.string(),
 	fileName: z.string(),
+});
+
+export const PublicDocumentFileUrlResponseSchema = z.object({
+	signedUrl: z.string(),
+	fileName: z.string(),
+	contentType: z.string().optional(),
 });
 
 /* ============================
@@ -403,12 +344,6 @@ export const AgendaPdfUrlResponseSchema = z.object({
 
 export type GetSessionListAdminInput = z.infer<
 	typeof GetSessionListAdminSchema
->;
-export type SessionPresentationSlideDocument = z.infer<
-	typeof SessionPresentationSlideDocumentSchema
->;
-export type SessionPresentationSlide = z.infer<
-	typeof SessionPresentationSlideSchema
 >;
 export type SessionManagementAgendaItem = z.infer<
 	typeof SessionManagementAgendaItemSchema
@@ -420,9 +355,12 @@ export type SessionManagementSession = z.infer<
 	typeof SessionManagementSessionSchema
 >;
 
-/* Admin CRUD types */
+export type CustomTextItem = z.infer<typeof CustomTextItemSchema>;
+export type BuildAgendaItem = z.infer<typeof BuildAgendaItemSchema>;
+
 export type CreateSessionInput = z.infer<typeof CreateSessionSchema>;
 export type AdminAgendaItemInput = z.infer<typeof AdminAgendaItemInputSchema>;
+
 export type SaveSessionDraftInput = z.infer<typeof SaveSessionDraftSchema>;
 export type PublishSessionInput = z.infer<typeof PublishSessionSchema>;
 export type UnpublishSessionInput = z.infer<typeof UnpublishSessionSchema>;
@@ -430,6 +368,7 @@ export type MarkSessionCompleteInput = z.infer<
 	typeof MarkSessionCompleteSchema
 >;
 export type DeleteSessionInput = z.infer<typeof DeleteSessionSchema>;
+
 export type AdminSessionResponse = z.infer<typeof AdminSessionResponseSchema>;
 export type AdminSessionWithAgenda = z.infer<
 	typeof AdminSessionWithAgendaSchema
@@ -437,6 +376,7 @@ export type AdminSessionWithAgenda = z.infer<
 export type AdminSessionListResponse = z.infer<
 	typeof AdminSessionListResponseSchema
 >;
+
 export type ApprovedDocument = z.infer<typeof ApprovedDocumentSchema>;
 export type ApprovedDocumentListResponse = z.infer<
 	typeof ApprovedDocumentListResponseSchema
@@ -447,28 +387,12 @@ export type AgendaUploadUrlResponse = z.infer<
 >;
 export type SaveAgendaPdfInput = z.infer<typeof SaveAgendaPdfSchema>;
 export type RemoveAgendaPdfInput = z.infer<typeof RemoveAgendaPdfSchema>;
+export type RemoveAgendaItemInput = z.infer<typeof RemoveAgendaItemSchema>;
 export type GetAgendaPdfUrlInput = z.infer<typeof GetAgendaPdfUrlSchema>;
 export type AgendaPdfUrlResponse = z.infer<typeof AgendaPdfUrlResponseSchema>;
-
-/* ============================
-   Admin UI Component Props
-   ============================ */
-
-/**
- * These prop types are kept in the schema file to maintain type safety
- * and ensure consistency between the schema definitions and component interfaces.
- * They provide compile-time type checking for session management components.
- */
-
-export type SessionManagementAgendaPanelProps = {
-	selectedSession: SessionManagementSession | null;
-	agendaItems: SessionManagementAgendaItem[];
-	onAddDocument: (itemId: string) => void;
-	onSaveDraft: () => void;
-	onPublish: () => void;
-	onMarkComplete?: () => void;
-};
-
-export type SessionManagementDocumentsPanelProps = {
-	documents: SessionManagementDocument[];
-};
+export type PublicDocumentFileUrlResponse = z.infer<
+	typeof PublicDocumentFileUrlResponseSchema
+>;
+export type GetPublicDocumentFileUrlInput = z.infer<
+	typeof GetPublicDocumentFileUrlSchema
+>;

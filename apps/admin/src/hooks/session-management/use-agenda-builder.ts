@@ -1,23 +1,21 @@
 "use client";
 
-import { getSectionLabel } from "@repo/ui/lib/session-ui";
+import type { AgendaDocument, CustomTextItem } from "@repo/shared";
+import { DEFAULT_AGENDA_ITEMS, getSectionLabel } from "@repo/ui/lib/session-ui";
 import { useCallback, useMemo, useState } from "react";
-import { useAgendaBuild } from "./use-agenda-build";
-import type {
-	AttachedDocument,
-	CustomTextItem,
-} from "./use-agenda-builder.types";
-import { DEFAULT_AGENDA_ITEMS } from "./use-agenda-builder.types";
-import { useCustomTextOperations } from "./use-custom-text-operation";
-import { useDirtyTracking } from "./use-dirty-tracking";
-import { useDocumentOperations } from "./use-documentary-operation";
+import {
+	useAgendaBuild,
+	useCustomTextOperations,
+	useDirtyTracking,
+	useDocumentOperations,
+} from "./agenda-builder";
 
 export function useAgendaBuilder() {
 	const [contentTextMap, setContentTextMap] = useState<Record<string, string>>(
 		{},
 	);
 	const [documentsByAgendaItem, setDocumentsByAgendaItem] = useState<
-		Record<string, AttachedDocument[]>
+		Record<string, AgendaDocument[]>
 	>({});
 	const [customTextsBySection, setCustomTextsBySection] = useState<
 		Record<string, CustomTextItem[]>
@@ -96,7 +94,7 @@ export function useAgendaBuilder() {
 		const savedContent: Record<string, string> = JSON.parse(
 			dirtyTracking.savedContentTextRef.current || "{}",
 		);
-		const savedDocs: Record<string, AttachedDocument[]> = JSON.parse(
+		const savedDocs: Record<string, AgendaDocument[]> = JSON.parse(
 			dirtyTracking.savedDocsByAgendaRef.current || "{}",
 		);
 		const savedCustom: Record<string, CustomTextItem[]> = JSON.parse(
@@ -116,7 +114,7 @@ export function useAgendaBuilder() {
 	const loadEditorState = useCallback(
 		(
 			content: Record<string, string>,
-			docs: Record<string, AttachedDocument[]>,
+			docs: Record<string, AgendaDocument[]>,
 			order: string[],
 			customTexts?: Record<string, CustomTextItem[]>,
 		) => {

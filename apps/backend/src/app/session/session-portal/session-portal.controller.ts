@@ -33,4 +33,14 @@ export class SessionPortalController {
 			},
 		);
 	}
+
+	@SkipThrottle()
+	@Implement(contract.sessions.getPublicDocumentFileUrl)
+	getPublicDocumentFileUrl() {
+		return implement(contract.sessions.getPublicDocumentFileUrl).handler(
+			async ({ input }) => {
+				return await this.sessionPortalService.getPublicDocumentFileUrl(input);
+			},
+		);
+	}
 }

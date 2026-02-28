@@ -1,85 +1,151 @@
 /**
  * UI-specific constants and helpers for Legislative Sessions (Shared UI package)
- * These are presentation-layer utilities used for display and styling
+ * These are presentation-layer utilities used for display and styling.
  */
 
-/**
- * Session type display labels
- */
+/* ============================
+   Session Type
+   ============================ */
+
 export const SESSION_TYPE_LABELS: Record<string, string> = {
 	regular: "Regular Session",
 	special: "Special Session",
 };
 
-/**
- * Session status display labels
- */
+/** Dropdown options derived from SESSION_TYPE_LABELS — keeps values in sync automatically. */
+export const SESSION_TYPES = Object.entries(SESSION_TYPE_LABELS).map(
+	([value, label]) => ({ value, label }),
+) as { value: string; label: string }[];
+
+export const SESSION_TYPE_BADGE_COLORS: Record<string, string> = {
+	regular: "bg-[#dc2626]",
+	special: "bg-[#fe9a00]",
+};
+
+export function getSessionTypeLabel(type: string): string {
+	return SESSION_TYPE_LABELS[type] || type;
+}
+
+export function getSessionTypeBadgeClass(type: string): string {
+	return SESSION_TYPE_BADGE_COLORS[type] || "bg-gray-500";
+}
+
+/* ============================
+   Session Status
+   ============================ */
+
 export const SESSION_STATUS_LABELS: Record<string, string> = {
+	draft: "Draft",
 	scheduled: "Scheduled",
 	completed: "Completed",
-	draft: "Draft",
 };
 
 /**
- * Session section display labels
+ * Public-facing dropdown options — excludes "draft" which is admin-only.
+ * Derived from SESSION_STATUS_LABELS to stay in sync with label text.
  */
-export const SESSION_SECTION_LABELS: Record<string, string> = {
-	call_to_order: "Call to Order",
-	opening_prayer_invocation: "Opening Prayer/Invocation",
-	national_anthem_and_pledge_of_allegiance:
+export const SESSION_STATUSES = (["scheduled", "completed"] as const).map(
+	(value) => ({ value, label: SESSION_STATUS_LABELS[value]! }),
+);
+
+export const SESSION_STATUS_BADGE_COLORS: Record<string, string> = {
+	draft: "bg-[#f59e0b]",
+	scheduled: "bg-[#3b82f6]",
+	completed: "bg-[#16a34a]",
+};
+
+export function getSessionStatusLabel(status: string): string {
+	return SESSION_STATUS_LABELS[status] || status;
+}
+
+export function getSessionStatusBadgeClass(status: string): string {
+	return SESSION_STATUS_BADGE_COLORS[status] || "bg-gray-500";
+}
+
+/* ============================
+   Session Sections
+   ============================ */
+
+/**
+ * Single source of truth for session sections.
+ * Order here determines the section letter (A, B, C, ...) used throughout the UI.
+ * SESSION_SECTION_ORDER and SESSION_SECTION_LABELS are both derived from this.
+ */
+const SESSION_SECTIONS: [key: string, label: string][] = [
+	["call_to_order", "Call to Order"],
+	["opening_prayer_invocation", "Opening Prayer/Invocation"],
+	[
+		"national_anthem_and_pledge_of_allegiance",
 		"National Anthem and Pledge of Allegiance",
-	roll_call: "Roll Call",
-	reading_and_or_approval_of_the_minutes:
+	],
+	["roll_call", "Roll Call"],
+	[
+		"reading_and_or_approval_of_the_minutes",
 		"Reading and/or Approval of the Minutes",
-	first_reading_and_reference_of_business:
+	],
+	[
+		"first_reading_and_reference_of_business",
 		"First Reading and References of Business of:",
-	committee_reports: "Committee Reports:",
-	calendar_of_business: "Calendar of Business:",
-	third_reading: "Third Reading:",
-	other_matters: "Other Matters:",
-	closing_prayers: "Closing Prayers:",
-	adjournment: "Adjournment:",
-};
-
-/**
- * Ordered list of session sections for UI display
- */
-export const SESSION_SECTION_ORDER: string[] = [
-	"call_to_order",
-	"opening_prayer_invocation",
-	"national_anthem_and_pledge_of_allegiance",
-	"roll_call",
-	"reading_and_or_approval_of_the_minutes",
-	"first_reading_and_reference_of_business",
-	"committee_reports",
-	"calendar_of_business",
-	"third_reading",
-	"other_matters",
-	"closing_prayers",
-	"adjournment",
+	],
+	["committee_reports", "Committee Reports:"],
+	["calendar_of_business", "Calendar of Business:"],
+	["third_reading", "Third Reading:"],
+	["other_matters", "Other Matters:"],
+	["closing_prayers", "Closing Prayers:"],
+	["adjournment", "Adjournment:"],
 ];
 
+/** Ordered list of section keys — letter A maps to index 0, B to index 1, etc. */
+export const SESSION_SECTION_ORDER: string[] = SESSION_SECTIONS.map(
+	([key]) => key,
+);
+
+export const SESSION_SECTION_LABELS: Record<string, string> =
+	Object.fromEntries(SESSION_SECTIONS);
+
 /**
- * Get the uppercase alphabetical letter for a session section (A, B, C, ...)
+ * Default agenda items for the agenda builder, one per section.
+ * Titles are derived from section labels with trailing punctuation stripped.
  */
+export const DEFAULT_AGENDA_ITEMS = SESSION_SECTIONS.map(
+	([section, label], index) => ({
+		id: section,
+		title: `${String.fromCharCode(65 + index)}. ${label.replace(/\s+of:$/, "").replace(/:$/, "")}`,
+		section,
+		orderIndex: index,
+	}),
+);
+
+export type AgendaItem = (typeof DEFAULT_AGENDA_ITEMS)[number];
+
+export function getSectionLabel(section: string): string {
+	return SESSION_SECTION_LABELS[section] || section;
+}
+
+/** Returns the uppercase letter (A–L) corresponding to a section's position. */
 export function getSectionLetter(section: string): string {
 	const index = SESSION_SECTION_ORDER.indexOf(section);
 	if (index === -1) return "";
 	return String.fromCharCode(65 + index); // 65 = 'A'
 }
 
+/** Returns true for sections that use numbered/lettered sub-item formatting. */
+export function sectionUsesSubItems(section: string): boolean {
+	return (
+		section === "first_reading_and_reference_of_business" ||
+		section === "committee_reports"
+	);
+}
+
 /**
- * Format agenda item number based on section type
- * - Main sections: "A.", "B.", "C.", etc.
- * - Sub-items for any section: "e.01", "f.02", etc. (lowercase)
- * - First Reading (F): Always uses lowercase "f.01", "f.02", "f.03", etc.
- * - Committee Reports (G): Uses hierarchical formatting
- *   - Committee headings: "1.", "2.", etc.
- *   - Items under committees: "a.", "b.", etc.
- * @param section The session section enum value
- * @param itemIndex The index of the item within the section (0-based)
- * @param isSubItem Whether this is a sub-item (for hierarchical sections)
- * @param parentIndex Optional parent item index for sub-items
+ * Returns the formatted agenda item number for a given section and position.
+ *
+ * Rules:
+ * - Default sections:              "A.", "B.", etc.
+ * - First Reading (F):             "f.01", "f.02", etc.
+ * - Sub-items (any section):       "e.01", "f.02", etc.
+ * - Committee Reports main items:  "1.", "2.", etc.
+ * - Committee Reports sub-items:   "a.", "b.", etc.
  */
 export function formatAgendaItemNumber(
 	section: string,
@@ -90,50 +156,30 @@ export function formatAgendaItemNumber(
 	const letter = getSectionLetter(section);
 	if (!letter) return "";
 
-	// Sub-items always get lowercase two-digit numbering: e.01, f.01, g.01, etc.
 	if (isSubItem) {
 		const num = String(itemIndex + 1).padStart(2, "0");
 		return `${letter.toLowerCase()}.${num}`;
 	}
 
-	// First Reading: f.01, f.02, f.03, etc. (lowercase)
 	if (section === "first_reading_and_reference_of_business") {
 		const num = String(itemIndex + 1).padStart(2, "0");
 		return `${letter.toLowerCase()}.${num}`;
 	}
 
-	// Committee Reports: Hierarchical numbering
 	if (section === "committee_reports") {
 		if (typeof parentIndex === "number") {
-			// Sub-items under a committee: a., b., c., etc.
-			const subLetter = String.fromCharCode(97 + itemIndex); // 97 = 'a'
-			return `${subLetter}.`;
+			return `${String.fromCharCode(97 + itemIndex)}.`; // a., b., c., ...
 		}
-		// Main committee items: 1., 2., 3., etc.
-		return `${itemIndex + 1}.`;
+		return `${itemIndex + 1}.`; // 1., 2., 3., ...
 	}
 
-	// Default: Just the letter (A., B., C., etc.)
 	return `${letter}.`;
 }
 
 /**
- * Check if a section uses sub-item formatting
- */
-export function sectionUsesSubItems(section: string): boolean {
-	return (
-		section === "first_reading_and_reference_of_business" ||
-		section === "committee_reports"
-	);
-}
-
-/**
- * Format full agenda item display with number and title
- * @param section The session section enum value
- * @param title The agenda item title
- * @param itemIndex The index within the section
- * @param isSubItem Whether this is a sub-item
- * @param parentIndex Optional parent index for sub-items
+ * Returns the full display string combining the item number and title.
+ * Committee report main items are automatically prefixed with "Committee Report on"
+ * if the title doesn't already start with "committee".
  */
 export function formatAgendaItemDisplay(
 	section: string,
@@ -149,8 +195,6 @@ export function formatAgendaItemDisplay(
 		parentIndex,
 	);
 
-	// For committee reports, if it's a main item and title doesn't start with "Committee",
-	// prepend "Committee Report on"
 	if (
 		section === "committee_reports" &&
 		!isSubItem &&
@@ -162,85 +206,33 @@ export function formatAgendaItemDisplay(
 	return `${number} ${title}`;
 }
 
-/**
- * Session types for filtering (used in UI dropdowns)
- */
-export const SESSION_TYPES = [
-	{ value: "regular", label: "Regular Session" },
-	{ value: "special", label: "Special Session" },
-] as const;
+/* ============================
+   Document Types
+   ============================ */
 
-/**
- * Session statuses for filtering (used in UI dropdowns)
- */
-export const SESSION_STATUSES = [
-	{ value: "scheduled", label: "Scheduled" },
-	{ value: "completed", label: "Completed" },
-] as const;
-
-/**
- * Badge color classes for session types
- */
-export const SESSION_TYPE_BADGE_COLORS: Record<string, string> = {
-	regular: "bg-[#dc2626]",
-	special: "bg-[#fe9a00]",
-};
-
-/**
- * Badge color classes for session statuses
- */
-export const SESSION_STATUS_BADGE_COLORS: Record<string, string> = {
-	completed: "bg-[#16a34a]",
-	scheduled: "bg-[#3b82f6]",
-	draft: "bg-[#f59e0b]",
-};
-
-/**
- * Get the display label for a session type
- */
-export function getSessionTypeLabel(type: string): string {
-	return SESSION_TYPE_LABELS[type] || type;
-}
-
-/**
- * Get the display label for a session status
- */
-export function getSessionStatusLabel(status: string): string {
-	return SESSION_STATUS_LABELS[status] || status;
-}
-
-/**
- * Get badge color class for session type
- */
-export function getSessionTypeBadgeClass(type: string): string {
-	return SESSION_TYPE_BADGE_COLORS[type] || "bg-gray-500";
-}
-
-/**
- * Get badge color class for session status
- */
-export function getSessionStatusBadgeClass(status: string): string {
-	return SESSION_STATUS_BADGE_COLORS[status] || "bg-gray-500";
-}
-
-/**
- * Get the display label for a session section
- */
-export function getSectionLabel(section: string): string {
-	return SESSION_SECTION_LABELS[section] || section;
-}
-
-/**
- * Document type badge colors for better visual distinction
- */
 export const DOCUMENT_TYPE_BADGE_COLORS: Record<string, string> = {
 	ordinance: "bg-blue-100 text-blue-800",
 	resolution: "bg-green-100 text-green-800",
 };
 
+export function getDocumentTypeBadgeClass(type: string): string {
+	const typeLower = type.toLowerCase();
+	for (const [key, cls] of Object.entries(DOCUMENT_TYPE_BADGE_COLORS)) {
+		if (typeLower.includes(key)) return cls;
+	}
+	return "bg-gray-100 text-gray-700 border-gray-200";
+}
+
+/* ============================
+   Document Classification
+   ============================ */
+
 /**
  * Human-readable labels for document classification enum values.
- * Converts snake_case DB values to title-case labels.
+ *
+ * Note: "disaster_relief_or_disaster_management" and "disaster_relief_disaster_management"
+ * are both present because the DB has two inconsistent enum variants for the same concept.
+ * Both are mapped to the same label until the DB enum is consolidated.
  */
 export const CLASSIFICATION_LABELS: Record<string, string> = {
 	agriculture_fisheries_aquatic_and_natural_resources:
@@ -251,6 +243,7 @@ export const CLASSIFICATION_LABELS: Record<string, string> = {
 		"Barangay Affairs & Community Development",
 	communication_and_public_information: "Communication & Public Information",
 	cooperatives_and_livelihood: "Cooperatives & Livelihood",
+	// Two variants exist in the DB for the same concept — keep both until enum is cleaned up
 	disaster_relief_or_disaster_management:
 		"Disaster Relief / Disaster Management",
 	disaster_relief_disaster_management: "Disaster Relief / Disaster Management",
@@ -293,26 +286,10 @@ export const CLASSIFICATION_LABELS: Record<string, string> = {
 	youth_and_sports_development: "Youth & Sports Development",
 };
 
-/**
- * Get human-readable label for a document classification enum value
- */
+/** Returns a human-readable label for a classification key, falling back to a title-cased version of the key. */
 export function getClassificationLabel(classification: string): string {
 	return (
 		CLASSIFICATION_LABELS[classification] ??
 		classification.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 	);
-}
-
-/**
- * Get badge color class for document type
- */
-export function getDocumentTypeBadgeClass(type: string): string {
-	const typeLower = type.toLowerCase();
-	if (typeLower.includes("ordinance")) {
-		return DOCUMENT_TYPE_BADGE_COLORS.ordinance!;
-	}
-	if (typeLower.includes("resolution")) {
-		return DOCUMENT_TYPE_BADGE_COLORS.resolution!;
-	}
-	return "bg-gray-100 text-gray-700 border-gray-200";
 }

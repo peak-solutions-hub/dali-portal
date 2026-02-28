@@ -3,6 +3,8 @@ import {
 	type AdminSessionListResponse,
 	type AdminSessionResponse,
 	type AdminSessionWithAgenda,
+	AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
+	AGENDA_DOCUMENT_ELIGIBLE_STATUS,
 	type AgendaUploadUrlResponse,
 	AppError,
 	type ApprovedDocumentListResponse,
@@ -13,12 +15,18 @@ import {
 	type GetDocumentFileUrlInput,
 	type GetSessionByIdInput,
 	type GetSessionListAdminInput,
+	getInitialSessionStatus,
+	isSessionEditable,
+	isSessionTransitionAllowed,
 	type MarkSessionCompleteInput,
 	type PublishSessionInput,
+	type RemoveAgendaItemInput,
 	type RemoveAgendaPdfInput,
 	type SaveAgendaPdfInput,
 	type SaveSessionDraftInput,
-	type SessionStatus,
+	SESSION_AGENDA_BUCKET,
+	SESSION_DOCUMENTS_BUCKET,
+	SessionStatus,
 	type SessionType,
 	type UnpublishSessionInput,
 } from "@repo/shared";
@@ -244,7 +252,7 @@ export class SessionManagementService {
 					sessionNumber: nextNumber,
 					scheduleDate: input.scheduleDate,
 					type: input.type as PrismaSessionType,
-					status: "draft",
+					status: getInitialSessionStatus(),
 				},
 			});
 
@@ -270,7 +278,7 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		if (session.status === "completed") {
+		if (!isSessionEditable(session.status as SessionStatus)) {
 			throw new AppError("SESSION.NOT_DRAFT");
 		}
 
@@ -352,13 +360,18 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		if (session.status !== "draft") {
+		if (
+			!isSessionTransitionAllowed(
+				session.status as SessionStatus,
+				SessionStatus.SCHEDULED,
+			)
+		) {
 			throw new AppError("SESSION.NOT_DRAFT");
 		}
 
 		const updated = await this.db.session.update({
 			where: { id: input.id },
-			data: { status: "scheduled" },
+			data: { status: SessionStatus.SCHEDULED },
 		});
 
 		this.logger.log(`Session #${Number(session.sessionNumber)} published`);
@@ -378,18 +391,21 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		if (session.status !== "scheduled") {
+		if (session.status !== SessionStatus.SCHEDULED) {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
 		const updated = await this.db.session.update({
 			where: { id: input.id },
-			data: { status: "draft", agendaFilePath: null },
+			data: { status: SessionStatus.DRAFT, agendaFilePath: null },
 		});
 
 		// Delete the agenda PDF from storage if one was uploaded
 		if (session.agendaFilePath) {
-			await this.storage.deleteFile("agendas", session.agendaFilePath);
+			await this.storage.deleteFile(
+				SESSION_AGENDA_BUCKET,
+				session.agendaFilePath,
+			);
 		}
 
 		this.logger.log(`Session #${Number(session.sessionNumber)} unpublished`);
@@ -410,13 +426,18 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		if (session.status !== "scheduled") {
+		if (
+			!isSessionTransitionAllowed(
+				session.status as SessionStatus,
+				SessionStatus.COMPLETED,
+			)
+		) {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
 		const updated = await this.db.session.update({
 			where: { id: input.id },
-			data: { status: "completed" },
+			data: { status: SessionStatus.COMPLETED },
 		});
 
 		this.logger.log(`Session #${Number(session.sessionNumber)} completed`);
@@ -435,7 +456,7 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		if (session.status !== "draft") {
+		if (!isSessionEditable(session.status as SessionStatus)) {
 			throw new AppError("SESSION.DELETE_NOT_DRAFT");
 		}
 
@@ -459,7 +480,8 @@ export class SessionManagementService {
 	async getApprovedDocuments(): Promise<ApprovedDocumentListResponse> {
 		const documents = await this.db.document.findMany({
 			where: {
-				OR: [{ status: "approved" }, { purpose: "for_agenda" }],
+				status: AGENDA_DOCUMENT_ELIGIBLE_STATUS,
+				purpose: AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
 			},
 			select: {
 				id: true,
@@ -518,7 +540,7 @@ export class SessionManagementService {
 		}
 
 		const result = await this.storage.getSignedUrl(
-			"documents",
+			SESSION_DOCUMENTS_BUCKET,
 			version.filePath,
 		);
 
@@ -565,7 +587,7 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		if (session.status !== "scheduled") {
+		if (session.status !== SessionStatus.SCHEDULED) {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
@@ -575,7 +597,10 @@ export class SessionManagementService {
 				input.fileName,
 			);
 
-			const result = await this.storage.createSignedUploadUrl("agendas", path);
+			const result = await this.storage.createSignedUploadUrl(
+				SESSION_AGENDA_BUCKET,
+				path,
+			);
 
 			this.logger.log(
 				`Generated agenda upload URL for session #${Number(session.sessionNumber)}`,
@@ -607,7 +632,7 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		if (session.status !== "scheduled") {
+		if (session.status !== SessionStatus.SCHEDULED) {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
@@ -624,6 +649,48 @@ export class SessionManagementService {
 	}
 
 	/**
+	 * Remove a single agenda item from a scheduled session (ADMIN).
+	 *
+	 * Only permitted when session status is scheduled — draft sessions use
+	 * saveDraft (full replace) for all agenda mutations, while completed
+	 * sessions are immutable.
+	 */
+	async removeAgendaItem(
+		input: RemoveAgendaItemInput,
+	): Promise<AdminSessionWithAgenda> {
+		const session = await this.db.session.findUnique({
+			where: { id: input.sessionId },
+		});
+
+		if (!session) {
+			throw new AppError("SESSION.NOT_FOUND");
+		}
+
+		if (session.status !== SessionStatus.SCHEDULED) {
+			throw new AppError("SESSION.NOT_SCHEDULED");
+		}
+
+		const agendaItem = await this.db.sessionAgendaItem.findUnique({
+			where: { id: input.agendaItemId },
+		});
+
+		// Verify the item exists and belongs to this session (prevents IDOR)
+		if (!agendaItem || agendaItem.sessionId !== input.sessionId) {
+			throw new AppError("SESSION.NOT_FOUND");
+		}
+
+		await this.db.sessionAgendaItem.delete({
+			where: { id: input.agendaItemId },
+		});
+
+		this.logger.log(
+			`Agenda item ${input.agendaItemId} removed from session #${Number(session.sessionNumber)}`,
+		);
+
+		return this.adminFindOne({ id: input.sessionId });
+	}
+
+	/**
 	 * Remove agenda PDF from session (ADMIN)
 	 */
 	async removeAgendaPdf(
@@ -637,7 +704,7 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		if (session.status !== "scheduled") {
+		if (session.status !== SessionStatus.SCHEDULED) {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
@@ -649,7 +716,10 @@ export class SessionManagementService {
 
 		// Delete the actual file from the storage bucket
 		if (session.agendaFilePath) {
-			await this.storage.deleteFile("agendas", session.agendaFilePath);
+			await this.storage.deleteFile(
+				SESSION_AGENDA_BUCKET,
+				session.agendaFilePath,
+			);
 		}
 
 		this.logger.log(
