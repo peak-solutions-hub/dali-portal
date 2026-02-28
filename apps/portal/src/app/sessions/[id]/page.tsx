@@ -3,15 +3,18 @@ import {
 	formatSessionTime,
 	transformSessionWithAgendaDates,
 } from "@repo/shared";
+import { Badge } from "@repo/ui/components/badge";
+import { Button } from "@repo/ui/components/button";
+import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import {
 	getSessionStatusLabel,
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ScrollToTop } from "@/components/scroll-to-top";
-import { SessionDetailContent } from "@/components/sessions/session-detail-content";
 import { api } from "@/lib/api.client";
+import { createPageMetadata } from "@/lib/seo-metadata";
 
 interface PageProps {
 	params: Promise<{ id: string }>;
@@ -43,22 +46,18 @@ export async function generateMetadata({
 	const agendaCount = session.agendaItems?.length || 0;
 	const title = `Session #${session.sessionNumber} - ${formattedDate}`;
 	const description = `${sessionType} on ${formattedDate} at ${formattedTime}. ${agendaCount} agenda ${agendaCount === 1 ? "item" : "items"}. Status: ${sessionStatus}.`;
-	return {
+
+	// leverage helper for consistency and type safety
+	return createPageMetadata({
 		title,
-		description: description.substring(0, 160),
-		openGraph: {
-			title,
+		description: description.substring(0, 160), // Limit to 160 chars for SEO
+		url: `/sessions/${id}`,
+		ogType: "article",
+		ogExtra: {
 			description,
-			type: "article",
 			publishedTime: scheduleDate.toISOString(),
-			url: `/sessions/${id}`,
 		},
-		twitter: {
-			card: "summary_large_image",
-			title,
-			description: description.substring(0, 160),
-		},
-	};
+	});
 }
 
 export default async function SessionDetailPage({
