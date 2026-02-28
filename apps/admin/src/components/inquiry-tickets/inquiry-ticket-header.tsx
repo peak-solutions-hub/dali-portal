@@ -1,7 +1,7 @@
 "use client";
 
 import type { InquiryTicketWithMessagesResponse } from "@repo/shared";
-import { formatCitizenDisplayName } from "@repo/shared";
+import { formatCitizenDisplayName, formatInquiryCategory } from "@repo/shared";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
 import { Separator } from "@repo/ui/components/separator";
 import { cn } from "@repo/ui/lib/utils";
@@ -15,7 +15,6 @@ import {
 	User,
 } from "lucide-react";
 import { useState } from "react";
-import { formatInquiryCategory } from "@/utils/inquiry-helpers";
 
 interface InquiryTicketHeaderProps {
 	ticket: InquiryTicketWithMessagesResponse;
