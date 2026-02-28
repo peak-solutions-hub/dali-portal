@@ -26,10 +26,10 @@ export default function VisitorAndBeneficiaryHub() {
 			<div className="px-6 flex-1">
 				<Tabs defaultValue="visitor-log" className="w-full">
 					<TabsList className="mb-6">
+						<TabsTrigger value="visitor-log">Visitor Log</TabsTrigger>
 						<TabsTrigger value="beneficiary-database">
 							Beneficiary Database
 						</TabsTrigger>
-						<TabsTrigger value="visitor-log">Visitor Log</TabsTrigger>
 					</TabsList>
 
 					<TabsContent value="beneficiary-database">
