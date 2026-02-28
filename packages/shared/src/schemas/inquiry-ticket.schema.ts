@@ -35,12 +35,12 @@ export const InquiryTicketSchema = z.object({
 	id: z.uuid(),
 	referenceNumber: z.string(),
 	assignedTo: z.uuid().nullable(),
-	citizenEmail: z.email(),
-	citizenName: z.string().min(1).max(TEXT_LIMITS.XS),
-	subject: z.string().min(1).max(TEXT_LIMITS.SM),
+	citizenEmail: z.string(),
+	citizenName: z.string(),
+	subject: z.string(),
 	category: InquiryTicketCategoryEnum,
 	status: InquiryTicketStatusEnum,
-	closureRemarks: z.string().max(TEXT_LIMITS.SM).nullable(),
+	closureRemarks: z.string().nullable(),
 	createdAt: z.date(),
 });
 
@@ -53,9 +53,9 @@ export const InquiryTicketListSchema = InquiryTicketSchema.array();
 export const InquiryMessageSchema = z.object({
 	id: z.uuid(),
 	ticketId: z.uuid(),
-	senderName: z.string().min(1).max(TEXT_LIMITS.XS),
+	senderName: z.string(),
 	/** Message content - can be empty for attachment-only messages */
-	content: z.string().max(TEXT_LIMITS.LG),
+	content: z.string(),
 	attachmentPaths: z.string().array().nullable(),
 	senderType: InquiryMessageSenderTypeEnum,
 	createdAt: z.date(),
@@ -158,8 +158,8 @@ export const CreateInquiryTicketSchema = z.object({
 	subject: z
 		.string()
 		.min(1, { message: "Subject is required." })
-		.max(TEXT_LIMITS.SM, {
-			message: `Subject must be ${TEXT_LIMITS.SM} characters or less.`,
+		.max(TEXT_LIMITS.XS, {
+			message: `Subject must be ${TEXT_LIMITS.XS} characters or less.`,
 		}),
 	category: InquiryTicketCategoryEnum,
 	message: z

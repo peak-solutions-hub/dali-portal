@@ -1,7 +1,7 @@
 import type { InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
-import { InquiryStatus } from "@repo/shared";
 import { Card, CardContent } from "@repo/ui/components/card";
-import { CheckCircle2, Clock, Mail, User } from "@repo/ui/lib/lucide-react";
+import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
+import { Clock, Info, Mail, User, UserCheck } from "@repo/ui/lib/lucide-react";
 
 interface InquirySidebarProps {
 	ticket: InquiryTicketWithMessagesAndAttachmentsResponse;
@@ -22,8 +22,36 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 								Status
 							</p>
 							<div className="mt-1">
-								<StatusBadge status={ticket.status} />
+								<InquiryStatusBadge status={ticket.status} />
 							</div>
+							<div
+								className={`mt-3 rounded-lg px-3 py-2.5 flex gap-2 items-start ${statusCalloutStyles[ticket.status]}`}
+							>
+								<Info className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-70" />
+								<p className="text-xs leading-relaxed">
+									{statusDescriptions[ticket.status]}
+								</p>
+							</div>
+						</div>
+
+						<div>
+							<p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1">
+								Handled By
+							</p>
+							{ticket.user ? (
+								<div className="flex items-center gap-2 mt-1 text-sm font-medium">
+									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
+										<UserCheck className="h-3 w-3 text-gray-600" />
+									</div>
+									<span className="break-words min-w-0 line-clamp-2">
+										{ticket.user.fullName}
+									</span>
+								</div>
+							) : (
+								<p className="text-sm text-gray-400 italic mt-1">
+									Pending assignment
+								</p>
+							)}
 						</div>
 
 						<div>
@@ -55,40 +83,26 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 							</p>
 							<div className="space-y-2">
 								<div className="flex items-center gap-2 text-sm font-medium">
-									<div className="bg-gray-100 p-1.5 rounded-full">
+									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 										<User className="h-3 w-3 text-gray-600" />
 									</div>
-									{ticket.citizenName}
+									<span className="break-words min-w-0 line-clamp-2">
+										{ticket.citizenName}
+									</span>
 								</div>
 								<div className="flex items-center gap-2 text-sm font-medium">
-									<div className="bg-gray-100 p-1.5 rounded-full">
+									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 										<Mail className="h-3 w-3 text-gray-600" />
 									</div>
-									{ticket.citizenEmail}
+									<span className="break-all min-w-0 line-clamp-2">
+										{ticket.citizenEmail}
+									</span>
 								</div>
 							</div>
 						</div>
 					</div>
 				</CardContent>
 			</Card>
-
-			{ticket.status === "resolved" && ticket.closureRemarks && (
-				<Card className="border-green-200 bg-green-50 shadow-sm">
-					<CardContent className="p-4">
-						<div className="flex items-start gap-3">
-							<CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-							<div>
-								<p className="font-semibold text-green-800 text-sm">
-									Resolution Remarks
-								</p>
-								<p className="text-sm text-green-700 mt-1">
-									{ticket.closureRemarks}
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			)}
 		</div>
 	);
 }
@@ -97,30 +111,23 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
-function StatusBadge({ status }: { status: InquiryStatus }) {
-	const styles: Record<string, string> = {
-		open: "bg-blue-100 text-blue-700 border-blue-200",
-		waiting_for_citizen: "bg-orange-100 text-orange-700 border-orange-200",
-		resolved: "bg-green-100 text-green-700 border-green-200",
-		rejected: "bg-gray-100 text-gray-700 border-gray-200",
-	};
+const statusDescriptions: Record<string, string> = {
+	new: "Your inquiry has been received and is waiting to be reviewed by our staff.",
+	open: "Our staff is currently reviewing and working on your inquiry.",
+	waiting_for_citizen:
+		"Our staff has replied and is waiting for your response. Please check the conversation.",
+	resolved: "Your inquiry has been reviewed and resolved by our staff.",
+	rejected:
+		"Your inquiry has been closed. Please contact us if you need further assistance.",
+};
 
-	const labels: Record<string, string> = {
-		open: "Open",
-		waiting_for_citizen: "Waiting for Citizen",
-		resolved: "Resolved",
-		rejected: "Rejected",
-	};
-
-	const cn = styles[status] ?? "bg-gray-100 text-gray-600";
-	const label = labels[status] ?? status;
-
-	return (
-		<span className={`px-2 py-1 text-xs rounded-full font-medium border ${cn}`}>
-			{label}
-		</span>
-	);
-}
+const statusCalloutStyles: Record<string, string> = {
+	new: "bg-gray-100 text-gray-800 border border-gray-200",
+	open: "bg-blue-50 text-blue-800 border border-blue-200",
+	waiting_for_citizen: "bg-yellow-50 text-yellow-800 border border-yellow-200",
+	resolved: "bg-green-50 text-green-800 border border-green-200",
+	rejected: "bg-red-50 text-red-800 border border-red-200",
+};
 
 function formatCategory(category: string) {
 	return category.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());

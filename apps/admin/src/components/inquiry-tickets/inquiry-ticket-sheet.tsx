@@ -1,14 +1,15 @@
 "use client";
 
 import { isDefinedError } from "@orpc/client";
-import type {
-	InquiryStatus,
-	InquiryTicketWithMessagesResponse,
-} from "@repo/shared";
+import type { InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
+import { ChatMessageList } from "@repo/ui/components/chat/chat-message-list";
+import type { ChatItem } from "@repo/ui/components/chat/types";
+import { ClosureRemarks } from "@repo/ui/components/closure-remarks";
+import { MessageComposer } from "@repo/ui/components/message-composer";
+import { ScrollArea } from "@repo/ui/components/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@repo/ui/components/sheet";
-import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { LockKeyhole } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import {
 	useAssignTicket,
@@ -21,8 +22,6 @@ import {
 	InquiryActionConfirmationDialog,
 	type InquiryActionType,
 } from "./inquiry-action-confirmation-dialog";
-import { InquiryConversation } from "./inquiry-conversation";
-import { InquiryMessageComposer } from "./inquiry-message-composer";
 import { InquiryTicketActions } from "./inquiry-ticket-actions";
 import { InquiryTicketHeader } from "./inquiry-ticket-header";
 import {
@@ -45,12 +44,9 @@ export function InquiryTicketSheet({
 }: InquiryTicketSheetProps) {
 	const { userProfile } = useAuth();
 	const [ticket, setTicket] =
-		useState<InquiryTicketWithMessagesResponse | null>(null);
+		useState<InquiryTicketWithMessagesAndAttachmentsResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [message, setMessage] = useState("");
-	const [files, setFiles] = useState<File[]>([]);
-	const [uploadProgress, setUploadProgress] = useState(0);
 	const [confirmationDialog, setConfirmationDialog] = useState<{
 		isOpen: boolean;
 		actionType: InquiryActionType | null;
@@ -69,13 +65,10 @@ export function InquiryTicketSheet({
 
 	const { send: sendMessage, isSending } = useSendTicketMessage({
 		onSuccess: async () => {
-			setMessage("");
-			setFiles([]);
 			if (ticketId) {
 				await refreshTicket(ticketId);
 			}
 		},
-		onUploadProgress: setUploadProgress,
 	});
 
 	const { assignToMe } = useAssignTicket({
@@ -130,45 +123,105 @@ export function InquiryTicketSheet({
 		fetchTicket();
 	}, [ticketId]);
 
-	// Helper functions
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files) {
-			const newFiles = Array.from(e.target.files);
-			// Limit to 3 files, 10MB each for replies
-			const validFiles = newFiles.filter((f) => f.size <= 10 * 1024 * 1024);
-			if (validFiles.length < newFiles.length) {
-				alert("Some files were rejected (Max 10MB).");
+	// Transform messages to ChatItem[] format (split messages and attachments)
+	const chatItems = useMemo<ChatItem[]>(() => {
+		if (!ticket) return [];
+
+		return ticket.inquiryMessages.flatMap((msg) => {
+			const items: ChatItem[] = [];
+
+			const content = msg.content?.trim();
+
+			if (content) {
+				items.push({
+					type: "message",
+					id: msg.id,
+					content: msg.content,
+					senderType: msg.senderType,
+					createdAt: msg.createdAt,
+				});
 			}
-			setFiles((prev) => [...prev, ...validFiles].slice(0, 3));
+
+			if (msg.attachments && msg.attachments.length > 0) {
+				for (const attachment of msg.attachments) {
+					items.push({
+						type: "attachment",
+						id: `${msg.id}-${attachment.path}`,
+						fileName: attachment.fileName,
+						signedUrl: attachment.signedUrl,
+						path: attachment.path,
+						senderType: msg.senderType,
+						createdAt: msg.createdAt,
+					});
+				}
+			}
+
+			return items;
+		});
+	}, [ticket]);
+
+	// Count total attachments for conversation limit
+	const totalAttachments = useMemo(() => {
+		if (!ticket) return 0;
+		return ticket.inquiryMessages.reduce(
+			(sum, msg) => sum + (msg.attachments?.length || 0),
+			0,
+		);
+	}, [ticket]);
+
+	// Callback to get signed upload URLs from backend
+	const getSignedUploadUrls = async (
+		folder: string,
+		fileNames: string[],
+	): Promise<
+		Array<{ fileName: string; signedUrl: string; path: string; token: string }>
+	> => {
+		const [err, result] = await api.inquiries.createUploadUrls({
+			folder,
+			fileNames,
+		});
+
+		if (err) {
+			throw new Error(
+				isDefinedError(err) ? err.message : "Failed to get upload URLs",
+			);
 		}
+
+		return result.uploads;
 	};
 
-	const removeFile = (index: number) => {
-		setFiles((prev) => prev.filter((_, i) => i !== index));
-	};
+	// Send handler (wires MessageComposer → upload → API)
+	const handleSend = async (
+		content: string,
+		fileCtx: {
+			upload: () => Promise<{
+				successes: { name: string; path: string }[];
+				errors: { name: string; message: string }[];
+			}>;
+		},
+	): Promise<boolean> => {
+		if (!ticketId) return false;
 
-	const uploadFiles = async (): Promise<string[]> => {
-		if (files.length === 0) return [];
+		let attachmentPaths: string[] = [];
 
-		const supabase = createBrowserClient();
-		const paths: string[] = [];
-
-		for (const file of files) {
-			const fileExt = file.name.split(".").pop();
-			const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-			const filePath = `inquiries/replies/${fileName}`;
-
-			const { error } = await supabase.storage
-				.from("attachments")
-				.upload(filePath, file);
-
-			if (error) {
-				console.error("Upload error", error);
-				throw new Error("Failed to upload attachment");
-			}
-			paths.push(filePath);
+		// Upload files first (if any)
+		const uploadResult = await fileCtx.upload();
+		if (uploadResult.errors.length > 0) {
+			return false;
 		}
-		return paths;
+		if (uploadResult.successes.length > 0) {
+			attachmentPaths = uploadResult.successes.map((s) => s.path);
+		}
+
+		const { success } = await sendMessage({
+			ticketId,
+			message: content || "(Attachment)",
+			files: [], // No longer used, kept for hook compatibility
+			uploadFiles: async () => attachmentPaths, // Return pre-uploaded paths
+			senderName: userProfile?.fullName || "Staff Member",
+		});
+
+		return success;
 	};
 
 	// Early return after all hooks are called
@@ -178,19 +231,11 @@ export function InquiryTicketSheet({
 	const isAssignedToOther =
 		ticket?.assignedTo && ticket.assignedTo !== userProfile?.id;
 
+	// Check if ticket is closed
+	const isClosed =
+		ticket?.status === "resolved" || ticket?.status === "rejected";
+
 	// Action handlers
-	const handleSendMessage = async () => {
-		if (!ticketId || (!message.trim() && files.length === 0)) return;
-
-		await sendMessage({
-			ticketId,
-			message,
-			files,
-			uploadFiles,
-			senderName: userProfile?.fullName || "Staff Member",
-		});
-	};
-
 	const handleAssignToMe = (onOpenDialog: () => void) => {
 		onOpenDialog();
 	};
@@ -258,68 +303,129 @@ export function InquiryTicketSheet({
 							<InquiryTicketHeader ticket={ticket} />
 
 							{/* Scrollable Content */}
-							<div className="flex-1 min-h-0 overflow-hidden p-6">
-								<InquiryConversation ticket={ticket} />
-							</div>
+							<ScrollArea className="flex-1 min-h-0 p-6">
+								<ChatMessageList
+									items={chatItems}
+									isSending={isSending}
+									viewerType="staff"
+								/>
+							</ScrollArea>
 
-							<div className="border-t bg-background p-6 shrink-0">
-								{ticket.status === "resolved" ||
-								ticket.status === "rejected" ? (
-									<div className="p-4 bg-muted/30 rounded-lg border text-center">
-										<p className="text-sm text-muted-foreground">
-											This ticket has been{" "}
-											{ticket.status === "resolved" ? "resolved" : "rejected"}{" "}
-											and is now closed.
+							{isClosed && ticket.closureRemarks && (
+								<div className="px-6 pb-4">
+									<ClosureRemarks
+										status={ticket.status as "resolved" | "rejected"}
+										remarks={ticket.closureRemarks}
+									/>
+								</div>
+							)}
+
+							{isClosed ? (
+								<>
+									<MessageComposer
+										isClosed={isClosed}
+										closedStatus={ticket.status}
+										staffName={ticket.user?.fullName ?? undefined}
+										totalAttachments={totalAttachments}
+										onSend={handleSend}
+										isSending={isSending}
+										getSignedUploadUrls={getSignedUploadUrls}
+									/>
+									<InquiryTicketActions
+										ticket={ticket}
+										onAssign={() =>
+											handleAssignToMe(() => openConfirmationDialog("assign"))
+										}
+										onResolve={() =>
+											handleResolve(() => openConfirmationDialog("resolve"))
+										}
+										onReject={() =>
+											handleReject(() => openConfirmationDialog("reject"))
+										}
+										isUpdating={isUpdatingStatus}
+										currentUserId={userProfile?.id}
+									/>
+								</>
+							) : isAssignedToOther ? (
+								<div className="p-6 bg-muted/30 flex items-center gap-4">
+									<div className="p-3 bg-muted rounded-full">
+										<LockKeyhole className="h-5 w-5 text-muted-foreground" />
+									</div>
+									<div>
+										<p className="text-sm font-medium text-foreground/80 truncate max-w-xs">
+											Assigned to {ticket.user?.fullName}
+										</p>
+										<p className="text-xs text-muted-foreground mt-1">
+											You cannot reply to or manage inquiries assigned to other
+											staff members.
 										</p>
 									</div>
-								) : isAssignedToOther ? (
-									<div className="p-6 bg-muted/30 rounded-lg border text-center space-y-3">
-										<div className="flex justify-center">
-											<div className="p-3 bg-muted rounded-full">
-												<LockKeyhole className="h-5 w-5 text-muted-foreground" />
-											</div>
-										</div>
-										<div>
-											<p className="text-sm font-medium text-foreground/80">
-												Assigned to {ticket.user?.fullName}
-											</p>
-											<p className="text-xs text-muted-foreground mt-1">
-												You cannot reply to or manage inquiries assigned to
-												other staff members.
+								</div>
+							) : !ticket.assignedTo ? (
+								<>
+									{/* Disabled composer overlay — only Assign to Me / Reject are live */}
+									<div className="relative">
+										<MessageComposer
+											isClosed={isClosed}
+											closedStatus={ticket.status}
+											staffName={ticket.user?.fullName ?? undefined}
+											totalAttachments={totalAttachments}
+											onSend={handleSend}
+											isSending={isSending}
+											getSignedUploadUrls={getSignedUploadUrls}
+										/>
+										{/* Overlay sits on top and blocks click events by default */}
+										<div className="absolute inset-0 bg-muted/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-1 cursor-not-allowed border border-border">
+											<LockKeyhole className="h-5 w-5 text-foreground" />
+											<p className="text-xs text-foreground font-medium">
+												Assign this inquiry to reply
 											</p>
 										</div>
 									</div>
-								) : (
-									<>
-										<InquiryMessageComposer
-											message={message}
-											onMessageChange={setMessage}
-											files={files}
-											onFileChange={handleFileChange}
-											onRemoveFile={removeFile}
-											onSend={handleSendMessage}
-											isSending={isSending}
-											uploadProgress={uploadProgress}
-											disabled={!ticket.assignedTo}
-										/>
 
-										<InquiryTicketActions
-											ticket={ticket}
-											onAssign={() =>
-												handleAssignToMe(() => openConfirmationDialog("assign"))
-											}
-											onResolve={() =>
-												handleResolve(() => openConfirmationDialog("resolve"))
-											}
-											onReject={() =>
-												handleReject(() => openConfirmationDialog("reject"))
-											}
-											isUpdating={isUpdatingStatus}
-											currentUserId={userProfile?.id}
-										/>
-									</>
-								)}
-							</div>
+									<InquiryTicketActions
+										ticket={ticket}
+										onAssign={() =>
+											handleAssignToMe(() => openConfirmationDialog("assign"))
+										}
+										onResolve={() =>
+											handleResolve(() => openConfirmationDialog("resolve"))
+										}
+										onReject={() =>
+											handleReject(() => openConfirmationDialog("reject"))
+										}
+										isUpdating={isUpdatingStatus}
+										currentUserId={userProfile?.id}
+									/>
+								</>
+							) : (
+								<>
+									<MessageComposer
+										isClosed={isClosed}
+										closedStatus={ticket.status}
+										staffName={ticket.user?.fullName ?? undefined}
+										totalAttachments={totalAttachments}
+										onSend={handleSend}
+										isSending={isSending}
+										getSignedUploadUrls={getSignedUploadUrls}
+									/>
+
+									<InquiryTicketActions
+										ticket={ticket}
+										onAssign={() =>
+											handleAssignToMe(() => openConfirmationDialog("assign"))
+										}
+										onResolve={() =>
+											handleResolve(() => openConfirmationDialog("resolve"))
+										}
+										onReject={() =>
+											handleReject(() => openConfirmationDialog("reject"))
+										}
+										isUpdating={isUpdatingStatus}
+										currentUserId={userProfile?.id}
+									/>
+								</>
+							)}
 						</div>
 					) : null}
 				</SheetContent>

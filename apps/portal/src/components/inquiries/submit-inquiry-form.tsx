@@ -7,11 +7,12 @@ import { Form } from "@repo/ui/components/form";
 import { Separator } from "@repo/ui/components/separator";
 import type { TurnstileWidgetRef } from "@repo/ui/components/turnstile-widget";
 import { AlertCircle } from "@repo/ui/lib/lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { SuccessDialog } from "@/components/inquiries/success-dialog";
 import { useSendInquiry } from "@/hooks/inquiries/use-send-inquiry";
-
+import { isCaptchaError } from "@/utils/captcha-utils";
+import { CaptchaErrorModal } from "./captcha-error-modal";
 import {
 	InquiryFormAttachments,
 	type InquiryFormAttachmentsRef,
@@ -31,6 +32,8 @@ export function SubmitInquiryForm() {
 	const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 	const [referenceNumber, setReferenceNumber] = useState("");
 	const [citizenEmail, setCitizenEmail] = useState("");
+	const [captchaErrorModalOpen, setCaptchaErrorModalOpen] = useState(false);
+	const [captchaErrorMessage, setCaptchaErrorMessage] = useState("");
 
 	// Track file state via props (not refs)
 	const [fileState, setFileState] = useState({
@@ -65,6 +68,15 @@ export function SubmitInquiryForm() {
 			captchaToken: null,
 		},
 	});
+
+	// Show captcha errors in modal
+	useEffect(() => {
+		if (error && isCaptchaError(error)) {
+			setCaptchaErrorMessage(error);
+			setCaptchaErrorModalOpen(true);
+			clearError();
+		}
+	}, [error, clearError]);
 
 	const handleTurnstileVerify = (token: string) => {
 		form.setValue("captchaToken", token);
@@ -155,7 +167,7 @@ export function SubmitInquiryForm() {
 				<CardContent className="px-6 sm:px-8 py-8">
 					<Form {...form}>
 						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-							{error && (
+							{error && !isCaptchaError(error) && (
 								<div className="bg-red-50 border border-red-100 text-red-800 px-4 py-4 rounded-xl text-sm font-medium flex items-start gap-3">
 									<AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
 									<div>
@@ -201,6 +213,12 @@ export function SubmitInquiryForm() {
 				onOpenChange={setSuccessDialogOpen}
 				referenceNumber={referenceNumber}
 				citizenEmail={citizenEmail}
+			/>
+
+			<CaptchaErrorModal
+				open={captchaErrorModalOpen}
+				onOpenChange={setCaptchaErrorModalOpen}
+				errorMessage={captchaErrorMessage}
 			/>
 		</>
 	);

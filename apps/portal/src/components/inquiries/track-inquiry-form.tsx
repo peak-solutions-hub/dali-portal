@@ -24,9 +24,11 @@ import {
 	Ticket,
 } from "@repo/ui/lib/lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTrackInquiry } from "@/hooks/inquiries/use-track-inquiry";
+import { isCaptchaError } from "@/utils/captcha-utils";
+import { CaptchaErrorModal } from "./captcha-error-modal";
 import { InquiryFormHeader } from "./form/inquiry-form-header";
 
 interface TrackInquiryFormProps {
@@ -42,9 +44,11 @@ export function TrackInquiryForm({
 }: TrackInquiryFormProps) {
 	const router = useRouter();
 	const hasAutoTracked = useRef(false);
+	const [captchaErrorModalOpen, setCaptchaErrorModalOpen] = useState(false);
+	const [captchaErrorMessage, setCaptchaErrorMessage] = useState("");
 
 	// Use the track inquiry hook for API logic
-	const { track, isTracking, error } = useTrackInquiry({
+	const { track, isTracking, error, clearError } = useTrackInquiry({
 		onSuccess: (ticketId) => {
 			router.push(`/inquiries/${ticketId}`);
 		},
@@ -70,6 +74,15 @@ export function TrackInquiryForm({
 			});
 		}
 	}, [prefillRef, prefillEmail, track]);
+
+	// Show captcha errors in modal
+	useEffect(() => {
+		if (error && isCaptchaError(error)) {
+			setCaptchaErrorMessage(error);
+			setCaptchaErrorModalOpen(true);
+			clearError();
+		}
+	}, [error, clearError]);
 
 	const onSubmit = async (data: TrackInquiryTicketInput) => {
 		await track(data);
@@ -105,7 +118,7 @@ export function TrackInquiryForm({
 			<CardContent className="p-8 sm:p-10">
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-						{error && (
+						{error && !isCaptchaError(error) && (
 							<div className="bg-red-50 border border-red-100 text-red-800 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
 								<AlertCircle className="w-4 h-4" />
 								{error}
@@ -181,6 +194,12 @@ export function TrackInquiryForm({
 					</form>
 				</Form>
 			</CardContent>
+
+			<CaptchaErrorModal
+				open={captchaErrorModalOpen}
+				onOpenChange={setCaptchaErrorModalOpen}
+				errorMessage={captchaErrorMessage}
+			/>
 		</Card>
 	);
 }
