@@ -1,10 +1,42 @@
 import { isDefinedError } from "@orpc/client";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { InquiryDetails } from "@/components/inquiries/inquiry-details";
 import { api } from "@/lib/api.client";
 
 interface PageProps {
 	params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({
+	params,
+}: PageProps): Promise<Metadata> {
+	const { id } = await params;
+
+	const uuidRegex =
+		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	if (!uuidRegex.test(id)) {
+		return {
+			title: "Invalid Inquiry",
+			robots: { index: false, follow: false },
+		};
+	}
+
+	const [error, data] = await api.inquiries.getWithMessages({ id });
+
+	if (error || !data) {
+		return {
+			title: "Inquiry Not Found",
+			description: "The requested inquiry could not be found.",
+			robots: { index: false, follow: false },
+		};
+	}
+
+	return {
+		title: `Inquiry #${data.referenceNumber}`,
+		description: `Inquiry ticket #${data.referenceNumber} — ${data.category}.`,
+		robots: { index: false, follow: false },
+	};
 }
 
 export default async function InquiryPage({ params }: PageProps) {

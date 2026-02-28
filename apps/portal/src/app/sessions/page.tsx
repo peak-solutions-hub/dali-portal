@@ -24,7 +24,7 @@ import { api } from "@/lib/api.client";
 import SessionLoading from "./loading";
 
 export const metadata: Metadata = {
-	title: "Council Sessions — Iloilo City",
+	title: "Council Sessions",
 	description:
 		"Browse Iloilo City Council sessions. Regular sessions are held every Wednesday at 10:00 AM. View schedules, agendas, and session details.",
 	openGraph: {

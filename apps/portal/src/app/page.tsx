@@ -4,6 +4,7 @@ import {
 	transformDocumentListDates,
 	transformSessionListDates,
 } from "@repo/shared";
+import type { Metadata } from "next";
 import {
 	AboutSection,
 	HeroSection,
@@ -11,6 +12,17 @@ import {
 	RecentUpdates,
 } from "@/components/home";
 import { api } from "@/lib/api.client";
+
+export const metadata: Metadata = {
+	title: {
+		absolute: "DALI Portal — Sangguniang Panlungsod ng Iloilo",
+	},
+	description:
+		"Official public portal of the Sangguniang Panlungsod ng Iloilo (Iloilo City Council). Access legislative documents, council sessions, and citizen inquiry services.",
+	openGraph: {
+		url: "/",
+	},
+};
 
 export default async function HomePage() {
 	// Fetch statistics

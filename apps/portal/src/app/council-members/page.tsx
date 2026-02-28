@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import {
 	CouncilMembersList,
 	PageDescription,
 	ViceMayor,
 } from "@/components/council-members";
+
+export const metadata: Metadata = {
+	title: "Council Members",
+	description:
+		"Meet the members of the Sangguniang Panlungsod ng Iloilo — the Vice Mayor, City Councilors, their committee chairmanships, and contact information.",
+	openGraph: {
+		url: "/council-members",
+	},
+};
 
 export default function CouncilMembers() {
 	const viceMayorData = {

@@ -46,6 +46,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
 	const hasPdfFile = Boolean(document.storagePath && document.storageBucket);
 	const downloadFilename = getDocumentFilename(document);
+	const readMoreLabel = `View ${documentType} ${documentNumber}`;
 
 	// Generate signed URL when component mounts
 	useEffect(() => {
@@ -169,7 +170,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 					<div className="flex flex-col gap-2 shrink-0">
 						<Link href={`/legislative-documents/${document.id}`}>
 							<Button className="bg-[#a60202] hover:bg-[#8a0101] w-full">
-								Read More
+								{readMoreLabel}
 							</Button>
 						</Link>
 						{hasPdfFile ? (

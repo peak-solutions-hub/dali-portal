@@ -6,6 +6,7 @@ import {
 	validateSearchParams,
 } from "@repo/shared";
 import { Card } from "@repo/ui/components/card";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
 	DocumentCard,
@@ -13,6 +14,14 @@ import {
 	SearchFilterBar,
 } from "@/components/legislative-documents/";
 import { api } from "@/lib/api.client";
+import { createPageMetadata } from "@/lib/seo-metadata";
+
+export const metadata: Metadata = createPageMetadata({
+	title: "Legislative Documents — Iloilo City",
+	description:
+		"Browse Iloilo City's official legislative documents: ordinances, resolutions, and committee reports.",
+	url: "/legislative-documents",
+});
 
 interface PageProps {
 	searchParams: Promise<{
@@ -23,12 +32,6 @@ interface PageProps {
 		page?: string;
 	}>;
 }
-
-export const metadata = {
-	title: "Legislative Documents — Iloilo City",
-	description:
-		"Browse Iloilo City's official legislative documents: ordinances, resolutions, and committee reports.",
-};
 
 export default async function LegislativeDocumentsPage({
 	searchParams,
