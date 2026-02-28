@@ -1,7 +1,10 @@
 "use client";
 
 import { isDefinedError } from "@orpc/client";
-import { type InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
+import {
+	formatCitizenFullName,
+	type InquiryTicketWithMessagesAndAttachmentsResponse,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent, CardHeader } from "@repo/ui/components/card";
 import { ChatMessageList } from "@repo/ui/components/chat/chat-message-list";
@@ -154,7 +157,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 			{
 				ticketId: ticket.id,
 				content,
-				senderName: ticket.citizenName,
+				senderName: formatCitizenFullName(ticket),
 				senderType: "citizen",
 			},
 			attachmentPaths,

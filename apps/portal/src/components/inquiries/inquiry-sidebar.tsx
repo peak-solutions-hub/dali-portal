@@ -1,7 +1,16 @@
 import type { InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
+import { formatCitizenFullName } from "@repo/shared";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
-import { Clock, Info, Mail, User, UserCheck } from "@repo/ui/lib/lucide-react";
+import {
+	Clock,
+	Info,
+	Mail,
+	MapPin,
+	Phone,
+	User,
+	UserCheck,
+} from "@repo/ui/lib/lucide-react";
 
 interface InquirySidebarProps {
 	ticket: InquiryTicketWithMessagesAndAttachmentsResponse;
@@ -87,7 +96,7 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 										<User className="h-3 w-3 text-gray-600" />
 									</div>
 									<span className="break-words min-w-0 line-clamp-2">
-										{ticket.citizenName}
+										{formatCitizenFullName(ticket)}
 									</span>
 								</div>
 								<div className="flex items-center gap-2 text-sm font-medium">
@@ -98,6 +107,26 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 										{ticket.citizenEmail}
 									</span>
 								</div>
+								{ticket.citizenContactNumber && (
+									<div className="flex items-center gap-2 text-sm font-medium">
+										<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
+											<Phone className="h-3 w-3 text-gray-600" />
+										</div>
+										<span className="break-words min-w-0 line-clamp-2">
+											{ticket.citizenContactNumber}
+										</span>
+									</div>
+								)}
+								{ticket.citizenAddress && (
+									<div className="flex items-center gap-2 text-sm font-medium">
+										<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
+											<MapPin className="h-3 w-3 text-gray-600" />
+										</div>
+										<span className="break-words min-w-0 line-clamp-2">
+											{ticket.citizenAddress}
+										</span>
+									</div>
+								)}
 							</div>
 						</div>
 					</div>

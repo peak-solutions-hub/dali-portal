@@ -60,8 +60,11 @@ export function SubmitInquiryForm() {
 		mode: "onChange",
 		reValidateMode: "onChange",
 		defaultValues: {
-			citizenName: "",
+			citizenFirstName: "",
+			citizenLastName: "",
 			citizenEmail: "",
+			citizenContactNumber: "",
+			citizenAddress: "",
 			subject: "",
 			message: "",
 			category: "general_inquiry",
@@ -146,7 +149,7 @@ export function SubmitInquiryForm() {
 		);
 
 		if (success) {
-			setCitizenEmail(data.citizenEmail);
+			setCitizenEmail(data.citizenEmail ?? "");
 			form.reset();
 			setAttachmentPaths([]);
 			attachmentsRef.current?.clearFiles();

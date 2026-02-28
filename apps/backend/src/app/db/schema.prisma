@@ -140,18 +140,22 @@ model InquiryMessage {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model InquiryTicket {
-  id              String           @id(map: "inquiry_tickets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  referenceNumber String           @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
-  assignedTo      String?          @map("assigned_to") @db.Uuid
-  citizenEmail    String           @map("citizen_email")
-  citizenName     String           @map("citizen_name")
-  subject         String
-  closureRemarks  String?          @map("closure_remarks")
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  category        InquiryCategory
-  status          InquiryStatus
-  inquiryMessages InquiryMessage[]
-  user            User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
+  id                   String           @id(map: "inquiry_tickets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceNumber      String           @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
+  assignedTo           String?          @map("assigned_to") @db.Uuid
+  citizenEmail         String           @map("citizen_email")
+  citizenName          String?          @map("citizen_name")
+  citizenFirstName     String?          @map("citizen_first_name")
+  citizenLastName      String?          @map("citizen_last_name")
+  citizenContactNumber String?          @map("citizen_contact_number")
+  citizenAddress       String?          @map("citizen_address")
+  subject              String
+  closureRemarks       String?          @map("closure_remarks")
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  category             InquiryCategory
+  status               InquiryStatus
+  inquiryMessages      InquiryMessage[]
+  user                 User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
 
   @@map("inquiry_ticket")
 }

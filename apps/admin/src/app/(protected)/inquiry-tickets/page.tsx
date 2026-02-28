@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCitizenDisplayName } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Card } from "@repo/ui/components/card";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
@@ -183,7 +184,7 @@ export default function InquiryTicketsPage() {
 																	</div>
 																	<span
 																		className="font-medium truncate max-w-45"
-																		title={ticket.citizenName}
+																		title={ticket.citizenName ?? undefined}
 																	>
 																		{ticket.citizenName}
 																	</span>

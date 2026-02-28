@@ -4,6 +4,7 @@ import {
 	type CreateInquiryTicketInput,
 	type CreateInquiryTicketResponse,
 	type CreateSignedUploadUrlsInput,
+	formatCitizenFullName,
 	type GetInquiryTicketByIdInput,
 	type GetInquiryTicketListInput,
 	INQUIRY_CATEGORY_LABELS,
@@ -45,12 +46,22 @@ export class InquiryTicketService {
 
 		const referenceNumber = this.generateReferenceNumber(currentYear);
 
+		// Compose full name for compat column, email, and message senderName
+		const fullName = formatCitizenFullName({
+			citizenFirstName: input.citizenFirstName,
+			citizenLastName: input.citizenLastName,
+		});
+
 		// create inquiry ticket
 		const response = await this.db.inquiryTicket.create({
 			data: {
 				referenceNumber,
-				citizenEmail: input.citizenEmail,
-				citizenName: input.citizenName,
+				citizenEmail: input.citizenEmail || "",
+				citizenName: fullName,
+				citizenFirstName: input.citizenFirstName,
+				citizenLastName: input.citizenLastName,
+				citizenContactNumber: input.citizenContactNumber || null,
+				citizenAddress: input.citizenAddress || null,
 				category: input.category,
 				subject: input.subject,
 				status: "new",
@@ -59,7 +70,7 @@ export class InquiryTicketService {
 				inquiryMessages: {
 					create: [
 						{
-							senderName: input.citizenName,
+							senderName: fullName,
 							content: input.message,
 							senderType: "citizen",
 							attachmentPaths: input.attachmentPaths ?? [],
@@ -69,27 +80,29 @@ export class InquiryTicketService {
 			},
 		});
 
-		// send confirmation email
-		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(response.referenceNumber)}&email=${encodeURIComponent(response.citizenEmail)}`;
+		// send confirmation email only if citizen provided an email address
+		if (response.citizenEmail) {
+			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(response.referenceNumber)}&email=${encodeURIComponent(response.citizenEmail)}`;
 
-		const emailRes = await this.resend.send({
-			to: response.citizenEmail,
-			template: {
-				id: "inquiry-confirmation",
-				variables: {
-					CITIZEN_NAME: response.citizenName,
-					REFERENCE_NUMBER: response.referenceNumber,
-					SUBJECT: response.subject,
-					CATEGORY: INQUIRY_CATEGORY_LABELS[response.category],
-					YEAR: new Date().getFullYear().toString(),
-					PORTAL_URL: portalUrl,
+			const emailRes = await this.resend.send({
+				to: response.citizenEmail,
+				template: {
+					id: "inquiry-confirmation",
+					variables: {
+						CITIZEN_NAME: fullName,
+						REFERENCE_NUMBER: response.referenceNumber,
+						SUBJECT: response.subject,
+						CATEGORY: INQUIRY_CATEGORY_LABELS[response.category],
+						YEAR: new Date().getFullYear().toString(),
+						PORTAL_URL: portalUrl,
+					},
 				},
-			},
-		});
+			});
 
-		if (emailRes.error) {
-			// override error message to be more user-friendly
-			throw new AppError("INQUIRY.EMAIL_SEND_FAILED", emailRes.error.message);
+			if (emailRes.error) {
+				// override error message to be more user-friendly
+				throw new AppError("INQUIRY.EMAIL_SEND_FAILED", emailRes.error.message);
+			}
 		}
 
 		return { referenceNumber };
@@ -305,7 +318,7 @@ export class InquiryTicketService {
 					template: {
 						id: "inquiry-resolution-email",
 						variables: {
-							CITIZEN_NAME: updated.citizenName,
+							CITIZEN_NAME: formatCitizenFullName(updated),
 							SUBJECT: updated.subject,
 							STATUS: status,
 							REFERENCE_NUMBER: updated.referenceNumber,
@@ -402,7 +415,7 @@ export class InquiryTicketService {
 				template: {
 					id: "assigned-inquiry",
 					variables: {
-						CITIZEN_NAME: updated.citizenName,
+						CITIZEN_NAME: formatCitizenFullName(updated),
 						REFERENCE_NUMBER: updated.referenceNumber,
 						SUBJECT: updated.subject,
 						STAFF_NAME: updated.user?.fullName || "Staff Member",

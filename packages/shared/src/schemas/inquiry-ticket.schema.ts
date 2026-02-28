@@ -36,7 +36,11 @@ export const InquiryTicketSchema = z.object({
 	referenceNumber: z.string(),
 	assignedTo: z.uuid().nullable(),
 	citizenEmail: z.string(),
-	citizenName: z.string(),
+	citizenName: z.string().nullable(),
+	citizenFirstName: z.string().nullable(),
+	citizenLastName: z.string().nullable(),
+	citizenContactNumber: z.string().nullable(),
+	citizenAddress: z.string().nullable(),
 	subject: z.string(),
 	category: InquiryTicketCategoryEnum,
 	status: InquiryTicketStatusEnum,
@@ -148,12 +152,57 @@ export const GetInquiryTicketByIdSchema = z.object({
 export const CreateInquiryTicketSchema = z.object({
 	citizenEmail: z
 		.email({ message: "Enter a valid email address." })
-		.max(TEXT_LIMITS.SM, { message: "Email is too long." }),
-	citizenName: z
+		.max(TEXT_LIMITS.SM, { message: "Email is too long." })
+		.optional()
+		.or(z.literal("")),
+	citizenFirstName: z
 		.string()
-		.min(1, { message: "Name is required." })
+		.min(1, { message: "First name is required." })
 		.max(TEXT_LIMITS.XS, {
-			message: `Name must be ${TEXT_LIMITS.XS} characters or less.`,
+			message: `First name must be ${TEXT_LIMITS.XS} characters or less.`,
+		}),
+	citizenLastName: z
+		.string()
+		.min(1, { message: "Last name is required." })
+		.max(TEXT_LIMITS.XS, {
+			message: `Last name must be ${TEXT_LIMITS.XS} characters or less.`,
+		}),
+	citizenContactNumber: z
+		.string()
+		.min(1, { message: "Contact number is required." })
+		.superRefine((val, ctx) => {
+			if (!val) return;
+
+			// Determine max length based on format
+			const maxLength = val.startsWith("+") ? 13 : 11;
+
+			// Too long — show immediately
+			if (val.length > maxLength) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Contact number is too long.",
+				});
+				return;
+			}
+
+			// Still a valid partial — 0 followed by digits, or + followed by digits
+			const isValidPartial =
+				/^0[0-9]*$/.test(val) || /^\+[0-9]*$/.test(val) || val === "+";
+			if (isValidPartial) return;
+
+			// Not a valid partial and not a complete valid number
+			if (!/^(\+63|0)[0-9]{9,10}$/.test(val)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Enter a valid Philippine mobile number.",
+				});
+			}
+		}),
+	citizenAddress: z
+		.string()
+		.min(1, { message: "Address is required." })
+		.max(TEXT_LIMITS.SM, {
+			message: `Address must be ${TEXT_LIMITS.SM} characters or less.`,
 		}),
 	subject: z
 		.string()

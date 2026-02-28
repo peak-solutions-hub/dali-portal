@@ -1,10 +1,19 @@
 "use client";
 
 import type { InquiryTicketWithMessagesResponse } from "@repo/shared";
+import { formatCitizenDisplayName } from "@repo/shared";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
 import { Separator } from "@repo/ui/components/separator";
 import { cn } from "@repo/ui/lib/utils";
-import { Calendar, ChevronDown, Mail, Tag, User } from "lucide-react";
+import {
+	Calendar,
+	ChevronDown,
+	Mail,
+	MapPin,
+	Phone,
+	Tag,
+	User,
+} from "lucide-react";
 import { useState } from "react";
 import { formatInquiryCategory } from "@/utils/inquiry-helpers";
 
@@ -74,7 +83,7 @@ export function InquiryTicketHeader({ ticket }: InquiryTicketHeaderProps) {
 									Name
 								</div>
 								<p className="text-sm font-medium break-words line-clamp-2">
-									{ticket.citizenName}
+									{formatCitizenDisplayName(ticket)}
 								</p>
 							</div>
 							<div className="space-y-1 min-w-0">
@@ -84,6 +93,24 @@ export function InquiryTicketHeader({ ticket }: InquiryTicketHeaderProps) {
 								</div>
 								<p className="text-sm font-medium break-all line-clamp-2">
 									{ticket.citizenEmail}
+								</p>
+							</div>
+							<div className="space-y-1 min-w-0">
+								<div className="flex items-center gap-2 text-xs text-muted-foreground">
+									<Phone className="h-3 w-3" />
+									Contact Number
+								</div>
+								<p className="text-sm font-medium break-words line-clamp-2">
+									{ticket.citizenContactNumber ?? "\u2014"}
+								</p>
+							</div>
+							<div className="space-y-1 min-w-0">
+								<div className="flex items-center gap-2 text-xs text-muted-foreground">
+									<MapPin className="h-3 w-3" />
+									Address
+								</div>
+								<p className="text-sm font-medium break-words line-clamp-2">
+									{ticket.citizenAddress ?? "\u2014"}
 								</p>
 							</div>
 							<div className="space-y-1">
