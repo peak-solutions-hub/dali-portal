@@ -156,6 +156,7 @@ export class InquiryTicketService {
 
 		return {
 			...inquiryTicketWithMessages,
+			citizenName: inquiryTicketWithMessages.citizenName ?? "",
 			inquiryMessages: messagesWithAttachments,
 		};
 	}
@@ -181,6 +182,7 @@ export class InquiryTicketService {
 
 		return {
 			...inquiryTicket,
+			citizenName: inquiryTicket.citizenName ?? "",
 			createdAt: inquiryTicket.createdAt.toISOString(),
 		};
 	}
@@ -225,6 +227,7 @@ export class InquiryTicketService {
 		return {
 			tickets: inquiryTickets.map((ticket) => ({
 				...ticket,
+				citizenName: ticket.citizenName ?? "",
 				createdAt: ticket.createdAt.toISOString(),
 			})),
 			pagination: {
@@ -318,7 +321,7 @@ export class InquiryTicketService {
 					template: {
 						id: "inquiry-resolution-email",
 						variables: {
-							CITIZEN_NAME: formatCitizenFullName(updated),
+							CITIZEN_NAME: formatCitizenFullName(updated) ?? "",
 							SUBJECT: updated.subject,
 							STATUS: status,
 							REFERENCE_NUMBER: updated.referenceNumber,
@@ -363,6 +366,7 @@ export class InquiryTicketService {
 
 		return {
 			...updated,
+			citizenName: updated.citizenName ?? "",
 			createdAt: updated.createdAt.toISOString(),
 		};
 	}
@@ -415,7 +419,7 @@ export class InquiryTicketService {
 				template: {
 					id: "assigned-inquiry",
 					variables: {
-						CITIZEN_NAME: formatCitizenFullName(updated),
+						CITIZEN_NAME: formatCitizenFullName(updated) ?? "",
 						REFERENCE_NUMBER: updated.referenceNumber,
 						SUBJECT: updated.subject,
 						STAFF_NAME: updated.user?.fullName || "Staff Member",
@@ -455,6 +459,7 @@ export class InquiryTicketService {
 
 		return {
 			...updated,
+			citizenName: updated.citizenName ?? "",
 			createdAt: updated.createdAt.toISOString(),
 		};
 	}
