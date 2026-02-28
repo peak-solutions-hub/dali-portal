@@ -9,6 +9,7 @@ import {
 	Pencil,
 } from "@repo/ui/lib/lucide-react";
 import parse from "html-react-parser";
+import { useEffect, useRef, useState } from "react";
 import { sanitizeQuillHtml } from "@/utils/session-helpers";
 import { SessionRichTextEditor } from "../session-rich-text-editor";
 
@@ -18,12 +19,7 @@ interface SessionDocumentRowProps {
 	draggableIndex: number;
 	numberLabel: string | null;
 	isDndEnabled?: boolean;
-	editingSummaryId: string | null;
-	summaryDraft: string;
-	setSummaryDraft: (val: string) => void;
 	removingItemIds?: Set<string>;
-	/** When true, disables this row's Remove button without showing a spinner.
-	 *  Used to block concurrent removes while another item is mid-API-call. */
 	isRemovingAny?: boolean;
 	onViewDocument?: (documentId: string) => void;
 	onUpdateDocumentSummary?: (
@@ -32,9 +28,16 @@ interface SessionDocumentRowProps {
 		summary: string,
 	) => void;
 	onRemoveDocument?: (agendaItemId: string, documentId: string) => void;
-	onStartEditSummary: (doc: AgendaDocument) => void;
-	onSaveSummary: (docId: string) => void;
-	onCancelEditSummary: () => void;
+	/** Called when this row's editor opens so the card can flush other open editors */
+	onEditorOpen?: (doc: AgendaDocument) => void;
+	/** When set to true, close any open editor without saving */
+	closeEditor?: boolean;
+	/**
+	 * Register a flush fn here. The card calls it before save/publish:
+	 *   - draft has content  → commits it
+	 *   - draft is empty     → discards (retains original summary)
+	 */
+	flushRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export function SessionDocumentRow({
@@ -43,18 +46,87 @@ export function SessionDocumentRow({
 	draggableIndex,
 	numberLabel,
 	isDndEnabled,
-	editingSummaryId,
-	summaryDraft,
-	setSummaryDraft,
 	removingItemIds,
 	isRemovingAny,
 	onViewDocument,
 	onUpdateDocumentSummary,
 	onRemoveDocument,
-	onStartEditSummary,
-	onSaveSummary,
-	onCancelEditSummary,
+	onEditorOpen,
+	closeEditor,
+	flushRef,
 }: SessionDocumentRowProps) {
+	const [isEditing, setIsEditing] = useState(false);
+	const [draft, setDraft] = useState("");
+
+	// Keep a ref in sync synchronously so flush always reads the latest value
+	// even if called in the same tick as a setState (e.g. Clear All → Publish).
+	const draftRef = useRef(draft);
+	const setDraftSync = (val: string) => {
+		draftRef.current = val;
+		setDraft(val);
+	};
+
+	// Register/unregister the flush fn while the editor is open
+	useEffect(() => {
+		if (!flushRef) return;
+		if (isEditing) {
+			flushRef.current = () => {
+				const current = draftRef.current;
+				const hasContent =
+					!!current && current.replace(/<[^>]*>/g, "").trim().length > 0;
+				if (hasContent) {
+					// Only commit + signal change if content actually differs from saved.
+					// If the user opened the editor but didn't change anything, we close
+					// it silently without triggering the "unsaved changes" modal.
+					const isDirty = current !== (doc.summary ?? "");
+					if (isDirty) {
+						onUpdateDocumentSummary?.(sectionId, doc.id, current);
+					}
+					setIsEditing(false);
+					setDraftSync("");
+					return isDirty;
+				}
+				// Empty — discard, keep original summary (same as Cancel)
+				setIsEditing(false);
+				setDraftSync("");
+				return false;
+			};
+		} else {
+			flushRef.current = null;
+		}
+		return () => {
+			if (flushRef) flushRef.current = null;
+		};
+	}, [isEditing, flushRef, onUpdateDocumentSummary, sectionId, doc.id]);
+
+	// Close editor without saving when parent signals (e.g. action in flight)
+	useEffect(() => {
+		if (closeEditor && isEditing) {
+			setIsEditing(false);
+			setDraftSync("");
+		}
+	}, [closeEditor, isEditing]);
+
+	const handleOpenEditor = () => {
+		onEditorOpen?.(doc);
+		setDraftSync(doc.summary ?? "");
+		setIsEditing(true);
+	};
+
+	const handleSave = () => {
+		const current = draftRef.current;
+		const hasContent =
+			!!current && current.replace(/<[^>]*>/g, "").trim().length > 0;
+		onUpdateDocumentSummary?.(sectionId, doc.id, hasContent ? current : "");
+		setIsEditing(false);
+		setDraftSync("");
+	};
+
+	const handleCancel = () => {
+		setIsEditing(false);
+		setDraftSync("");
+	};
+
 	const inner = (
 		dragHandleProps?: Record<string, unknown>,
 		isDragging?: boolean,
@@ -99,11 +171,11 @@ export function SessionDocumentRow({
 							<ExternalLink className="h-3.5 w-3.5" />
 						</button>
 					)}
-					{onUpdateDocumentSummary && editingSummaryId !== doc.id && (
+					{onUpdateDocumentSummary && !isEditing && (
 						<Button
 							variant="ghost"
 							size="sm"
-							onClick={() => onStartEditSummary(doc)}
+							onClick={handleOpenEditor}
 							className="text-gray-500 hover:text-blue-600 cursor-pointer"
 							title={doc.summary ? "Edit public summary" : "Add public summary"}
 						>
@@ -133,7 +205,7 @@ export function SessionDocumentRow({
 			</div>
 
 			{/* Summary display */}
-			{doc.summary && editingSummaryId !== doc.id && (
+			{doc.summary && !isEditing && (
 				<div className="px-3 pb-2.5">
 					<div className="flex items-start gap-1.5">
 						<FileText className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
@@ -150,7 +222,7 @@ export function SessionDocumentRow({
 			)}
 
 			{/* Summary editor */}
-			{editingSummaryId === doc.id && (
+			{isEditing && (
 				<div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-2 bg-blue-50/50">
 					<label className="text-xs font-medium text-gray-700">
 						Public Summary
@@ -160,18 +232,18 @@ export function SessionDocumentRow({
 						document title will be shown instead.
 					</p>
 					<SessionRichTextEditor
-						value={summaryDraft}
-						onChange={setSummaryDraft}
+						value={draft}
+						onChange={setDraftSync}
 						placeholder="e.g. CRN: DOC-RES-2024-019: Digital Transformation Resolution"
 						maxLength={1000}
 					/>
 					<div className="flex items-center justify-end gap-1.5">
-						{summaryDraft.length > 0 && (
+						{draft.length > 0 && (
 							<Button
 								variant="ghost"
 								size="sm"
 								className="cursor-pointer text-xs h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
-								onClick={() => setSummaryDraft("")}
+								onClick={() => setDraftSync("")}
 							>
 								Clear All
 							</Button>
@@ -180,14 +252,14 @@ export function SessionDocumentRow({
 							variant="ghost"
 							size="sm"
 							className="cursor-pointer text-xs h-7"
-							onClick={onCancelEditSummary}
+							onClick={handleCancel}
 						>
 							Cancel
 						</Button>
 						<Button
 							size="sm"
 							className="cursor-pointer text-xs h-7 bg-blue-600 hover:bg-blue-700 text-white"
-							onClick={() => onSaveSummary(doc.id)}
+							onClick={handleSave}
 						>
 							Save Summary
 						</Button>

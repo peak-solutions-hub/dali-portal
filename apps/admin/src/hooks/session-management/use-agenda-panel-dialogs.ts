@@ -54,6 +54,10 @@ export function useAgendaPanelDialogs({
 	}, []);
 
 	const handlePublishClick = () => {
+		// Flush open editors first. If any editor had real content, that content
+		// is now being committed to state — but state updates are async, so
+		// `hasChanges` hasn't updated yet in this same tick. We treat
+		// `editorHadContent` as an early signal that unsaved changes exist.
 		const editorHadContent = flushAllEditors();
 		if (hasChanges || editorHadContent) {
 			setShowUnsavedBeforePublish(true);

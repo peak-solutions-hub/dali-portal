@@ -95,8 +95,6 @@ export function AgendaItemCard({
 	flushRef,
 	onEditorOpen,
 }: AgendaItemCardProps) {
-	const [editingSummaryId, setEditingSummaryId] = useState<string | null>(null);
-	const [summaryDraft, setSummaryDraft] = useState("");
 	const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
 	const [showClassificationPicker, setShowClassificationPicker] =
 		useState(false);
@@ -112,26 +110,26 @@ export function AgendaItemCard({
 		return customFlushRefs.current.get(id)!;
 	}, []);
 
-	// Stable ref to summaryDraft so flush always captures latest typed value
-	const summaryDraftRef = useRef(summaryDraft);
-	useEffect(() => {
-		summaryDraftRef.current = summaryDraft;
-	}, [summaryDraft]);
+	// Per-document-row flush refs keyed by doc id
+	const docFlushRefs = useRef<
+		Map<string, React.MutableRefObject<(() => void) | null>>
+	>(new Map());
+	const getOrCreateDocFlushRef = useCallback((docId: string) => {
+		if (!docFlushRefs.current.has(docId)) {
+			docFlushRefs.current.set(docId, { current: null });
+		}
+		return docFlushRefs.current.get(docId)!;
+	}, []);
 
-	// Register card-level flush fn — agenda-panel calls this before save/publish
+	// Register card-level flush fn — agenda-panel calls this before save/publish.
+	// Each document row and custom text row owns its own editor state and flush fn;
+	// we just fan out to all of them here.
 	useEffect(() => {
 		if (!flushRef) return;
 		flushRef.current = () => {
 			let hadContent = false;
-			if (editingSummaryId) {
-				onUpdateDocumentSummary?.(
-					item.id,
-					editingSummaryId,
-					summaryDraftRef.current,
-				);
-				setEditingSummaryId(null);
-				setSummaryDraft("");
-				hadContent = true;
+			for (const ref of docFlushRefs.current.values()) {
+				if (ref.current?.()) hadContent = true;
 			}
 			for (const ref of customFlushRefs.current.values()) {
 				if (ref.current?.()) hadContent = true;
@@ -141,11 +139,10 @@ export function AgendaItemCard({
 		};
 	});
 
-	// Close all editors when an action is in flight (publish/save confirms)
+	// Close all editors when an action is in flight (publish/save confirms).
+	// Document rows handle their own closeEditor signal via the closeEditor prop.
 	useEffect(() => {
 		if (closeEditors) {
-			setEditingSummaryId(null);
-			setSummaryDraft("");
 			setActiveEditorId(null);
 		}
 	}, [closeEditors]);
@@ -226,41 +223,27 @@ export function AgendaItemCard({
 		onContentTextChange?.(item.id, text);
 	};
 
-	const handleStartEditSummary = (doc: AgendaDocument) => {
+	/** Called by a doc row when its editor opens — flushes other open editors */
+	const handleDocEditorOpen = (doc: AgendaDocument) => {
 		onEditorOpen?.(); // let panel flush other cards
-		// Flush any open custom text editor within this card
+		// Flush every other doc row editor and all custom text editors
+		for (const [id, ref] of docFlushRefs.current.entries()) {
+			if (id !== doc.id) ref.current?.();
+		}
 		for (const ref of customFlushRefs.current.values()) {
 			ref.current?.();
 		}
-		setEditingSummaryId(doc.id);
-		setSummaryDraft(doc.summary ?? "");
 		setActiveEditorId(`summary::${doc.id}`);
 	};
-	const handleSaveSummary = (docId: string) => {
-		onUpdateDocumentSummary?.(item.id, docId, summaryDraft);
-		setEditingSummaryId(null);
-		setSummaryDraft("");
-		setActiveEditorId(null);
-	};
-	const handleCancelEditSummary = () => {
-		setEditingSummaryId(null);
-		setSummaryDraft("");
-		setActiveEditorId(null);
-	};
+
 	const handleCustomEditorFocus = (id: string) => {
 		if (!id) {
 			setActiveEditorId(null);
 		} else {
 			onEditorOpen?.(); // let panel flush other cards
-			// Flush open summary if switching to a custom text editor
-			if (editingSummaryId) {
-				onUpdateDocumentSummary?.(
-					item.id,
-					editingSummaryId,
-					summaryDraftRef.current,
-				);
-				setEditingSummaryId(null);
-				setSummaryDraft("");
+			// Flush any open doc summary editors
+			for (const ref of docFlushRefs.current.values()) {
+				ref.current?.();
 			}
 			// Flush any other open custom text editor within this card
 			for (const [ctId, ref] of customFlushRefs.current.entries()) {
@@ -272,15 +255,9 @@ export function AgendaItemCard({
 
 	/** Flush any open editor in this card, then delegate to onAddCustomText */
 	const handleAddCustomText = (sectionId: string, classification?: string) => {
-		// Save & close any open custom text editor before opening a new one
-		if (editingSummaryId) {
-			onUpdateDocumentSummary?.(
-				item.id,
-				editingSummaryId,
-				summaryDraftRef.current,
-			);
-			setEditingSummaryId(null);
-			setSummaryDraft("");
+		// Flush all open doc summary and custom text editors before opening a new one
+		for (const ref of docFlushRefs.current.values()) {
+			ref.current?.();
 		}
 		for (const ref of customFlushRefs.current.values()) {
 			ref.current?.();
@@ -316,17 +293,13 @@ export function AgendaItemCard({
 	const docRowSharedProps = {
 		sectionId: item.id,
 		isDndEnabled,
-		editingSummaryId,
-		summaryDraft,
-		setSummaryDraft,
 		removingItemIds,
 		isRemovingAny,
 		onViewDocument,
 		onUpdateDocumentSummary,
 		onRemoveDocument,
-		onStartEditSummary: handleStartEditSummary,
-		onSaveSummary: handleSaveSummary,
-		onCancelEditSummary: handleCancelEditSummary,
+		onEditorOpen: handleDocEditorOpen,
+		closeEditor: closeEditors,
 	};
 
 	// Shared props for CustomTextRow to avoid repetition
@@ -466,6 +439,7 @@ export function AgendaItemCard({
 																draggableIndex={unifiedIdx}
 																numberLabel={label}
 																{...docRowSharedProps}
+																flushRef={getOrCreateDocFlushRef(entry.item.id)}
 															/>
 														);
 													}
@@ -589,6 +563,7 @@ export function AgendaItemCard({
 														draggableIndex={unifiedIdx}
 														numberLabel={label}
 														{...docRowSharedProps}
+														flushRef={getOrCreateDocFlushRef(entry.item.id)}
 													/>
 												);
 											}

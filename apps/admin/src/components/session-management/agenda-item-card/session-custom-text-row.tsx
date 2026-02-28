@@ -80,8 +80,11 @@ export function SessionCustomTextRow({
 				const hasContent =
 					current && current.replace(/<[^>]*>/g, "").trim().length > 0;
 				if (hasContent) {
-					onUpdate(sectionId, item.id, current);
-					return true; // real content was committed
+					const isDirty = current !== (item.content ?? "");
+					if (isDirty) {
+						onUpdate(sectionId, item.id, current);
+					}
+					return isDirty; // only signal a real change when content actually differs
 				} else if (!item.content) {
 					// Empty new item (never saved) — auto-discard on flush (e.g. publish/save)
 					onRemove(sectionId, item.id);
