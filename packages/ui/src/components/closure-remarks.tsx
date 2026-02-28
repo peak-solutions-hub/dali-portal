@@ -1,3 +1,5 @@
+import { cn } from "@repo/ui/lib/utils";
+
 interface ClosureRemarksProps {
 	/** Inquiry status - determines color scheme */
 	status: "resolved" | "rejected";
@@ -17,25 +19,31 @@ export function ClosureRemarks({
 	remarks,
 	className,
 }: ClosureRemarksProps) {
+	const isResolved = status === "resolved";
+
 	return (
 		<div
-			className={`p-4 rounded-lg border-l-4 ${
-				status === "resolved"
+			className={cn(
+				"p-4 rounded-lg border-l-4",
+				isResolved
 					? "bg-green-50 border-green-500"
-					: "bg-red-50 border-red-500"
-			} ${className || ""}`}
+					: "bg-red-50 border-red-500",
+				className,
+			)}
 		>
 			<h4
-				className={`text-sm font-semibold mb-2 ${
-					status === "resolved" ? "text-green-900" : "text-red-900"
-				}`}
+				className={cn(
+					"text-sm font-semibold mb-2",
+					isResolved ? "text-green-900" : "text-red-900",
+				)}
 			>
 				Closure Remarks
 			</h4>
 			<p
-				className={`text-sm whitespace-pre-wrap ${
-					status === "resolved" ? "text-green-800" : "text-red-800"
-				}`}
+				className={cn(
+					"text-sm whitespace-pre-wrap",
+					isResolved ? "text-green-800" : "text-red-800",
+				)}
 			>
 				{remarks}
 			</p>

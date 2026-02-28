@@ -1,5 +1,6 @@
 "use client";
 
+import { formatInquiryCategory } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Card } from "@repo/ui/components/card";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
@@ -17,7 +18,6 @@ import { useState } from "react";
 import { InquiryTicketSheet } from "@/components/inquiry-tickets/inquiry-ticket-sheet";
 import { PaginationControls } from "@/components/inquiry-tickets/pagination-controls";
 import { useInquiryTickets } from "@/hooks/inquiry-tickets/use-inquiry-tickets";
-import { formatInquiryCategory } from "@/utils/inquiry-helpers";
 
 export default function InquiryTicketsPage() {
 	const [selectedStatus, setSelectedStatus] = useState<string>("new");
