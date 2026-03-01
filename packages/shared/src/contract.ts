@@ -1,4 +1,6 @@
 import { oc } from "@orpc/contract";
+import { callerSlipContract } from "./contracts/caller-slip.contract";
+import { documentContract } from "./contracts/document.contract";
 import { inquiryTicketContract } from "./contracts/inquiry-ticket.contract";
 import { legislativeDocumentContract } from "./contracts/legislative-document.contract";
 import { roleContract } from "./contracts/role.contract";
@@ -6,6 +8,8 @@ import { sessionContract } from "./contracts/session.contract";
 import { userContract } from "./contracts/user.contract";
 
 export const contract = oc.router({
+	callerSlips: callerSlipContract,
+	documents: documentContract,
 	inquiries: inquiryTicketContract,
 	legislativeDocuments: legislativeDocumentContract,
 	roles: roleContract,
