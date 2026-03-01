@@ -101,14 +101,18 @@ export function useAgendaBuild({
 								});
 							} else {
 								const ct = entry.item;
+								// Skip empty custom-text items — they are transient editor placeholders
+								// and should never be persisted to the server.
+								const hasContent =
+									typeof ct.content === "string" &&
+									ct.content.replace(/<[^>]*>/g, "").trim().length > 0;
+								if (!hasContent) continue;
 								// Encode the classification as a hidden HTML comment prepended to contentText.
 								// The backend has no classification column for custom-text agenda items, so
 								// this marker survives the round-trip. The portal page parses & strips it for
 								// grouping; use-session-actions strips it when loading back into the editor.
 								const classificationMarker = `<!--classification:${classification}-->`;
-								const encodedContent = ct.content
-									? `${classificationMarker}${ct.content}`
-									: null;
+								const encodedContent = `${classificationMarker}${ct.content}`;
 								agendaItems.push({
 									section: item.section,
 									orderIndex: orderIdx++,
@@ -172,10 +176,16 @@ export function useAgendaBuild({
 									linkedDocument: entry.doc.id,
 								});
 							} else {
+								// Skip empty custom-text items — transient editor placeholders.
+								const ctContent = entry.ct.content;
+								const hasContent =
+									typeof ctContent === "string" &&
+									ctContent.replace(/<[^>]*>/g, "").trim().length > 0;
+								if (!hasContent) continue;
 								agendaItems.push({
 									section: item.section,
 									orderIndex: orderIdx++,
-									contentText: entry.ct.content || null,
+									contentText: ctContent,
 									linkedDocument: null,
 									isCustomText: true,
 								});

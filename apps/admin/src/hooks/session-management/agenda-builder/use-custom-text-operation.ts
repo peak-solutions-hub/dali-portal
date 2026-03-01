@@ -31,18 +31,24 @@ export function useCustomTextOperations({
 					return false;
 				});
 
+				// Preserve existing items' orderIndex to avoid false dirty-tracking
+				// positives. Items loaded from the server carry a global orderIndex
+				// (shared with documents); re-indexing would change them and make
+				// the dirty tracker think there are unsaved changes.
+				const maxOrder = withoutEmpties.reduce(
+					(max, item) => Math.max(max, item.orderIndex ?? 0),
+					-1,
+				);
+
 				const newItem: CustomTextItem = {
 					id,
 					content: "",
 					classification,
-					orderIndex: withoutEmpties.length,
+					orderIndex: maxOrder + 1,
 				};
 				return {
 					...prev,
-					[sectionId]: [...withoutEmpties, newItem].map((item, idx) => ({
-						...item,
-						orderIndex: idx,
-					})),
+					[sectionId]: [...withoutEmpties, newItem],
 				};
 			});
 			return id;
@@ -69,11 +75,12 @@ export function useCustomTextOperations({
 		(sectionId: string, itemId: string) => {
 			setCustomTextsBySection((prev) => {
 				const existing = prev[sectionId] ?? [];
+				// Don't re-index remaining items — their orderIndex values may
+				// come from the server (global agenda ordering). Re-indexing would
+				// change them and trigger false dirty-tracking positives.
 				return {
 					...prev,
-					[sectionId]: existing
-						.filter((item) => item.id !== itemId)
-						.map((item, idx) => ({ ...item, orderIndex: idx })),
+					[sectionId]: existing.filter((item) => item.id !== itemId),
 				};
 			});
 		},
@@ -133,10 +140,11 @@ export function useCustomTextOperations({
 	);
 
 	const moveCustomTextToSection = useCallback(
-		(sourceSectionId: string, sourceIndex: number, destSectionId: string) => {
+		(sourceSectionId: string, itemId: string, destSectionId: string) => {
 			setCustomTextsBySection((prev) => {
 				const sourceItems = [...(prev[sourceSectionId] ?? [])];
-				if (sourceIndex < 0 || sourceIndex >= sourceItems.length) return prev;
+				const sourceIndex = sourceItems.findIndex((c) => c.id === itemId);
+				if (sourceIndex === -1) return prev;
 				const [moved] = sourceItems.splice(sourceIndex, 1);
 				if (!moved) return prev;
 				const destItems = [...(prev[destSectionId] ?? [])];

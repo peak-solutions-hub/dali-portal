@@ -205,10 +205,18 @@ export function useDocumentOperations({
 			if (!moved) return;
 			unified.splice(clamped, 0, moved);
 
+			// Deduplicate by id — safety net against stale-data race conditions
+			const seenIds = new Set<string>();
+			const deduped = unified.filter((e) => {
+				if (seenIds.has(e.item.id)) return false;
+				seenIds.add(e.item.id);
+				return true;
+			});
+
 			let idx = 0;
 			const orderedDocs: AgendaDocument[] = [];
 			const orderedCustoms: CustomTextItem[] = [];
-			for (const e of unified) {
+			for (const e of deduped) {
 				if (e.type === "doc")
 					orderedDocs.push({
 						...(e.item as AgendaDocument),

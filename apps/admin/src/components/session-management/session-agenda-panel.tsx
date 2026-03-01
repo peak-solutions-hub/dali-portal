@@ -70,7 +70,7 @@ export interface SessionAgendaPanelProps {
 	) => void;
 	onMoveCustomText?: (
 		sourceSectionId: string,
-		sourceIndex: number,
+		itemId: string,
 		destSectionId: string,
 		targetClassification?: string,
 	) => void;

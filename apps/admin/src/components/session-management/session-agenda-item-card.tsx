@@ -282,7 +282,22 @@ export function AgendaItemCard({
 			if (!groups.has(key)) groups.set(key, { docs: [], texts: [] });
 			groups.get(key)!.texts.push(ct);
 		}
-		return groups;
+		// Sort groups by the minimum orderIndex of their items so that
+		// reordering within a group never changes the group display order.
+		const sorted = new Map(
+			[...groups.entries()].sort((a, b) => {
+				const minA = Math.min(
+					...a[1].docs.map((d) => d.orderIndex ?? Infinity),
+					...a[1].texts.map((t) => t.orderIndex ?? Infinity),
+				);
+				const minB = Math.min(
+					...b[1].docs.map((d) => d.orderIndex ?? Infinity),
+					...b[1].texts.map((t) => t.orderIndex ?? Infinity),
+				);
+				return minA - minB;
+			}),
+		);
+		return sorted;
 	}, [isCommitteeReports, documents, customTexts]);
 
 	const usedClassifications = committeeGroups

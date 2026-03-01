@@ -213,7 +213,7 @@ export function SessionDocumentRow({
 							<p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide font-medium">
 								Public summary
 							</p>
-							<div className="summary-display text-gray-700">
+							<div className="summary-display text-gray-700 ql-editor !p-0">
 								{parse(sanitizeQuillHtml(doc.summary) ?? "")}
 							</div>
 						</div>

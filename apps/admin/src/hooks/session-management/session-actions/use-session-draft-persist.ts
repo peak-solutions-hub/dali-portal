@@ -57,11 +57,25 @@ export function useSessionDraftPersist({
 			return;
 		}
 
+		// Strip empty custom-text placeholder items before persisting the draft
+		// so they never reappear as phantom "unsaved" editor boxes on page reload.
+		const filteredCustomTexts = Object.fromEntries(
+			Object.entries(customTextsBySection)
+				.map(([k, items]) => [
+					k,
+					items.filter(
+						(item) =>
+							typeof item.content === "string" &&
+							item.content.replace(/<[^>]*>/g, "").trim().length > 0,
+					),
+				])
+				.filter(([, items]) => (items as unknown[]).length > 0),
+		);
 		const snapshot = {
 			contentTextMap,
 			documentsByAgendaItem,
 			agendaItemOrder,
-			customTextsBySection,
+			customTextsBySection: filteredCustomTexts,
 		};
 
 		const timer = setTimeout(() => {

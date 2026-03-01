@@ -169,13 +169,13 @@ export function useAgendaBuilder() {
 		moveCustomTextToSection: useCallback(
 			(
 				sourceSectionId: string,
-				sourceIndex: number,
+				itemId: string,
 				destSectionId: string,
 				targetClassification?: string,
 			) => {
 				customTextOps.moveCustomTextToSection(
 					sourceSectionId,
-					sourceIndex,
+					itemId,
 					destSectionId,
 				);
 				// If a targetClassification was specified (e.g. dropping into a committee group),

@@ -44,7 +44,7 @@ interface UseAgendaPanelDndOptions {
 	) => void;
 	onMoveCustomText?: (
 		sourceSectionId: string,
-		sourceIndex: number,
+		itemId: string,
 		destSectionId: string,
 		targetClassification?: string,
 	) => void;
@@ -115,6 +115,7 @@ export function useAgendaPanelDnd({
 		const flatDocs = documentsByAgendaItem["committee_reports"] ?? [];
 		const flatCustoms = customTextsBySection?.["committee_reports"] ?? [];
 
+		// ── 1. Reorder items *within* the target classification group ────────
 		const groupDocs = flatDocs
 			.filter((d) => (d.classification ?? "uncategorized") === classification)
 			.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
@@ -122,10 +123,11 @@ export function useAgendaPanelDnd({
 			.filter((c) => (c.classification ?? "uncategorized") === classification)
 			.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
 
-		const unified: Array<
+		type Tagged =
 			| { type: "doc"; item: AgendaDocument }
-			| { type: "custom"; item: CustomTextItem }
-		> = [
+			| { type: "custom"; item: CustomTextItem };
+
+		const unified: Tagged[] = [
 			...groupDocs.map((d) => ({ type: "doc" as const, item: d })),
 			...groupCustoms.map((c) => ({ type: "custom" as const, item: c })),
 		].sort((a, b) => (a.item.orderIndex ?? 0) - (b.item.orderIndex ?? 0));
@@ -135,27 +137,77 @@ export function useAgendaPanelDnd({
 		if (!moved) return;
 		unified.splice(clamped, 0, moved);
 
-		const groupIds = new Set(unified.map((e) => e.item.id));
-		const reorderedDocs: AgendaDocument[] = [];
-		const reorderedCustoms: CustomTextItem[] = [];
-		unified.forEach((e, i) => {
-			if (e.type === "doc")
-				reorderedDocs.push({ ...(e.item as AgendaDocument), orderIndex: i });
-			else
-				reorderedCustoms.push({
-					...(e.item as CustomTextItem),
-					orderIndex: i,
-				});
-		});
+		// ── 2. Rebuild ALL items globally, preserving classification order ───
+		// Collect every classification, ordered by the minimum orderIndex that
+		// existed before the reorder. This keeps group ordering stable.
+		type AllTagged = Tagged & { cls: string };
+		const allTagged: AllTagged[] = [
+			...flatDocs.map((d) => ({
+				type: "doc" as const,
+				item: d,
+				cls: (d as AgendaDocument).classification ?? "uncategorized",
+			})),
+			...flatCustoms.map((c) => ({
+				type: "custom" as const,
+				item: c,
+				cls: (c as CustomTextItem).classification ?? "uncategorized",
+			})),
+		];
 
-		const newDocs = [
-			...flatDocs.filter((d) => !groupIds.has(d.id)),
-			...reorderedDocs,
-		];
-		const newCustoms = [
-			...flatCustoms.filter((c) => !groupIds.has(c.id)),
-			...reorderedCustoms,
-		];
+		// Determine original group ordering by minimum orderIndex per classification
+		const groupMinOrder = new Map<string, number>();
+		for (const t of allTagged) {
+			const cur = groupMinOrder.get(t.cls);
+			const oi = t.item.orderIndex ?? 0;
+			if (cur === undefined || oi < cur) groupMinOrder.set(t.cls, oi);
+		}
+		const orderedClassifications = [...groupMinOrder.entries()]
+			.sort((a, b) => a[1] - b[1])
+			.map(([cls]) => cls);
+
+		// For each classification, collect its items in order.
+		// The target group uses the reordered `unified`; others keep their
+		// existing orderIndex-sorted order.
+		const reorderedGroupIds = new Set(unified.map((e) => e.item.id));
+		const globalList: Tagged[] = [];
+		for (const cls of orderedClassifications) {
+			if (cls === classification) {
+				// Use the reordered group
+				globalList.push(...unified);
+			} else {
+				// Other groups: gather docs + customs, sort by orderIndex
+				const clsDocs = flatDocs
+					.filter(
+						(d) =>
+							(d.classification ?? "uncategorized") === cls &&
+							!reorderedGroupIds.has(d.id),
+					)
+					.map((d) => ({ type: "doc" as const, item: d }));
+				const clsCustoms = flatCustoms
+					.filter(
+						(c) =>
+							(c.classification ?? "uncategorized") === cls &&
+							!reorderedGroupIds.has(c.id),
+					)
+					.map((c) => ({ type: "custom" as const, item: c }));
+				const clsItems: Tagged[] = [...clsDocs, ...clsCustoms].sort(
+					(a, b) => (a.item.orderIndex ?? 0) - (b.item.orderIndex ?? 0),
+				);
+				globalList.push(...clsItems);
+			}
+		}
+
+		// ── 3. Assign sequential global orderIndex + split back ──────────────
+		const newDocs: AgendaDocument[] = [];
+		const newCustoms: CustomTextItem[] = [];
+		const seenIds = new Set<string>();
+		globalList.forEach((e, i) => {
+			if (seenIds.has(e.item.id)) return; // dedup safety net
+			seenIds.add(e.item.id);
+			if (e.type === "doc")
+				newDocs.push({ ...(e.item as AgendaDocument), orderIndex: i });
+			else newCustoms.push({ ...(e.item as CustomTextItem), orderIndex: i });
+		});
 
 		if (onWriteCommitteeState) {
 			onWriteCommitteeState("committee_reports", newDocs, newCustoms);
@@ -261,9 +313,10 @@ export function useAgendaPanelDnd({
 				}
 			}
 
+			const customItemId = parts[parts.length - 1]!;
 			onMoveCustomText?.(
 				src.sectionId,
-				customSourceIndex,
+				customItemId,
 				dest.sectionId,
 				dest.classification,
 			);
@@ -317,11 +370,33 @@ export function useAgendaPanelDnd({
 			return;
 		}
 
-		const allSrcDocs = documentsByAgendaItem[src.sectionId] ?? [];
-		const trueSourceIndex = src.classification
-			? allSrcDocs.findIndex((d) => d.id === docId)
-			: source.index;
+		const allSrcDocs = [...(documentsByAgendaItem[src.sectionId] ?? [])].sort(
+			(a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
+		);
+		// Always resolve via findIndex on the sorted array — source.index is the
+		// unified DnD index (includes custom texts), but handleDndReorder/
+		// handleCommitteeDocClassify sort by orderIndex before splicing.
+		// Computing the index on a sorted copy keeps them consistent.
+		const trueSourceIndex = allSrcDocs.findIndex((d) => d.id === docId);
 		if (trueSourceIndex === -1) return;
+
+		// Guard: prevent a document with an existing committee classification
+		// from being placed into a different classification group.  This stops
+		// the "drag out of committee → drag back into wrong group" flow.
+		if (dest.classification) {
+			const srcDoc = allSrcDocs[trueSourceIndex];
+			const existingCls = srcDoc?.classification;
+			if (
+				existingCls &&
+				existingCls !== "uncategorized" &&
+				existingCls !== dest.classification
+			) {
+				showDndError(
+					"This document belongs to a different committee and cannot be moved here.",
+				);
+				return;
+			}
+		}
 
 		const trueDestIndex = dest.classification
 			? (() => {
