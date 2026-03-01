@@ -183,9 +183,9 @@ export default function InquiryTicketsPage() {
 																	</div>
 																	<span
 																		className="font-medium truncate max-w-45"
-																		title={ticket.citizenName ?? undefined}
+																		title={formatCitizenDisplayName(ticket)}
 																	>
-																		{ticket.citizenName}
+																		{formatCitizenDisplayName(ticket)}
 																	</span>
 																</div>
 															</TableCell>

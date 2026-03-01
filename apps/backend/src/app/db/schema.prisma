@@ -144,7 +144,6 @@ model InquiryTicket {
   referenceNumber      String           @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
   assignedTo           String?          @map("assigned_to") @db.Uuid
   citizenEmail         String           @map("citizen_email")
-  citizenName          String?          @map("citizen_name")
   citizenFirstName     String?          @map("citizen_first_name")
   citizenLastName      String?          @map("citizen_last_name")
   citizenContactNumber String?          @map("citizen_contact_number")

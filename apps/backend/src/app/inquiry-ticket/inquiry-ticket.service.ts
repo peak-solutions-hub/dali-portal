@@ -57,7 +57,6 @@ export class InquiryTicketService {
 			data: {
 				referenceNumber,
 				citizenEmail: input.citizenEmail || "",
-				citizenName: fullName,
 				citizenFirstName: input.citizenFirstName,
 				citizenLastName: input.citizenLastName,
 				citizenContactNumber: input.citizenContactNumber || null,
@@ -156,7 +155,6 @@ export class InquiryTicketService {
 
 		return {
 			...inquiryTicketWithMessages,
-			citizenName: inquiryTicketWithMessages.citizenName ?? "",
 			inquiryMessages: messagesWithAttachments,
 		};
 	}
@@ -182,7 +180,6 @@ export class InquiryTicketService {
 
 		return {
 			...inquiryTicket,
-			citizenName: inquiryTicket.citizenName ?? "",
 			createdAt: inquiryTicket.createdAt.toISOString(),
 		};
 	}
@@ -227,7 +224,6 @@ export class InquiryTicketService {
 		return {
 			tickets: inquiryTickets.map((ticket) => ({
 				...ticket,
-				citizenName: ticket.citizenName ?? "",
 				createdAt: ticket.createdAt.toISOString(),
 			})),
 			pagination: {
@@ -366,7 +362,6 @@ export class InquiryTicketService {
 
 		return {
 			...updated,
-			citizenName: updated.citizenName ?? "",
 			createdAt: updated.createdAt.toISOString(),
 		};
 	}
@@ -459,7 +454,6 @@ export class InquiryTicketService {
 
 		return {
 			...updated,
-			citizenName: updated.citizenName ?? "",
 			createdAt: updated.createdAt.toISOString(),
 		};
 	}

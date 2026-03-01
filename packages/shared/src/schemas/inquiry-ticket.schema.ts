@@ -36,7 +36,6 @@ export const InquiryTicketSchema = z.object({
 	referenceNumber: z.string(),
 	assignedTo: z.uuid().nullable(),
 	citizenEmail: z.string(),
-	citizenName: z.string().nullable(),
 	citizenFirstName: z.string().nullable(),
 	citizenLastName: z.string().nullable(),
 	citizenContactNumber: z.string().nullable(),
