@@ -1,5 +1,6 @@
 "use client";
 
+import { TEXT_LIMITS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -119,11 +120,17 @@ export function InquiryActionConfirmationDialog({
 							disabled={isLoading}
 							className="resize-none"
 						/>
-						{remarks.trim() && (
-							<p className="text-xs text-muted-foreground">
-								{remarks.trim().length} characters
-							</p>
-						)}
+						<p
+							className={`text-xs ${
+								remarks.trim().length >= TEXT_LIMITS.SM
+									? "text-destructive"
+									: remarks.trim().length >= TEXT_LIMITS.SM * 0.9
+										? "text-yellow-600"
+										: "text-muted-foreground"
+							}`}
+						>
+							{remarks.trim().length} / {TEXT_LIMITS.SM}
+						</p>
 					</div>
 				)}
 

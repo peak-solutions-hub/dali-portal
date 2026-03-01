@@ -1,12 +1,12 @@
 "use client";
 
 import { isDefinedError } from "@orpc/client";
-import type { InquiryTicketWithMessagesResponse } from "@repo/shared";
+import type { InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api.client";
 
 export interface UseRefreshTicketOptions {
-	onSuccess?: (ticket: InquiryTicketWithMessagesResponse) => void;
+	onSuccess?: (ticket: InquiryTicketWithMessagesAndAttachmentsResponse) => void;
 	onError?: (error: string) => void;
 }
 
@@ -14,7 +14,7 @@ export interface UseRefreshTicketReturn {
 	/** Refresh ticket data */
 	refresh: (
 		ticketId: string,
-	) => Promise<InquiryTicketWithMessagesResponse | null>;
+	) => Promise<InquiryTicketWithMessagesAndAttachmentsResponse | null>;
 	/** Loading state */
 	isRefreshing: boolean;
 	/** Error message */
@@ -45,7 +45,7 @@ export function useRefreshTicket(
 	const refresh = useCallback(
 		async (
 			ticketId: string,
-		): Promise<InquiryTicketWithMessagesResponse | null> => {
+		): Promise<InquiryTicketWithMessagesAndAttachmentsResponse | null> => {
 			if (!ticketId) return null;
 
 			setIsRefreshing(true);

@@ -29,7 +29,7 @@ export function InquiryTicketSheetSkeleton() {
 				</div>
 			</div>
 
-			{/* Content Skeleton - matches InquiryConversation */}
+			{/* Content Skeleton - matches ChatMessageList */}
 			<div className="flex-1 min-h-0 overflow-hidden p-6">
 				<div className="space-y-4">
 					{/* Initial message skeleton (citizen) */}

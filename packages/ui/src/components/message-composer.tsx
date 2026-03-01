@@ -6,27 +6,15 @@ import {
 	INQUIRY_MAX_TOTAL_ATTACHMENTS,
 	TEXT_LIMITS,
 } from "@repo/shared";
-import { Button } from "@repo/ui/components/button";
-import { formatBytes } from "@repo/ui/components/dropzone";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormMessage,
-} from "@repo/ui/components/form";
-import { Textarea } from "@repo/ui/components/textarea";
-import {
-	FileIcon,
-	Loader2,
-	Paperclip,
-	Send,
-	X,
-} from "@repo/ui/lib/lucide-react";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useFileUpload } from "@/hooks/use-file-upload";
+import { useFileUpload } from "../hooks/use-file-upload";
+import { FileIcon, Loader2, Paperclip, Send, X } from "../lib/lucide-react";
+import { Button } from "./button";
+import { formatBytes } from "./dropzone";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "./form";
+import { Textarea } from "./textarea";
 
 const { maxFiles, maxFileSize, allowedMimeTypes } =
 	FILE_UPLOAD_PRESETS.ATTACHMENTS;
@@ -35,11 +23,13 @@ const { maxFiles, maxFileSize, allowedMimeTypes } =
 /*  Props                                                             */
 /* ------------------------------------------------------------------ */
 
-interface ReplyBoxProps {
+interface MessageComposerProps {
 	/** Whether the ticket is closed and replies are disabled */
 	isClosed: boolean;
 	/** Status label to display when closed (e.g. "resolved", "rejected") */
 	closedStatus?: string;
+	/** Name of the staff member who closed the ticket */
+	staffName?: string;
 	/** Number of attachment slots already used in the conversation */
 	totalAttachments: number;
 	/** Called when the user submits a message */
@@ -51,6 +41,13 @@ interface ReplyBoxProps {
 	) => Promise<boolean>;
 	/** External sending state — set to true while the parent is processing */
 	isSending: boolean;
+	/** Function to get signed upload URLs from backend */
+	getSignedUploadUrls: (
+		folder: string,
+		fileNames: string[],
+	) => Promise<
+		Array<{ fileName: string; signedUrl: string; path: string; token: string }>
+	>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -69,13 +66,15 @@ type MessageFormData = z.infer<typeof messageFormSchema>;
 /*  Component                                                         */
 /* ------------------------------------------------------------------ */
 
-export function ReplyBox({
+export function MessageComposer({
 	isClosed,
 	closedStatus,
+	staffName,
 	totalAttachments,
 	onSend,
 	isSending,
-}: ReplyBoxProps) {
+	getSignedUploadUrls,
+}: MessageComposerProps) {
 	const messageForm = useForm<MessageFormData>({
 		resolver: zodResolver(messageFormSchema),
 		mode: "onChange",
@@ -109,6 +108,7 @@ export function ReplyBox({
 		maxFiles: effectiveMaxFiles,
 		maxFileSize,
 		allowedMimeTypes: [...allowedMimeTypes],
+		getSignedUploadUrls,
 	});
 
 	// Derived state
@@ -158,8 +158,14 @@ export function ReplyBox({
 	if (isClosed) {
 		return (
 			<div className="p-4 bg-gray-100 border-t text-center text-gray-500 text-sm">
-				This ticket has been marked as <strong>{closedStatus}</strong>. You
-				cannot send new messages.
+				This ticket has been <strong>{closedStatus}</strong>
+				{staffName ? (
+					<>
+						{" "}
+						by <strong>{staffName}</strong>
+					</>
+				) : null}
+				. New messages cannot be sent.
 			</div>
 		);
 	}
