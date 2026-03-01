@@ -75,7 +75,7 @@ export function transformLegislativeDocument(
 		document: transformDocument(doc.document),
 		displayTitle: doc.document.title,
 		displayType: DOCUMENT_TYPE_DISPLAY_MAP[doc.type] ?? "Unknown",
-		displayClassification: doc.document.classification,
+		displayClassification: doc.document.classification ?? undefined,
 		storageBucket: storagePath ? "documents" : undefined,
 		storagePath: storagePath,
 		pdfFilename: storagePath?.split("/").pop(),

@@ -6,7 +6,9 @@ import { experimental_RethrowHandlerPlugin as RethrowHandlerPlugin } from "@orpc
 import { Request } from "express";
 import { AppController } from "@/app/app.controller";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
+import { CallerSlipsModule } from "@/app/caller-slips/caller-slips.module";
 import { DbModule } from "@/app/db/db.module";
+import { DocumentsModule } from "@/app/documents/documents.module";
 import {
 	PrismaClientExceptionFilter,
 	PrismaInitializationExceptionFilter,
@@ -39,6 +41,8 @@ declare module "@orpc/nest" {
 		LibModule,
 		DbModule,
 		SupabaseModule,
+		CallerSlipsModule,
+		DocumentsModule,
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
 		RolesModule,
