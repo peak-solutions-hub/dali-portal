@@ -81,7 +81,7 @@ export class InquiryTicketService {
 
 		// send confirmation email only if citizen provided an email address
 		if (response.citizenEmail) {
-			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(response.referenceNumber)}&email=${encodeURIComponent(response.citizenEmail)}`;
+			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(response.referenceNumber)}`;
 
 			const emailRes = await this.resend.send({
 				to: response.citizenEmail,
@@ -110,9 +110,12 @@ export class InquiryTicketService {
 	async track(
 		input: TrackInquiryTicketInput,
 	): Promise<TrackInquiryTicketResponse | null> {
-		// fetch inquiry ticket by reference number and citizen email
+		// fetch inquiry ticket by reference number and citizen contact number
 		const ticketId = await this.db.inquiryTicket.findFirst({
-			where: input,
+			where: {
+				referenceNumber: input.referenceNumber,
+				citizenContactNumber: input.citizenContactNumber,
+			},
 			select: { id: true },
 		});
 

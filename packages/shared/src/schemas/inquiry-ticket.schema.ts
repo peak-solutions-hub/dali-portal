@@ -253,9 +253,10 @@ export const TrackInquiryTicketSchema = z.object({
 		.max(TEXT_LIMITS.SM, { message: "Reference number is invalid." })
 		.trim()
 		.toUpperCase(),
-	citizenEmail: z
-		.email({ message: "Enter the email used for this inquiry." })
-		.max(TEXT_LIMITS.SM, { message: "Email is too long." }),
+	citizenContactNumber: z
+		.string()
+		.min(1, { message: "Contact number is required." })
+		.max(20, { message: "Contact number is too long." }),
 });
 
 export const TrackInquiryTicketResponseSchema = z

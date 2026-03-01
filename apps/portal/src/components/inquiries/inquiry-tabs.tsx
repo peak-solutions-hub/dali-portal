@@ -14,14 +14,14 @@ interface InquiryTabsProps {
 	activeTab?: string;
 	/** Pre-fill reference number from email link */
 	prefillRef?: string;
-	/** Pre-fill email from email link */
-	prefillEmail?: string;
+	/** Pre-fill contact number for tracking */
+	prefillContact?: string;
 }
 
 export function InquiryTabs({
 	activeTab = "submit",
 	prefillRef,
-	prefillEmail,
+	prefillContact,
 }: InquiryTabsProps) {
 	const router = useRouter();
 
@@ -62,7 +62,7 @@ export function InquiryTabs({
 				>
 					<TrackInquiryForm
 						prefillRef={prefillRef}
-						prefillEmail={prefillEmail}
+						prefillContact={prefillContact}
 					/>
 				</TabsContent>
 			</div>

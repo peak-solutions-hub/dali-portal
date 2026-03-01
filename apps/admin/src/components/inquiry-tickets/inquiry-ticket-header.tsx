@@ -91,7 +91,7 @@ export function InquiryTicketHeader({ ticket }: InquiryTicketHeaderProps) {
 									Email
 								</div>
 								<p className="text-sm font-medium break-all line-clamp-2">
-									{ticket.citizenEmail}
+									{ticket.citizenEmail || "\u2014"}
 								</p>
 							</div>
 							<div className="space-y-1 min-w-0">
