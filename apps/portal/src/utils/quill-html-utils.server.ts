@@ -91,7 +91,8 @@ function fixDoubleBullets(html: string): string {
  *
  * Pipeline:
  *   1. sanitize-html strips XSS (event handlers, javascript: URLs, bad tags)
- *   2. &nbsp; → regular space (word-wrap fix)
+ *   2. Isolated single &nbsp; → regular space; consecutive &nbsp; kept for
+ *      intentional spacing (display uses white-space: pre-wrap)
  *   3. ql-align-* → inline text-align style
  *   4. Double/triple bullet fix
  *
@@ -137,12 +138,14 @@ export function sanitizeQuillHtmlServer(
 			"a",
 		],
 		allowedAttributes: {
-			// Allow class on all tags (ql-indent-*, ql-align-*, etc.)
+			// Allow class on all tags (ql-indent-*, ql-align-*, ql-list-style-*, etc.)
 			"*": ["class", "style"],
 			// Links
 			a: ["href", "target", "rel"],
 			// Lists
 			ol: ["type"],
+			// Quill flat-list format: preserves list kind (ordered/bullet) for display
+			li: ["data-list"],
 		},
 		allowedStyles: {
 			"*": {
@@ -160,8 +163,16 @@ export function sanitizeQuillHtmlServer(
 		},
 	});
 
-	// Step 2: &nbsp; → regular space (word-wrap fix)
-	result = result.replace(/&nbsp;/gi, " ").replace(/\u00a0/g, " ");
+	// Step 2: Replace isolated single &nbsp; (Quill word-wrap artefacts) while
+	// keeping consecutive &nbsp; sequences that represent intentional multi-space
+	// runs.  The display containers use `white-space: pre-wrap`.
+	result = result
+		.replace(/(&nbsp;)+/gi, (run) => {
+			const count = run.split(/&nbsp;/i).length - 1;
+			return count === 1 ? " " : run;
+		})
+		.replace(/\u00a0{2,}/g, (run) => run)
+		.replace(/(?<!\u00a0)\u00a0(?!\u00a0)/g, " ");
 
 	// Step 3: ql-align-* → inline text-align style
 	result = applyAlignmentAsStyle(result);

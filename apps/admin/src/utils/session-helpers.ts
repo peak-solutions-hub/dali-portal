@@ -48,7 +48,7 @@ const ALLOWED_TAGS = [
 ];
 
 const ALLOWED_ATTR = [
-	// Quill class attributes (ql-indent-*, ql-align-*, data-list, etc.)
+	// Quill class attributes (ql-indent-*, ql-align-*, ql-list-style-*, etc.)
 	"class",
 	// Inline style — restricted to safe properties below via FORCE_BODY + hook
 	"style",
@@ -58,6 +58,8 @@ const ALLOWED_ATTR = [
 	"rel",
 	// List type
 	"type",
+	// Quill flat-list format: preserves list kind (ordered/bullet) for display
+	"data-list",
 ];
 
 // CSS properties that are safe to allow in style attributes.
@@ -188,9 +190,13 @@ function fixDoubleBullets(html: string): string {
  * Pipeline:
  *   1. DOMPurify strips all XSS vectors (event handlers, javascript: URLs,
  *      dangerous tags, unsafe style properties).
- *   2. &nbsp; → regular spaces (prevents word-wrap gaps).
+ *   2. Isolated single &nbsp; → regular space (prevents word-wrap gaps);
+ *      consecutive &nbsp; sequences are kept so intentional spacing survives.
  *   3. ql-align-* → inline text-align style (alignment without quill.snow.css).
  *   4. Double/triple bullet fix (copy-paste nested list artefact).
+ *
+ * NOTE: display containers MUST use `white-space: pre-wrap` so that preserved
+ *       &nbsp; sequences render correctly.
  *
  * Safe to use with html-react-parser:
  *   import parse from "html-react-parser";
@@ -214,9 +220,17 @@ export function sanitizeQuillHtml(html: string | null | undefined): string {
 		});
 	}
 
-	// &nbsp; → regular space (word-wrap fix)
-	// Do NOT collapse multiple spaces — intentional spacing must be preserved
-	let result = html.replace(/&nbsp;/gi, " ").replace(/\u00a0/g, " ");
+	// Replace ISOLATED single &nbsp; (word-wrap artefacts Quill adds between
+	// ordinary words) while keeping consecutive &nbsp; that represent intentional
+	// multi-space runs.  The display containers use `white-space: pre-wrap`, so
+	// the preserved &nbsp; sequences render correctly.
+	let result = html
+		.replace(/(&nbsp;)+/gi, (run) => {
+			const count = run.split(/&nbsp;/i).length - 1;
+			return count === 1 ? " " : run;
+		})
+		.replace(/\u00a0{2,}/g, (run) => run) // keep consecutive \u00a0
+		.replace(/(?<!\u00a0)\u00a0(?!\u00a0)/g, " "); // isolated \u00a0 → space
 
 	// ql-align-* → inline text-align style
 	result = applyAlignmentAsStyle(result);

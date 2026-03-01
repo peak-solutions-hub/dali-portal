@@ -13,14 +13,13 @@ import {
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatMinutesDate } from "@/utils/session-helpers";
-import {
-	SessionAddTextButton,
-	SessionClassificationPicker,
-	SessionCustomTextRow,
-	SessionDocumentRow,
-	SessionMinutesPicker,
-	SessionMinutesReadOnly,
-} from "./agenda-item-card";
+import { QuillDisplayStyles } from "./agenda-item-card/quill-display-styles";
+import { SessionAddTextButton } from "./agenda-item-card/session-add-text-button";
+import { SessionClassificationPicker } from "./agenda-item-card/session-classification-picker";
+import { SessionCustomTextRow } from "./agenda-item-card/session-custom-text-row";
+import { SessionDocumentRow } from "./agenda-item-card/session-document-row";
+import { SessionMinutesPicker } from "./agenda-item-card/session-minutes-picker";
+import { SessionMinutesReadOnly } from "./agenda-item-card/session-minutes-read-only";
 
 const MINUTES_SECTION = "reading_and_or_approval_of_the_minutes";
 
@@ -135,15 +134,17 @@ export function AgendaItemCard({
 				if (ref.current?.()) hadContent = true;
 			}
 			setActiveEditorId(null);
+			setShowClassificationPicker(false);
 			return hadContent;
 		};
 	});
 
-	// Close all editors when an action is in flight (publish/save confirms).
+	// Close all editors and pickers when an action is in flight (publish/save confirms).
 	// Document rows handle their own closeEditor signal via the closeEditor prop.
 	useEffect(() => {
 		if (closeEditors) {
 			setActiveEditorId(null);
+			setShowClassificationPicker(false);
 		}
 	}, [closeEditors]);
 
@@ -633,25 +634,7 @@ export function AgendaItemCard({
 				</>
 			)}
 
-			{/* Global Quill-compatible summary display styles */}
-			<style jsx global>{`
-				.summary-display { font-size: 0.75rem; line-height: 1.42; overflow-wrap: break-word; word-break: normal; }
-				.summary-display p { margin: 0; padding: 0; }
-				.summary-display ul, .summary-display ol { padding-left: 1.5em; margin: 0.2em 0; list-style-position: outside; }
-				.summary-display li { display: list-item; margin: 0; padding-left: 0; }
-				.summary-display ul > li { list-style-type: disc; }
-				.summary-display ol > li { list-style-type: decimal; }
-				.summary-display li.ql-indent-1 { padding-left: 2.5em; list-style-type: circle; }
-				.summary-display li.ql-indent-2 { padding-left: 5em; list-style-type: square; }
-				.summary-display strong { font-weight: 700; }
-				.summary-display em { font-style: italic; }
-				.summary-display u { text-decoration: underline; }
-				.summary-display sup { vertical-align: super; font-size: 0.75em; line-height: 0; }
-				.summary-display .ql-align-center { text-align: center; }
-				.summary-display .ql-align-right { text-align: right; }
-				.summary-display .ql-align-justify,
-				.summary-display [style*="text-align: justify"] { text-align: justify; text-align-last: left; hyphens: auto; -webkit-hyphens: auto; word-spacing: -0.01em; }
-			`}</style>
+			<QuillDisplayStyles />
 		</div>
 	);
 }

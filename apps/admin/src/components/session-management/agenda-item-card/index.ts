@@ -1,3 +1,4 @@
+export * from "./quill-display-styles";
 export * from "./session-add-text-button";
 export * from "./session-classification-picker";
 export * from "./session-custom-text-row";

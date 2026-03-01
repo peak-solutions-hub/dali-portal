@@ -348,6 +348,7 @@ function AgendaBuilderPage() {
 							isLoadingSession={isLoadingSession}
 							onDndReorder={handleDndReorder}
 							onMixedDndReorder={builder.handleMixedDndReorder}
+							onWriteCommitteeState={builder.writeCommitteeState}
 							onCommitteeDocClassify={handleCommitteeDocClassify}
 							onDiscardChanges={() => {
 								revertToSaved();

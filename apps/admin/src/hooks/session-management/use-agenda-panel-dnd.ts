@@ -330,12 +330,34 @@ export function useAgendaPanelDnd({
 		const src = resolveDroppable(source.droppableId);
 		const dest = resolveDroppable(destination.droppableId);
 
-		if (source.droppableId === destination.droppableId) {
+		// Detect same-section drops — the raw droppableId may differ when the user
+		// drops on the drop-zone (`drop-zone::sectionId`) of the same section.
+		const isSameSection =
+			source.droppableId === destination.droppableId ||
+			(src.sectionId === dest.sectionId &&
+				!src.classification &&
+				!dest.classification);
+
+		if (isSameSection) {
+			// When the doc lands on the section's drop-zone (a separate
+			// droppable at the bottom) place it at the end of the unified list.
+			let effectiveDestIndex: number;
+			if (source.droppableId === destination.droppableId) {
+				effectiveDestIndex = destination.index;
+			} else {
+				const totalItems =
+					(documentsByAgendaItem[src.sectionId] ?? []).length +
+					(customTextsBySection?.[src.sectionId] ?? []).length;
+				effectiveDestIndex = totalItems;
+			}
+
+			if (source.index === effectiveDestIndex) return;
+
 			if (src.classification) {
 				reorderCommitteeGroup(
 					src.classification,
 					source.index,
-					destination.index,
+					effectiveDestIndex,
 				);
 			} else {
 				const currentDocs = documentsByAgendaItem[src.sectionId] ?? [];
@@ -344,7 +366,7 @@ export function useAgendaPanelDnd({
 					onMixedDndReorder(
 						src.sectionId,
 						source.index,
-						destination.index,
+						effectiveDestIndex,
 						currentDocs,
 						currentCustoms,
 					);
@@ -353,7 +375,7 @@ export function useAgendaPanelDnd({
 						src.sectionId,
 						src.sectionId,
 						source.index,
-						destination.index,
+						effectiveDestIndex,
 					);
 				}
 			}
@@ -424,12 +446,96 @@ export function useAgendaPanelDnd({
 				dest.classification,
 			);
 		} else {
-			onDndReorder?.(
-				src.sectionId,
-				dest.sectionId,
-				trueSourceIndex,
-				trueDestIndex,
-			);
+			// ── Mixed cross-section transfer ──────────────────────────────────
+			// destination.index is a unified visual index (docs + custom texts
+			// interleaved by orderIndex).  onDndReorder only reindexes docs, so
+			// when the destination section contains custom texts the orderIndex
+			// values would collide and items would render in the wrong order.
+			// Fix: build unified lists, splice, reindex, and write both back.
+			const destCustoms = customTextsBySection?.[dest.sectionId] ?? [];
+			const srcCustoms = customTextsBySection?.[src.sectionId] ?? [];
+
+			if (
+				onWriteCommitteeState &&
+				(destCustoms.length > 0 || srcCustoms.length > 0)
+			) {
+				const movedDoc = allSrcDocs[trueSourceIndex];
+				if (!movedDoc) return;
+
+				type Tagged =
+					| { type: "doc"; item: AgendaDocument }
+					| { type: "custom"; item: CustomTextItem };
+
+				// ── Source: remove the doc and reindex ────────────────────────
+				const newSrcDocs = allSrcDocs.filter((d) => d.id !== docId);
+				const srcUnified: Tagged[] = [
+					...newSrcDocs.map((d) => ({ type: "doc" as const, item: d })),
+					...srcCustoms.map((c) => ({ type: "custom" as const, item: c })),
+				].sort((a, b) => (a.item.orderIndex ?? 0) - (b.item.orderIndex ?? 0));
+
+				const reindexedSrcDocs: AgendaDocument[] = [];
+				const reindexedSrcCustoms: CustomTextItem[] = [];
+				srcUnified.forEach((e, i) => {
+					if (e.type === "doc")
+						reindexedSrcDocs.push({
+							...(e.item as AgendaDocument),
+							orderIndex: i,
+						});
+					else
+						reindexedSrcCustoms.push({
+							...(e.item as CustomTextItem),
+							orderIndex: i,
+						});
+				});
+
+				// ── Destination: insert the doc and reindex ──────────────────
+				const destUnified: Tagged[] = [
+					...destAllDocs.map((d) => ({ type: "doc" as const, item: d })),
+					...destCustoms.map((c) => ({ type: "custom" as const, item: c })),
+				].sort((a, b) => (a.item.orderIndex ?? 0) - (b.item.orderIndex ?? 0));
+
+				const clampedDest = Math.max(
+					0,
+					Math.min(trueDestIndex, destUnified.length),
+				);
+				destUnified.splice(clampedDest, 0, {
+					type: "doc",
+					item: movedDoc,
+				});
+
+				const reindexedDestDocs: AgendaDocument[] = [];
+				const reindexedDestCustoms: CustomTextItem[] = [];
+				destUnified.forEach((e, i) => {
+					if (e.type === "doc")
+						reindexedDestDocs.push({
+							...(e.item as AgendaDocument),
+							orderIndex: i,
+						});
+					else
+						reindexedDestCustoms.push({
+							...(e.item as CustomTextItem),
+							orderIndex: i,
+						});
+				});
+
+				onWriteCommitteeState(
+					src.sectionId,
+					reindexedSrcDocs,
+					reindexedSrcCustoms,
+				);
+				onWriteCommitteeState(
+					dest.sectionId,
+					reindexedDestDocs,
+					reindexedDestCustoms,
+				);
+			} else {
+				onDndReorder?.(
+					src.sectionId,
+					dest.sectionId,
+					trueSourceIndex,
+					trueDestIndex,
+				);
+			}
 		}
 	};
 

@@ -204,19 +204,15 @@ export function SessionDocumentRow({
 				</div>
 			</div>
 
-			{/* Summary display */}
+			{/* Summary display — padding matches editor ql-editor for consistent line breaks */}
 			{doc.summary && !isEditing && (
 				<div className="px-3 pb-2.5">
-					<div className="flex items-start gap-1.5">
-						<FileText className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
-						<div className="min-w-0 flex-1">
-							<p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide font-medium">
-								Public summary
-							</p>
-							<div className="summary-display text-gray-700 ql-editor !p-0">
-								{parse(sanitizeQuillHtml(doc.summary) ?? "")}
-							</div>
-						</div>
+					<p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide font-medium flex items-center gap-1">
+						<FileText className="h-3 w-3 text-blue-500 shrink-0" />
+						Public summary
+					</p>
+					<div className="summary-display text-gray-700 ql-editor py-0! px-2.20! border-x border-transparent">
+						{parse(sanitizeQuillHtml(doc.summary) ?? "")}
 					</div>
 				</div>
 			)}
