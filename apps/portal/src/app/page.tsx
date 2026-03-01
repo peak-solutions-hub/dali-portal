@@ -12,17 +12,18 @@ import {
 	RecentUpdates,
 } from "@/components/home";
 import { api } from "@/lib/api.client";
+import {
+	createPageMetadata,
+	SITE_DESCRIPTION,
+	SITE_TITLE,
+} from "@/lib/seo-metadata";
 
-export const metadata: Metadata = {
-	title: {
-		absolute: "DALI Portal — Sangguniang Panlungsod ng Iloilo",
-	},
-	description:
-		"Official public portal of the Sangguniang Panlungsod ng Iloilo (Iloilo City Council). Access legislative documents, council sessions, and citizen inquiry services.",
-	openGraph: {
-		url: "/",
-	},
-};
+export const metadata: Metadata = createPageMetadata({
+	title: SITE_TITLE,
+	description: SITE_DESCRIPTION,
+	url: "/",
+	imagePath: "/opengraph-image",
+});
 
 export default async function HomePage() {
 	// Fetch statistics

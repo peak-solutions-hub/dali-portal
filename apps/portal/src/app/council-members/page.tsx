@@ -4,15 +4,15 @@ import {
 	PageDescription,
 	ViceMayor,
 } from "@/components/council-members";
+import { createPageMetadata } from "@/lib/seo-metadata";
 
-export const metadata: Metadata = {
-	title: "Council Members",
+export const metadata: Metadata = createPageMetadata({
+	title: "Council Members — Iloilo City",
 	description:
 		"Meet the members of the Sangguniang Panlungsod ng Iloilo — the Vice Mayor, City Councilors, their committee chairmanships, and contact information.",
-	openGraph: {
-		url: "/council-members",
-	},
-};
+	url: "/council-members",
+	imagePath: "/council-members/opengraph-image",
+});
 
 export default function CouncilMembers() {
 	const viceMayorData = {

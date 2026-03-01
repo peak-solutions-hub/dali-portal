@@ -8,7 +8,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocumentHeader, PDFViewer } from "@/components/legislative-documents/";
 import { api } from "@/lib/api.client";
-import { createPageMetadata } from "@/lib/seo-metadata";
+import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 
 interface PageProps {
 	params: Promise<{
@@ -53,13 +53,14 @@ export async function generateMetadata({
 	const series = `Series of ${document.seriesYear}`;
 
 	const description = `${documentType} - ${documentTitle}. ${series}. ${classification ? `Classification: ${classification}.` : ""} Official Number: ${document.officialNumber}.`;
-	const shortDescription = description.substring(0, 160);
+	const shortDescription = truncateDescription(description);
 	const fullTitle = `${document.officialNumber} - ${documentTitle}`;
 
 	const metadata = createPageMetadata({
 		title: fullTitle,
 		description: shortDescription,
 		url: `/legislative-documents/${id}`,
+		imagePath: `/legislative-documents/${id}/opengraph-image`,
 		ogType: "article",
 		ogExtra: {
 			description,

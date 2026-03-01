@@ -21,6 +21,7 @@ export const metadata: Metadata = createPageMetadata({
 	description:
 		"Browse Iloilo City's official legislative documents: ordinances, resolutions, and committee reports.",
 	url: "/legislative-documents",
+	imagePath: "/legislative-documents/opengraph-image",
 });
 
 interface PageProps {

@@ -82,9 +82,9 @@ export function CouncilMembersList({ members }: CouncilMembersListProps) {
 													alt={member.name}
 													fill
 													sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-													className="object-cover md:group-hover:blur-sm transition-all duration-300"
+													className="object-cover transition-transform duration-300 md:group-hover:scale-[1.02]"
 													loading="lazy"
-													quality={85}
+													quality={75}
 												/>
 											) : (
 												<div className="w-full h-full flex items-center justify-center text-gray-400">

@@ -3,18 +3,16 @@ import {
 	formatSessionTime,
 	transformSessionWithAgendaDates,
 } from "@repo/shared";
-import { Badge } from "@repo/ui/components/badge";
-import { Button } from "@repo/ui/components/button";
-import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import {
 	getSessionStatusLabel,
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ScrollToTop } from "@/components/scroll-to-top";
+import { SessionDetailContent } from "@/components/sessions/session-detail-content";
 import { api } from "@/lib/api.client";
-import { createPageMetadata } from "@/lib/seo-metadata";
+import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 
 interface PageProps {
 	params: Promise<{ id: string }>;
@@ -50,8 +48,9 @@ export async function generateMetadata({
 	// leverage helper for consistency and type safety
 	return createPageMetadata({
 		title,
-		description: description.substring(0, 160), // Limit to 160 chars for SEO
+		description: truncateDescription(description),
 		url: `/sessions/${id}`,
+		imagePath: `/sessions/${id}/opengraph-image`,
 		ogType: "article",
 		ogExtra: {
 			description,

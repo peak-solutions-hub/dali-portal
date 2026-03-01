@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { InquiryTabs } from "@/components/inquiries/inquiry-tabs";
+import { createPageMetadata } from "@/lib/seo-metadata";
 
-export const metadata: Metadata = {
-	title: "Submit an Inquiry",
+export const metadata: Metadata = createPageMetadata({
+	title: "Submit an Inquiry — Iloilo City",
 	description:
 		"Submit a concern, request an appointment, or follow up on a document request with the Iloilo City Vice Mayor's Office.",
-	openGraph: {
-		url: "/inquiries",
-	},
-};
+	url: "/inquiries",
+	imagePath: "/inquiries/opengraph-image",
+});
 
 type PageProps = {
 	searchParams: Promise<{
