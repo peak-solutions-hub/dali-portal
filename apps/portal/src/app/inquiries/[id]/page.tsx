@@ -8,33 +8,10 @@ interface PageProps {
 	params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({
-	params,
-}: PageProps): Promise<Metadata> {
-	const { id } = await params;
-
-	const uuidRegex =
-		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-	if (!uuidRegex.test(id)) {
-		return {
-			title: "Invalid Inquiry",
-			robots: { index: false, follow: false },
-		};
-	}
-
-	const [error, data] = await api.inquiries.getWithMessages({ id });
-
-	if (error || !data) {
-		return {
-			title: "Inquiry Not Found",
-			description: "The requested inquiry could not be found.",
-			robots: { index: false, follow: false },
-		};
-	}
-
+export function generateMetadata(): Metadata {
 	return {
-		title: `Inquiry #${data.referenceNumber}`,
-		description: `Inquiry ticket #${data.referenceNumber} — ${data.category}.`,
+		title: "Inquiry Details",
+		description: "Track and view inquiry details.",
 		robots: { index: false, follow: false },
 	};
 }
