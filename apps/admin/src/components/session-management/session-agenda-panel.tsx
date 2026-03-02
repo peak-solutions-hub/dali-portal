@@ -6,6 +6,7 @@ import type {
 	SessionManagementAgendaItem,
 } from "@repo/shared";
 import { AgendaDocument, CustomTextItem } from "@repo/shared";
+import { Loader2 } from "@repo/ui/lib/lucide-react";
 import { useAgendaPanelDialogs } from "../../hooks/session-management/use-agenda-panel-dialogs";
 import { useAgendaPanelDnd } from "../../hooks/session-management/use-agenda-panel-dnd";
 import {
@@ -244,7 +245,14 @@ export function SessionAgendaPanel({
 
 			{selectedSession ? (
 				<>
-					{sessionLoadError ? (
+					{isLoadingSession ? (
+						<div className="flex-1 flex items-center justify-center">
+							<div className="flex flex-col items-center gap-3">
+								<Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+								<p className="text-sm text-gray-500">Loading session data...</p>
+							</div>
+						</div>
+					) : sessionLoadError ? (
 						<SessionErrorState
 							variant="session"
 							message={sessionLoadError}
