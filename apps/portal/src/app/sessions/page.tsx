@@ -21,6 +21,11 @@ import {
 	SortSelect,
 } from "@/components/sessions";
 import { api } from "@/lib/api.client";
+import {
+	BASE_OPEN_GRAPH,
+	BASE_TWITTER,
+	createOgImageMeta,
+} from "@/lib/seo-metadata";
 import SessionLoading from "./loading";
 
 export const metadata: Metadata = {
@@ -28,17 +33,23 @@ export const metadata: Metadata = {
 	description:
 		"Browse Iloilo City Council sessions. Regular sessions are held every Wednesday at 10:00 AM. View schedules, agendas, and session details.",
 	openGraph: {
+		...BASE_OPEN_GRAPH,
 		title: "Council Sessions — Iloilo City",
 		description:
 			"Browse Iloilo City Council sessions with schedules, agendas, and detailed information about regular and special sessions.",
 		type: "website",
 		url: "/sessions",
+		images: createOgImageMeta(
+			"/sessions/opengraph-image",
+			"Council Sessions — Iloilo City",
+		),
 	},
 	twitter: {
-		card: "summary_large_image",
+		...BASE_TWITTER,
 		title: "Council Sessions — Iloilo City",
 		description:
 			"Browse Iloilo City Council sessions. Regular sessions held every Wednesday at 10:00 AM.",
+		images: ["/sessions/opengraph-image"],
 	},
 };
 

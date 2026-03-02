@@ -89,6 +89,7 @@ model DocumentAudit {
   versionNumber Decimal  @map("version_number") @db.Decimal
   filePath      String   @map("file_path")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  remarks       String?
   user          User     @relation(fields: [actorId], references: [id], map: "document_audits_actor_id_fkey")
   document      Document @relation(fields: [documentId], references: [id], map: "document_audits_document_id_fkey")
 

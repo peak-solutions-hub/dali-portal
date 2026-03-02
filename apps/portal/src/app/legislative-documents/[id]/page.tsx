@@ -8,6 +8,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocumentHeader, PDFViewer } from "@/components/legislative-documents/";
 import { api } from "@/lib/api.client";
+import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 
 interface PageProps {
 	params: Promise<{
@@ -52,23 +53,22 @@ export async function generateMetadata({
 	const series = `Series of ${document.seriesYear}`;
 
 	const description = `${documentType} - ${documentTitle}. ${series}. ${classification ? `Classification: ${classification}.` : ""} Official Number: ${document.officialNumber}.`;
+	const shortDescription = truncateDescription(description);
+	const fullTitle = `${document.officialNumber} - ${documentTitle}`;
 
-	return {
-		title: `${document.officialNumber} - ${documentTitle}`,
-		description: description.substring(0, 160), // Limit to 160 chars for SEO
-		openGraph: {
-			title: `${document.officialNumber} - ${documentTitle}`,
-			description: description,
-			type: "article",
+	const metadata = createPageMetadata({
+		title: fullTitle,
+		description: shortDescription,
+		url: `/legislative-documents/${id}`,
+		imagePath: `/legislative-documents/${id}/opengraph-image`,
+		ogType: "article",
+		ogExtra: {
+			description,
 			publishedTime: document.dateEnacted.toISOString(),
-			url: `/legislative-documents/${id}`,
 		},
-		twitter: {
-			card: "summary_large_image",
-			title: `${document.officialNumber} - ${documentTitle}`,
-			description: description.substring(0, 160),
-		},
-	};
+	});
+
+	return metadata;
 }
 
 export default async function DocumentDetailPage({ params }: PageProps) {

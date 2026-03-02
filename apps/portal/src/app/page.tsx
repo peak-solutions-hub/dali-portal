@@ -4,6 +4,7 @@ import {
 	transformDocumentListDates,
 	transformSessionListDates,
 } from "@repo/shared";
+import type { Metadata } from "next";
 import {
 	AboutSection,
 	HeroSection,
@@ -11,6 +12,18 @@ import {
 	RecentUpdates,
 } from "@/components/home";
 import { api } from "@/lib/api.client";
+import {
+	createPageMetadata,
+	SITE_DESCRIPTION,
+	SITE_TITLE,
+} from "@/lib/seo-metadata";
+
+export const metadata: Metadata = createPageMetadata({
+	title: SITE_TITLE,
+	description: SITE_DESCRIPTION,
+	url: "/",
+	imagePath: "/opengraph-image",
+});
 
 export default async function HomePage() {
 	// Fetch statistics
