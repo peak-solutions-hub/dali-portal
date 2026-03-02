@@ -52,7 +52,7 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 										<UserCheck className="h-3 w-3 text-gray-600" />
 									</div>
-									<span className="break-words min-w-0 line-clamp-2">
+									<span className="wrap-break-word min-w-0 line-clamp-2">
 										{ticket.user.fullName}
 									</span>
 								</div>
@@ -95,7 +95,7 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 										<User className="h-3 w-3 text-gray-600" />
 									</div>
-									<span className="break-words min-w-0 line-clamp-2">
+									<span className="wrap-break-word min-w-0 line-clamp-2">
 										{formatCitizenFullName(ticket)}
 									</span>
 								</div>
@@ -114,7 +114,7 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 										<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 											<Phone className="h-3 w-3 text-gray-600" />
 										</div>
-										<span className="break-words min-w-0 line-clamp-2">
+										<span className="wrap-break-word min-w-0 line-clamp-2">
 											{ticket.citizenContactNumber}
 										</span>
 									</div>
@@ -124,7 +124,7 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 										<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
 											<MapPin className="h-3 w-3 text-gray-600" />
 										</div>
-										<span className="break-words min-w-0 line-clamp-2">
+										<span className="wrap-break-word min-w-0 line-clamp-2">
 											{ticket.citizenAddress}
 										</span>
 									</div>

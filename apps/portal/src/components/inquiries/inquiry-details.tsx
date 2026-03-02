@@ -189,7 +189,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 
 			{/* Header */}
 			<div className="mb-8">
-				<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-playfair-display break-words">
+				<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-playfair-display wrap-break-word">
 					{ticket.subject}
 				</h1>
 				<div className="flex items-center gap-4 text-sm text-gray-500">
