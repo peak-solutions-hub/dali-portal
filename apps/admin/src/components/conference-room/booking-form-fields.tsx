@@ -112,6 +112,19 @@ export function BookingFormFields({
 		allowedMimeTypes: ["application/pdf", "image/jpeg", "image/jpg"],
 	});
 
+	useEffect(() => {
+		if (files.length <= 1) {
+			return;
+		}
+
+		const latestFile = files[files.length - 1];
+		if (!latestFile) {
+			return;
+		}
+
+		setFiles([latestFile]);
+	}, [files, setFiles]);
+
 	const selectedRoomLabel =
 		CONFERENCE_ROOM_OPTIONS.find((opt) => opt.value === values.room)?.label ??
 		"";

@@ -219,6 +219,11 @@ export function CreateBookingModal({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+
+		if (fileError) {
+			return;
+		}
+
 		const errors = validateForm();
 		setFieldErrors(errors);
 		if (Object.keys(errors).length > 0) {
@@ -241,6 +246,8 @@ export function CreateBookingModal({
 	};
 
 	if (!isOpen) return null;
+
+	const isSubmitDisabled = isCreating || Boolean(fileError);
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -290,7 +297,7 @@ export function CreateBookingModal({
 						</button>
 						<button
 							type="submit"
-							disabled={isCreating}
+							disabled={isSubmitDisabled}
 							className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-70"
 						>
 							{isCreating && <Loader2 className="w-4 h-4 animate-spin" />}

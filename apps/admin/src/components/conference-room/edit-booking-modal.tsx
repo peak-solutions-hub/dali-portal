@@ -164,6 +164,11 @@ export function EditBookingModal({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+
+		if (fileError) {
+			return;
+		}
+
 		const errors = validateForm();
 		setFieldErrors(errors);
 		if (Object.keys(errors).length > 0) {
@@ -195,6 +200,8 @@ export function EditBookingModal({
 	};
 
 	if (!isOpen || !booking) return null;
+
+	const isSubmitDisabled = isUpdating || Boolean(fileError);
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -245,7 +252,7 @@ export function EditBookingModal({
 						</button>
 						<button
 							type="submit"
-							disabled={isUpdating}
+							disabled={isSubmitDisabled}
 							className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-70"
 						>
 							{isUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
