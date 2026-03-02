@@ -1,4 +1,3 @@
-import { isDefinedError } from "@orpc/client";
 import type { Session, SessionSearchParams } from "@repo/shared";
 import {
 	buildSessionQueryString,
@@ -13,6 +12,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import {
 	SessionFilters,
 	SessionListView,
@@ -76,9 +76,12 @@ export default async function Sessions({
 	const view = validatedParams.view;
 
 	return (
-		<Suspense fallback={<SessionLoading view={view} />}>
-			<SessionContent params={validatedParams} />
-		</Suspense>
+		<>
+			<ScrollToTop />
+			<Suspense fallback={<SessionLoading view={view} />}>
+				<SessionContent params={validatedParams} />
+			</Suspense>
+		</>
 	);
 }
 
@@ -92,8 +95,12 @@ async function SessionContent({
 	const sortOrder = validatedParams.sort;
 
 	// Get filter parameters from validated params
-	const filterTypes = validatedParams.types || [];
-	const filterStatuses = validatedParams.statuses || [];
+	// If the validated param is the literal "all", normalize to empty arrays so
+	// downstream code can assume array operations like .join()
+	const filterTypes =
+		validatedParams.types === "all" ? [] : validatedParams.types || [];
+	const filterStatuses =
+		validatedParams.statuses === "all" ? [] : validatedParams.statuses || [];
 	const filterDateFrom = validatedParams.dateFrom;
 	const filterDateTo = validatedParams.dateTo;
 
@@ -128,12 +135,16 @@ async function SessionContent({
 
 	// Handle API errors with user-visible message
 	if (error) {
-		console.error("API error fetching sessions:", error);
+		const isDateRangeError =
+			"status" in error && (error as { status: number }).status === 400;
 
-		let errorMessage = "An unexpected error occurred";
-		if (isDefinedError(error)) {
-			errorMessage = error.message || errorMessage;
-		}
+		const errorTitle = isDateRangeError
+			? "Invalid Date Range"
+			: "Unable to Load Sessions";
+
+		const errorDescription = isDateRangeError
+			? `The selected date range is invalid — "From" date cannot be later than "To" date. Please adjust your filters and try again.`
+			: "We're experiencing technical difficulties. Please try again in a moment.";
 
 		return (
 			<div className="min-h-screen bg-gray-50">
@@ -147,15 +158,18 @@ async function SessionContent({
 						</p>
 					</div>
 					<Card className="p-12 border-red-200 bg-red-50">
-						<div className="text-center">
-							<p className="text-lg mb-2 text-red-800 font-semibold">
-								Unable to Load Sessions
-							</p>
-							<p className="text-sm text-red-700 mb-4">
-								We're experiencing technical difficulties loading the sessions.
-								Please try refreshing the page.
-							</p>
-							<p className="text-xs text-red-600">Error: {errorMessage}</p>
+						<div className="text-center space-y-4">
+							<p className="text-lg text-red-800 font-semibold">{errorTitle}</p>
+							<p className="text-sm text-red-700">{errorDescription}</p>
+							<Link href="/sessions">
+								<Button
+									variant="outline"
+									size="sm"
+									className="border-red-300 text-red-700 hover:bg-red-100 cursor-pointer"
+								>
+									{isDateRangeError ? "Clear Filters" : "Try Again"}
+								</Button>
+							</Link>
 						</div>
 					</Card>
 				</div>

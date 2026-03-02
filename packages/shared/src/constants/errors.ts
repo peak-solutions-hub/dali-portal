@@ -89,6 +89,76 @@ export const ERRORS = {
 			message: "Storage bucket not found.",
 		},
 	},
+	SESSION: {
+		NOT_FOUND: {
+			status: 404,
+			message: "Session not found.",
+		},
+		DUPLICATE_DATE: {
+			status: 409,
+			message: "A session already exists for this date.",
+		},
+		INVALID_STATUS_TRANSITION: {
+			status: 400,
+			message: "This status transition is not allowed.",
+		},
+		NOT_DRAFT: {
+			status: 400,
+			message: "Session must be in draft status for this operation.",
+		},
+		NOT_SCHEDULED: {
+			status: 400,
+			message: "Session must be in scheduled status for this operation.",
+		},
+		DELETE_NOT_DRAFT: {
+			status: 400,
+			message: "Only draft sessions can be deleted.",
+		},
+		CREATION_FAILED: {
+			status: 500,
+			message: "Failed to create session. Please try again.",
+		},
+		LOAD_FAILED: {
+			status: 500,
+			message: "Failed to load session data. Please try again.",
+		},
+		SAVE_FAILED: {
+			status: 500,
+			message: "Failed to save session draft. Please try again.",
+		},
+		PUBLISH_FAILED: {
+			status: 500,
+			message: "Failed to publish session. Please try again.",
+		},
+		UNPUBLISH_FAILED: {
+			status: 500,
+			message: "Failed to unpublish session. Please try again.",
+		},
+		COMPLETE_FAILED: {
+			status: 500,
+			message: "Failed to mark session as completed. Please try again.",
+		},
+		DELETE_FAILED: {
+			status: 500,
+			message: "Failed to delete session. Please try again.",
+		},
+		REMOVE_ITEM_FAILED: {
+			status: 500,
+			message: "Failed to remove agenda item. Please try again.",
+		},
+		AGENDA_UPLOAD_FAILED: {
+			status: 500,
+			message: "Failed to upload session agenda. Please try again.",
+		},
+		AGENDA_SAVE_FAILED: {
+			status: 500,
+			message: "Failed to save agenda PDF. Please try again.",
+		},
+		AGENDA_DELETE_FAILED: {
+			status: 500,
+			message: "Failed to remove agenda PDF. Please try again.",
+		},
+	},
 	AUTH: {
 		MISSING_TOKEN: {
 			status: 401,

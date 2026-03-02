@@ -49,11 +49,15 @@ export function SortSelect({ currentSort }: SortSelectProps) {
 			page: 1, // Reset to first page when sorting changes
 			sort: value,
 			types:
-				validatedParams.types && validatedParams.types.length > 0
+				validatedParams.types &&
+				validatedParams.types != "all" &&
+				validatedParams.types.length > 0
 					? validatedParams.types.join(",")
 					: undefined,
 			statuses:
-				validatedParams.statuses && validatedParams.statuses.length > 0
+				validatedParams.statuses &&
+				validatedParams.statuses != "all" &&
+				validatedParams.statuses.length > 0
 					? validatedParams.statuses.join(",")
 					: undefined,
 			dateFrom: validatedParams.dateFrom

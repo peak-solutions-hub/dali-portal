@@ -62,12 +62,13 @@ export default async function HomePage() {
 	// Fetch upcoming sessions (next 3)
 	const [sessionsError, sessionsResponse] = await api.sessions.list({
 		dateFrom: new Date(),
+		status: "scheduled",
 		sortBy: "date",
 		sortDirection: "asc",
 		limit: 3,
 		page: 1,
 	});
-	console.log(sessionsResponse);
+
 	if (sessionsError && isDefinedError(sessionsError)) {
 		console.error("Failed to fetch upcoming sessions:", sessionsError.message);
 	}

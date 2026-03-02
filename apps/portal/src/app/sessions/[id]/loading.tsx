@@ -1,4 +1,4 @@
-import { SessionDetailSkeleton } from "@/components/sessions/session-detail-skeleton";
+import { SessionDetailSkeleton } from "@/components/sessions";
 
 export default function LoadingSessionDetail() {
 	return (
