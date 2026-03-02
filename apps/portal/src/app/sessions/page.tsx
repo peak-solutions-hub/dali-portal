@@ -135,8 +135,6 @@ async function SessionContent({
 
 	// Handle API errors with user-visible message
 	if (error) {
-		console.error("API error fetching sessions:", error);
-
 		const isDateRangeError =
 			"status" in error && (error as { status: number }).status === 400;
 
