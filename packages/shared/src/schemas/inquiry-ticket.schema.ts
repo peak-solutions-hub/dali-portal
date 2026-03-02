@@ -169,31 +169,25 @@ export const CreateInquiryTicketSchema = z.object({
 	citizenContactNumber: z
 		.string()
 		.min(1, { message: "Contact number is required." })
-		.superRefine((val, ctx) => {
-			if (!val) return;
-
-			// Determine max length based on format
-			const maxLength = val.startsWith("+") ? 13 : 11;
-
-			// Too long — show immediately
-			if (val.length > maxLength) {
+		.superRefine((rawVal, ctx) => {
+			// Normalize for validation: strip spaces and dashes
+			const val = rawVal.replace(/[\s-]/g, "");
+			if (!val) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					message: "Contact number is too long.",
+					message: "Contact number is required.",
 				});
 				return;
 			}
-
-			// Still a valid partial — 0 followed by digits, or + followed by digits
-			const isValidPartial =
-				/^0[0-9]*$/.test(val) || /^\+[0-9]*$/.test(val) || val === "+";
-			if (isValidPartial) return;
-
-			// Not a valid partial and not a complete valid number
-			if (!/^(\+63|0)[0-9]{9,10}$/.test(val)) {
+			// Accept only complete Philippine mobile numbers:
+			// - Local format: 09XXXXXXXXX
+			// - International format: +639XXXXXXXXX
+			const isValidPhMobile = /^09\d{9}$/.test(val) || /^\+639\d{9}$/.test(val);
+			if (!isValidPhMobile) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					message: "Enter a valid Philippine mobile number.",
+					message:
+						"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
 				});
 			}
 		}),
@@ -256,7 +250,28 @@ export const TrackInquiryTicketSchema = z.object({
 	citizenContactNumber: z
 		.string()
 		.min(1, { message: "Contact number is required." })
-		.max(20, { message: "Contact number is too long." }),
+		.superRefine((rawVal, ctx) => {
+			// Normalize for validation: strip spaces and dashes
+			const val = rawVal.replace(/[\s-]/g, "");
+			if (!val) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Contact number is required.",
+				});
+				return;
+			}
+			// Accept only complete Philippine mobile numbers:
+			// - Local format: 09XXXXXXXXX
+			// - International format: +639XXXXXXXXX
+			const isValidPhMobile = /^09\d{9}$/.test(val) || /^\+639\d{9}$/.test(val);
+			if (!isValidPhMobile) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message:
+						"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+				});
+			}
+		}),
 });
 
 export const TrackInquiryTicketResponseSchema = z

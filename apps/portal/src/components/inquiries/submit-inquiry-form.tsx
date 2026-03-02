@@ -98,6 +98,23 @@ export function SubmitInquiryForm() {
 		// Prevent double-clicks
 		if (isSubmitting) return;
 
+		// Strict contact number check on submit — the lenient on-change schema allows
+		// valid partials (e.g. "09") to pass while typing, so we re-validate here
+		// to catch incomplete numbers before reaching the API.
+		const normalizedContact = data.citizenContactNumber.replace(/[\s-]/g, "");
+		if (
+			!/^09\d{9}$/.test(normalizedContact) &&
+			!/^\+639\d{9}$/.test(normalizedContact)
+		) {
+			form.setError("citizenContactNumber", {
+				type: "manual",
+				message:
+					"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+			});
+			form.setFocus("citizenContactNumber");
+			return;
+		}
+
 		// Block submission if there are file validation errors or max files exceeded
 		if (
 			form.formState.errors.files ||

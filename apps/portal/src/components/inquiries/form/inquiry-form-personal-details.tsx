@@ -33,7 +33,7 @@ export function InquiryFormPersonalDetails({
 				<FormField
 					control={control}
 					name="citizenFirstName"
-					render={({ field }) => (
+					render={({ field, fieldState }) => (
 						<FormItem>
 							<FormLabel className="text-gray-700 font-medium">
 								First Name <span className="text-red-500">*</span>
@@ -42,15 +42,13 @@ export function InquiryFormPersonalDetails({
 								<div className="relative group">
 									<User className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
 									<Input
+										aria-invalid={fieldState.invalid}
 										className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all"
 										placeholder="e.g. Juan"
 										{...field}
 									/>
 								</div>
 							</FormControl>
-							<FormDescription className="text-xs text-gray-500 mt-1.5 ml-1 select-none opacity-0">
-								This is a placeholder to align the height.
-							</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}
@@ -59,7 +57,7 @@ export function InquiryFormPersonalDetails({
 				<FormField
 					control={control}
 					name="citizenLastName"
-					render={({ field }) => (
+					render={({ field, fieldState }) => (
 						<FormItem>
 							<FormLabel className="text-gray-700 font-medium">
 								Last Name <span className="text-red-500">*</span>
@@ -68,15 +66,13 @@ export function InquiryFormPersonalDetails({
 								<div className="relative group">
 									<User className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
 									<Input
+										aria-invalid={fieldState.invalid}
 										className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all"
 										placeholder="e.g. Dela Cruz"
 										{...field}
 									/>
 								</div>
 							</FormControl>
-							<FormDescription className="text-xs text-gray-500 mt-1.5 ml-1 select-none opacity-0">
-								This is a placeholder to align the height.
-							</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}
@@ -85,7 +81,7 @@ export function InquiryFormPersonalDetails({
 				<FormField
 					control={control}
 					name="citizenEmail"
-					render={({ field }) => (
+					render={({ field, fieldState }) => (
 						<FormItem>
 							<FormLabel className="text-gray-700 font-medium">
 								Email Address
@@ -94,6 +90,7 @@ export function InquiryFormPersonalDetails({
 								<div className="relative group">
 									<Mail className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
 									<Input
+										aria-invalid={fieldState.invalid}
 										type="email"
 										className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all"
 										placeholder="e.g. juan@example.com"
@@ -112,7 +109,7 @@ export function InquiryFormPersonalDetails({
 				<FormField
 					control={control}
 					name="citizenContactNumber"
-					render={({ field }) => (
+					render={({ field, fieldState }) => (
 						<FormItem>
 							<FormLabel className="text-gray-700 font-medium">
 								Contact Number <span className="text-red-500">*</span>
@@ -121,6 +118,7 @@ export function InquiryFormPersonalDetails({
 								<div className="relative group">
 									<Phone className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
 									<Input
+										aria-invalid={fieldState.invalid}
 										className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all"
 										placeholder="e.g. 09XX XXX XXXX"
 										{...field}
@@ -139,7 +137,7 @@ export function InquiryFormPersonalDetails({
 			<FormField
 				control={control}
 				name="citizenAddress"
-				render={({ field }) => (
+				render={({ field, fieldState }) => (
 					<FormItem>
 						<FormLabel className="text-gray-700 font-medium">
 							Address <span className="text-red-500">*</span>
@@ -148,6 +146,7 @@ export function InquiryFormPersonalDetails({
 							<div className="relative group">
 								<MapPin className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
 								<Input
+									aria-invalid={fieldState.invalid}
 									className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all"
 									placeholder="e.g. Street, Barangay, City"
 									{...field}

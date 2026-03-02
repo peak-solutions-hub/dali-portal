@@ -1,10 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-	TrackInquiryTicketInput,
-	TrackInquiryTicketSchema,
-} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import {
@@ -30,6 +26,10 @@ import { useTrackInquiry } from "@/hooks/inquiries/use-track-inquiry";
 import { isCaptchaError } from "@/utils/captcha-utils";
 import { CaptchaErrorModal } from "./captcha-error-modal";
 import { InquiryFormHeader } from "./form/inquiry-form-header";
+import {
+	TrackInquiryFormSchema,
+	type TrackInquiryFormValues,
+} from "./form/schema";
 
 interface TrackInquiryFormProps {
 	/** Pre-fill reference number from email link */
@@ -54,8 +54,8 @@ export function TrackInquiryForm({
 		},
 	});
 
-	const form = useForm<TrackInquiryTicketInput>({
-		resolver: zodResolver(TrackInquiryTicketSchema),
+	const form = useForm<TrackInquiryFormValues>({
+		resolver: zodResolver(TrackInquiryFormSchema),
 		mode: "onChange",
 		reValidateMode: "onChange",
 		defaultValues: {
@@ -84,7 +84,23 @@ export function TrackInquiryForm({
 		}
 	}, [error, clearError]);
 
-	const onSubmit = async (data: TrackInquiryTicketInput) => {
+	const onSubmit = async (data: TrackInquiryFormValues) => {
+		// Strict contact number check on submit — the lenient on-change schema allows
+		// valid partials (e.g. "09") to pass while typing, so we re-validate here
+		// to catch incomplete numbers before reaching the API.
+		const normalizedContact = data.citizenContactNumber.replace(/[\s-]/g, "");
+		if (
+			!/^09\d{9}$/.test(normalizedContact) &&
+			!/^\+639\d{9}$/.test(normalizedContact)
+		) {
+			form.setError("citizenContactNumber", {
+				type: "manual",
+				message:
+					"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+			});
+			form.setFocus("citizenContactNumber");
+			return;
+		}
 		await track(data);
 	};
 
