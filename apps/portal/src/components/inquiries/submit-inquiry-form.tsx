@@ -7,11 +7,12 @@ import { Form } from "@repo/ui/components/form";
 import { Separator } from "@repo/ui/components/separator";
 import type { TurnstileWidgetRef } from "@repo/ui/components/turnstile-widget";
 import { AlertCircle } from "@repo/ui/lib/lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { SuccessDialog } from "@/components/inquiries/success-dialog";
 import { useSendInquiry } from "@/hooks/inquiries/use-send-inquiry";
-
+import { isCaptchaError } from "@/utils/captcha-utils";
+import { CaptchaErrorModal } from "./captcha-error-modal";
 import {
 	InquiryFormAttachments,
 	type InquiryFormAttachmentsRef,
@@ -31,6 +32,8 @@ export function SubmitInquiryForm() {
 	const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 	const [referenceNumber, setReferenceNumber] = useState("");
 	const [citizenEmail, setCitizenEmail] = useState("");
+	const [captchaErrorModalOpen, setCaptchaErrorModalOpen] = useState(false);
+	const [captchaErrorMessage, setCaptchaErrorMessage] = useState("");
 
 	// Track file state via props (not refs)
 	const [fileState, setFileState] = useState({
@@ -57,14 +60,26 @@ export function SubmitInquiryForm() {
 		mode: "onChange",
 		reValidateMode: "onChange",
 		defaultValues: {
-			citizenName: "",
+			citizenFirstName: "",
+			citizenLastName: "",
 			citizenEmail: "",
+			citizenContactNumber: "",
+			citizenAddress: "",
 			subject: "",
 			message: "",
 			category: "general_inquiry",
 			captchaToken: null,
 		},
 	});
+
+	// Show captcha errors in modal
+	useEffect(() => {
+		if (error && isCaptchaError(error)) {
+			setCaptchaErrorMessage(error);
+			setCaptchaErrorModalOpen(true);
+			clearError();
+		}
+	}, [error, clearError]);
 
 	const handleTurnstileVerify = (token: string) => {
 		form.setValue("captchaToken", token);
@@ -82,6 +97,23 @@ export function SubmitInquiryForm() {
 	const onSubmit = async (data: SubmitInquiryFormValues) => {
 		// Prevent double-clicks
 		if (isSubmitting) return;
+
+		// Strict contact number check on submit — the lenient on-change schema allows
+		// valid partials (e.g. "09") to pass while typing, so we re-validate here
+		// to catch incomplete numbers before reaching the API.
+		const normalizedContact = data.citizenContactNumber.replace(/[\s-]/g, "");
+		if (
+			!/^09\d{9}$/.test(normalizedContact) &&
+			!/^\+639\d{9}$/.test(normalizedContact)
+		) {
+			form.setError("citizenContactNumber", {
+				type: "manual",
+				message:
+					"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+			});
+			form.setFocus("citizenContactNumber");
+			return;
+		}
 
 		// Block submission if there are file validation errors or max files exceeded
 		if (
@@ -134,7 +166,7 @@ export function SubmitInquiryForm() {
 		);
 
 		if (success) {
-			setCitizenEmail(data.citizenEmail);
+			setCitizenEmail(data.citizenEmail ?? "");
 			form.reset();
 			setAttachmentPaths([]);
 			attachmentsRef.current?.clearFiles();
@@ -155,7 +187,7 @@ export function SubmitInquiryForm() {
 				<CardContent className="px-6 sm:px-8 py-8">
 					<Form {...form}>
 						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-							{error && (
+							{error && !isCaptchaError(error) && (
 								<div className="bg-red-50 border border-red-100 text-red-800 px-4 py-4 rounded-xl text-sm font-medium flex items-start gap-3">
 									<AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
 									<div>
@@ -201,6 +233,12 @@ export function SubmitInquiryForm() {
 				onOpenChange={setSuccessDialogOpen}
 				referenceNumber={referenceNumber}
 				citizenEmail={citizenEmail}
+			/>
+
+			<CaptchaErrorModal
+				open={captchaErrorModalOpen}
+				onOpenChange={setCaptchaErrorModalOpen}
+				errorMessage={captchaErrorMessage}
 			/>
 		</>
 	);

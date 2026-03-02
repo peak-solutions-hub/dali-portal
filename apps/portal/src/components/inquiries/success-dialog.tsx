@@ -67,7 +67,7 @@ export function SuccessDialog({
             <strong>How to track your inquiry:</strong><br/>
             1. Visit the portal website<br/>
             2. Go to "Track Inquiry"<br/>
-            3. Enter this reference number and your email address
+            3. Enter this reference number and your contact number
           </div>
           <div class="footer">
             Date Printed: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}<br/>
@@ -129,13 +129,17 @@ export function SuccessDialog({
 					</div>
 
 					{/* Email confirmation */}
-					<div className="flex items-start gap-3 text-sm text-gray-600">
-						<Mail className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
-						<p>
-							Confirmation sent to{" "}
-							<span className="font-medium text-gray-900">{citizenEmail}</span>
-						</p>
-					</div>
+					{citizenEmail && (
+						<div className="flex items-start gap-3 text-sm text-gray-600">
+							<Mail className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+							<p className="min-w-0">
+								Confirmation sent to{" "}
+								<span className="font-medium text-gray-900 break-all line-clamp-2">
+									{citizenEmail}
+								</span>
+							</p>
+						</div>
+					)}
 				</div>
 
 				{/* Footer */}

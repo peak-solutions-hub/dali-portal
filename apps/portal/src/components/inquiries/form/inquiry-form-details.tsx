@@ -1,6 +1,6 @@
 "use client";
 
-import { INQUIRY_CATEGORY_VALUES } from "@repo/shared";
+import { INQUIRY_CATEGORY_VALUES, TEXT_LIMITS } from "@repo/shared";
 import {
 	FormControl,
 	FormField,

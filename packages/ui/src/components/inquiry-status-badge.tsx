@@ -1,7 +1,7 @@
 import type { InquiryStatus } from "@repo/shared";
-import { Badge } from "@repo/ui/components/badge";
-import { cn } from "@repo/ui/lib/utils";
-import { formatInquiryStatus } from "@/utils/inquiry-helpers";
+import { formatInquiryStatus } from "@repo/shared";
+import { cn } from "../lib/utils";
+import { Badge } from "./badge";
 
 interface InquiryStatusBadgeProps {
 	status: InquiryStatus;

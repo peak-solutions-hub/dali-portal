@@ -6,20 +6,20 @@ interface ChatMessageListProps {
 	items: ChatItem[];
 	/** Whether a message is currently being sent (shows optimistic indicator) */
 	isSending?: boolean;
+	/** Type of the user viewing the conversation ('citizen' | 'staff') */
+	viewerType: "citizen" | "staff";
 }
 
 export function ChatMessageList({
 	items,
 	isSending = false,
+	viewerType,
 }: ChatMessageListProps) {
-	const containerRef = useRef<HTMLDivElement>(null);
+	const bottomRef = useRef<HTMLDivElement>(null);
 
-	// Auto-scroll the container to the bottom when items change or while sending
+	// Always scroll to the bottom on render and updates
 	useEffect(() => {
-		const container = containerRef.current?.parentElement;
-		if (container) {
-			container.scrollTop = container.scrollHeight;
-		}
+		bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
 	}, [items.length, isSending]);
 
 	if (items.length === 0 && !isSending) {
@@ -29,7 +29,7 @@ export function ChatMessageList({
 	}
 
 	return (
-		<div ref={containerRef} className="flex flex-col gap-2">
+		<div className="flex flex-col gap-2">
 			{items.map((item, index) => {
 				const isFirstInGroup =
 					index === 0 || items[index - 1]?.senderType !== item.senderType;
@@ -39,11 +39,12 @@ export function ChatMessageList({
 						key={item.id}
 						item={item}
 						isFirstInGroup={isFirstInGroup}
+						viewerType={viewerType}
 					/>
 				);
 			})}
 
-			{/* Optimistic sending indicator */}
+			{/* Optimistic sending indicator - always on right for current user */}
 			{isSending && (
 				<div className="flex flex-col max-w-[85%] self-end items-end">
 					<div className="p-4 rounded-2xl rounded-tr-none shadow-sm text-sm bg-[#a60202]/70 text-white/80 animate-pulse">
@@ -51,6 +52,8 @@ export function ChatMessageList({
 					</div>
 				</div>
 			)}
+
+			<div ref={bottomRef} />
 		</div>
 	);
 }

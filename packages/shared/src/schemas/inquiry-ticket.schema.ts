@@ -35,12 +35,15 @@ export const InquiryTicketSchema = z.object({
 	id: z.uuid(),
 	referenceNumber: z.string(),
 	assignedTo: z.uuid().nullable(),
-	citizenEmail: z.email(),
-	citizenName: z.string().min(1).max(TEXT_LIMITS.XS),
-	subject: z.string().min(1).max(TEXT_LIMITS.SM),
+	citizenEmail: z.string().nullable(),
+	citizenFirstName: z.string().nullable(),
+	citizenLastName: z.string().nullable(),
+	citizenContactNumber: z.string().nullable(),
+	citizenAddress: z.string().nullable(),
+	subject: z.string(),
 	category: InquiryTicketCategoryEnum,
 	status: InquiryTicketStatusEnum,
-	closureRemarks: z.string().max(TEXT_LIMITS.SM).nullable(),
+	closureRemarks: z.string().nullable(),
 	createdAt: z.date(),
 });
 
@@ -53,9 +56,9 @@ export const InquiryTicketListSchema = InquiryTicketSchema.array();
 export const InquiryMessageSchema = z.object({
 	id: z.uuid(),
 	ticketId: z.uuid(),
-	senderName: z.string().min(1).max(TEXT_LIMITS.XS),
+	senderName: z.string(),
 	/** Message content - can be empty for attachment-only messages */
-	content: z.string().max(TEXT_LIMITS.LG),
+	content: z.string(),
 	attachmentPaths: z.string().array().nullable(),
 	senderType: InquiryMessageSenderTypeEnum,
 	createdAt: z.date(),
@@ -148,18 +151,57 @@ export const GetInquiryTicketByIdSchema = z.object({
 export const CreateInquiryTicketSchema = z.object({
 	citizenEmail: z
 		.email({ message: "Enter a valid email address." })
-		.max(TEXT_LIMITS.SM, { message: "Email is too long." }),
-	citizenName: z
+		.max(TEXT_LIMITS.SM, { message: "Email is too long." })
+		.optional()
+		.or(z.literal("")),
+	citizenFirstName: z
 		.string()
-		.min(1, { message: "Name is required." })
+		.min(1, { message: "First name is required." })
 		.max(TEXT_LIMITS.XS, {
-			message: `Name must be ${TEXT_LIMITS.XS} characters or less.`,
+			message: `First name must be ${TEXT_LIMITS.XS} characters or less.`,
+		}),
+	citizenLastName: z
+		.string()
+		.min(1, { message: "Last name is required." })
+		.max(TEXT_LIMITS.XS, {
+			message: `Last name must be ${TEXT_LIMITS.XS} characters or less.`,
+		}),
+	citizenContactNumber: z
+		.string()
+		.min(1, { message: "Contact number is required." })
+		.superRefine((rawVal, ctx) => {
+			// Normalize for validation: strip spaces and dashes
+			const val = rawVal.replace(/[\s-]/g, "");
+			if (!val) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Contact number is required.",
+				});
+				return;
+			}
+			// Accept only complete Philippine mobile numbers:
+			// - Local format: 09XXXXXXXXX
+			// - International format: +639XXXXXXXXX
+			const isValidPhMobile = /^09\d{9}$/.test(val) || /^\+639\d{9}$/.test(val);
+			if (!isValidPhMobile) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message:
+						"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+				});
+			}
+		}),
+	citizenAddress: z
+		.string()
+		.min(1, { message: "Address is required." })
+		.max(TEXT_LIMITS.SM, {
+			message: `Address must be ${TEXT_LIMITS.SM} characters or less.`,
 		}),
 	subject: z
 		.string()
 		.min(1, { message: "Subject is required." })
-		.max(TEXT_LIMITS.SM, {
-			message: `Subject must be ${TEXT_LIMITS.SM} characters or less.`,
+		.max(TEXT_LIMITS.XS, {
+			message: `Subject must be ${TEXT_LIMITS.XS} characters or less.`,
 		}),
 	category: InquiryTicketCategoryEnum,
 	message: z
@@ -205,9 +247,31 @@ export const TrackInquiryTicketSchema = z.object({
 		.max(TEXT_LIMITS.SM, { message: "Reference number is invalid." })
 		.trim()
 		.toUpperCase(),
-	citizenEmail: z
-		.email({ message: "Enter the email used for this inquiry." })
-		.max(TEXT_LIMITS.SM, { message: "Email is too long." }),
+	citizenContactNumber: z
+		.string()
+		.min(1, { message: "Contact number is required." })
+		.superRefine((rawVal, ctx) => {
+			// Normalize for validation: strip spaces and dashes
+			const val = rawVal.replace(/[\s-]/g, "");
+			if (!val) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Contact number is required.",
+				});
+				return;
+			}
+			// Accept only complete Philippine mobile numbers:
+			// - Local format: 09XXXXXXXXX
+			// - International format: +639XXXXXXXXX
+			const isValidPhMobile = /^09\d{9}$/.test(val) || /^\+639\d{9}$/.test(val);
+			if (!isValidPhMobile) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message:
+						"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+				});
+			}
+		}),
 });
 
 export const TrackInquiryTicketResponseSchema = z

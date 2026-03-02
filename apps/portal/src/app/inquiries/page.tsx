@@ -5,15 +5,15 @@ type PageProps = {
 		tab?: string;
 		// for auto filling the track form if user clicks through from email
 		ref?: string;
-		email?: string;
+		contact?: string;
 	}>;
 };
 
 export default async function InquiriesPage({ searchParams }: PageProps) {
 	const params = await searchParams;
 
-	// If ref and email are provided (from email link), auto-switch to track tab
-	const activeTab = params.ref && params.email ? "track" : params.tab;
+	// If ref and contact are provided (from email link), auto-switch to track tab
+	const activeTab = params.ref && params.contact ? "track" : params.tab;
 
 	return (
 		<div className="min-h-screen bg-gray-50/50 pb-24">
@@ -25,9 +25,9 @@ export default async function InquiriesPage({ searchParams }: PageProps) {
 							Citizen Inquiry Help Desk
 						</h1>
 						<p className="text-gray-600 text-sm leading-relaxed max-w-3xl">
-							Welcome to the Vice Mayor Office&apos;s digital assistance portal.
-							Whether you have a concern, want to set an appointment, or need to
-							follow up on a document request, we&apos;re here to help.
+							Welcome to the Sangguniang Panlungsod ng Iloilo digital portal;
+							for concerns, appointments, or document follow-ups, the Office of
+							the Vice Mayor is here to assist you.
 						</p>
 					</div>
 					{/* Tabs & Form Section */}
@@ -35,7 +35,7 @@ export default async function InquiriesPage({ searchParams }: PageProps) {
 						<InquiryTabs
 							activeTab={activeTab}
 							prefillRef={params.ref}
-							prefillEmail={params.email}
+							prefillContact={params.contact}
 						/>
 					</div>
 				</div>
