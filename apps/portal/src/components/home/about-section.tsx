@@ -5,10 +5,10 @@ import { Calendar, Users } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 
 interface AboutSectionProps {
-	councilorCount: number;
+	councilmembersCount: number;
 }
 
-export function AboutSection({ councilorCount }: AboutSectionProps) {
+export function AboutSection({ councilmembersCount }: AboutSectionProps) {
 	return (
 		<section className="bg-white py-16 border-b border-gray-200">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -41,7 +41,7 @@ export function AboutSection({ councilorCount }: AboutSectionProps) {
 									className="text-4xl mb-1"
 									style={{ fontFamily: "Playfair Display" }}
 								>
-									{councilorCount}
+									{councilmembersCount}
 								</div>
 								<p className="text-white/90 uppercase tracking-wider text-xs mb-2">
 									Council Members

@@ -1,4 +1,5 @@
 import { Mail, Phone } from "lucide-react";
+import Image from "next/image";
 
 interface ViceMayorProps {
 	name: string;
@@ -32,10 +33,13 @@ export function ViceMayor({
 						<div className="md:w-2/5 relative">
 							<div className="aspect-3/4 relative bg-gray-200">
 								{imageUrl ? (
-									<img
+									<Image
 										src={imageUrl}
 										alt={name}
-										className="w-full h-full object-cover"
+										fill
+										className="object-cover"
+										priority
+										sizes="(max-width: 768px) 100vw, 40vw"
 									/>
 								) : (
 									<div className="w-full h-full flex items-center justify-center text-gray-400">

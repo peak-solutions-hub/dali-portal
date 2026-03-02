@@ -107,7 +107,7 @@ export default async function HomePage() {
 				approvedResolutions={approvedResolutions}
 			/>
 			<QuickActions />
-			<AboutSection councilorCount={12} />
+			<AboutSection councilmembersCount={15} />
 			<RecentUpdates documents={latestDocuments} sessions={upcomingSessions} />
 		</div>
 	);
