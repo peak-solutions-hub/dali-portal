@@ -110,7 +110,7 @@ export function SessionDocumentCard({
 						{/* View link */}
 						<button
 							type="button"
-							className="inline-flex items-center gap-1 mt-1.5 text-xs text-[#a60202] hover:underline font-medium cursor-pointer"
+							className="inline-flex items-center gap-1 mt-1.5 text-xs text-blue-900 hover:underline font-medium cursor-pointer"
 							onClick={(e) => {
 								e.stopPropagation();
 								if (onViewDocument) {

@@ -4,9 +4,8 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "react-quill-new/dist/quill.snow.css";
 
-// Register the list-style ClassAttributor inside the dynamic import factory so
-// it is available before Quill renders. Must stay here — top-level module scope
-// with a bare `import { Quill }` would run on the server and crash.
+// Register formats + monkey-patch clipboard inside the dynamic import factory
+// (runs client-side only — top-level Quill imports would crash during SSR).
 const ReactQuill = dynamic(
 	async () => {
 		const { default: RQ } = await import("react-quill-new");
@@ -48,23 +47,20 @@ const ReactQuill = dynamic(
 			);
 		}
 
-		// Monkey-patch Clipboard.prototype.convertHTML to preserve non-breaking
-		// spaces (\u00a0 / &nbsp;) through Quill's matchText normalization.
+		// Monkey-patch Clipboard.prototype.convertHTML (not convert!) to:
+		// 1. Preserve &nbsp; through Quill's matchText (which replaces \u00a0→space)
+		// 2. Ensure ql-indent-* and ql-list-style-* from HTML survive into the Delta
 		//
-		// Problem: Quill 2.x calls `matchText` on every text node during
-		// clipboard.convert.  matchText always runs:
-		//   text.replace(/ {2,}/g, ' ')   – collapses consecutive spaces
-		//   text.replaceAll('\u00a0', ' ') – strips ALL non-breaking spaces
-		// Since convertHTML uses DOMParser (detached DOM), CSS-based workarounds
-		// (pre-wrap) don't help – isPre() only checks for <pre> tag ancestors.
-		//
-		// Fix: before DOMParser runs, swap every \u00a0 / &nbsp; for a Private
-		// Use Area placeholder (\ue000) that matchText treats as a regular
-		// character and leaves alone.  After traverse() produces the Delta we
-		// restore the placeholder back to \u00a0.
+		// WHY convertHTML instead of convert?
+		// convert() calls convertHTML() then strips the trailing \n if it has no
+		// attributes. By patching convertHTML we add indent BEFORE that check, so
+		// convert() sees attributes on the \n and keeps it.
+		type DeltaOps = {
+			ops: Array<{ insert: unknown; attributes?: Record<string, unknown> }>;
+		};
 		const ClipboardModule = Quill.import("modules/clipboard") as {
 			prototype: {
-				convertHTML: (html: string) => { ops: Array<{ insert: unknown }> };
+				convertHTML: (html: string) => DeltaOps;
 			};
 		} | null;
 
@@ -73,22 +69,116 @@ const ReactQuill = dynamic(
 			const originalConvertHTML = ClipboardModule.prototype.convertHTML;
 
 			ClipboardModule.prototype.convertHTML = function (html: string) {
+				const originalHtml = html;
+
+				// Swap &nbsp;/\u00a0 for a PUA placeholder so matchText ignores them
 				const processed = html
 					.replace(/&nbsp;/gi, PLACEHOLDER)
 					.replace(/\u00a0/g, PLACEHOLDER);
 
 				const delta = originalConvertHTML.call(this, processed);
 
-				if (delta?.ops) {
-					for (const op of delta.ops) {
-						if (typeof op.insert === "string") {
-							op.insert = (op.insert as string).replaceAll(
-								PLACEHOLDER,
-								"\u00a0",
-							);
-						}
+				if (!delta?.ops) return delta;
+
+				// Restore &nbsp; from placeholder
+				for (const op of delta.ops) {
+					if (typeof op.insert === "string") {
+						op.insert = (op.insert as string).replaceAll(PLACEHOLDER, "\u00a0");
 					}
 				}
+
+				// Safety net: parse original HTML for ql-indent-*/ql-list-style-*
+				// and ensure they appear on the corresponding \n ops in the delta.
+				// convertHTML still has the trailing \n at this point (convert()
+				// hasn't stripped it yet), so we can always find and patch it.
+				const parser = new DOMParser();
+				const doc = parser.parseFromString(originalHtml, "text/html");
+				const blocks = doc.querySelectorAll("p, li, div");
+				const expectations: Array<{
+					indent: number;
+					listStyle: string;
+				}> = [];
+				for (const block of blocks) {
+					let indent = 0;
+					let listStyle = "";
+					for (const cls of block.classList) {
+						const im = cls.match(/^ql-indent-(\d+)$/);
+						if (im?.[1]) indent = Number.parseInt(im[1], 10);
+						const sm = cls.match(/^ql-list-style-(.+)$/);
+						if (sm?.[1]) listStyle = sm[1];
+					}
+					expectations.push({ indent, listStyle });
+				}
+
+				if (expectations.some((e) => e.indent || e.listStyle)) {
+					let lineIdx = 0;
+					// Build a new ops array so we can split combined "text\n" ops into
+					// separate text + \n ops (block attrs like indent must be on a
+					// standalone \n op — they don't work on combined "text\n" ops).
+					const newOps: typeof delta.ops = [];
+					for (const op of delta.ops) {
+						if (typeof op.insert !== "string" || !op.insert.includes("\n")) {
+							newOps.push(op);
+							continue;
+						}
+
+						// Split the insert string on every \n boundary
+						const text = op.insert as string;
+						let segStart = 0;
+						for (let i = 0; i < text.length; i++) {
+							if (text[i] !== "\n") continue;
+
+							const exp = expectations[lineIdx];
+							const needsPatch =
+								(exp?.indent && !op.attributes?.indent) ||
+								(exp?.listStyle && !op.attributes?.["list-style"]);
+
+							if (needsPatch && segStart < i) {
+								// Push the text segment before \n (keeps existing inline attrs)
+								newOps.push({
+									insert: text.slice(segStart, i),
+									...(op.attributes
+										? { attributes: { ...op.attributes } }
+										: {}),
+								});
+								// Push the \n with block-level attrs merged in
+								const blockAttrs: Record<string, unknown> = {
+									...op.attributes,
+								};
+								if (exp?.indent) blockAttrs.indent = exp.indent;
+								if (exp?.listStyle) blockAttrs["list-style"] = exp.listStyle;
+								newOps.push({ insert: "\n", attributes: blockAttrs });
+								segStart = i + 1;
+							} else if (needsPatch && segStart === i) {
+								// The \n is at the start — just push it with attrs
+								const blockAttrs: Record<string, unknown> = {
+									...op.attributes,
+								};
+								if (exp?.indent) blockAttrs.indent = exp.indent;
+								if (exp?.listStyle) blockAttrs["list-style"] = exp.listStyle;
+								newOps.push({ insert: "\n", attributes: blockAttrs });
+								segStart = i + 1;
+							}
+							// else: no patching needed, will be included in the next segment
+
+							lineIdx++;
+						}
+
+						// Push any remaining text after the last \n (or the whole op if
+						// no splitting was needed at segStart=0)
+						if (segStart === 0) {
+							// Nothing was split — keep original op
+							newOps.push(op);
+						} else if (segStart < text.length) {
+							newOps.push({
+								insert: text.slice(segStart),
+								...(op.attributes ? { attributes: { ...op.attributes } } : {}),
+							});
+						}
+					}
+					delta.ops = newOps;
+				}
+
 				return delta;
 			};
 		}
@@ -105,11 +195,7 @@ interface SessionRichTextEditorProps {
 	placeholder?: string;
 }
 
-/**
- * Strip HTML tags and decode common HTML entities to get accurate plain-text
- * character count. Quill encodes spaces as &nbsp; (6 chars) which inflates the
- * count if we just strip tags without decoding entities first.
- */
+/** Strip HTML tags + decode entities to get plain-text character count. */
 function getPlainTextLength(html: string): number {
 	if (!html) return 0;
 	return (
@@ -126,11 +212,7 @@ function getPlainTextLength(html: string): number {
 	);
 }
 
-/**
- * Clipboard matcher: restores ql-indent-* and ql-list-style-* class-based
- * formats as Quill delta attributes during HTML → Delta conversion.
- * Ensures indent and list-style survive the round-trip when reopening the editor.
- */
+// Clipboard matcher: restores ql-indent / ql-list-style from classes to Delta attrs.
 function matchQuillClasses(
 	node: Node,
 	delta: {
@@ -267,15 +349,8 @@ export function SessionRichTextEditor({
 				return;
 			}
 
-			// Preserve consecutive spaces that would collapse during HTML round-trips.
-			// Quill's clipboard.convert → matchText normalises \u00a0 → regular space
-			// in the Delta.  After setContents the DOM text nodes hold regular spaces;
-			// root.innerHTML therefore returns regular spaces.  On the *next* reload
-			// the browser's HTML parser collapses runs of regular spaces to one.
-			//
-			// Fix: convert every second consecutive space in text content to \u00a0
-			// (serialised as &nbsp;).  The HTML parser keeps \u00a0, so the spaces
-			// survive unlimited round-trips.
+			// Preserve consecutive spaces: convert every 2nd space to \u00a0 so they
+			// survive HTML round-trips (browser collapses regular space runs).
 			const preserved = content.replace(/>([^<]+)/g, (_m, text: string) => {
 				return `>${text.replace(/ {2}/g, " \u00a0")}`;
 			});
@@ -329,7 +404,7 @@ export function SessionRichTextEditor({
 					padding: 2px;
 				}
 				.rich-text-editor-wrapper .ql-editor {
-					padding: 8px 9px;
+					padding: 8px 8.8px !important;
 					line-height: 1.42;
 					word-break: normal;
 					overflow-wrap: break-word;

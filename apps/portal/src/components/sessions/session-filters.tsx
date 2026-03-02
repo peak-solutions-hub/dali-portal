@@ -432,6 +432,10 @@ function DesktopSessionFilters({
 											onDateFromChange("");
 										}
 									}}
+									disabledDate={(date) => {
+										if (!dateTo) return false;
+										return date > new Date(dateTo);
+									}}
 								/>
 							</div>
 							<div className="space-y-1.5">
@@ -458,7 +462,9 @@ function DesktopSessionFilters({
 					{isDateRangeInvalid && (
 						<div className="rounded-md border border-red-200 bg-red-50 px-3 py-2">
 							<p className="text-sm text-red-600">
-								"To" date must be after "From" date
+								"From" date ({format(new Date(dateFrom), "MMM d, yyyy")}) cannot
+								be after "To" date ({format(new Date(dateTo), "MMM d, yyyy")}).
+								Please adjust your selection.
 							</p>
 						</div>
 					)}

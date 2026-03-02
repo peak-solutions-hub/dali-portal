@@ -38,7 +38,48 @@ export async function SessionDetailContent({
 	const [error, sessionData] = await api.sessions.getById({ id });
 	if (error) {
 		if (isDefinedError(error) && error.code === "NOT_FOUND") notFound();
-		notFound();
+		// Render a user-friendly error card for other failures
+		return (
+			<>
+				<div className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm">
+					<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-4">
+						<Link href="/sessions" className="inline-block">
+							<Button
+								variant="outline"
+								size="sm"
+								aria-label="Back to Sessions"
+								className="cursor-pointer"
+							>
+								<ChevronLeft className="size-4" />
+								Back to Sessions
+							</Button>
+						</Link>
+					</div>
+				</div>
+				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
+					<div className="rounded-xl border border-red-200 bg-red-50 p-12">
+						<div className="text-center space-y-4">
+							<p className="text-lg text-red-800 font-semibold">
+								Unable to Load Session
+							</p>
+							<p className="text-sm text-red-700">
+								We're experiencing technical difficulties loading this session.
+								Please try again in a moment.
+							</p>
+							<Link href="/sessions">
+								<Button
+									variant="outline"
+									size="sm"
+									className="border-red-300 text-red-700 hover:bg-red-100 cursor-pointer"
+								>
+									Back to Sessions
+								</Button>
+							</Link>
+						</div>
+					</div>
+				</div>
+			</>
+		);
 	}
 	if (!sessionData) notFound();
 

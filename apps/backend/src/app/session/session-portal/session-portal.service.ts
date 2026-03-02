@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
 	AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
 	AGENDA_DOCUMENT_ELIGIBLE_STATUS,
@@ -26,6 +26,8 @@ import {
 
 @Injectable()
 export class SessionPortalService {
+	private readonly logger = new Logger(SessionPortalService.name);
+
 	constructor(
 		private readonly db: DbService,
 		private readonly storage: SupabaseStorageService,
@@ -135,104 +137,115 @@ export class SessionPortalService {
 			defaultStatusFilter: ["scheduled", "completed"],
 		});
 
-		const orderBy: Prisma.SessionOrderByWithRelationInput =
+		const order: Prisma.SessionOrderByWithRelationInput =
 			sortBy === "date"
 				? { scheduleDate: sortDirection }
 				: { scheduleDate: "desc" };
 
-		const totalCount = await this.db.session.count({ where });
-		const totalPages = Math.ceil(totalCount / limit);
+		try {
+			const totalCount = await this.db.session.count({ where });
+			const totalPages = Math.ceil(totalCount / limit);
 
-		const sessions = await this.db.session.findMany({
-			where,
-			orderBy,
-			skip,
-			take: limit,
-		});
+			const sessions = await this.db.session.findMany({
+				where,
+				orderBy: order,
+				skip,
+				take: limit,
+			});
 
-		return {
-			sessions: sessions.map((s) => this.transformSession(s)),
-			pagination: {
-				currentPage: page,
-				totalPages,
-				totalCount,
-				itemsPerPage: limit,
-				hasNextPage: page < totalPages,
-				hasPreviousPage: page > 1,
-			},
-		};
+			return {
+				sessions: sessions.map((s) => this.transformSession(s)),
+				pagination: {
+					currentPage: page,
+					totalPages,
+					totalCount,
+					itemsPerPage: limit,
+					hasNextPage: page < totalPages,
+					hasPreviousPage: page > 1,
+				},
+			};
+		} catch (error) {
+			if (error instanceof AppError) throw error;
+			throw new AppError("SESSION.LOAD_FAILED");
+		}
 	}
 
 	/**
 	 * Get a single session by ID with full agenda (PUBLIC)
 	 */
 	async findOne(input: GetSessionByIdInput): Promise<SessionWithAgenda> {
-		const session = await this.db.session.findUnique({
-			where: { id: input.id },
-			include: {
-				sessionAgendaItem: {
-					orderBy: { orderIndex: "asc" },
-					include: {
-						document: {
-							select: {
-								id: true,
-								codeNumber: true,
-								title: true,
-								type: true,
-								status: true,
-								purpose: true,
-								classification: true,
-								receivedAt: true,
-								legislativeDocument: {
-									select: {
-										authorNames: true,
-										sponsorNames: true,
+		try {
+			const session = await this.db.session.findUnique({
+				where: { id: input.id },
+				include: {
+					sessionAgendaItem: {
+						orderBy: { orderIndex: "asc" },
+						include: {
+							document: {
+								select: {
+									id: true,
+									codeNumber: true,
+									title: true,
+									type: true,
+									status: true,
+									purpose: true,
+									classification: true,
+									receivedAt: true,
+									legislativeDocument: {
+										select: {
+											authorNames: true,
+											sponsorNames: true,
+										},
+										take: 1,
 									},
-									take: 1,
 								},
 							},
 						},
 					},
 				},
-			},
-		});
+			});
 
-		if (!session) {
-			throw new AppError("SESSION.NOT_FOUND");
+			if (!session) {
+				throw new AppError("SESSION.NOT_FOUND");
+			}
+
+			// Only return scheduled and completed sessions to public
+			if (session.status === "draft") {
+				throw new AppError("SESSION.NOT_FOUND");
+			}
+
+			// Flatten legislativeDocument into authors/sponsors on raw data before transforming
+			const flattenedSession = {
+				...session,
+				sessionAgendaItem: session.sessionAgendaItem.map((item) => {
+					if (!item.document) return item;
+					const { legislativeDocument, receivedAt, ...docRest } = item.document;
+					const legDoc = (
+						legislativeDocument as {
+							authorNames: string[];
+							sponsorNames: string[];
+						}[]
+					)?.[0];
+					return {
+						...item,
+						document: {
+							...docRest,
+							receivedAt: receivedAt.toISOString(),
+							authors: legDoc?.authorNames ?? [],
+							sponsors: legDoc?.sponsorNames ?? [],
+						},
+					};
+				}),
+			};
+
+			return this.transformSessionWithAgenda(
+				flattenedSession,
+			) as SessionWithAgenda;
+		} catch (error) {
+			if (error instanceof AppError) throw error;
+			this.logger.error("Failed to load session by ID", error);
+			throw new AppError("SESSION.LOAD_FAILED");
 		}
-
-		// Only return scheduled and completed sessions to public
-		if (session.status === "draft") {
-			throw new AppError("SESSION.NOT_FOUND");
-		}
-
-		// Flatten legislativeDocument into authors/sponsors on raw data before transforming
-		const flattenedSession = {
-			...session,
-			sessionAgendaItem: session.sessionAgendaItem.map((item) => {
-				if (!item.document) return item;
-				const { legislativeDocument, receivedAt, ...docRest } = item.document;
-				const legDoc = (
-					legislativeDocument as {
-						authorNames: string[];
-						sponsorNames: string[];
-					}[]
-				)?.[0];
-				return {
-					...item,
-					document: {
-						...docRest,
-						receivedAt: receivedAt.toISOString(),
-						authors: legDoc?.authorNames ?? [],
-						sponsors: legDoc?.sponsorNames ?? [],
-					},
-				};
-			}),
-		};
-
-		return this.transformSessionWithAgenda(
-			flattenedSession,
-		) as SessionWithAgenda;
 	}
 
 	/**

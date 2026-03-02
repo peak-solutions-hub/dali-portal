@@ -1,5 +1,6 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import type { SessionManagementSession as SessionUI } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Plus } from "@repo/ui/lib/lucide-react";
@@ -12,6 +13,8 @@ import {
 	SaveBeforeCreateDialog,
 	SessionAgendaPanel,
 	SessionDocumentsPanel,
+	SessionErrorState,
+	SessionPageSkeleton,
 } from "@/components/session-management";
 import { useAgendaBuilder, useSessionActions } from "@/hooks";
 import { api, orpc } from "@/lib/api.client";
@@ -110,6 +113,7 @@ function AgendaBuilderPage() {
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
+	const [documentsError, setDocumentsError] = useState<string | null>(null);
 	const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
 
 	// --- Agenda builder state (content, docs, ordering, dirty tracking) ---
@@ -198,6 +202,7 @@ function AgendaBuilderPage() {
 		actionInFlight,
 		isRemovingPdf,
 		isLoadingSession,
+		sessionLoadError,
 		removingItemIds,
 		handleSessionChange: loadSession,
 		handleDocumentsChange,
@@ -219,6 +224,13 @@ function AgendaBuilderPage() {
 		const [err, data] = await api.sessions.approvedDocuments({});
 		if (!err && data) {
 			setDocuments(data.documents);
+			setDocumentsError(null);
+		} else {
+			setDocumentsError(
+				isDefinedError(err)
+					? err.message
+					: "Failed to load approved documents.",
+			);
 		}
 	}, []);
 
@@ -275,14 +287,6 @@ function AgendaBuilderPage() {
 
 	const selectedSessionData = sessions.find((s) => s.id === selectedSession);
 
-	if (isLoading || sessionsQuery.isLoading) {
-		return (
-			<div className="h-full bg-gray-50 flex items-center justify-center">
-				<p className="text-sm text-gray-500">Loading sessions...</p>
-			</div>
-		);
-	}
-
 	return (
 		<div className="h-full bg-gray-50 overflow-hidden border-b border-[#e5e7eb] px-6 py-4">
 			<div className="container mx-auto max-w-360 h-full flex flex-col">
@@ -312,63 +316,86 @@ function AgendaBuilderPage() {
 				</div>
 
 				{/* Two Column Layout */}
-				<div className="flex gap-4 flex-1 overflow-hidden">
-					{/* Left Panel - Documents (454px) */}
-					<div className="w-113.5 shrink-0 overflow-y-auto">
-						<SessionDocumentsPanel
-							documents={documents}
-							onViewDocument={setViewerDocumentId}
-						/>
-					</div>
+				{isLoading || sessionsQuery.isLoading ? (
+					<SessionPageSkeleton />
+				) : sessionsQuery.isError ? (
+					<SessionErrorState
+						variant="sessions"
+						message={sessionsQuery.error?.message}
+						onRetry={() => sessionsQuery.refetch()}
+					/>
+				) : (
+					<div className="flex gap-4 flex-1 overflow-hidden">
+						{/* Left Panel - Documents (454px) */}
+						<div className="w-113.5 shrink-0 overflow-y-auto">
+							{documentsError && (
+								<div className="mb-3">
+									<SessionErrorState
+										variant="documents"
+										message={documentsError}
+										onRetry={fetchDocuments}
+									/>
+								</div>
+							)}
+							<SessionDocumentsPanel
+								documents={documents}
+								onViewDocument={setViewerDocumentId}
+							/>
+						</div>
 
-					{/* Right Panel - Agenda */}
-					<div className="flex-1 overflow-y-auto">
-						<SessionAgendaPanel
-							sessions={sessions}
-							selectedSession={selectedSessionData || null}
-							agendaItems={orderedAgendaItems}
-							onAddDocument={handleAddDocument}
-							onSaveDraft={handleSaveDraft}
-							onPublish={handlePublish}
-							onMarkComplete={handleMarkComplete}
-							onSessionChange={handleSessionChange}
-							onUnpublish={handleUnpublish}
-							onDeleteDraft={onDeleteDraft}
-							actionInFlight={actionInFlight}
-							contentTextMap={contentTextMap}
-							onContentTextChange={handleContentTextChange}
-							documentsByAgendaItem={documentsByAgendaItem}
-							onDocumentsByAgendaItemChange={handleDocumentsChange}
-							onViewDocument={setViewerDocumentId}
-							hasChanges={hasChanges}
-							changedSections={changedSections}
-							onRemoveAgendaPdf={handleRemoveAgendaPdf}
-							onAgendaPdfUploadSuccess={invalidateSessions}
-							isRemovingPdf={isRemovingPdf}
-							isLoadingSession={isLoadingSession}
-							onDndReorder={handleDndReorder}
-							onMixedDndReorder={builder.handleMixedDndReorder}
-							onWriteCommitteeState={builder.writeCommitteeState}
-							onCommitteeDocClassify={handleCommitteeDocClassify}
-							onDiscardChanges={() => {
-								revertToSaved();
-								if (selectedSession) clearDraft(selectedSession);
-							}}
-							customTextsBySection={customTextsBySection}
-							onAddCustomText={addCustomText}
-							onUpdateCustomText={updateCustomText}
-							onRemoveCustomText={handleRemoveCustomText}
-							onReorderCustomTexts={builder.reorderCustomTexts}
-							onMoveCustomText={moveCustomTextToSection}
-							onScheduledRemoveDocument={handleScheduledRemoveDocument}
-							removingItemIds={removingItemIds}
-							isSessionEmpty={isSessionEmpty}
-							hasNextPage={sessionsQuery.hasNextPage}
-							isFetchingNextPage={sessionsQuery.isFetchingNextPage}
-							onLoadMoreSessions={sessionsQuery.fetchNextPage}
-						/>
+						{/* Right Panel - Agenda */}
+						<div className="flex-1 overflow-y-auto">
+							<SessionAgendaPanel
+								sessions={sessions}
+								selectedSession={selectedSessionData || null}
+								agendaItems={orderedAgendaItems}
+								onAddDocument={handleAddDocument}
+								onSaveDraft={handleSaveDraft}
+								onPublish={handlePublish}
+								onMarkComplete={handleMarkComplete}
+								onSessionChange={handleSessionChange}
+								onUnpublish={handleUnpublish}
+								onDeleteDraft={onDeleteDraft}
+								actionInFlight={actionInFlight}
+								contentTextMap={contentTextMap}
+								onContentTextChange={handleContentTextChange}
+								documentsByAgendaItem={documentsByAgendaItem}
+								onDocumentsByAgendaItemChange={handleDocumentsChange}
+								onViewDocument={setViewerDocumentId}
+								hasChanges={hasChanges}
+								changedSections={changedSections}
+								onRemoveAgendaPdf={handleRemoveAgendaPdf}
+								onAgendaPdfUploadSuccess={invalidateSessions}
+								isRemovingPdf={isRemovingPdf}
+								isLoadingSession={isLoadingSession}
+								sessionLoadError={sessionLoadError}
+								onRetryLoadSession={() => {
+									if (selectedSession) loadSession(selectedSession);
+								}}
+								onDndReorder={handleDndReorder}
+								onMixedDndReorder={builder.handleMixedDndReorder}
+								onWriteCommitteeState={builder.writeCommitteeState}
+								onCommitteeDocClassify={handleCommitteeDocClassify}
+								onDiscardChanges={() => {
+									revertToSaved();
+									if (selectedSession) clearDraft(selectedSession);
+								}}
+								customTextsBySection={customTextsBySection}
+								onAddCustomText={addCustomText}
+								onUpdateCustomText={updateCustomText}
+								onRemoveCustomText={handleRemoveCustomText}
+								onReorderCustomTexts={builder.reorderCustomTexts}
+								onMoveCustomText={moveCustomTextToSection}
+								onScheduledRemoveDocument={handleScheduledRemoveDocument}
+								removingItemIds={removingItemIds}
+								isSessionEmpty={isSessionEmpty}
+								hasNextPage={sessionsQuery.hasNextPage}
+								isFetchingNextPage={sessionsQuery.isFetchingNextPage}
+								onLoadMoreSessions={sessionsQuery.fetchNextPage}
+							/>
+						</div>
 					</div>
-				</div>
+				)}
 
 				{/* Dialogs */}
 				<CreateSessionDialog

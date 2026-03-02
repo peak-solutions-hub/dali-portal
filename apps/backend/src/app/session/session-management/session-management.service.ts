@@ -157,27 +157,32 @@ export class SessionManagementService {
 				? { scheduleDate: sortDirection }
 				: { scheduleDate: "desc" };
 
-		const totalCount = await this.db.session.count({ where });
-		const totalPages = Math.ceil(totalCount / limit);
+		try {
+			const totalCount = await this.db.session.count({ where });
+			const totalPages = Math.ceil(totalCount / limit);
 
-		const sessions = await this.db.session.findMany({
-			where,
-			orderBy,
-			skip,
-			take: limit,
-		});
+			const sessions = await this.db.session.findMany({
+				where,
+				orderBy,
+				skip,
+				take: limit,
+			});
 
-		return {
-			sessions: sessions.map((s) => this.transformSession(s)),
-			pagination: {
-				currentPage: page,
-				totalPages,
-				totalCount,
-				itemsPerPage: limit,
-				hasNextPage: page < totalPages,
-				hasPreviousPage: page > 1,
-			},
-		};
+			return {
+				sessions: sessions.map((s) => this.transformSession(s)),
+				pagination: {
+					currentPage: page,
+					totalPages,
+					totalCount,
+					itemsPerPage: limit,
+					hasNextPage: page < totalPages,
+					hasPreviousPage: page > 1,
+				},
+			};
+		} catch (error) {
+			if (error instanceof AppError) throw error;
+			throw new AppError("SESSION.LOAD_FAILED");
+		}
 	}
 
 	/**
@@ -186,33 +191,39 @@ export class SessionManagementService {
 	async adminFindOne(
 		input: GetSessionByIdInput,
 	): Promise<AdminSessionWithAgenda> {
-		const session = await this.db.session.findUnique({
-			where: { id: input.id },
-			include: {
-				sessionAgendaItem: {
-					orderBy: { orderIndex: "asc" },
-					include: {
-						document: {
-							select: {
-								id: true,
-								codeNumber: true,
-								title: true,
-								type: true,
-								status: true,
-								purpose: true,
-								classification: true,
+		try {
+			const session = await this.db.session.findUnique({
+				where: { id: input.id },
+				include: {
+					sessionAgendaItem: {
+						orderBy: { orderIndex: "asc" },
+						include: {
+							document: {
+								select: {
+									id: true,
+									codeNumber: true,
+									title: true,
+									type: true,
+									status: true,
+									purpose: true,
+									classification: true,
+								},
 							},
 						},
 					},
 				},
-			},
-		});
+			});
 
-		if (!session) {
-			throw new AppError("SESSION.NOT_FOUND");
+			if (!session) {
+				throw new AppError("SESSION.NOT_FOUND");
+			}
+
+			return this.transformSessionWithAgenda(session) as AdminSessionWithAgenda;
+		} catch (error) {
+			if (error instanceof AppError) throw error;
+			this.logger.error("Failed to load session by ID", error);
+			throw new AppError("SESSION.LOAD_FAILED");
 		}
-
-		return this.transformSessionWithAgenda(session) as AdminSessionWithAgenda;
 	}
 
 	/**
@@ -283,66 +294,71 @@ export class SessionManagementService {
 		}
 
 		// Replace all agenda items in a transaction
-		await this.db.$transaction(async (tx) => {
-			// Delete existing agenda items
-			await tx.sessionAgendaItem.deleteMany({
-				where: { sessionId: input.id },
-			});
-
-			// Collect linked document IDs to fetch their attachment info
-			const linkedDocIds = input.agendaItems
-				.map((item) => item.linkedDocument)
-				.filter((id): id is string => !!id);
-
-			// Fetch latest version file info for all linked documents in one query
-			const documentVersions =
-				linkedDocIds.length > 0
-					? await tx.documentVersion.findMany({
-							where: { documentId: { in: linkedDocIds } },
-							orderBy: { versionNumber: "desc" },
-							distinct: ["documentId"],
-							select: {
-								documentId: true,
-								filePath: true,
-							},
-						})
-					: [];
-
-			const versionMap = new Map(
-				documentVersions.map((v) => [v.documentId, v]),
-			);
-
-			// Create new agenda items
-			if (input.agendaItems.length > 0) {
-				await tx.sessionAgendaItem.createMany({
-					data: input.agendaItems.map((item) => {
-						// Auto-fill attachment fields from the linked document's latest version
-						let attachmentPath = item.attachmentPath ?? null;
-						let attachmentName = item.attachmentName ?? null;
-
-						if (item.linkedDocument) {
-							const version = versionMap.get(item.linkedDocument);
-							if (version?.filePath) {
-								attachmentPath = version.filePath;
-								// Extract file name from the file path
-								attachmentName =
-									version.filePath.split("/").pop() ?? attachmentName;
-							}
-						}
-
-						return {
-							sessionId: input.id,
-							section: item.section as SessionSection,
-							orderIndex: item.orderIndex,
-							contentText: item.contentText ?? null,
-							linkedDocument: item.linkedDocument ?? null,
-							attachmentPath,
-							attachmentName,
-						};
-					}),
+		await this.db
+			.$transaction(async (tx) => {
+				// Delete existing agenda items
+				await tx.sessionAgendaItem.deleteMany({
+					where: { sessionId: input.id },
 				});
-			}
-		});
+
+				// Collect linked document IDs to fetch their attachment info
+				const linkedDocIds = input.agendaItems
+					.map((item) => item.linkedDocument)
+					.filter((id): id is string => !!id);
+
+				// Fetch latest version file info for all linked documents in one query
+				const documentVersions =
+					linkedDocIds.length > 0
+						? await tx.documentVersion.findMany({
+								where: { documentId: { in: linkedDocIds } },
+								orderBy: { versionNumber: "desc" },
+								distinct: ["documentId"],
+								select: {
+									documentId: true,
+									filePath: true,
+								},
+							})
+						: [];
+
+				const versionMap = new Map(
+					documentVersions.map((v) => [v.documentId, v]),
+				);
+
+				// Create new agenda items
+				if (input.agendaItems.length > 0) {
+					await tx.sessionAgendaItem.createMany({
+						data: input.agendaItems.map((item) => {
+							// Auto-fill attachment fields from the linked document's latest version
+							let attachmentPath = item.attachmentPath ?? null;
+							let attachmentName = item.attachmentName ?? null;
+
+							if (item.linkedDocument) {
+								const version = versionMap.get(item.linkedDocument);
+								if (version?.filePath) {
+									attachmentPath = version.filePath;
+									// Extract file name from the file path
+									attachmentName =
+										version.filePath.split("/").pop() ?? attachmentName;
+								}
+							}
+
+							return {
+								sessionId: input.id,
+								section: item.section as SessionSection,
+								orderIndex: item.orderIndex,
+								contentText: item.contentText ?? null,
+								linkedDocument: item.linkedDocument ?? null,
+								attachmentPath,
+								attachmentName,
+							};
+						}),
+					});
+				}
+			})
+			.catch((error) => {
+				this.logger.error("Failed to save session draft", error);
+				throw new AppError("SESSION.SAVE_FAILED");
+			});
 
 		// Return the updated session with agenda
 		return this.adminFindOne({ id: input.id });
@@ -369,13 +385,18 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_DRAFT");
 		}
 
-		const updated = await this.db.session.update({
-			where: { id: input.id },
-			data: { status: SessionStatus.SCHEDULED },
-		});
+		try {
+			const updated = await this.db.session.update({
+				where: { id: input.id },
+				data: { status: SessionStatus.SCHEDULED },
+			});
 
-		this.logger.log(`Session #${Number(session.sessionNumber)} published`);
-		return this.transformSession(updated) as AdminSessionResponse;
+			this.logger.log(`Session #${Number(session.sessionNumber)} published`);
+			return this.transformSession(updated) as AdminSessionResponse;
+		} catch (error) {
+			this.logger.error("Failed to publish session", error);
+			throw new AppError("SESSION.PUBLISH_FAILED");
+		}
 	}
 
 	/**
@@ -395,21 +416,27 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
-		const updated = await this.db.session.update({
-			where: { id: input.id },
-			data: { status: SessionStatus.DRAFT, agendaFilePath: null },
-		});
+		try {
+			const updated = await this.db.session.update({
+				where: { id: input.id },
+				data: { status: SessionStatus.DRAFT, agendaFilePath: null },
+			});
 
-		// Delete the agenda PDF from storage if one was uploaded
-		if (session.agendaFilePath) {
-			await this.storage.deleteFile(
-				SESSION_AGENDA_BUCKET,
-				session.agendaFilePath,
-			);
+			// Delete the agenda PDF from storage if one was uploaded
+			if (session.agendaFilePath) {
+				await this.storage.deleteFile(
+					SESSION_AGENDA_BUCKET,
+					session.agendaFilePath,
+				);
+			}
+
+			this.logger.log(`Session #${Number(session.sessionNumber)} unpublished`);
+			return this.transformSession(updated) as AdminSessionResponse;
+		} catch (error) {
+			if (error instanceof AppError) throw error;
+			this.logger.error("Failed to unpublish session", error);
+			throw new AppError("SESSION.UNPUBLISH_FAILED");
 		}
-
-		this.logger.log(`Session #${Number(session.sessionNumber)} unpublished`);
-		return this.transformSession(updated) as AdminSessionResponse;
 	}
 
 	/**
@@ -435,13 +462,18 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
-		const updated = await this.db.session.update({
-			where: { id: input.id },
-			data: { status: SessionStatus.COMPLETED },
-		});
+		try {
+			const updated = await this.db.session.update({
+				where: { id: input.id },
+				data: { status: SessionStatus.COMPLETED },
+			});
 
-		this.logger.log(`Session #${Number(session.sessionNumber)} completed`);
-		return this.transformSession(updated) as AdminSessionResponse;
+			this.logger.log(`Session #${Number(session.sessionNumber)} completed`);
+			return this.transformSession(updated) as AdminSessionResponse;
+		} catch (error) {
+			this.logger.error("Failed to mark session as completed", error);
+			throw new AppError("SESSION.COMPLETE_FAILED");
+		}
 	}
 
 	/**
@@ -460,66 +492,77 @@ export class SessionManagementService {
 			throw new AppError("SESSION.DELETE_NOT_DRAFT");
 		}
 
-		// Delete agenda items first, then session
-		await this.db.$transaction(async (tx) => {
-			await tx.sessionAgendaItem.deleteMany({
-				where: { sessionId: input.id },
+		try {
+			// Delete agenda items first, then session
+			await this.db.$transaction(async (tx) => {
+				await tx.sessionAgendaItem.deleteMany({
+					where: { sessionId: input.id },
+				});
+				await tx.session.delete({
+					where: { id: input.id },
+				});
 			});
-			await tx.session.delete({
-				where: { id: input.id },
-			});
-		});
 
-		this.logger.log(`Session #${Number(session.sessionNumber)} deleted`);
-		return this.transformSession(session) as AdminSessionResponse;
+			this.logger.log(`Session #${Number(session.sessionNumber)} deleted`);
+			return this.transformSession(session) as AdminSessionResponse;
+		} catch (error) {
+			this.logger.error("Failed to delete session", error);
+			throw new AppError("SESSION.DELETE_FAILED");
+		}
 	}
 
 	/**
 	 * List approved documents for agenda linking (ADMIN)
 	 */
 	async getApprovedDocuments(): Promise<ApprovedDocumentListResponse> {
-		const documents = await this.db.document.findMany({
-			where: {
-				status: AGENDA_DOCUMENT_ELIGIBLE_STATUS,
-				purpose: AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
-			},
-			select: {
-				id: true,
-				codeNumber: true,
-				title: true,
-				type: true,
-				status: true,
-				purpose: true,
-				classification: true,
-				receivedAt: true,
-				legislativeDocument: {
-					select: {
-						authorNames: true,
-						sponsorNames: true,
-					},
-					take: 1,
+		try {
+			const documents = await this.db.document.findMany({
+				where: {
+					status: AGENDA_DOCUMENT_ELIGIBLE_STATUS,
+					purpose: AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
 				},
-			},
-			orderBy: { receivedAt: "desc" },
-		});
+				select: {
+					id: true,
+					codeNumber: true,
+					title: true,
+					type: true,
+					status: true,
+					purpose: true,
+					classification: true,
+					receivedAt: true,
+					legislativeDocument: {
+						select: {
+							authorNames: true,
+							sponsorNames: true,
+						},
+						take: 1,
+					},
+				},
+				orderBy: { receivedAt: "desc" },
+			});
 
-		return {
-			documents: documents.map((doc) => {
-				const legDoc = doc.legislativeDocument[0];
-				return {
-					id: doc.id,
-					title: doc.title,
-					type: doc.type,
-					number: doc.codeNumber,
-					classification: doc.classification,
-					status: doc.status,
-					purpose: doc.purpose,
-					receivedAt: doc.receivedAt.toISOString(),
-					authors: legDoc?.authorNames ?? [],
-					sponsors: legDoc?.sponsorNames ?? [],
-				};
-			}),
-		};
+			return {
+				documents: documents.map((doc) => {
+					const legDoc = doc.legislativeDocument[0];
+					return {
+						id: doc.id,
+						title: doc.title,
+						type: doc.type,
+						number: doc.codeNumber,
+						classification: doc.classification,
+						status: doc.status,
+						purpose: doc.purpose,
+						receivedAt: doc.receivedAt.toISOString(),
+						authors: legDoc?.authorNames ?? [],
+						sponsors: legDoc?.sponsorNames ?? [],
+					};
+				}),
+			};
+		} catch (error) {
+			if (error instanceof AppError) throw error;
+			this.logger.error("Failed to load approved documents", error);
+			throw new AppError("SESSION.LOAD_FAILED");
+		}
 	}
 
 	/* ============================
@@ -613,7 +656,7 @@ export class SessionManagementService {
 			};
 		} catch (error) {
 			this.logger.error("Failed to generate agenda upload URL", error);
-			throw new AppError("SESSION.AGENDA_UPLOAD_FAILED");
+			throw new AppError("STORAGE.SIGNED_URL_FAILED");
 		}
 	}
 
@@ -636,16 +679,21 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
-		// Only persist the file path — no tracking agenda item is created
-		const updated = await this.db.session.update({
-			where: { id: input.id },
-			data: { agendaFilePath: input.filePath },
-		});
+		try {
+			// Only persist the file path — no tracking agenda item is created
+			const updated = await this.db.session.update({
+				where: { id: input.id },
+				data: { agendaFilePath: input.filePath },
+			});
 
-		this.logger.log(
-			`Agenda PDF saved for session #${Number(session.sessionNumber)}`,
-		);
-		return this.transformSession(updated) as AdminSessionResponse;
+			this.logger.log(
+				`Agenda PDF saved for session #${Number(session.sessionNumber)}`,
+			);
+			return this.transformSession(updated) as AdminSessionResponse;
+		} catch (error) {
+			this.logger.error("Failed to save agenda PDF", error);
+			throw new AppError("SESSION.AGENDA_SAVE_FAILED");
+		}
 	}
 
 	/**
@@ -679,15 +727,21 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_FOUND");
 		}
 
-		await this.db.sessionAgendaItem.delete({
-			where: { id: input.agendaItemId },
-		});
+		try {
+			await this.db.sessionAgendaItem.delete({
+				where: { id: input.agendaItemId },
+			});
 
-		this.logger.log(
-			`Agenda item ${input.agendaItemId} removed from session #${Number(session.sessionNumber)}`,
-		);
+			this.logger.log(
+				`Agenda item ${input.agendaItemId} removed from session #${Number(session.sessionNumber)}`,
+			);
 
-		return this.adminFindOne({ id: input.sessionId });
+			return this.adminFindOne({ id: input.sessionId });
+		} catch (error) {
+			if (error instanceof AppError) throw error;
+			this.logger.error("Failed to remove agenda item", error);
+			throw new AppError("SESSION.REMOVE_ITEM_FAILED");
+		}
 	}
 
 	/**
@@ -708,23 +762,29 @@ export class SessionManagementService {
 			throw new AppError("SESSION.NOT_SCHEDULED");
 		}
 
-		// Clear the agendaFilePath on the session
-		const updated = await this.db.session.update({
-			where: { id: input.id },
-			data: { agendaFilePath: null },
-		});
+		try {
+			// Clear the agendaFilePath on the session
+			const updated = await this.db.session.update({
+				where: { id: input.id },
+				data: { agendaFilePath: null },
+			});
 
-		// Delete the actual file from the storage bucket
-		if (session.agendaFilePath) {
-			await this.storage.deleteFile(
-				SESSION_AGENDA_BUCKET,
-				session.agendaFilePath,
+			// Delete the actual file from the storage bucket
+			if (session.agendaFilePath) {
+				await this.storage.deleteFile(
+					SESSION_AGENDA_BUCKET,
+					session.agendaFilePath,
+				);
+			}
+
+			this.logger.log(
+				`Agenda PDF removed for session #${Number(session.sessionNumber)}`,
 			);
+			return this.transformSession(updated) as AdminSessionResponse;
+		} catch (error) {
+			if (error instanceof AppError) throw error;
+			this.logger.error("Failed to remove agenda PDF", error);
+			throw new AppError("SESSION.AGENDA_DELETE_FAILED");
 		}
-
-		this.logger.log(
-			`Agenda PDF removed for session #${Number(session.sessionNumber)}`,
-		);
-		return this.transformSession(updated) as AdminSessionResponse;
 	}
 }

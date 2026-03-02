@@ -95,7 +95,7 @@ export function DocumentViewButton({
 			<button
 				type="button"
 				onClick={handleOpen}
-				className="shrink-0 text-gray-400 hover:text-[#a60202] transition-colors cursor-pointer"
+				className="shrink-0 text-gray-400 hover:text-blue-900 transition-colors cursor-pointer"
 				aria-label={`View document ${codeNumber || label || ""}`}
 				title="View document"
 			>

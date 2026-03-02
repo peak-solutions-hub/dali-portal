@@ -118,9 +118,45 @@ export const ERRORS = {
 			status: 500,
 			message: "Failed to create session. Please try again.",
 		},
+		LOAD_FAILED: {
+			status: 500,
+			message: "Failed to load session data. Please try again.",
+		},
+		SAVE_FAILED: {
+			status: 500,
+			message: "Failed to save session draft. Please try again.",
+		},
+		PUBLISH_FAILED: {
+			status: 500,
+			message: "Failed to publish session. Please try again.",
+		},
+		UNPUBLISH_FAILED: {
+			status: 500,
+			message: "Failed to unpublish session. Please try again.",
+		},
+		COMPLETE_FAILED: {
+			status: 500,
+			message: "Failed to mark session as completed. Please try again.",
+		},
+		DELETE_FAILED: {
+			status: 500,
+			message: "Failed to delete session. Please try again.",
+		},
+		REMOVE_ITEM_FAILED: {
+			status: 500,
+			message: "Failed to remove agenda item. Please try again.",
+		},
 		AGENDA_UPLOAD_FAILED: {
 			status: 500,
 			message: "Failed to upload session agenda. Please try again.",
+		},
+		AGENDA_SAVE_FAILED: {
+			status: 500,
+			message: "Failed to save agenda PDF. Please try again.",
+		},
+		AGENDA_DELETE_FAILED: {
+			status: 500,
+			message: "Failed to remove agenda PDF. Please try again.",
 		},
 	},
 	AUTH: {

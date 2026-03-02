@@ -1,4 +1,3 @@
-import { isDefinedError } from "@orpc/client";
 import type { Session, SessionSearchParams } from "@repo/shared";
 import {
 	buildSessionQueryString,
@@ -138,10 +137,16 @@ async function SessionContent({
 	if (error) {
 		console.error("API error fetching sessions:", error);
 
-		let errorMessage = "An unexpected error occurred";
-		if (isDefinedError(error)) {
-			errorMessage = error.message || errorMessage;
-		}
+		const isDateRangeError =
+			"status" in error && (error as { status: number }).status === 400;
+
+		const errorTitle = isDateRangeError
+			? "Invalid Date Range"
+			: "Unable to Load Sessions";
+
+		const errorDescription = isDateRangeError
+			? `The selected date range is invalid — "From" date cannot be later than "To" date. Please adjust your filters and try again.`
+			: "We're experiencing technical difficulties. Please try again in a moment.";
 
 		return (
 			<div className="min-h-screen bg-gray-50">
@@ -155,15 +160,18 @@ async function SessionContent({
 						</p>
 					</div>
 					<Card className="p-12 border-red-200 bg-red-50">
-						<div className="text-center">
-							<p className="text-lg mb-2 text-red-800 font-semibold">
-								Unable to Load Sessions
-							</p>
-							<p className="text-sm text-red-700 mb-4">
-								We're experiencing technical difficulties loading the sessions.
-								Please try refreshing the page.
-							</p>
-							<p className="text-xs text-red-600">Error: {errorMessage}</p>
+						<div className="text-center space-y-4">
+							<p className="text-lg text-red-800 font-semibold">{errorTitle}</p>
+							<p className="text-sm text-red-700">{errorDescription}</p>
+							<Link href="/sessions">
+								<Button
+									variant="outline"
+									size="sm"
+									className="border-red-300 text-red-700 hover:bg-red-100 cursor-pointer"
+								>
+									{isDateRangeError ? "Clear Filters" : "Try Again"}
+								</Button>
+							</Link>
 						</div>
 					</Card>
 				</div>

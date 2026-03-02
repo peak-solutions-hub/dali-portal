@@ -33,8 +33,12 @@ export function useSessionActions({
 	builder,
 	invalidateSessions,
 }: UseSessionActionsOptions) {
-	const { isLoadingSession, isLoadingRef, handleSessionChange } =
-		useSessionLoad({ builder });
+	const {
+		isLoadingSession,
+		sessionLoadError,
+		isLoadingRef,
+		handleSessionChange,
+	} = useSessionLoad({ builder });
 
 	const { handleDocumentsChange } = useSessionDraftPersist({
 		selectedSession,
@@ -65,6 +69,7 @@ export function useSessionActions({
 		actionInFlight,
 		isRemovingPdf,
 		isLoadingSession,
+		sessionLoadError,
 		removingItemIds,
 
 		// Handlers

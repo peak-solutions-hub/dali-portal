@@ -165,7 +165,7 @@ export function SessionDocumentRow({
 						<button
 							type="button"
 							onClick={() => onViewDocument(doc.id)}
-							className="inline-flex items-center justify-center rounded-md text-gray-500 hover:text-[#a60202] hover:bg-red-50 h-8 w-8 transition-colors cursor-pointer"
+							className="inline-flex items-center justify-center rounded-md text-gray-500 hover:text-blue-900 hover:bg-blue-50 h-8 w-8 transition-colors cursor-pointer"
 							title="View document"
 						>
 							<ExternalLink className="h-3.5 w-3.5" />

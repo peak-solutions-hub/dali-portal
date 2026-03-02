@@ -1,5 +1,6 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import type { AgendaDocument, CustomTextItem } from "@repo/shared";
 import { useCallback, useRef, useState } from "react";
 import { api } from "@/lib/api.client";
@@ -32,6 +33,7 @@ export function useSessionLoad({ builder }: UseSessionLoadOptions) {
 	const getDraft = useDraftStore((s) => s.getDraft);
 
 	const [isLoadingSession, setIsLoadingSession] = useState(false);
+	const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
 
 	// Exposed so the draft-persist effect can guard against running mid-load
 	const isLoadingRef = useRef(false);
@@ -39,12 +41,22 @@ export function useSessionLoad({ builder }: UseSessionLoadOptions) {
 	const handleSessionChange = useCallback(
 		async (sessionId: string): Promise<void> => {
 			setIsLoadingSession(true);
+			setSessionLoadError(null);
 			isLoadingRef.current = true;
 			resetEditorState();
 
 			try {
 				const [err, data] = await api.sessions.adminGetById({ id: sessionId });
-				if (!err && data && data.agendaItems.length > 0) {
+
+				if (err) {
+					const message = isDefinedError(err)
+						? err.message
+						: "Failed to load session data. Please try again.";
+					setSessionLoadError(message);
+					return;
+				}
+
+				if (data && data.agendaItems.length > 0) {
 					const newContentTextMap: Record<string, string> = {};
 					const newDocsByAgenda: Record<string, AgendaDocument[]> = {};
 					const newCustomTexts: Record<string, CustomTextItem[]> = {};
@@ -165,5 +177,10 @@ export function useSessionLoad({ builder }: UseSessionLoadOptions) {
 		],
 	);
 
-	return { isLoadingSession, isLoadingRef, handleSessionChange };
+	return {
+		isLoadingSession,
+		sessionLoadError,
+		isLoadingRef,
+		handleSessionChange,
+	};
 }

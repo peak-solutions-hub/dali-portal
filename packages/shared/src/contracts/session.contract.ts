@@ -49,6 +49,7 @@ export const listSessions = oc
 	})
 	.errors({
 		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
 	})
 	.input(GetSessionListSchema)
 	.output(SessionListResponseSchema);
@@ -67,6 +68,7 @@ export const getSessionById = oc
 	})
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
+		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
 	})
 	.input(GetSessionByIdSchema)
 	.output(SessionWithAgendaSchema);
@@ -132,6 +134,7 @@ export const adminListSessions = oc
 	})
 	.errors({
 		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
 	})
 	.input(GetSessionListAdminSchema)
 	.output(AdminSessionListResponseSchema);
@@ -150,6 +153,7 @@ export const adminGetSessionById = oc
 	})
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
+		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
 	})
 	.input(GetSessionByIdSchema)
 	.output(AdminSessionWithAgendaSchema);
@@ -166,10 +170,8 @@ export const createSession = oc
 		tags: ["Sessions", "Admin"],
 	})
 	.errors({
-		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
-		CONFLICT: ERRORS.GENERAL.CONFLICT,
-		CREATION_FAILED: ERRORS.SESSION.CREATION_FAILED,
 		DUPLICATE_DATE: ERRORS.SESSION.DUPLICATE_DATE,
+		CREATION_FAILED: ERRORS.SESSION.CREATION_FAILED,
 	})
 	.input(CreateSessionSchema)
 	.output(AdminSessionResponseSchema);
@@ -188,6 +190,7 @@ export const saveSessionDraft = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		NOT_DRAFT: ERRORS.SESSION.NOT_DRAFT,
+		SAVE_FAILED: ERRORS.SESSION.SAVE_FAILED,
 	})
 	.input(SaveSessionDraftSchema)
 	.output(AdminSessionWithAgendaSchema);
@@ -207,6 +210,7 @@ export const publishSession = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		NOT_DRAFT: ERRORS.SESSION.NOT_DRAFT,
+		PUBLISH_FAILED: ERRORS.SESSION.PUBLISH_FAILED,
 	})
 	.input(PublishSessionSchema)
 	.output(AdminSessionResponseSchema);
@@ -226,6 +230,7 @@ export const unpublishSession = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+		UNPUBLISH_FAILED: ERRORS.SESSION.UNPUBLISH_FAILED,
 	})
 	.input(UnpublishSessionSchema)
 	.output(AdminSessionResponseSchema);
@@ -244,6 +249,7 @@ export const markSessionComplete = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+		COMPLETE_FAILED: ERRORS.SESSION.COMPLETE_FAILED,
 	})
 	.input(MarkSessionCompleteSchema)
 	.output(AdminSessionResponseSchema);
@@ -262,6 +268,7 @@ export const deleteSession = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		DELETE_NOT_DRAFT: ERRORS.SESSION.DELETE_NOT_DRAFT,
+		DELETE_FAILED: ERRORS.SESSION.DELETE_FAILED,
 	})
 	.input(DeleteSessionSchema)
 	.output(AdminSessionResponseSchema);
@@ -277,6 +284,9 @@ export const listApprovedDocuments = oc
 		description:
 			"Admin endpoint to list approved documents that can be linked to session agenda items.",
 		tags: ["Sessions", "Admin"],
+	})
+	.errors({
+		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
 	})
 	.output(ApprovedDocumentListResponseSchema);
 
@@ -294,6 +304,7 @@ export const getDocumentFileUrl = oc
 	})
 	.errors({
 		NOT_FOUND: ERRORS.GENERAL.NOT_FOUND,
+		SIGNED_URL_FAILED: ERRORS.STORAGE.SIGNED_URL_FAILED,
 	})
 	.input(GetDocumentFileUrlSchema)
 	.output(DocumentFileUrlResponseSchema);
@@ -313,7 +324,7 @@ export const getAgendaUploadUrl = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
-		AGENDA_UPLOAD_FAILED: ERRORS.SESSION.AGENDA_UPLOAD_FAILED,
+		SIGNED_URL_FAILED: ERRORS.STORAGE.SIGNED_URL_FAILED,
 	})
 	.input(GetAgendaUploadUrlSchema)
 	.output(AgendaUploadUrlResponseSchema);
@@ -333,6 +344,7 @@ export const saveAgendaPdf = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+		AGENDA_SAVE_FAILED: ERRORS.SESSION.AGENDA_SAVE_FAILED,
 	})
 	.input(SaveAgendaPdfSchema)
 	.output(AdminSessionResponseSchema);
@@ -352,6 +364,7 @@ export const removeAgendaPdf = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+		AGENDA_DELETE_FAILED: ERRORS.SESSION.AGENDA_DELETE_FAILED,
 	})
 	.input(RemoveAgendaPdfSchema)
 	.output(AdminSessionResponseSchema);
@@ -373,6 +386,7 @@ export const removeAgendaItem = oc
 	.errors({
 		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
 		NOT_SCHEDULED: ERRORS.SESSION.NOT_SCHEDULED,
+		REMOVE_ITEM_FAILED: ERRORS.SESSION.REMOVE_ITEM_FAILED,
 	})
 	.input(RemoveAgendaItemSchema)
 	.output(AdminSessionWithAgendaSchema);
