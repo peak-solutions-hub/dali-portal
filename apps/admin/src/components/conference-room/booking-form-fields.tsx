@@ -41,7 +41,7 @@ import {
 	Paperclip,
 	X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface BookingFormValues {
 	room: string;
@@ -89,6 +89,14 @@ export function BookingFormFields({
 }: BookingFormFieldsProps) {
 	const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 	const { maxFileSize } = FILE_UPLOAD_PRESETS.ATTACHMENTS;
+	const formErrorRef = useRef<HTMLDivElement | null>(null);
+	const roomErrorRef = useRef<HTMLDivElement | null>(null);
+	const dateErrorRef = useRef<HTMLDivElement | null>(null);
+	const startTimeErrorRef = useRef<HTMLDivElement | null>(null);
+	const endTimeErrorRef = useRef<HTMLDivElement | null>(null);
+	const titleErrorRef = useRef<HTMLDivElement | null>(null);
+	const requestedForErrorRef = useRef<HTMLDivElement | null>(null);
+	const fileErrorRef = useRef<HTMLDivElement | null>(null);
 
 	const {
 		files,
@@ -107,6 +115,11 @@ export function BookingFormFields({
 	const selectedRoomLabel =
 		CONFERENCE_ROOM_OPTIONS.find((opt) => opt.value === values.room)?.label ??
 		"";
+	const allRoomsBooked =
+		CONFERENCE_ROOM_OPTIONS.length > 0 &&
+		CONFERENCE_ROOM_OPTIONS.every(
+			(option) => roomAvailability?.[option.value]?.disabled === true,
+		);
 
 	useEffect(() => {
 		const validFile = files.find((file) => file.errors.length === 0) ?? null;
@@ -136,6 +149,36 @@ export function BookingFormFields({
 		}
 	}, [files, hasFileErrors, onChange, onFileError, values.attachment]);
 
+	useEffect(() => {
+		let target: HTMLElement | null = null;
+
+		if (error) {
+			target = formErrorRef.current;
+		} else if (fieldErrors?.room) {
+			target = roomErrorRef.current;
+		} else if (fieldErrors?.date) {
+			target = dateErrorRef.current;
+		} else if (fieldErrors?.startTime) {
+			target = startTimeErrorRef.current;
+		} else if (fieldErrors?.endTime) {
+			target = endTimeErrorRef.current;
+		} else if (fieldErrors?.title) {
+			target = titleErrorRef.current;
+		} else if (fieldErrors?.requestedFor) {
+			target = requestedForErrorRef.current;
+		} else if (fileError) {
+			target = fileErrorRef.current;
+		}
+
+		if (!target) {
+			return;
+		}
+
+		requestAnimationFrame(() => {
+			target?.scrollIntoView({ behavior: "smooth", block: "center" });
+		});
+	}, [error, fieldErrors, fileError]);
+
 	const handleRemoveFile = () => {
 		setFiles([]);
 		onChange("attachment", null);
@@ -144,10 +187,17 @@ export function BookingFormFields({
 
 	return (
 		<div className="space-y-6">
-			{error ? null : null}
+			{error && (
+				<div
+					ref={formErrorRef}
+					className="rounded-md border border-red-200 bg-red-50 px-4 py-3"
+				>
+					<p className="text-sm text-red-700">{error}</p>
+				</div>
+			)}
 
 			{/* Conference Room */}
-			<div>
+			<div ref={roomErrorRef}>
 				<label
 					htmlFor="room"
 					className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2"
@@ -198,10 +248,15 @@ export function BookingFormFields({
 				{fieldErrors?.room && (
 					<p className="text-sm text-red-600 mt-2">{fieldErrors.room}</p>
 				)}
+				{allRoomsBooked && !fieldErrors?.room && (
+					<p className="text-sm text-amber-700 mt-2">
+						All conference rooms are already booked for the selected time.
+					</p>
+				)}
 			</div>
 
 			{/* Date */}
-			<div>
+			<div ref={dateErrorRef}>
 				<label
 					htmlFor="date"
 					className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2"
@@ -247,7 +302,7 @@ export function BookingFormFields({
 
 			{/* Start/End Time */}
 			<div className="grid grid-cols-2 gap-4">
-				<div>
+				<div ref={startTimeErrorRef}>
 					<label
 						htmlFor="startTime"
 						className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2"
@@ -270,7 +325,7 @@ export function BookingFormFields({
 						<p className="text-sm text-red-600 mt-2">{fieldErrors.startTime}</p>
 					)}
 				</div>
-				<div>
+				<div ref={endTimeErrorRef}>
 					<label
 						htmlFor="endTime"
 						className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2"
@@ -296,7 +351,7 @@ export function BookingFormFields({
 			</div>
 
 			{/* Title */}
-			<div>
+			<div ref={titleErrorRef}>
 				<label
 					htmlFor="title"
 					className="block text-sm font-semibold text-gray-900 mb-2"
@@ -324,7 +379,7 @@ export function BookingFormFields({
 			</div>
 
 			{/* Requested For */}
-			<div>
+			<div ref={requestedForErrorRef}>
 				<label
 					htmlFor="requestedFor"
 					className="block text-sm font-semibold text-gray-900 mb-2"
@@ -352,7 +407,7 @@ export function BookingFormFields({
 			</div>
 
 			{/* Attachment */}
-			<div>
+			<div ref={fileErrorRef}>
 				<label
 					htmlFor="booking-attachment"
 					className="block text-sm font-semibold text-gray-900 mb-2"

@@ -19,7 +19,6 @@ import {
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
-import { RoomBookingAvailabilityService } from "./room-booking-availability.service";
 
 /**
  * Maps a Prisma RoomBooking record (with optional user relation) to the
@@ -64,7 +63,6 @@ export class RoomBookingService {
 
 	constructor(
 		private readonly db: DbService,
-		private readonly availability: RoomBookingAvailabilityService,
 		private readonly storage: SupabaseStorageService,
 	) {}
 
@@ -88,6 +86,35 @@ export class RoomBookingService {
 
 	private isAdminRole(role: RoleType): boolean {
 		return (ADMIN_BOOKING_ROLES as readonly string[]).includes(role);
+	}
+
+	private async checkAvailability(
+		startTime: Date,
+		endTime: Date,
+		room: string,
+		excludeBookingId?: string,
+	): Promise<boolean> {
+		const conflicting = await this.db.roomBooking.findFirst({
+			where: {
+				room: room as never,
+				status: "confirmed",
+				...(excludeBookingId && {
+					id: { not: excludeBookingId },
+				}),
+				AND: [{ startTime: { lt: endTime } }, { endTime: { gt: startTime } }],
+			},
+			select: { id: true },
+		});
+
+		const available = conflicting === null;
+
+		if (!available) {
+			this.logger.debug(
+				`Conflict detected for room ${room} between ${startTime.toISOString()} – ${endTime.toISOString()}`,
+			);
+		}
+
+		return available;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -239,7 +266,7 @@ export class RoomBookingService {
 		this.validateTimeRange(startTime, endTime);
 
 		// Edge Case: Conflict check against CONFIRMED and PENDING bookings
-		const available = await this.availability.checkAvailability(
+		const available = await this.checkAvailability(
 			startTime,
 			endTime,
 			input.room,
@@ -302,7 +329,7 @@ export class RoomBookingService {
 
 		// Scenario 2 — Re-run conflict check before confirming
 		if (input.status === "confirmed") {
-			const available = await this.availability.checkAvailability(
+			const available = await this.checkAvailability(
 				booking.startTime,
 				booking.endTime,
 				booking.room,
@@ -369,7 +396,7 @@ export class RoomBookingService {
 			this.validateTimeRange(newStartTime, newEndTime);
 
 			// Conflict check excluding this booking's own slot
-			const available = await this.availability.checkAvailability(
+			const available = await this.checkAvailability(
 				newStartTime,
 				newEndTime,
 				newRoom,
