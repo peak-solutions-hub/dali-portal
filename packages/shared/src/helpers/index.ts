@@ -4,5 +4,6 @@ export * from "./inquiry.helper";
 export * from "./inquiry-ticket.helper";
 export * from "./legislative-document.helper";
 export * from "./role.helper";
+export * from "./room-booking.helper";
 export * from "./session.helper";
 export * from "./user.helper";

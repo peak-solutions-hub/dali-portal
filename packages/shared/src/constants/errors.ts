@@ -159,6 +159,37 @@ export const ERRORS = {
 			message: "Failed to send password reset email. Please try again.",
 		},
 	},
+	ROOM_BOOKING: {
+		NOT_FOUND: {
+			status: 404,
+			message: "Room booking not found.",
+		},
+		CONFLICT: {
+			status: 409,
+			message: "This time slot is already taken by another booking.",
+		},
+		PAST_BOOKING: {
+			status: 400,
+			message: "Cannot book a time slot in the past.",
+		},
+		FORBIDDEN: {
+			status: 403,
+			message: "You don't have permission to modify this booking.",
+		},
+		INVALID_TIME_RANGE: {
+			status: 400,
+			message:
+				"Start time must be before end time and the duration must be at least 15 minutes.",
+		},
+		INVALID_ATTACHMENT: {
+			status: 400,
+			message: "File must be a PDF, JPEG, or JPG and must not exceed 5MB.",
+		},
+		CANNOT_APPROVE: {
+			status: 400,
+			message: "Only pending bookings can be approved or rejected.",
+		},
+	},
 } as const;
 
 /**

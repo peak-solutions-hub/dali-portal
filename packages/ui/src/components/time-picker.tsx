@@ -16,6 +16,8 @@ interface TimePickerProps {
 	placeholder?: string;
 	className?: string;
 	disabled?: boolean;
+	minTime?: string; // "HH:mm" 24-hour format
+	maxTime?: string; // "HH:mm" 24-hour format
 }
 
 /** Scrollable column that supports native mouse wheel scrolling */
@@ -57,11 +59,39 @@ function TimePicker({
 	placeholder = "Select time",
 	className,
 	disabled = false,
+	minTime,
+	maxTime,
 }: TimePickerProps) {
 	const [open, setOpen] = React.useState(false);
 
 	const hours = Array.from({ length: 12 }, (_, i) => i + 1);
 	const minutes = Array.from({ length: 4 }, (_, i) => i * 15);
+
+	const parsedMin = React.useMemo(() => {
+		if (!minTime) return { hour: 0, minute: 0 };
+		const [h, m] = minTime.split(":").map(Number);
+		return { hour: h ?? 0, minute: m ?? 0 };
+	}, [minTime]);
+
+	const parsedMax = React.useMemo(() => {
+		if (!maxTime) return { hour: 23, minute: 59 };
+		const [h, m] = maxTime.split(":").map(Number);
+		return { hour: h ?? 23, minute: m ?? 59 };
+	}, [maxTime]);
+
+	const minTotalMinutes = parsedMin.hour * 60 + parsedMin.minute;
+	const maxTotalMinutes = parsedMax.hour * 60 + parsedMax.minute;
+
+	const isTimeValid = React.useCallback(
+		(hour12: number, minute: number, period: "AM" | "PM") => {
+			let hour24 = hour12;
+			if (period === "AM" && hour12 === 12) hour24 = 0;
+			else if (period === "PM" && hour12 !== 12) hour24 = hour12 + 12;
+			const totalMinutes = hour24 * 60 + minute;
+			return totalMinutes >= minTotalMinutes && totalMinutes <= maxTotalMinutes;
+		},
+		[minTotalMinutes, maxTotalMinutes],
+	);
 
 	const parsed = React.useMemo(() => {
 		if (!value) return { hour: 10, minute: 0, period: "AM" as const };
@@ -95,8 +125,27 @@ function TimePicker({
 	);
 
 	const handleHourSelect = (hour: number) => {
+		let newPeriod = selectedPeriod;
+		const validInCurrentPeriod = minutes.some((m) =>
+			isTimeValid(hour, m, newPeriod),
+		);
+
+		if (!validInCurrentPeriod) {
+			newPeriod = newPeriod === "AM" ? "PM" : "AM";
+			setSelectedPeriod(newPeriod);
+		}
+
+		let newMinute = selectedMinute;
+		if (!isTimeValid(hour, newMinute, newPeriod)) {
+			const validMinute = minutes.find((m) => isTimeValid(hour, m, newPeriod));
+			if (validMinute !== undefined) {
+				newMinute = validMinute;
+				setSelectedMinute(newMinute);
+			}
+		}
+
 		setSelectedHour(hour);
-		commitTime(hour, selectedMinute, selectedPeriod);
+		commitTime(hour, newMinute, newPeriod);
 	};
 
 	const handleMinuteSelect = (minute: number) => {
@@ -105,8 +154,20 @@ function TimePicker({
 	};
 
 	const handlePeriodSelect = (period: "AM" | "PM") => {
+		let newMinute = selectedMinute;
+
+		if (!isTimeValid(selectedHour, newMinute, period)) {
+			const validMinute = minutes.find((m) =>
+				isTimeValid(selectedHour, m, period),
+			);
+			if (validMinute !== undefined) {
+				newMinute = validMinute;
+				setSelectedMinute(newMinute);
+			}
+		}
+
 		setSelectedPeriod(period);
-		commitTime(selectedHour, selectedMinute, period);
+		commitTime(selectedHour, newMinute, period);
 	};
 
 	const displayValue = value
@@ -137,21 +198,34 @@ function TimePicker({
 							<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
 								Hour
 							</div>
-							{hours.map((hour) => (
-								<button
-									key={hour}
-									type="button"
-									onClick={() => handleHourSelect(hour)}
-									className={cn(
-										"rounded-md px-3 py-1.5 text-sm cursor-pointer transition-colors",
-										selectedHour === hour
-											? "bg-primary text-primary-foreground"
-											: "hover:bg-accent hover:text-accent-foreground",
-									)}
-								>
-									{String(hour).padStart(2, "0")}
-								</button>
-							))}
+							{hours.map((hour) => {
+								const validInAM = minutes.some((m) =>
+									isTimeValid(hour, m, "AM"),
+								);
+								const validInPM = minutes.some((m) =>
+									isTimeValid(hour, m, "PM"),
+								);
+								const isValidHour = validInAM || validInPM;
+
+								return (
+									<button
+										key={hour}
+										type="button"
+										disabled={!isValidHour}
+										onClick={() => handleHourSelect(hour)}
+										className={cn(
+											"rounded-md px-3 py-1.5 text-sm transition-colors",
+											selectedHour === hour
+												? "bg-primary text-primary-foreground"
+												: !isValidHour
+													? "opacity-30 cursor-not-allowed"
+													: "hover:bg-accent hover:text-accent-foreground cursor-pointer",
+										)}
+									>
+										{String(hour).padStart(2, "0")}
+									</button>
+								);
+							})}
 						</div>
 					</ScrollColumn>
 
@@ -161,21 +235,32 @@ function TimePicker({
 							<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
 								Min
 							</div>
-							{minutes.map((minute) => (
-								<button
-									key={minute}
-									type="button"
-									onClick={() => handleMinuteSelect(minute)}
-									className={cn(
-										"rounded-md px-3 py-1.5 text-sm cursor-pointer transition-colors",
-										selectedMinute === minute
-											? "bg-primary text-primary-foreground"
-											: "hover:bg-accent hover:text-accent-foreground",
-									)}
-								>
-									{String(minute).padStart(2, "0")}
-								</button>
-							))}
+							{minutes.map((minute) => {
+								const isValidMinute = isTimeValid(
+									selectedHour,
+									minute,
+									selectedPeriod,
+								);
+
+								return (
+									<button
+										key={minute}
+										type="button"
+										disabled={!isValidMinute}
+										onClick={() => handleMinuteSelect(minute)}
+										className={cn(
+											"rounded-md px-3 py-1.5 text-sm transition-colors",
+											selectedMinute === minute
+												? "bg-primary text-primary-foreground"
+												: !isValidMinute
+													? "opacity-30 cursor-not-allowed"
+													: "hover:bg-accent hover:text-accent-foreground cursor-pointer",
+										)}
+									>
+										{String(minute).padStart(2, "0")}
+									</button>
+								);
+							})}
 						</div>
 					</ScrollColumn>
 
@@ -184,21 +269,30 @@ function TimePicker({
 						<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
 							&nbsp;
 						</div>
-						{(["AM", "PM"] as const).map((period) => (
-							<button
-								key={period}
-								type="button"
-								onClick={() => handlePeriodSelect(period)}
-								className={cn(
-									"rounded-md px-3 py-1.5 text-sm cursor-pointer transition-colors",
-									selectedPeriod === period
-										? "bg-primary text-primary-foreground"
-										: "hover:bg-accent hover:text-accent-foreground",
-								)}
-							>
-								{period}
-							</button>
-						))}
+						{(["AM", "PM"] as const).map((period) => {
+							const isValidPeriodForHour = minutes.some((m) =>
+								isTimeValid(selectedHour, m, period),
+							);
+
+							return (
+								<button
+									key={period}
+									type="button"
+									disabled={!isValidPeriodForHour}
+									onClick={() => handlePeriodSelect(period)}
+									className={cn(
+										"rounded-md px-3 py-1.5 text-sm transition-colors",
+										selectedPeriod === period
+											? "bg-primary text-primary-foreground"
+											: !isValidPeriodForHour
+												? "opacity-30 cursor-not-allowed"
+												: "hover:bg-accent hover:text-accent-foreground cursor-pointer",
+									)}
+								>
+									{period}
+								</button>
+							);
+						})}
 					</div>
 				</div>
 			</PopoverContent>
