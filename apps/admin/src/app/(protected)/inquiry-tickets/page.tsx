@@ -1,6 +1,6 @@
 "use client";
 
-import { formatInquiryCategory } from "@repo/shared";
+import { formatCitizenDisplayName, formatInquiryCategory } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Card } from "@repo/ui/components/card";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
@@ -183,9 +183,9 @@ export default function InquiryTicketsPage() {
 																	</div>
 																	<span
 																		className="font-medium truncate max-w-45"
-																		title={ticket.citizenName}
+																		title={formatCitizenDisplayName(ticket)}
 																	>
-																		{ticket.citizenName}
+																		{formatCitizenDisplayName(ticket)}
 																	</span>
 																</div>
 															</TableCell>

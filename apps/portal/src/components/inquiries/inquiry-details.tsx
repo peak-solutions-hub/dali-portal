@@ -1,7 +1,10 @@
 "use client";
 
 import { isDefinedError } from "@orpc/client";
-import { type InquiryTicketWithMessagesAndAttachmentsResponse } from "@repo/shared";
+import {
+	formatCitizenFullName,
+	type InquiryTicketWithMessagesAndAttachmentsResponse,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent, CardHeader } from "@repo/ui/components/card";
 import { ChatMessageList } from "@repo/ui/components/chat/chat-message-list";
@@ -154,7 +157,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 			{
 				ticketId: ticket.id,
 				content,
-				senderName: ticket.citizenName,
+				senderName: formatCitizenFullName(ticket),
 				senderType: "citizen",
 			},
 			attachmentPaths,
@@ -186,7 +189,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 
 			{/* Header */}
 			<div className="mb-8">
-				<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-playfair-display break-words">
+				<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-playfair-display wrap-break-word">
 					{ticket.subject}
 				</h1>
 				<div className="flex items-center gap-4 text-sm text-gray-500">
@@ -196,13 +199,17 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 							{ticket.referenceNumber}
 						</span>
 					</div>
-					<div className="w-1 h-1 bg-gray-300 rounded-full" />
-					<div className="flex items-center gap-1.5 min-w-0">
-						<Mail className="h-4 w-4 shrink-0" />
-						<span className="break-all min-w-0 line-clamp-2">
-							{ticket.citizenEmail}
-						</span>
-					</div>
+					{ticket.citizenEmail && (
+						<>
+							<div className="w-1 h-1 bg-gray-300 rounded-full" />
+							<div className="flex items-center gap-1.5 min-w-0">
+								<Mail className="h-4 w-4 shrink-0" />
+								<span className="break-all min-w-0 line-clamp-2">
+									{ticket.citizenEmail}
+								</span>
+							</div>
+						</>
+					)}
 				</div>
 			</div>
 
