@@ -47,18 +47,24 @@ function ForgotPasswordForm() {
 			});
 
 			if (error) {
-				if (isDefinedError(error)) {
-					if (error.code === "DEACTIVATED_ACCOUNT") {
-						toast.error(DEACTIVATED_MESSAGE);
-					} else {
-						toast.error(error.message);
-					}
+				const errCode = (error as { code?: string })?.code;
+				const errStatus = (error as { status?: number })?.status;
+
+				const isDeactivated =
+					errCode === "AUTH.DEACTIVATED_ACCOUNT" ||
+					errCode === "DEACTIVATED_ACCOUNT";
+
+				if (isDeactivated) {
+					toast.error(DEACTIVATED_MESSAGE);
+				} else if (errStatus === 429) {
+					toast.error("Too many requests. Please try again later.");
+				} else if (isDefinedError(error)) {
+					toast.error(error.message);
 				} else {
-					if ((error as { status?: number }).status === 429) {
-						toast.error("Too many requests. Please try again later.");
-					} else {
-						toast.error("Failed to process request");
-					}
+					toast.error(
+						(error as { message?: string }).message ??
+							"Failed to process request",
+					);
 				}
 				return;
 			}
