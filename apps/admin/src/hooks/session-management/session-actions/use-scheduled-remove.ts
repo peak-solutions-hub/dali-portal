@@ -1,5 +1,6 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import type { SessionManagementSession as SessionUI } from "@repo/shared";
 import { SessionStatus } from "@repo/shared";
 import { useCallback, useState } from "react";
@@ -92,7 +93,11 @@ export function useScheduledRemove({
 					agendaItemId: doc.agendaItemId,
 				});
 				if (err) {
-					toast.error("Failed to remove item. Please try again.");
+					toast.error(
+						isDefinedError(err)
+							? err.message
+							: "Failed to remove item. Please try again.",
+					);
 				} else {
 					const newDocs = {
 						...documentsByAgendaItem,
@@ -148,7 +153,11 @@ export function useScheduledRemove({
 					agendaItemId: itemId,
 				});
 				if (err) {
-					toast.error("Failed to remove item. Please try again.");
+					toast.error(
+						isDefinedError(err)
+							? err.message
+							: "Failed to remove item. Please try again.",
+					);
 				} else {
 					const currentItems = customTextsBySection[sectionId] ?? [];
 					const newCustomTexts = {

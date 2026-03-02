@@ -107,7 +107,7 @@ export function PublishSessionDialog({
 							</li>
 							<li className="flex items-start gap-2">
 								<CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-								<span>Enable presentation mode for this session</span>
+								<span>Allow uploading of the Agenda Document</span>
 							</li>
 						</ul>
 					</div>

@@ -56,7 +56,14 @@ export function useSessionActions({
 		handleDeleteDraft,
 		handleMarkComplete,
 		handleRemoveAgendaPdf,
-	} = useSessionMutations({ selectedSession, builder, invalidateSessions });
+	} = useSessionMutations({
+		selectedSession,
+		builder,
+		invalidateSessions,
+		reloadSession: async () => {
+			if (selectedSession) await handleSessionChange(selectedSession);
+		},
+	});
 
 	const {
 		removingItemIds,

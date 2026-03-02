@@ -1,5 +1,6 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
@@ -10,6 +11,13 @@ interface UseSessionMutationsOptions {
 	selectedSession: string | null;
 	builder: UseAgendaBuilderReturn;
 	invalidateSessions: () => Promise<void>;
+	/**
+	 * Reloads the current session from the server so in-memory docs get their
+	 * server-assigned agendaItemId fields populated. Must be called after any
+	 * status transition (publish / unpublish) to keep removal working without
+	 * a full browser refresh.
+	 */
+	reloadSession: () => Promise<void>;
 }
 
 /**
@@ -20,6 +28,7 @@ export function useSessionMutations({
 	selectedSession,
 	builder,
 	invalidateSessions,
+	reloadSession,
 }: UseSessionMutationsOptions) {
 	const { buildAgendaItems, snapshotSavedState, resetEditorState } = builder;
 
@@ -37,7 +46,11 @@ export function useSessionMutations({
 				agendaItems: buildAgendaItems(),
 			});
 			if (err) {
-				toast.error("Failed to save draft. Please try again.");
+				toast.error(
+					isDefinedError(err)
+						? err.message
+						: "Failed to save draft. Please try again.",
+				);
 			} else {
 				snapshotSavedState();
 				clearDraft(selectedSession);
@@ -66,18 +79,29 @@ export function useSessionMutations({
 				agendaItems: buildAgendaItems(),
 			});
 			if (saveErr) {
-				toast.error("Failed to save before publishing. Please try again.");
+				toast.error(
+					isDefinedError(saveErr)
+						? saveErr.message
+						: "Failed to save before publishing. Please try again.",
+				);
 				setActionInFlight(null);
 				return;
 			}
 			const [err] = await api.sessions.publish({ id: selectedSession });
 			if (err) {
-				toast.error("Failed to publish session. Please try again.");
+				toast.error(
+					isDefinedError(err)
+						? err.message
+						: "Failed to publish session. Please try again.",
+				);
 			} else {
 				snapshotSavedState();
 				clearDraft(selectedSession);
 				toast.success("Session published successfully.");
 				await invalidateSessions();
+				// Reload the session so in-memory docs get their server-assigned
+				// agendaItemId. Without this, removal fails until a browser refresh.
+				await reloadSession();
 			}
 		} catch {
 			toast.error("Failed to publish session. Please try again.");
@@ -89,6 +113,7 @@ export function useSessionMutations({
 		buildAgendaItems,
 		snapshotSavedState,
 		invalidateSessions,
+		reloadSession,
 		clearDraft,
 	]);
 
@@ -98,17 +123,23 @@ export function useSessionMutations({
 		try {
 			const [err] = await api.sessions.unpublish({ id: selectedSession });
 			if (err) {
-				toast.error("Failed to unpublish session. Please try again.");
+				toast.error(
+					isDefinedError(err)
+						? err.message
+						: "Failed to unpublish session. Please try again.",
+				);
 			} else {
 				toast.success("Session unpublished.");
 				await invalidateSessions();
+				// Reload so agendaItemId fields stay consistent after status change.
+				await reloadSession();
 			}
 		} catch {
 			toast.error("Failed to unpublish session. Please try again.");
 		} finally {
 			setActionInFlight(null);
 		}
-	}, [selectedSession, invalidateSessions]);
+	}, [selectedSession, invalidateSessions, reloadSession]);
 
 	const handleDeleteDraft = useCallback(async (): Promise<boolean> => {
 		if (!selectedSession) return false;
@@ -116,7 +147,11 @@ export function useSessionMutations({
 		try {
 			const [err] = await api.sessions.delete({ id: selectedSession });
 			if (err) {
-				toast.error("Failed to delete session. Please try again.");
+				toast.error(
+					isDefinedError(err)
+						? err.message
+						: "Failed to delete session. Please try again.",
+				);
 				return false;
 			}
 			toast.success("Draft deleted.");
@@ -138,7 +173,11 @@ export function useSessionMutations({
 		try {
 			const [err] = await api.sessions.markComplete({ id: selectedSession });
 			if (err) {
-				toast.error("Failed to mark session complete. Please try again.");
+				toast.error(
+					isDefinedError(err)
+						? err.message
+						: "Failed to mark session complete. Please try again.",
+				);
 			} else {
 				toast.success("Session marked as completed.");
 				await invalidateSessions();
@@ -156,7 +195,11 @@ export function useSessionMutations({
 		try {
 			const [err] = await api.sessions.removeAgendaPdf({ id: selectedSession });
 			if (err) {
-				toast.error("Failed to remove agenda PDF. Please try again.");
+				toast.error(
+					isDefinedError(err)
+						? err.message
+						: "Failed to remove agenda PDF. Please try again.",
+				);
 			} else {
 				toast.success("Agenda PDF removed.");
 				await invalidateSessions();

@@ -1,5 +1,6 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import type { SessionManagementSession as Session } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { useSupabaseUpload } from "@repo/ui/hooks";
@@ -64,7 +65,11 @@ export function SessionAgendaPdfUpload({
 					fileName: fileNames[0] ?? "",
 				});
 				if (err || !data) {
-					toast.error("Could not get upload URL. Please try again.");
+					toast.error(
+						isDefinedError(err)
+							? err.message
+							: "Could not get upload URL. Please try again.",
+					);
 					throw new Error("Failed to get upload URL");
 				}
 				return [
@@ -79,11 +84,8 @@ export function SessionAgendaPdfUpload({
 		});
 
 	const pickedFile = files.find((f) => f.errors.length === 0) ?? null;
-	const fileError =
-		files[0]?.errors[0]?.message ??
-		(pickedFile && pickedFile.size > MAX_PDF_SIZE
-			? `File exceeds 5 MB limit (${(pickedFile.size / 1024 / 1024).toFixed(1)} MB)`
-			: null);
+	// Clear the error as soon as a valid file is selected.
+	const fileError = pickedFile ? null : (files[0]?.errors[0]?.message ?? null);
 
 	const handleUpload = async () => {
 		if (!pickedFile) return;
@@ -94,7 +96,11 @@ export function SessionAgendaPdfUpload({
 				fileName: pickedFile.name,
 			});
 			if (err || !urlData) {
-				toast.error("Failed to get upload URL. Please try again.");
+				toast.error(
+					isDefinedError(err)
+						? err.message
+						: "Failed to get upload URL. Please try again.",
+				);
 				return;
 			}
 			const uploadRes = await fetch(urlData.signedUrl, {
@@ -112,7 +118,11 @@ export function SessionAgendaPdfUpload({
 				fileName: pickedFile.name,
 			});
 			if (saveErr) {
-				toast.error("File uploaded but failed to save. Please try again.");
+				toast.error(
+					isDefinedError(saveErr)
+						? saveErr.message
+						: "File uploaded but failed to save. Please try again.",
+				);
 				return;
 			}
 			toast.success("Agenda PDF uploaded successfully.");
