@@ -85,15 +85,17 @@ export function InquiryTicketHeader({ ticket }: InquiryTicketHeaderProps) {
 									{formatCitizenDisplayName(ticket)}
 								</p>
 							</div>
-							<div className="space-y-1 min-w-0">
-								<div className="flex items-center gap-2 text-xs text-muted-foreground">
-									<Mail className="h-3 w-3" />
-									Email
+							{ticket.citizenEmail && (
+								<div className="space-y-1 min-w-0">
+									<div className="flex items-center gap-2 text-xs text-muted-foreground">
+										<Mail className="h-3 w-3" />
+										Email
+									</div>
+									<p className="text-sm font-medium break-all line-clamp-2">
+										{ticket.citizenEmail}
+									</p>
 								</div>
-								<p className="text-sm font-medium break-all line-clamp-2">
-									{ticket.citizenEmail || "\u2014"}
-								</p>
-							</div>
+							)}
 							<div className="space-y-1 min-w-0">
 								<div className="flex items-center gap-2 text-xs text-muted-foreground">
 									<Phone className="h-3 w-3" />

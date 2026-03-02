@@ -199,13 +199,17 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 							{ticket.referenceNumber}
 						</span>
 					</div>
-					<div className="w-1 h-1 bg-gray-300 rounded-full" />
-					<div className="flex items-center gap-1.5 min-w-0">
-						<Mail className="h-4 w-4 shrink-0" />
-						<span className="break-all min-w-0 line-clamp-2">
-							{ticket.citizenEmail}
-						</span>
-					</div>
+					{ticket.citizenEmail && (
+						<>
+							<div className="w-1 h-1 bg-gray-300 rounded-full" />
+							<div className="flex items-center gap-1.5 min-w-0">
+								<Mail className="h-4 w-4 shrink-0" />
+								<span className="break-all min-w-0 line-clamp-2">
+									{ticket.citizenEmail}
+								</span>
+							</div>
+						</>
+					)}
 				</div>
 			</div>
 

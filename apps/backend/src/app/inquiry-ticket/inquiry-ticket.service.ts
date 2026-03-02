@@ -56,7 +56,7 @@ export class InquiryTicketService {
 		const response = await this.db.inquiryTicket.create({
 			data: {
 				referenceNumber,
-				citizenEmail: input.citizenEmail || "",
+				citizenEmail: input.citizenEmail || null,
 				citizenFirstName: input.citizenFirstName,
 				citizenLastName: input.citizenLastName,
 				citizenContactNumber: input.citizenContactNumber || null,
@@ -302,8 +302,14 @@ export class InquiryTicketService {
 		});
 
 		// Send email notification when inquiry is resolved or rejected
-		if (status === "resolved" || status === "rejected") {
-			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}&email=${encodeURIComponent(updated.citizenEmail)}`;
+		if (
+			(status === "resolved" || status === "rejected") &&
+			updated.citizenEmail
+		) {
+			const emailParam = updated.citizenEmail
+				? `&email=${encodeURIComponent(updated.citizenEmail)}`
+				: "";
+			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}${emailParam}`;
 
 			console.log(
 				`[InquiryTicket] Inquiry ${status}, sending email notification...`,
@@ -399,8 +405,18 @@ export class InquiryTicketService {
 			},
 		});
 
-		// Send email notification when inquiry is assigned
-		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}&email=${encodeURIComponent(updated.citizenEmail)}`;
+		// Send email notification when inquiry is assigned (only if citizen provided email)
+		if (!updated.citizenEmail) {
+			return {
+				...updated,
+				createdAt: updated.createdAt.toISOString(),
+			};
+		}
+
+		const emailParam = updated.citizenEmail
+			? `&email=${encodeURIComponent(updated.citizenEmail)}`
+			: "";
+		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}${emailParam}`;
 
 		console.log(
 			"[InquiryTicket] Inquiry assigned, sending email notification...",

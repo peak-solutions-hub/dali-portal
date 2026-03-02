@@ -99,14 +99,16 @@ export function InquirySidebar({ ticket }: InquirySidebarProps) {
 										{formatCitizenFullName(ticket)}
 									</span>
 								</div>
-								<div className="flex items-center gap-2 text-sm font-medium">
-									<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
-										<Mail className="h-3 w-3 text-gray-600" />
+								{ticket.citizenEmail && (
+									<div className="flex items-center gap-2 text-sm font-medium">
+										<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
+											<Mail className="h-3 w-3 text-gray-600" />
+										</div>
+										<span className="break-all min-w-0 line-clamp-2">
+											{ticket.citizenEmail}
+										</span>
 									</div>
-									<span className="break-all min-w-0 line-clamp-2">
-										{ticket.citizenEmail}
-									</span>
-								</div>
+								)}
 								{ticket.citizenContactNumber && (
 									<div className="flex items-center gap-2 text-sm font-medium">
 										<div className="bg-gray-100 p-1.5 rounded-full shrink-0">
