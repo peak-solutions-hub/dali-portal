@@ -13,7 +13,7 @@ export default function VisitorAndBeneficiaryHub() {
 	return (
 		<div className="flex-1 flex flex-col h-full">
 			{/* Page Header */}
-			<div className="p-6 pb-4">
+			<div className="p-1 px-6 pb-4">
 				<h1 className="text-2xl font-semibold tracking-tight text-gray-900">
 					Visitor & Beneficiary Hub
 				</h1>

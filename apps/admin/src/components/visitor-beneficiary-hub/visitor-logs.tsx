@@ -32,15 +32,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
-import {
-	ArrowUpDown,
-	Calendar,
-	Download,
-	FileText,
-	Filter,
-	Plus,
-} from "lucide-react";
+import { ArrowUpDown, Download, FileText, Filter, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { DatePickerField } from "./date-picker-field";
 
 // Mock data based on Figma design
 export const MOCK_VISITOR_LOGS = [
@@ -126,8 +120,9 @@ function getComparableDate(isoString: string): string {
 	return new Date(isoString).toLocaleDateString("en-CA");
 }
 
-function formatDisplayDate(dateInput: string): string {
-	return new Date(dateInput).toLocaleDateString("en-US", {
+function formatDisplayDate(dateInput: string | Date): string {
+	const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+	return date.toLocaleDateString("en-US", {
 		month: "long",
 		day: "numeric",
 		year: "numeric",
@@ -136,12 +131,6 @@ function formatDisplayDate(dateInput: string): string {
 
 function getTodayDateInput(): string {
 	return new Date().toLocaleDateString("en-CA");
-}
-
-function parseDateInput(value: string): Date | null {
-	if (!value) return null;
-	const date = new Date(value);
-	return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function isWithinLastNDays(isoString: string, days: number): boolean {
@@ -176,8 +165,8 @@ export function VisitorLogs() {
 	const [filterType, setFilterType] = useState<
 		"none" | "today" | "last7" | "range"
 	>("none");
-	const [rangeStart, setRangeStart] = useState<string>("");
-	const [rangeEnd, setRangeEnd] = useState<string>("");
+	const [rangeStart, setRangeStart] = useState<Date | undefined>(undefined);
+	const [rangeEnd, setRangeEnd] = useState<Date | undefined>(undefined);
 	const [dateOrder, setDateOrder] = useState<"desc" | "asc">("desc");
 	const [alphaOrder, setAlphaOrder] = useState<"none" | "asc" | "desc">("none");
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -195,23 +184,29 @@ export function VisitorLogs() {
 
 	const handleQuickFilter = (type: "today" | "last7") => {
 		setFilterType(type);
-		setRangeStart("");
-		setRangeEnd("");
+		setRangeStart(undefined);
+		setRangeEnd(undefined);
 	};
 
-	const handleRangeChange = (field: "start" | "end", value: string) => {
+	const handleRangeChange = (
+		field: "start" | "end",
+		value: Date | undefined,
+	) => {
 		if (field === "start") {
 			setRangeStart(value);
 		} else {
 			setRangeEnd(value);
 		}
-		setFilterType("range");
+
+		const nextStart = field === "start" ? value : rangeStart;
+		const nextEnd = field === "end" ? value : rangeEnd;
+		setFilterType(nextStart || nextEnd ? "range" : "none");
 	};
 
 	const clearFilters = () => {
 		setFilterType("none");
-		setRangeStart("");
-		setRangeEnd("");
+		setRangeStart(undefined);
+		setRangeEnd(undefined);
 		setIsFilterOpen(false);
 	};
 
@@ -228,7 +223,7 @@ export function VisitorLogs() {
 	};
 
 	const totalVisits = MOCK_VISITOR_LOGS.length;
-	const hasRangeValues = rangeStart !== "" || rangeEnd !== "";
+	const hasRangeValues = Boolean(rangeStart || rangeEnd);
 	const filterCount =
 		filterType === "none"
 			? 0
@@ -246,11 +241,9 @@ export function VisitorLogs() {
 			data = data.filter((log) => getComparableDate(log.dateVisited) === today);
 		} else if (filterType === "last7") {
 			data = data.filter((log) => isWithinLastNDays(log.dateVisited, 7));
-		} else if (filterType === "range" && (rangeStart || rangeEnd)) {
-			const startDate = parseDateInput(rangeStart);
-			const endDate = parseDateInput(rangeEnd);
-			const startMs = startDate ? startOfDayMs(startDate) : null;
-			const endMs = endDate ? endOfDayMs(endDate) : null;
+		} else if (filterType === "range" && hasRangeValues) {
+			const startMs = rangeStart ? startOfDayMs(rangeStart) : null;
+			const endMs = rangeEnd ? endOfDayMs(rangeEnd) : null;
 
 			data = data.filter((log) => {
 				const visitMs = new Date(log.dateVisited).getTime();
@@ -282,7 +275,7 @@ export function VisitorLogs() {
 		if (filterType === "last7") {
 			return "Last 7 days";
 		}
-		if (filterType === "range" && (rangeStart || rangeEnd)) {
+		if (filterType === "range" && hasRangeValues) {
 			if (rangeStart && rangeEnd) {
 				return `${formatDisplayDate(rangeStart)} - ${formatDisplayDate(rangeEnd)}`;
 			}
@@ -331,7 +324,7 @@ export function VisitorLogs() {
 								value={dateOrder}
 								onValueChange={(value) => setDateOrder(value as "asc" | "desc")}
 							>
-								<SelectTrigger className="h-10 min-w-[140px] justify-between rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-900 shadow-sm focus:ring-2 focus:ring-gray-200">
+								<SelectTrigger className="h-10 min-w-35 justify-between rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-900 shadow-sm focus:ring-2 focus:ring-gray-200">
 									<SelectValue placeholder="Sort by date" />
 								</SelectTrigger>
 								<SelectContent>
@@ -392,59 +385,23 @@ export function VisitorLogs() {
 										<p className="text-sm font-semibold text-gray-900">
 											Date Range
 										</p>
-										<div className="grid grid-cols-1 gap-3">
-											<div className="space-y-1">
-												<label className="text-xs font-medium text-gray-500">
-													From
-												</label>
-												<div className="relative">
-													<button
-														type="button"
-														className="flex w-full items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-left text-sm font-medium text-gray-900 shadow-sm"
-													>
-														<Calendar className="h-4 w-4 text-gray-500" />
-														<span>
-															{rangeStart
-																? formatDisplayDate(rangeStart)
-																: "Pick a date"}
-														</span>
-													</button>
-													<input
-														type="date"
-														value={rangeStart}
-														onChange={(event) =>
-															handleRangeChange("start", event.target.value)
-														}
-														className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-													/>
-												</div>
-											</div>
-											<div className="space-y-1">
-												<label className="text-xs font-medium text-gray-500">
-													To
-												</label>
-												<div className="relative">
-													<button
-														type="button"
-														className="flex w-full items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-left text-sm font-medium text-gray-900 shadow-sm"
-													>
-														<Calendar className="h-4 w-4 text-gray-500" />
-														<span>
-															{rangeEnd
-																? formatDisplayDate(rangeEnd)
-																: "Pick a date"}
-														</span>
-													</button>
-													<input
-														type="date"
-														value={rangeEnd}
-														onChange={(event) =>
-															handleRangeChange("end", event.target.value)
-														}
-														className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-													/>
-												</div>
-											</div>
+										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+											<DatePickerField
+												label="From"
+												date={rangeStart}
+												onSelect={(date) => handleRangeChange("start", date)}
+												disabled={(date) =>
+													Boolean(rangeEnd && date > rangeEnd)
+												}
+											/>
+											<DatePickerField
+												label="To"
+												date={rangeEnd}
+												onSelect={(date) => handleRangeChange("end", date)}
+												disabled={(date) =>
+													Boolean(rangeStart && date < rangeStart)
+												}
+											/>
 										</div>
 										<p className="text-xs text-gray-500">
 											Setting from/to automatically applies the range filter.
@@ -607,9 +564,6 @@ export function VisitorLogs() {
 				<Table>
 					<TableHeader className="bg-gray-50">
 						<TableRow className="border-b border-gray-200 hover:bg-gray-50">
-							<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-48">
-								Date/Time
-							</TableHead>
 							<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-40">
 								Constituent
 							</TableHead>
@@ -621,6 +575,9 @@ export function VisitorLogs() {
 							</TableHead>
 							<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 min-w-64">
 								Remarks
+							</TableHead>
+							<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-48">
+								Date/Time
 							</TableHead>
 							<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-36">
 								Logged By
@@ -635,9 +592,6 @@ export function VisitorLogs() {
 									index % 2 === 1 ? "bg-gray-50/30" : "bg-white"
 								}`}
 							>
-								<TableCell className="px-6 py-4 text-sm text-gray-900">
-									{formatDateTime(log.dateVisited)}
-								</TableCell>
 								<TableCell className="px-6 py-4 text-sm font-medium text-gray-900">
 									{log.constituentName}
 								</TableCell>
@@ -649,6 +603,9 @@ export function VisitorLogs() {
 								</TableCell>
 								<TableCell className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
 									{log.remarks}
+								</TableCell>
+								<TableCell className="px-6 py-4 text-sm text-gray-900">
+									{formatDateTime(log.dateVisited)}
 								</TableCell>
 								<TableCell className="px-6 py-4 text-sm text-gray-900">
 									{log.loggedBy}
