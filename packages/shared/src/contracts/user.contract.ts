@@ -9,6 +9,7 @@ import {
 	GetUserListSchema,
 	InviteUserResponseSchema,
 	InviteUserSchema,
+	RequestPasswordResetResponseSchema,
 	UpdateUserSchema,
 	UserListResponseSchema,
 	UserWithRoleSchema,
@@ -142,6 +143,22 @@ export const checkEmailStatusContract = oc
 	.input(CheckEmailStatusSchema)
 	.output(CheckEmailStatusResponseSchema);
 
+export const requestPasswordResetContract = oc
+	.route({
+		method: "POST",
+		path: "/users/request-password-reset",
+		summary: "Request password reset email",
+		description:
+			"Send a password reset email if the user exists. Return success regardless of existence to prevent enumeration.",
+		tags: ["Users", "Auth"],
+	})
+	.input(CheckEmailStatusSchema)
+	.output(RequestPasswordResetResponseSchema)
+	.errors({
+		DEACTIVATED_ACCOUNT: ERRORS.AUTH.DEACTIVATED_ACCOUNT,
+		INTERNAL_SERVER_ERROR: ERRORS.GENERAL.INTERNAL_SERVER_ERROR,
+	});
+
 export const userContract = {
 	me: getCurrentUserContract,
 	list: getUserListContract,
@@ -151,4 +168,5 @@ export const userContract = {
 	update: updateUserContract,
 	invite: inviteUserContract,
 	checkEmailStatus: checkEmailStatusContract,
+	requestPasswordReset: requestPasswordResetContract,
 };

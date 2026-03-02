@@ -164,9 +164,8 @@ export function BookingFormFields({
 				>
 					<SelectTrigger
 						className={cn(
-							"w-full px-4 py-3 bg-gray-50 border-0 text-gray-900 focus:ring-2 focus:ring-[#a60202]/20",
-							fieldErrors?.room &&
-								"ring-2 ring-red-500/30 border border-red-500 bg-red-50/30",
+							"w-full px-4 py-3 bg-white border border-gray-300 rounded-md text-gray-900 shadow-sm focus:ring-2 focus:ring-[#a60202]/20 focus:border-[#a60202] transition-colors",
+							fieldErrors?.room && "border-red-500 ring-2 ring-red-500/20",
 						)}
 					>
 						<SelectValue placeholder="Select a conference room">
@@ -215,10 +214,9 @@ export function BookingFormFields({
 						<Button
 							variant="outline"
 							className={cn(
-								"w-full px-4 py-3 justify-start text-left font-normal border border-blue-500 hover:bg-gray-50 focus:ring-2 focus:ring-[#a60202]/20",
+								"w-full px-4 py-3 justify-start text-left font-normal border border-gray-300 shadow-sm hover:bg-gray-50 focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
 								!values.date && "text-muted-foreground",
-								fieldErrors?.date &&
-									"ring-2 ring-red-500/30 border-red-500 bg-red-50/30",
+								fieldErrors?.date && "border-red-500 ring-2 ring-red-500/20",
 							)}
 						>
 							<CalendarIcon className="mr-2 h-4 w-4" />
@@ -264,9 +262,8 @@ export function BookingFormFields({
 						minTime="07:00"
 						maxTime="17:00"
 						className={cn(
-							"focus:ring-2 focus:ring-[#a60202]/20",
-							fieldErrors?.startTime &&
-								"ring-2 ring-red-500/30 border-red-500 bg-red-50/30",
+							"bg-white border border-gray-300 shadow-sm focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
+							fieldErrors?.startTime && "border-red-500 ring-2 ring-red-500/20",
 						)}
 					/>
 					{fieldErrors?.startTime && (
@@ -288,9 +285,8 @@ export function BookingFormFields({
 						minTime={values.startTime || "07:00"}
 						maxTime="17:00"
 						className={cn(
-							"focus:ring-2 focus:ring-[#a60202]/20",
-							fieldErrors?.endTime &&
-								"ring-2 ring-red-500/30 border-red-500 bg-red-50/30",
+							"bg-white border border-gray-300 shadow-sm focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
+							fieldErrors?.endTime && "border-red-500 ring-2 ring-red-500/20",
 						)}
 					/>
 					{fieldErrors?.endTime && (
@@ -314,9 +310,8 @@ export function BookingFormFields({
 					onChange={(e) => onChange("title", e.target.value)}
 					maxLength={TEXT_LIMITS.XS}
 					className={cn(
-						"w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#a60202]/20",
-						fieldErrors?.title &&
-							"ring-2 ring-red-500/30 border border-red-500 bg-red-50/30",
+						"w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-md text-gray-900 focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
+						fieldErrors?.title && "border-red-500 ring-2 ring-red-500/20",
 					)}
 					placeholder="Enter booking title..."
 				/>
@@ -343,9 +338,9 @@ export function BookingFormFields({
 					onChange={(e) => onChange("requestedFor", e.target.value)}
 					maxLength={TEXT_LIMITS.XS}
 					className={cn(
-						"w-full px-4 py-3 bg-gray-50 border-0 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#a60202]/20",
+						"w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-md text-gray-900 focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
 						fieldErrors?.requestedFor &&
-							"ring-2 ring-red-500/30 border border-red-500 bg-red-50/30",
+							"border-red-500 ring-2 ring-red-500/20",
 					)}
 					placeholder="Name of person or group requesting the room..."
 				/>

@@ -362,7 +362,7 @@ export class RoomBookingService {
 		const shouldResetToPending =
 			userRole === "councilor" &&
 			timesChanged &&
-			booking.status === "confirmed";
+			(booking.status === "confirmed" || booking.status === "rejected");
 
 		if (timesChanged) {
 			// Scenario 3 — Validate new time range

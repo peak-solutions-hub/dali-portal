@@ -69,6 +69,7 @@ export function useCreateBooking(
 					await api.roomBookings.generateUploadUrl({
 						fileName: input.attachmentFile.name,
 						mimeType,
+						fileSize: input.attachmentFile.size,
 					});
 
 				if (uploadErr || !uploadData) {

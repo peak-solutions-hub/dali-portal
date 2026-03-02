@@ -133,6 +133,11 @@ export const UpdateRoomBookingStatusSchema = z.object({
 export const GenerateBookingUploadUrlSchema = z.object({
 	fileName: z.string().min(1).max(255),
 	mimeType: AttachmentMimeTypeEnum,
+	fileSize: z
+		.number()
+		.int()
+		.positive()
+		.max(5 * 1024 * 1024, "File size must not exceed 5MB"),
 });
 
 export const GenerateBookingUploadUrlResponseSchema = z.object({
