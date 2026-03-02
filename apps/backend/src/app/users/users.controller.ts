@@ -67,6 +67,17 @@ export class UsersController {
 		);
 	}
 
+	// Public endpoint with rate limiting to request password reset
+	@Throttle({ default: { limit: 3, ttl: 60000 } })
+	@Implement(contract.users.requestPasswordReset)
+	requestPasswordReset() {
+		return implement(contract.users.requestPasswordReset).handler(
+			async ({ input }) => {
+				return await this.usersService.requestPasswordReset(input);
+			},
+		);
+	}
+
 	@SkipThrottle()
 	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.getById)

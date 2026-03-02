@@ -18,6 +18,7 @@ import { ThrottlerExceptionFilter } from "@/app/exceptions/throttler-exception.f
 import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module";
 import { LegislativeDocumentsModule } from "@/app/legislative-documents/legislative-documents.module";
 import { RolesModule } from "@/app/roles/roles.module";
+import { RoomBookingModule } from "@/app/room-booking/room-booking.module";
 import { SessionModule } from "@/app/session/session.module";
 import { UsersModule } from "@/app/users/users.module";
 import { SupabaseModule } from "@/app/util/supabase/supabase.module";
@@ -42,6 +43,7 @@ declare module "@orpc/nest" {
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
 		RolesModule,
+		RoomBookingModule,
 		UsersModule,
 		SessionModule,
 		// orpc

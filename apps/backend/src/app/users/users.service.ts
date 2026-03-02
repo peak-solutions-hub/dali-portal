@@ -6,6 +6,8 @@ import type {
 	GetUserListInput,
 	InviteUserInput,
 	InviteUserResponse,
+	RequestPasswordResetInput,
+	RequestPasswordResetResponse,
 	UpdateUserInput,
 	UserListResponse,
 	UserWithRole,
@@ -373,5 +375,49 @@ export class UsersService {
 				: "Invitation email sent successfully.",
 			userId: authData.user.id,
 		};
+	}
+
+	async requestPasswordReset(
+		input: RequestPasswordResetInput,
+	): Promise<RequestPasswordResetResponse> {
+		const { email } = input;
+
+		const user = await this.db.user.findFirst({
+			where: { email },
+			select: { status: true },
+		});
+
+		if (user?.status === "deactivated") {
+			throw new AppError(
+				"AUTH.DEACTIVATED_ACCOUNT",
+				"Your account has been deactivated. Please contact an administrator.",
+			);
+		}
+
+		// To prevent user enumeration, we return success true even if user doesn't exist
+		if (!user) {
+			this.logger.warn(
+				`Password reset requested for non-existent user: ${email}`,
+			);
+			return { success: true };
+		}
+
+		const supabase = this.supabaseAdmin.getClient();
+		const adminUrl = this.configService.get("adminUrl") as string;
+		const redirectTo = `${adminUrl}/auth/callback?next=/set-password`;
+
+		const { error } = await supabase.auth.resetPasswordForEmail(email, {
+			redirectTo,
+		});
+
+		if (error) {
+			this.logger.error(`Error requesting password reset for ${email}:`, error);
+			throw new AppError(
+				"GENERAL.INTERNAL_SERVER_ERROR",
+				"Failed to send password reset email.",
+			);
+		}
+
+		return { success: true };
 	}
 }

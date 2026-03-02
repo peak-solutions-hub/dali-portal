@@ -248,4 +248,27 @@ export class SupabaseStorageService {
 		const sanitizedName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
 		return `${folder}/${timestamp}-${sanitizedName}`;
 	}
+
+	/**
+	 * Delete a file from storage.
+	 * Returns true when deletion succeeds, false otherwise.
+	 */
+	async deleteFile(bucket: string, path: string): Promise<boolean> {
+		try {
+			const supabase = this.supabaseAdmin.getClient();
+			const { error } = await supabase.storage.from(bucket).remove([path]);
+
+			if (error) {
+				this.logger.warn(
+					`Failed to delete file ${bucket}/${path}: ${error.message}`,
+				);
+				return false;
+			}
+
+			return true;
+		} catch (err) {
+			this.logger.error(`Error deleting file ${bucket}/${path}`, err);
+			return false;
+		}
+	}
 }

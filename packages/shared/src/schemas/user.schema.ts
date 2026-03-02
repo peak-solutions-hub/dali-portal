@@ -79,6 +79,10 @@ export const CheckEmailStatusResponseSchema = z.object({
 	isDeactivated: z.boolean(),
 });
 
+export const RequestPasswordResetResponseSchema = z.object({
+	success: z.boolean(),
+});
+
 // Response schemas
 export const UserListResponseSchema = z.object({
 	users: z.array(UserWithRoleSchema),
@@ -104,4 +108,8 @@ export type InviteUserResponse = z.infer<typeof InviteUserResponseSchema>;
 export type CheckEmailStatusInput = z.infer<typeof CheckEmailStatusSchema>;
 export type CheckEmailStatusResponse = z.infer<
 	typeof CheckEmailStatusResponseSchema
+>;
+export type RequestPasswordResetInput = z.infer<typeof CheckEmailStatusSchema>;
+export type RequestPasswordResetResponse = z.infer<
+	typeof RequestPasswordResetResponseSchema
 >;
