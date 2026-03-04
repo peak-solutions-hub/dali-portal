@@ -169,8 +169,11 @@ export function DocumentCard({ document }: DocumentCardProps) {
 					{/* Right Action */}
 					<div className="flex flex-col gap-2 shrink-0">
 						<Link href={`/legislative-documents/${document.id}`}>
-							<Button className="bg-[#a60202] hover:bg-[#8a0101] w-full">
-								{readMoreLabel}
+							<Button
+								aria-label={readMoreLabel}
+								className="bg-[#a60202] hover:bg-[#8a0101] w-full"
+							>
+								View More
 							</Button>
 						</Link>
 						{hasPdfFile ? (
