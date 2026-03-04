@@ -6,6 +6,8 @@ import {
 	getDocumentTypeLabel,
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
+import { Badge } from "@repo/ui/components/badge";
+import { Calendar } from "@repo/ui/lib/lucide-react";
 
 interface DocumentHeaderProps {
 	document: LegislativeDocumentWithDetails;
@@ -22,58 +24,52 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 			? getClassificationLabel(document.document.classification)
 			: "N/A";
 
-	return (
-		<header className="mb-6 sm:mb-8">
-			{/* Document Number */}
-			<h1
-				className="font-['Playfair_Display'] text-xl sm:text-2xl md:text-3xl text-[#a60202] mb-3 sm:mb-4"
-				aria-label={`Document Number: ${documentNumber}`}
-			>
-				{documentNumber}
-			</h1>
-			{/* Title */}
-			<h2 className="text-base sm:text-lg md:text-xl mb-4 sm:mb-6">
-				{documentTitle}
-			</h2>
+	const typeBadgeClass =
+		document.type === "ordinance"
+			? "bg-blue-100 text-blue-800 border-transparent"
+			: document.type === "resolution"
+				? "bg-green-100 text-green-800 border-transparent"
+				: "bg-gray-100 text-gray-800 border-transparent";
 
-			{/* Metadata Grid */}
-			<dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 p-4 sm:p-6 rounded-lg">
-				{/* Date Passed/Approved */}
-				<div>
-					<dt className="text-sm text-gray-600">Date Passed/Approved</dt>
-					<dd className="font-medium">
-						<time dateTime={document.dateEnacted?.toISOString()}>
-							{formattedDate}
-						</time>
-					</dd>
-				</div>
-				{/* Author(s) */}
-				{document.authorNames && document.authorNames.length > 0 && (
-					<div>
-						<dt className="text-sm text-gray-600">Author(s)</dt>
-						<dd className="font-medium">{document.authorNames.join(", ")}</dd>
-					</div>
-				)}
-				{/* Sponsor(s) */}
-				{document.sponsorNames && document.sponsorNames.length > 0 && (
-					<div>
-						<dt className="text-sm text-gray-600">Sponsor(s)</dt>
-						<dd className="font-medium">{document.sponsorNames.join(", ")}</dd>
-					</div>
-				)}
-				{/* Classification */}
+	return (
+		<header>
+			<div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-5">
+				<Badge
+					variant="outline"
+					className={`uppercase tracking-wider font-semibold ${typeBadgeClass}`}
+				>
+					{documentType}
+				</Badge>
 				{classification && classification !== "N/A" && (
-					<div>
-						<dt className="text-sm text-gray-600">Classification</dt>
-						<dd className="font-medium">{classification}</dd>
-					</div>
+					<Badge
+						variant="outline"
+						className="border-gray-200 bg-white text-gray-600 font-normal"
+					>
+						{classification}
+					</Badge>
 				)}
-				{/* Document Type */}
-				<div>
-					<dt className="text-sm text-gray-600">Document Type</dt>
-					<dd className="font-medium">{documentType}</dd>
+			</div>
+
+			{/* Document Number */}
+			{documentNumber && (
+				<div
+					className="text-sm font-semibold tracking-widest text-[#a1a1aa] uppercase mb-3"
+					aria-label={`Document Number: ${documentNumber}`}
+				>
+					{documentNumber}
 				</div>
-			</dl>
+			)}
+
+			{/* Title */}
+			<h1 className="font-['Playfair_Display'] text-2xl sm:text-3xl md:text-[34px] text-[#0f172a] mb-4 leading-tight max-w-4xl">
+				{documentTitle}
+			</h1>
+
+			{/* Date Enacted */}
+			<div className="flex items-center gap-2 text-md sm:text-base text-[#a60202] font-medium mt-2">
+				<Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+				<span>Date Enacted: {formattedDate}</span>
+			</div>
 		</header>
 	);
 }

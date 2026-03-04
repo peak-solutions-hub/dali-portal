@@ -1,12 +1,15 @@
 import { isDefinedError } from "@orpc/client";
 import { getClassificationLabel, transformDocumentDates } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { Card } from "@repo/ui/components/card";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DocumentHeader, PDFViewer } from "@/components/legislative-documents/";
+import {
+	DocumentHeader,
+	DocumentSidebar,
+	DocumentViewer,
+} from "@/components/legislative-documents/";
 import { api } from "@/lib/api.client";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 
@@ -95,14 +98,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 	const document = transformDocumentDates(documentData);
 
 	return (
-		<div className="min-h-screen bg-gray-50">
-			<div className="bg-white border-b border-gray-200">
-				<div className="container mx-auto px-4 py-4">
+		<div className="min-h-screen bg-gray-50 pb-12">
+			<div className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm">
+				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-4">
 					<Link href="/legislative-documents">
 						<Button
 							variant="outline"
 							size="sm"
-							className="flex items-center gap-2"
+							className="flex items-center gap-2 cursor-pointer"
 						>
 							<ChevronLeft className="h-4 w-4" />
 							Back to Documents
@@ -111,13 +114,20 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 				</div>
 			</div>
 
-			<div className="container mx-auto px-4 py-8">
-				<Card className="p-4 sm:p-6 md:p-8">
-					<div className="space-y-6">
+			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
+				<div className="space-y-6">
+					<article className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-sm">
 						<DocumentHeader document={document} />
-						<PDFViewer document={document} />
+					</article>
+					<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+						<div className="order-2 lg:order-1 lg:col-span-2">
+							<DocumentViewer document={document} />
+						</div>
+						<div className="order-1 lg:order-2 lg:col-span-1">
+							<DocumentSidebar document={document} />
+						</div>
 					</div>
-				</Card>
+				</div>
 			</div>
 		</div>
 	);
