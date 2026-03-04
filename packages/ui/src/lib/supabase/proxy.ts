@@ -127,7 +127,8 @@ async function applyRoutingLogic(
 	// If routing logic produced a redirect, copy all refreshed session cookies
 	// onto it so the browser receives the updated tokens.
 	supabaseResponse.cookies.getAll().forEach((cookie) => {
-		redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+		const { name, value, ...options } = cookie;
+		redirectResponse.cookies.set(name, value, options);
 	});
 
 	return redirectResponse;

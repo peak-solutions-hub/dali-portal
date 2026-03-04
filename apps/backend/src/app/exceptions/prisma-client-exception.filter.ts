@@ -421,35 +421,25 @@ export class DriverAdapterExceptionFilter extends BaseExceptionFilter {
 			return;
 		}
 
-		// Not a pool error — delegate to the next filter in the chain
+		// Not a pool exhaustion error — fall back to the base Nest exception handling
 		super.catch(exception, host);
 	}
 
 	private isPoolExhaustedError(exception: unknown): boolean {
 		if (!(exception instanceof Error)) return false;
 
-		// Check for DriverAdapterError name
-		if (exception.name === "DriverAdapterError") return true;
+		const isDriverAdapterError = exception.name === "DriverAdapterError";
+		if (!isDriverAdapterError) return false;
 
-		// Check cause message for pool exhaustion keywords
 		const cause = (exception as Error & { cause?: { message?: string } }).cause;
-		if (
-			cause?.message &&
-			(cause.message.includes("Max client connections reached") ||
-				cause.message.includes("remaining connection slots are reserved") ||
-				cause.message.includes("too many clients"))
-		) {
-			return true;
-		}
+		const normalizedMessage = `${exception.message} ${cause?.message ?? ""}`
+			.toLowerCase()
+			.trim();
 
-		// Check the error message itself
-		if (
-			exception.message.includes("Max client connections reached") ||
-			exception.message.includes("remaining connection slots are reserved")
-		) {
-			return true;
-		}
-
-		return false;
+		return (
+			normalizedMessage.includes("max client connections reached") ||
+			normalizedMessage.includes("remaining connection slots are reserved") ||
+			normalizedMessage.includes("too many clients")
+		);
 	}
 }

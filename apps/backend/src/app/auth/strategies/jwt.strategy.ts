@@ -30,7 +30,29 @@ interface CachedUserData {
 
 const userCache = new Map<string, CachedUserData>();
 const CACHE_TTL_MS = 60_000;
+const MAX_CACHE_ENTRIES = 1_000;
 const inflightRequests = new Map<string, Promise<CachedUserData | null>>();
+
+const pruneExpiredUserCache = (now = Date.now()): void => {
+	for (const [userId, cached] of userCache.entries()) {
+		if (now - cached.cachedAt >= CACHE_TTL_MS) {
+			userCache.delete(userId);
+		}
+	}
+};
+
+const enforceUserCacheLimit = (): void => {
+	const excessEntries = userCache.size - MAX_CACHE_ENTRIES;
+	if (excessEntries <= 0) return;
+
+	const oldestEntries = Array.from(userCache.entries())
+		.sort(([, left], [, right]) => left.cachedAt - right.cachedAt)
+		.slice(0, excessEntries);
+
+	for (const [userId] of oldestEntries) {
+		userCache.delete(userId);
+	}
+};
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -49,6 +71,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 	}
 
 	private getUserData(userId: string): Promise<CachedUserData | null> {
+		pruneExpiredUserCache();
+
 		const cached = userCache.get(userId);
 		if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
 			return Promise.resolve(cached);
@@ -82,6 +106,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 					cachedAt: Date.now(),
 				};
 				userCache.set(userId, userData);
+				enforceUserCacheLimit();
 				return userData;
 			})
 			.finally(() => {
@@ -109,7 +134,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 		if (userData.status === "deactivated") {
 			userCache.delete(payload.sub);
 			this.logger.warn(
-				`Auth blocked: deactivated account userId=${userData.id} email=${userData.email}`,
+				`Auth blocked: deactivated account userId=${userData.id} supabaseId=${payload.sub}`,
 			);
 			throw new ORPCError("DEACTIVATED_ACCOUNT", {
 				status: 401,

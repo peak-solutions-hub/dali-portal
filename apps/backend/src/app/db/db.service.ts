@@ -22,6 +22,7 @@ export class DbService extends PrismaClient {
 
 	constructor(configService: ConfigService) {
 		const connectionString = configService.getOrThrow("database.url") as string;
+		const logger = new Logger(DbService.name);
 
 		const adapter = new PrismaPg(
 			{
@@ -32,7 +33,7 @@ export class DbService extends PrismaClient {
 			},
 			{
 				onPoolError: (err: Error) => {
-					this.logger.error(
+					logger.error(
 						`Database pool error: ${err.message}`,
 						err.stack,
 						"DbService",
