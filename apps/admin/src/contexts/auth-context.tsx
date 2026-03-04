@@ -129,6 +129,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				setAuthToken(null);
 				setUserProfile(null);
 				useAuthStore.setState({ userProfile: null });
+				// Clear cached role cookie
+				document.cookie = "x-user-role=; path=/; max-age=0";
 				setIsLoading(false);
 
 				if (isDeactivated) {
@@ -144,6 +146,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					profile: data,
 					timestamp: Date.now(),
 				};
+
+				// Cache role in a cookie for middleware to avoid backend calls during redirects
+				if (data.role?.name) {
+					document.cookie = `x-user-role=${data.role.name}; path=/; max-age=300; SameSite=Lax`;
+				}
 			}
 
 			setUserProfile(data);
@@ -284,6 +291,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setUserProfile(null);
 		useAuthStore.setState({ userProfile: null });
 		profileCacheRef.current = null;
+		// Clear cached role cookie
+		document.cookie = "x-user-role=; path=/; max-age=0";
 		router.push("/login");
 	};
 

@@ -37,33 +37,6 @@ export function createSupabaseServerClient() {
 }
 
 /**
- * Create a Supabase server client using the anon key
- * Suitable for operations that don't require admin privileges
- *
- * @example
- * ```typescript
- * const supabase = createSupabaseAnonServerClient();
- * ```
- */
-export function createSupabaseAnonServerClient() {
-	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-	const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-	if (!supabaseUrl || !supabaseKey) {
-		throw new Error(
-			"Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your app's .env.local file",
-		);
-	}
-
-	return createClient(supabaseUrl, supabaseKey, {
-		auth: {
-			autoRefreshToken: false,
-			persistSession: false,
-		},
-	});
-}
-
-/**
  * Supabase Server Clients
  *
  * Server-side Supabase client factories for Next.js.

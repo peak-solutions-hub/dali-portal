@@ -129,19 +129,6 @@ export class RoomBookingService {
 			input;
 		const skip = (page - 1) * limit;
 
-		this.logger.debug(
-			`getList filters: ${JSON.stringify({
-				status,
-				room,
-				date,
-				startDate,
-				endDate,
-				bookedBy,
-				limit,
-				page,
-			})}`,
-		);
-
 		if (status === "pending" && !this.isAdminRole(userRole)) {
 			throw new AppError("ROOM_BOOKING.FORBIDDEN");
 		}
