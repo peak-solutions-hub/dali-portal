@@ -3,6 +3,7 @@
 import { formatCitizenDisplayName, formatInquiryCategory } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Card } from "@repo/ui/components/card";
+import { Input } from "@repo/ui/components/input";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
 import {
 	Table,
@@ -13,17 +14,31 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
-import { Loader2, MessageCircle, Tag } from "lucide-react";
-import { useState } from "react";
+import { Loader2, MessageCircle, Search, Tag, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { InquiryTicketSheet } from "@/components/inquiry-tickets/inquiry-ticket-sheet";
 import { PaginationControls } from "@/components/inquiry-tickets/pagination-controls";
 import { useInquiryTickets } from "@/hooks/inquiry-tickets/use-inquiry-tickets";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function InquiryTicketsPage() {
+	const { userProfile } = useAuthStore();
 	const [selectedStatus, setSelectedStatus] = useState<string>("new");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
-	const [searchQuery] = useState("");
+	const [searchInput, setSearchInput] = useState("");
+	const [searchQuery, setSearchQuery] = useState("");
+
+	// Debounce the search query by 300ms
+	useEffect(() => {
+		const t = setTimeout(() => setSearchQuery(searchInput), 300);
+		return () => clearTimeout(t);
+	}, [searchInput]);
+
+	// Reset to page 1 when search query changes
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [searchQuery]);
 
 	const {
 		tickets,
@@ -37,6 +52,7 @@ export default function InquiryTicketsPage() {
 		status: selectedStatus,
 		page: currentPage,
 		searchQuery,
+		currentUserId: userProfile?.id,
 	});
 
 	const handleStatusChange = (status: string) => {
@@ -57,8 +73,27 @@ export default function InquiryTicketsPage() {
 					</h1>
 				</div>
 
-				{/* Sticky Status Tabs */}
-				<div className="sticky top-0 z-10 p-6 pb-4 pt-0">
+				{/* Sticky Status Tabs + Search Bar */}
+				<div className="sticky top-0 z-10 p-6 pb-4 pt-0 flex flex-col gap-3">
+					<div className="relative">
+						<Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
+						<Input
+							placeholder="Search by name, subject, or reference…"
+							value={searchInput}
+							onChange={(e) => setSearchInput(e.target.value)}
+							className="pl-10 pr-9 h-10 bg-white border-border shadow-sm text-sm focus-visible:ring-2 focus-visible:ring-ring"
+						/>
+						{searchInput && (
+							<button
+								type="button"
+								onClick={() => setSearchInput("")}
+								className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+								aria-label="Clear search"
+							>
+								<X className="h-4 w-4" />
+							</button>
+						)}
+					</div>
 					<Tabs value={selectedStatus} onValueChange={handleStatusChange}>
 						<TabsList>
 							<TabsTrigger value="all" disabled={isLoadingCounts}>
@@ -81,6 +116,10 @@ export default function InquiryTicketsPage() {
 							</TabsTrigger>
 							<TabsTrigger value="rejected" disabled={isLoadingCounts}>
 								Rejected ({isLoadingCounts ? "..." : counts.rejected})
+							</TabsTrigger>
+							<TabsTrigger value="assigned_to_me" disabled={isLoadingCounts}>
+								Assigned to Me (
+								{isLoadingCounts ? "..." : counts.assigned_to_me})
 							</TabsTrigger>
 						</TabsList>
 					</Tabs>

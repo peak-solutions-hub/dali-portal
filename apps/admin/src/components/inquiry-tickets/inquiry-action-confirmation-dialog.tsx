@@ -12,10 +12,21 @@ import {
 } from "@repo/ui/components/dialog";
 import { Label } from "@repo/ui/components/label";
 import { Textarea } from "@repo/ui/components/textarea";
-import { AlertCircle, CheckCircle, UserPlus, XCircle } from "lucide-react";
+import {
+	AlertCircle,
+	CheckCircle,
+	UserMinus,
+	UserPlus,
+	XCircle,
+} from "lucide-react";
 import { useState } from "react";
 
-export type InquiryActionType = "assign" | "resolve" | "reject";
+export type InquiryActionType =
+	| "assign"
+	| "assign_to"
+	| "unassign"
+	| "resolve"
+	| "reject";
 
 interface InquiryActionConfirmationDialogProps {
 	isOpen: boolean;
@@ -23,6 +34,8 @@ interface InquiryActionConfirmationDialogProps {
 	onConfirm: (remarks?: string) => void;
 	actionType: InquiryActionType;
 	isLoading?: boolean;
+	/** Used by assign_to to show the target staff member's name */
+	targetName?: string;
 }
 
 const ACTION_CONFIG = {
@@ -34,6 +47,30 @@ const ACTION_CONFIG = {
 		iconColor: "text-blue-600",
 		confirmButtonText: "Assign to Me",
 		confirmButtonVariant: "default" as const,
+		requiresRemarks: false,
+		remarksLabel: "",
+		remarksPlaceholder: "",
+	},
+	assign_to: {
+		title: "Assign Ticket",
+		description:
+			"This will assign the inquiry ticket to the selected staff member and mark it as 'Open'.",
+		icon: UserPlus,
+		iconColor: "text-blue-600",
+		confirmButtonText: "Assign",
+		confirmButtonVariant: "default" as const,
+		requiresRemarks: false,
+		remarksLabel: "",
+		remarksPlaceholder: "",
+	},
+	unassign: {
+		title: "Unassign Ticket",
+		description:
+			"This will remove the current assignee from this inquiry ticket.",
+		icon: UserMinus,
+		iconColor: "text-yellow-600",
+		confirmButtonText: "Unassign",
+		confirmButtonVariant: "outline" as const,
 		requiresRemarks: false,
 		remarksLabel: "",
 		remarksPlaceholder: "",
@@ -71,10 +108,16 @@ export function InquiryActionConfirmationDialog({
 	onConfirm,
 	actionType,
 	isLoading = false,
+	targetName,
 }: InquiryActionConfirmationDialogProps) {
 	const [remarks, setRemarks] = useState("");
 	const config = ACTION_CONFIG[actionType];
 	const Icon = config.icon;
+
+	const description =
+		actionType === "assign_to" && targetName
+			? `This will assign the inquiry ticket to ${targetName} and mark it as 'Open'.`
+			: config.description;
 
 	const handleConfirm = () => {
 		if (config.requiresRemarks) {
@@ -104,7 +147,7 @@ export function InquiryActionConfirmationDialog({
 						<DialogTitle>{config.title}</DialogTitle>
 					</div>
 					<DialogDescription className="text-left">
-						{config.description}
+						{description}
 					</DialogDescription>
 				</DialogHeader>
 

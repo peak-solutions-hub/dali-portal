@@ -140,4 +140,15 @@ export class InquiryTicketController {
 			},
 		);
 	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Roles(...ROLE_PERMISSIONS.INQUIRY_TICKETS)
+	@Implement(contract.inquiries.assignTicket)
+	assignTo() {
+		return implement(contract.inquiries.assignTicket).handler(
+			async ({ input }) => {
+				return await this.inquiryService.assignTo(input.id, input.assignedTo);
+			},
+		);
+	}
 }

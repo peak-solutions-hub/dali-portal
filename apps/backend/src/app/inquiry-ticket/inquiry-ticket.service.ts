@@ -375,6 +375,53 @@ export class InquiryTicketService {
 		};
 	}
 
+	async assignTo(
+		id: string,
+		assignedTo: string | null,
+	): Promise<InquiryTicketResponse> {
+		const ticket = await this.db.inquiryTicket.findFirst({
+			where: { id },
+		});
+
+		if (!ticket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		// Validate target user exists and is active before assigning
+		if (assignedTo !== null) {
+			const targetUser = await this.db.user.findFirst({
+				where: { id: assignedTo, status: "active" },
+			});
+
+			if (!targetUser) {
+				throw new AppError("GENERAL.BAD_REQUEST");
+			}
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id },
+			data: {
+				assignedTo,
+				// Auto-transition from 'new' to 'open' when assigned to someone
+				...(assignedTo !== null &&
+					ticket.status === "new" && { status: "open" }),
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
+	}
+
 	async assignToMe(
 		ticketId: string,
 		userId: string,
