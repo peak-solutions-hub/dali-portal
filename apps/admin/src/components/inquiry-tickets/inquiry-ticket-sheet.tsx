@@ -12,10 +12,11 @@ import { LockKeyhole } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import {
-	useAssignTicket,
+	useAssignTicketTo,
 	useConcludeTicket,
 	useRefreshTicket,
 	useSendTicketMessage,
+	useStaffList,
 } from "@/hooks";
 import { api } from "@/lib/api.client";
 import {
@@ -50,6 +51,8 @@ export function InquiryTicketSheet({
 	const [confirmationDialog, setConfirmationDialog] = useState<{
 		isOpen: boolean;
 		actionType: InquiryActionType | null;
+		pendingAssigneeId?: string | null;
+		pendingAssigneeName?: string;
 	}>({
 		isOpen: false,
 		actionType: null,
@@ -71,13 +74,15 @@ export function InquiryTicketSheet({
 		},
 	});
 
-	const { assignToMe } = useAssignTicket({
+	const { assignTo, isAssigning: isAssigningTo } = useAssignTicketTo({
 		onSuccess: async () => {
 			if (ticketId) {
 				await refreshTicket(ticketId);
 			}
 		},
 	});
+
+	const { users: staffList, isLoading: isLoadingStaff } = useStaffList();
 
 	const { conclude: concludeTicket, isConcluding } = useConcludeTicket({
 		onSuccess: async () => {
@@ -236,10 +241,6 @@ export function InquiryTicketSheet({
 		ticket?.status === "resolved" || ticket?.status === "rejected";
 
 	// Action handlers
-	const handleAssignToMe = (onOpenDialog: () => void) => {
-		onOpenDialog();
-	};
-
 	const handleResolve = (onOpenDialog: () => void) => {
 		onOpenDialog();
 	};
@@ -248,9 +249,24 @@ export function InquiryTicketSheet({
 		onOpenDialog();
 	};
 
-	const confirmAssignToMe = async () => {
+	const handleAssignTo = (userId: string | null) => {
 		if (!ticketId) return;
-		await assignToMe(ticketId);
+		if (userId === null) {
+			setConfirmationDialog({ isOpen: true, actionType: "unassign" });
+		} else {
+			const staffMember = staffList.find((u) => u.id === userId);
+			const name = staffMember
+				? userId === userProfile?.id
+					? `${staffMember.fullName} (You)`
+					: staffMember.fullName
+				: "the selected staff member";
+			setConfirmationDialog({
+				isOpen: true,
+				actionType: "assign_to",
+				pendingAssigneeId: userId,
+				pendingAssigneeName: name,
+			});
+		}
 	};
 
 	const confirmResolve = async (remarks: string) => {
@@ -275,14 +291,24 @@ export function InquiryTicketSheet({
 		if (!confirmationDialog.actionType) return;
 
 		switch (confirmationDialog.actionType) {
-			case "assign":
-				await confirmAssignToMe();
-				break;
 			case "resolve":
 				if (remarks) await confirmResolve(remarks);
 				break;
 			case "reject":
 				if (remarks) await confirmReject(remarks);
+				break;
+			case "assign_to":
+				if (ticketId && confirmationDialog.pendingAssigneeId !== undefined) {
+					await assignTo(
+						ticketId,
+						confirmationDialog.pendingAssigneeId ?? null,
+					);
+				}
+				break;
+			case "unassign":
+				if (ticketId) {
+					await assignTo(ticketId, null);
+				}
 				break;
 		}
 
@@ -333,9 +359,7 @@ export function InquiryTicketSheet({
 									/>
 									<InquiryTicketActions
 										ticket={ticket}
-										onAssign={() =>
-											handleAssignToMe(() => openConfirmationDialog("assign"))
-										}
+										onAssignTo={handleAssignTo}
 										onResolve={() =>
 											handleResolve(() => openConfirmationDialog("resolve"))
 										}
@@ -343,24 +367,43 @@ export function InquiryTicketSheet({
 											handleReject(() => openConfirmationDialog("reject"))
 										}
 										isUpdating={isUpdatingStatus}
+										isAssigningTo={isAssigningTo}
 										currentUserId={userProfile?.id}
+										staffList={staffList}
+										isLoadingStaff={isLoadingStaff}
 									/>
 								</>
 							) : isAssignedToOther ? (
-								<div className="p-6 bg-muted/30 flex items-center gap-4">
-									<div className="p-3 bg-muted rounded-full">
-										<LockKeyhole className="h-5 w-5 text-muted-foreground" />
+								<>
+									<div className="p-4 bg-muted/30 flex items-center gap-4">
+										<div className="p-3 bg-muted rounded-full">
+											<LockKeyhole className="h-5 w-5 text-muted-foreground" />
+										</div>
+										<div>
+											<p className="text-sm font-medium text-foreground/80 truncate max-w-xs">
+												Assigned to {ticket.user?.fullName}
+											</p>
+											<p className="text-xs text-muted-foreground mt-1">
+												You can reassign this inquiry using the dropdown below.
+											</p>
+										</div>
 									</div>
-									<div>
-										<p className="text-sm font-medium text-foreground/80 truncate max-w-xs">
-											Assigned to {ticket.user?.fullName}
-										</p>
-										<p className="text-xs text-muted-foreground mt-1">
-											You cannot reply to or manage inquiries assigned to other
-											staff members.
-										</p>
-									</div>
-								</div>
+									<InquiryTicketActions
+										ticket={ticket}
+										onAssignTo={handleAssignTo}
+										onResolve={() =>
+											handleResolve(() => openConfirmationDialog("resolve"))
+										}
+										onReject={() =>
+											handleReject(() => openConfirmationDialog("reject"))
+										}
+										isUpdating={isUpdatingStatus}
+										isAssigningTo={isAssigningTo}
+										currentUserId={userProfile?.id}
+										staffList={staffList}
+										isLoadingStaff={isLoadingStaff}
+									/>
+								</>
 							) : !ticket.assignedTo ? (
 								<>
 									{/* Disabled composer overlay — only Assign to Me / Reject are live */}
@@ -385,9 +428,7 @@ export function InquiryTicketSheet({
 
 									<InquiryTicketActions
 										ticket={ticket}
-										onAssign={() =>
-											handleAssignToMe(() => openConfirmationDialog("assign"))
-										}
+										onAssignTo={handleAssignTo}
 										onResolve={() =>
 											handleResolve(() => openConfirmationDialog("resolve"))
 										}
@@ -395,7 +436,10 @@ export function InquiryTicketSheet({
 											handleReject(() => openConfirmationDialog("reject"))
 										}
 										isUpdating={isUpdatingStatus}
+										isAssigningTo={isAssigningTo}
 										currentUserId={userProfile?.id}
+										staffList={staffList}
+										isLoadingStaff={isLoadingStaff}
 									/>
 								</>
 							) : (
@@ -412,9 +456,7 @@ export function InquiryTicketSheet({
 
 									<InquiryTicketActions
 										ticket={ticket}
-										onAssign={() =>
-											handleAssignToMe(() => openConfirmationDialog("assign"))
-										}
+										onAssignTo={handleAssignTo}
 										onResolve={() =>
 											handleResolve(() => openConfirmationDialog("resolve"))
 										}
@@ -422,7 +464,10 @@ export function InquiryTicketSheet({
 											handleReject(() => openConfirmationDialog("reject"))
 										}
 										isUpdating={isUpdatingStatus}
+										isAssigningTo={isAssigningTo}
 										currentUserId={userProfile?.id}
+										staffList={staffList}
+										isLoadingStaff={isLoadingStaff}
 									/>
 								</>
 							)}
@@ -435,8 +480,9 @@ export function InquiryTicketSheet({
 				isOpen={confirmationDialog.isOpen}
 				onClose={closeConfirmationDialog}
 				onConfirm={handleConfirmAction}
-				actionType={confirmationDialog.actionType || "assign"}
-				isLoading={isUpdatingStatus}
+				actionType={confirmationDialog.actionType || "resolve"}
+				isLoading={isUpdatingStatus || isAssigningTo}
+				targetName={confirmationDialog.pendingAssigneeName}
 			/>
 		</>
 	);

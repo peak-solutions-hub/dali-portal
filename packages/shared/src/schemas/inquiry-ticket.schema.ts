@@ -240,6 +240,12 @@ export const AssignInquiryToMeSchema = z.object({
 	id: z.uuid(),
 });
 
+export const AssignInquiryTicketSchema = z.object({
+	id: z.uuid(),
+	/** Target user ID to assign to, or null to unassign */
+	assignedTo: z.uuid().nullable(),
+});
+
 export const TrackInquiryTicketSchema = z.object({
 	referenceNumber: z
 		.string()
@@ -375,6 +381,9 @@ export type UpdateInquiryTicketStatusInput = z.infer<
 	typeof UpdateInquiryTicketStatusSchema
 >;
 export type AssignInquiryToMeInput = z.infer<typeof AssignInquiryToMeSchema>;
+export type AssignInquiryTicketInput = z.infer<
+	typeof AssignInquiryTicketSchema
+>;
 export type TrackInquiryTicketInput = z.infer<typeof TrackInquiryTicketSchema>;
 export type TrackInquiryTicketResponse = z.infer<
 	typeof TrackInquiryTicketResponseSchema

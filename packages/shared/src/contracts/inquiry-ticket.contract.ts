@@ -1,6 +1,7 @@
 import { oc } from "@orpc/contract";
 import { ERRORS } from "../constants";
 import {
+	AssignInquiryTicketSchema,
 	AssignInquiryToMeSchema,
 	CreateInquiryTicketResponseSchema,
 	CreateInquiryTicketSchema,
@@ -167,6 +168,23 @@ export const assignInquiryToMe = oc
 	.input(AssignInquiryToMeSchema)
 	.output(InquiryTicketResponseSchema);
 
+export const assignInquiryTicket = oc
+	.route({
+		method: "PATCH",
+		path: "/inquiries/{id}/assign",
+		summary: "Assign inquiry to a staff member",
+		description:
+			"Staff assigns an inquiry ticket to another staff member or council member. Pass null to unassign.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+	})
+	.input(AssignInquiryTicketSchema)
+	.output(InquiryTicketResponseSchema);
+
 export const createInquiryUploadUrls = oc
 	.route({
 		method: "POST",
@@ -197,4 +215,5 @@ export const inquiryTicketContract = {
 	updateStatus: updateInquiryTicketStatus,
 	getStatusCounts: getInquiryStatusCounts,
 	assignToMe: assignInquiryToMe,
+	assignTicket: assignInquiryTicket,
 };
