@@ -284,6 +284,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setUserProfile(null);
 		useAuthStore.setState({ userProfile: null });
 		profileCacheRef.current = null;
+		// Clear cached role cookie
+		document.cookie = "x-user-role=; path=/; max-age=0";
 		router.push("/login");
 	};
 

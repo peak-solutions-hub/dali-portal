@@ -388,3 +388,58 @@ export class PrismaRustPanicExceptionFilter extends BaseExceptionFilter {
 		});
 	}
 }
+
+/**
+ * Exception filter for Driver Adapter errors from @prisma/adapter-pg.
+ *
+ * When the pg connection pool is exhausted, the error surfaces as a generic Error
+ * with name "DriverAdapterError" and a cause containing "Max client connections reached".
+ * This filter catches those and returns a 503 Service Unavailable response.
+ */
+@Catch()
+export class DriverAdapterExceptionFilter extends BaseExceptionFilter {
+	private readonly logger = new Logger(DriverAdapterExceptionFilter.name);
+
+	catch(exception: unknown, host: ArgumentsHost) {
+		// Only handle DriverAdapterError with pool exhaustion cause
+		if (this.isPoolExhaustedError(exception)) {
+			const ctx = host.switchToHttp();
+			const response = ctx.getResponse<Response>();
+
+			this.logger.error(
+				"Database connection pool exhausted — Max client connections reached",
+				(exception as Error).stack,
+			);
+
+			response.status(HttpStatus.SERVICE_UNAVAILABLE).json({
+				defined: true,
+				status: HttpStatus.SERVICE_UNAVAILABLE,
+				code: "DATABASE_POOL_EXHAUSTED",
+				message:
+					"The service is temporarily overloaded. Please try again in a moment.",
+			});
+			return;
+		}
+
+		// Not a pool exhaustion error — fall back to the base Nest exception handling
+		super.catch(exception, host);
+	}
+
+	private isPoolExhaustedError(exception: unknown): boolean {
+		if (!(exception instanceof Error)) return false;
+
+		const isDriverAdapterError = exception.name === "DriverAdapterError";
+		if (!isDriverAdapterError) return false;
+
+		const cause = (exception as Error & { cause?: { message?: string } }).cause;
+		const normalizedMessage = `${exception.message} ${cause?.message ?? ""}`
+			.toLowerCase()
+			.trim();
+
+		return (
+			normalizedMessage.includes("max client connections reached") ||
+			normalizedMessage.includes("remaining connection slots are reserved") ||
+			normalizedMessage.includes("too many clients")
+		);
+	}
+}
