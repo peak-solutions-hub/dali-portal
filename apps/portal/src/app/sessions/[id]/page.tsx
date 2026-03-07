@@ -3,6 +3,9 @@ import {
 	formatSessionTime,
 	transformSessionWithAgendaDates,
 } from "@repo/shared";
+import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
+import { OnlineStatusBanner } from "@repo/ui/components/online-status-banner";
+import { ScrollToTop as ScrollToTopButton } from "@repo/ui/components/scroll-to-top";
 import {
 	getSessionStatusLabel,
 	getSessionTypeLabel,
@@ -10,9 +13,10 @@ import {
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ScrollToTop } from "@/components/scroll-to-top";
-import { SessionDetailContent } from "@/components/sessions/session-detail-content";
+import { SessionDetailContent } from "@/components/sessions";
 import { api } from "@/lib/api.client";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
+import SesisonDetailLoading from "./loading";
 
 interface PageProps {
 	params: Promise<{ id: string }>;
@@ -71,7 +75,11 @@ export default async function SessionDetailPage({
 	return (
 		<div className="min-h-screen bg-[#f9fafb]">
 			<ScrollToTop />
-			<SessionDetailContent id={id} searchParams={urlParams} />
+			<OnlineStatusBanner />
+			<ScrollToTopButton />
+			<OfflineAwareSuspense fallback={<SesisonDetailLoading />}>
+				<SessionDetailContent id={id} searchParams={urlParams} />
+			</OfflineAwareSuspense>
 		</div>
 	);
 }

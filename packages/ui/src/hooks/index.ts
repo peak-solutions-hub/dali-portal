@@ -7,6 +7,9 @@ export type {
 export { useFileUpload } from "./use-file-upload";
 export { useFocusTrap } from "./use-focus-trap";
 export { useIsMobile } from "./use-mobile";
+export { useOnlineStatus } from "./use-online-status";
+export type { UseScrollToTopReturn } from "./use-scroll-to-top";
+export { useScrollToTop } from "./use-scroll-to-top";
 export type {
 	SessionFilterValues,
 	UseSessionFiltersReturn,
