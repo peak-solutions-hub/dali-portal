@@ -1,11 +1,9 @@
-export { useBodyScrollLock } from "./use-body-scroll-lock";
 export { useDebounce } from "./use-debounce";
 export type {
 	UseFileUploadOptions,
 	UseFileUploadReturn,
 } from "./use-file-upload";
 export { useFileUpload } from "./use-file-upload";
-export { useFocusTrap } from "./use-focus-trap";
 export { useIsMobile } from "./use-mobile";
 export type {
 	SessionFilterValues,
