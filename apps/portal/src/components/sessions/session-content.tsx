@@ -1,3 +1,4 @@
+import { isDefinedError } from "@orpc/client";
 import type { Session, SessionSearchParams } from "@repo/shared";
 import {
 	buildSessionQueryString,
@@ -6,7 +7,13 @@ import {
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
-import { CalendarIcon, ListIcon } from "@repo/ui/lib/lucide-react";
+import { PageError } from "@repo/ui/components/page-error";
+import {
+	CalendarIcon,
+	FilterX,
+	ListIcon,
+	RefreshCw,
+} from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import {
 	SessionFilters,
@@ -67,20 +74,26 @@ export async function SessionContent({
 
 	// Handle API errors with user-visible message
 	if (error) {
+		// isDefinedError works because the contract now registers "SESSION.INVALID_DATE_RANGE"
+		// as its full dot-notation key — matching exactly what AppError sends over the wire.
 		const isDateRangeError =
-			"status" in error && (error as { status: number }).status === 400;
+			isDefinedError(error) && error.code === "SESSION.INVALID_DATE_RANGE";
 
 		const errorTitle = isDateRangeError
 			? "Invalid Date Range"
 			: "Unable to Load Sessions";
 
 		const errorDescription = isDateRangeError
-			? `The selected date range is invalid — "From" date cannot be later than "To" date. Please adjust your filters and try again.`
-			: "We're experiencing technical difficulties. Please try again in a moment.";
+			? "Please correct the date range and try again."
+			: "We couldn't load the sessions list. Please try again in a moment.";
+
+		// Show the contract message when it's a typed error, undefined otherwise
+		// so we never accidentally expose raw internal stack traces.
+		const errorDetail = isDefinedError(error) ? error.message : undefined;
 
 		return (
-			<div className="min-h-screen bg-gray-50">
-				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-3 sm:py-4">
+			<div className="flex min-h-[calc(100svh-4.5rem)] sm:min-h-[calc(100svh-5rem)] flex-col bg-gray-50 px-4 py-8 sm:px-6 sm:py-12 lg:px-19.5">
+				<div className="container mx-auto">
 					<div className="mb-6">
 						<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
 							Council Sessions
@@ -89,21 +102,36 @@ export async function SessionContent({
 							Regular sessions are held every Wednesday at 10:00 AM
 						</p>
 					</div>
-					<Card className="p-12 border-red-200 bg-red-50">
-						<div className="text-center space-y-4">
-							<p className="text-lg text-red-800 font-semibold">{errorTitle}</p>
-							<p className="text-sm text-red-700">{errorDescription}</p>
-							<Link href="/sessions">
-								<Button
-									variant="outline"
-									size="sm"
-									className="border-red-300 text-red-700 hover:bg-red-100 cursor-pointer"
-								>
-									{isDateRangeError ? "Clear Filters" : "Try Again"}
-								</Button>
-							</Link>
-						</div>
-					</Card>
+				</div>
+				<div className="flex flex-1 items-center justify-center">
+					<div className="w-full max-w-xl">
+						<PageError
+							title={errorTitle}
+							description={errorDescription}
+							detail={errorDetail}
+							action={
+								<Link href="/sessions">
+									<Button
+										variant="outline"
+										size="sm"
+										className="inline-flex items-center gap-1.5 border-red-300 text-red-700 hover:bg-red-100 cursor-pointer"
+									>
+										{isDateRangeError ? (
+											<>
+												<FilterX className="size-4" aria-hidden="true" />
+												Clear Filters
+											</>
+										) : (
+											<>
+												<RefreshCw className="size-4" aria-hidden="true" />
+												Try Again
+											</>
+										)}
+									</Button>
+								</Link>
+							}
+						/>
+					</div>
 				</div>
 			</div>
 		);

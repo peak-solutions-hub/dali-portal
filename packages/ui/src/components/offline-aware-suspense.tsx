@@ -82,7 +82,7 @@ export function OfflineAwareSuspense({
 			<div
 				role="status"
 				aria-label="No internet connection"
-				className="flex w-full min-in-h-[calc(100svh-6rem)] flex-col items-center justify-center gap-5 bg-blue-50 p-6 sm:p-10 md:p-14 text-center"
+				className="flex w-full min-h-[calc(100svh-4.5rem)] sm:min-h-[calc(100svh-5rem)] flex-col items-center justify-center gap-5 bg-blue-50 p-6 sm:p-10 md:p-14 text-center"
 			>
 				<span className="flex size-16 items-center justify-center rounded-full bg-[#0038A8]/10">
 					<WifiOff className="size-8 text-[#0038A8]" aria-hidden="true" />
