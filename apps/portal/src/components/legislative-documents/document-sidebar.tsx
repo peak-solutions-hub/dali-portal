@@ -4,6 +4,7 @@ import {
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Card } from "@repo/ui/components/card";
+import { BRAND_TEXT_CLASS } from "@repo/ui/lib/legislative-document-ui";
 import { FileText, User } from "@repo/ui/lib/lucide-react";
 
 interface DocumentSidebarProps {
@@ -70,7 +71,7 @@ export function DocumentSidebar({ document }: DocumentSidebarProps) {
 						<h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">
 							Classification
 						</h4>
-						<p className="text-sm font-semibold text-[#a60202]">
+						<p className={`text-sm font-semibold ${BRAND_TEXT_CLASS}`}>
 							{classification}
 						</p>
 					</div>

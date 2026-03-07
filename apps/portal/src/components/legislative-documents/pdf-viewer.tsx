@@ -15,7 +15,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/dialog";
-import { getDocumentPdfUrl } from "@repo/ui/lib/documents";
+import {
+	BRAND_BUTTON_CLASS,
+	BRAND_OUTLINE_BUTTON_CLASS,
+	BRAND_SPINNER_CLASS,
+	BRAND_TEXT_CLASS,
+} from "@repo/ui/lib/legislative-document-ui";
 import {
 	Calendar,
 	Download,
@@ -26,19 +31,18 @@ import {
 	Users,
 } from "@repo/ui/lib/lucide-react";
 import { createBrowserClient } from "@repo/ui/lib/supabase/client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { downloadFile } from "@/utils/download-utils";
 
 interface PDFViewerProps {
 	document: LegislativeDocumentWithDetails;
+	/** Server-generated signed URL for the PDF */
+	pdfUrl?: string;
 }
 
-export function PDFViewer({ document }: PDFViewerProps) {
+export function PDFViewer({ document, pdfUrl }: PDFViewerProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDownloading, setIsDownloading] = useState(false);
-	const [pdfUrl, setPdfUrl] = useState<string | undefined>();
-	const [isLoadingUrl, setIsLoadingUrl] = useState(true);
-	const [urlError, setUrlError] = useState(false);
 
 	const documentTitle =
 		document.displayTitle || document.document?.title || "Untitled Document";
@@ -54,36 +58,11 @@ export function PDFViewer({ document }: PDFViewerProps) {
 
 	const handleView = () => setIsOpen(true);
 
-	// Generate signed URL when component mounts
-	useEffect(() => {
-		if (document.storagePath && document.storageBucket) {
-			setIsLoadingUrl(true);
-			setUrlError(false);
-			const supabase = createBrowserClient();
-			getDocumentPdfUrl(supabase, document)
-				.then((url) => {
-					if (url) {
-						setPdfUrl(url);
-					} else {
-						setUrlError(true);
-					}
-				})
-				.catch(() => {
-					setUrlError(true);
-				})
-				.finally(() => {
-					setIsLoadingUrl(false);
-				});
-		} else {
-			setIsLoadingUrl(false);
-			setUrlError(true);
-		}
-	}, [document]);
-
 	const isValidUrl = pdfUrl ? isValidPdfUrl(pdfUrl) : false;
+	const hasValidPdf = pdfUrl && isValidUrl;
 
 	const handleDownload = useCallback(async () => {
-		if (!pdfUrl || !document.storagePath || !document.storageBucket) return;
+		if (!document.storagePath || !document.storageBucket) return;
 
 		setIsDownloading(true);
 		try {
@@ -99,25 +78,10 @@ export function PDFViewer({ document }: PDFViewerProps) {
 		} finally {
 			setIsDownloading(false);
 		}
-	}, [pdfUrl, downloadFilename, document]);
+	}, [downloadFilename, document]);
 
-	// Show loading state while generating PDF URL
-	if (isLoadingUrl) {
-		return (
-			<div className="mb-4 sm:mb-6">
-				<div className="flex items-center justify-center gap-2 p-4 border border-gray-200 rounded-lg bg-gray-50">
-					<Loader2
-						className="w-5 h-5 animate-spin text-[#a60202]"
-						aria-hidden="true"
-					/>
-					<span className="text-sm text-gray-600">Loading document...</span>
-				</div>
-			</div>
-		);
-	}
-
-	// Show error state if PDF URL generation failed
-	if (urlError || !pdfUrl || !isValidUrl) {
+	// Show error state if no valid PDF URL
+	if (!hasValidPdf) {
 		return (
 			<div className="mb-4 sm:mb-6">
 				<div className="p-4 border border-amber-200 rounded-lg bg-amber-50">
@@ -152,7 +116,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 				<Button
 					onClick={handleView}
 					variant="outline"
-					className="w-full sm:w-auto border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-8 py-6"
+					className={`w-full sm:w-auto ${BRAND_OUTLINE_BUTTON_CLASS} px-8 py-6`}
 					aria-label={`View PDF document: ${documentTitle}`}
 				>
 					<FileText className="w-5 h-5 mr-2" aria-hidden="true" />
@@ -163,7 +127,7 @@ export function PDFViewer({ document }: PDFViewerProps) {
 				<Button
 					onClick={handleDownload}
 					disabled={isDownloading}
-					className="w-full sm:w-auto sm:min-w-45 border-2 border- bg-[#a60202] hover:bg-[#8a0101] text-white px-8 py-6"
+					className={`w-full sm:w-auto sm:min-w-45 border-2 ${BRAND_BUTTON_CLASS} text-white px-8 py-6`}
 					aria-label={
 						isDownloading
 							? "Downloading PDF..."
@@ -187,7 +151,9 @@ export function PDFViewer({ document }: PDFViewerProps) {
 					<div className="flex flex-col h-full">
 						<DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-200 shrink-0">
 							<DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-								<FileText className="h-4 w-4 sm:h-5 sm:w-5 text-[#a60202]" />
+								<FileText
+									className={`h-4 w-4 sm:h-5 sm:w-5 ${BRAND_TEXT_CLASS}`}
+								/>
 								<span className="truncate">{documentNumber}</span>
 							</DialogTitle>
 						</DialogHeader>
@@ -200,11 +166,15 @@ export function PDFViewer({ document }: PDFViewerProps) {
 											Document Type
 										</label>
 										<div className="flex items-center gap-2 mt-1 flex-wrap">
-											<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-[#fef2f2] text-[#a60202] border border-[#fecaca]">
+											<span
+												className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-[#fef2f2] ${BRAND_TEXT_CLASS} border border-[#fecaca]`}
+											>
 												<FileText className="w-3 h-3" />
 												{documentType}
 											</span>
-											<span className="text-sm text-[#a60202] font-semibold">
+											<span
+												className={`text-sm ${BRAND_TEXT_CLASS} font-semibold`}
+											>
 												{documentNumber}
 											</span>
 										</div>
@@ -307,22 +277,11 @@ export function PDFViewer({ document }: PDFViewerProps) {
 							</div>
 
 							<div className="hidden lg:flex flex-1 min-w-0 min-h-0 flex-col">
-								{urlError || !pdfUrl || !isValidUrl ? (
-									<div className="flex items-center justify-center h-full">
-										<div className="rounded-md bg-amber-50 border border-amber-200 p-4 text-center">
-											<p className="text-sm text-amber-600 font-medium">
-												PDF preview unavailable. Please use the actions on the
-												left.
-											</p>
-										</div>
-									</div>
-								) : (
-									<iframe
-										src={pdfUrl}
-										className="w-full h-full"
-										title="Document Preview"
-									/>
-								)}
+								<iframe
+									src={pdfUrl}
+									className="w-full h-full"
+									title="Document Preview"
+								/>
 							</div>
 						</div>
 					</div>
