@@ -5,7 +5,10 @@ import {
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { getDocumentPdfUrl } from "@repo/ui/lib/documents";
+import {
+	BRAND_BUTTON_CLASS,
+	BRAND_SPINNER_CLASS,
+} from "@repo/ui/lib/legislative-document-ui";
 import {
 	Download,
 	ExternalLink,
@@ -14,51 +17,25 @@ import {
 	Printer,
 } from "@repo/ui/lib/lucide-react";
 import { createBrowserClient } from "@repo/ui/lib/supabase/client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { downloadFile } from "@/utils/download-utils";
 
 interface DocumentViewerProps {
 	document: LegislativeDocumentWithDetails;
+	/** Server-generated signed URL for the PDF */
+	pdfUrl?: string;
 }
 
-export function DocumentViewer({ document }: DocumentViewerProps) {
+export function DocumentViewer({ document, pdfUrl }: DocumentViewerProps) {
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [isPreviewLoading, setIsPreviewLoading] = useState(true);
-	const [pdfUrl, setPdfUrl] = useState<string | undefined>();
-	const [isLoadingUrl, setIsLoadingUrl] = useState(true);
-	const [urlError, setUrlError] = useState(false);
 
 	const documentTitle =
 		document.displayTitle || document.document?.title || "Untitled Document";
 	const downloadFilename = getDocumentFilename(document);
 
-	// Generate signed URL when component mounts
-	useEffect(() => {
-		if (document.storagePath && document.storageBucket) {
-			setIsLoadingUrl(true);
-			setUrlError(false);
-			const supabase = createBrowserClient();
-			getDocumentPdfUrl(supabase, document)
-				.then((url) => {
-					if (url) {
-						setPdfUrl(url);
-					} else {
-						setUrlError(true);
-					}
-				})
-				.catch(() => {
-					setUrlError(true);
-				})
-				.finally(() => {
-					setIsLoadingUrl(false);
-				});
-		} else {
-			setIsLoadingUrl(false);
-			setUrlError(true);
-		}
-	}, [document]);
-
 	const isValidUrl = pdfUrl ? isValidPdfUrl(pdfUrl) : false;
+	const hasValidPdf = pdfUrl && isValidUrl;
 
 	const handleDownload = useCallback(async () => {
 		if (!pdfUrl || !document.storagePath || !document.storageBucket) return;
@@ -96,7 +73,7 @@ export function DocumentViewer({ document }: DocumentViewerProps) {
 							<Printer className="w-4 h-4" />
 							<span>Print</span>
 						</button>
-						{pdfUrl && isValidUrl && (
+						{hasValidPdf && (
 							<a
 								href={pdfUrl}
 								target="_blank"
@@ -110,14 +87,7 @@ export function DocumentViewer({ document }: DocumentViewerProps) {
 					</div>
 				</div>
 
-				{isLoadingUrl && (
-					<div className="flex-1 flex flex-col items-center justify-center bg-gray-50 gap-3">
-						<Loader2 className="w-8 h-8 animate-spin text-[#a60202]" />
-						<p className="text-sm text-gray-500">Loading document preview...</p>
-					</div>
-				)}
-
-				{!isLoadingUrl && (urlError || !pdfUrl || !isValidUrl) && (
+				{!hasValidPdf && (
 					<div className="flex-1 flex items-center justify-center bg-gray-50 p-6">
 						<div className="text-center">
 							<FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -131,7 +101,7 @@ export function DocumentViewer({ document }: DocumentViewerProps) {
 					</div>
 				)}
 
-				{!isLoadingUrl && !urlError && pdfUrl && isValidUrl && (
+				{hasValidPdf && (
 					<div className="relative flex-1 bg-gray-100">
 						{isPreviewLoading && (
 							<div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-100 gap-3">
@@ -160,7 +130,7 @@ export function DocumentViewer({ document }: DocumentViewerProps) {
 				<p className="text-gray-500 text-sm mb-6">
 					View the complete document in a new tab.
 				</p>
-				{pdfUrl && isValidUrl ? (
+				{hasValidPdf ? (
 					<a
 						href={pdfUrl}
 						target="_blank"
@@ -180,8 +150,8 @@ export function DocumentViewer({ document }: DocumentViewerProps) {
 			{/* Download Button */}
 			<Button
 				onClick={handleDownload}
-				disabled={isDownloading || !pdfUrl || !isValidUrl}
-				className="w-full bg-[#a60202] hover:bg-[#8a0101] text-white py-6 sm:py-7 text-base font-medium rounded-xl shadow-sm transition-all"
+				disabled={isDownloading || !hasValidPdf}
+				className={`w-full ${BRAND_BUTTON_CLASS} text-white py-6 sm:py-7 text-base font-medium rounded-xl shadow-sm transition-all`}
 			>
 				{isDownloading ? (
 					<Loader2 className="w-5 h-5 animate-spin mr-2" />

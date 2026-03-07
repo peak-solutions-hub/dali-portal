@@ -1,11 +1,14 @@
 import { isDefinedError } from "@orpc/client";
 import {
 	buildQueryString,
+	LEGISLATIVE_ITEMS_PER_PAGE,
+	LEGISLATIVE_YEAR_MIN,
 	toApiFilters,
 	transformDocumentListDates,
 	validateSearchParams,
 } from "@repo/shared";
 import { Card } from "@repo/ui/components/card";
+import { BRAND_TEXT_CLASS } from "@repo/ui/lib/legislative-document-ui";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
@@ -65,7 +68,9 @@ export default async function LegislativeDocumentsPage({
 	// Common header UI to maintain consistency
 	const PageHeader = (
 		<div className="mb-6">
-			<h1 className="text-3xl sm:text-3xl md:text-4xl text-[#a60202] mb-2 font-['Playfair_Display']">
+			<h1
+				className={`text-3xl sm:text-3xl md:text-4xl ${BRAND_TEXT_CLASS} mb-2 font-['Playfair_Display']`}
+			>
 				Legislative Documents
 			</h1>
 			<p className="text-gray-600 text-sm">
@@ -112,7 +117,7 @@ export default async function LegislativeDocumentsPage({
 		currentPage: 1,
 		totalPages: 0,
 		totalItems: 0,
-		itemsPerPage: filters.limit || 10,
+		itemsPerPage: filters.limit || LEGISLATIVE_ITEMS_PER_PAGE,
 		hasNextPage: false,
 		hasPreviousPage: false,
 	};
@@ -120,7 +125,7 @@ export default async function LegislativeDocumentsPage({
 	// Generate available years from 1950 to present
 	const currentYear = new Date().getFullYear();
 	const availableYears = Array.from(
-		{ length: currentYear - 1950 + 1 },
+		{ length: currentYear - LEGISLATIVE_YEAR_MIN + 1 },
 		(_, i) => currentYear - i,
 	);
 

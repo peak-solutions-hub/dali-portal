@@ -1,5 +1,3 @@
-"use client";
-
 import {
 	formatDate,
 	getClassificationLabel,
@@ -11,26 +9,22 @@ import {
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
-import { getDocumentPdfUrl } from "@repo/ui/lib/documents";
 import {
-	Calendar,
-	Download,
-	FileText,
-	Loader2,
-} from "@repo/ui/lib/lucide-react";
-import { createBrowserClient } from "@repo/ui/lib/supabase/client";
+	BRAND_BUTTON_CLASS,
+	BRAND_LINK_HOVER_CLASS,
+	BRAND_TEXT_CLASS,
+	DOCUMENT_CARD_BORDER_CLASS,
+	getDocumentTypeBadgeClass,
+} from "@repo/ui/lib/legislative-document-ui";
+import { Calendar, FileText } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { downloadFile } from "@/utils/download-utils";
+import { DocumentDownloadButton } from "./document-download-button";
 
 interface DocumentCardProps {
 	document: LegislativeDocumentWithDetails;
 }
 
 export function DocumentCard({ document }: DocumentCardProps) {
-	const [isDownloading, setIsDownloading] = useState(false);
-	const [pdfUrl, setPdfUrl] = useState<string | undefined>();
-
 	const documentNumber = getDocumentNumber(document);
 	const documentType = getDocumentTypeLabel(document.type);
 	const documentTitle = getDocumentTitle(document);
@@ -47,62 +41,25 @@ export function DocumentCard({ document }: DocumentCardProps) {
 	const hasPdfFile = Boolean(document.storagePath && document.storageBucket);
 	const downloadFilename = getDocumentFilename(document);
 	const readMoreLabel = `View ${documentType} ${documentNumber}`;
-
-	// Generate signed URL when component mounts
-	useEffect(() => {
-		if (document.storagePath && document.storageBucket) {
-			const supabase = createBrowserClient();
-			getDocumentPdfUrl(supabase, document).then(setPdfUrl);
-		}
-	}, [document]);
-
-	const handleDownload = useCallback(async () => {
-		if (!pdfUrl || !document.storagePath || !document.storageBucket) return;
-
-		setIsDownloading(true);
-		try {
-			const supabase = createBrowserClient();
-			await downloadFile(
-				supabase,
-				document.storageBucket,
-				document.storagePath,
-				downloadFilename,
-			);
-		} catch {
-			// Error already logged and handled by downloadFile
-		} finally {
-			setIsDownloading(false);
-		}
-	}, [pdfUrl, downloadFilename, document]);
+	const badgeClass = getDocumentTypeBadgeClass(document.type);
 
 	return (
-		<Card className="overflow-hidden hover:shadow-md focus-within:shadow-md transition-all border-l-4 border-l-[#a60202]">
+		<Card
+			className={`overflow-hidden hover:shadow-md focus-within:shadow-md transition-all ${DOCUMENT_CARD_BORDER_CLASS}`}
+		>
 			<article className="px-5" aria-labelledby={`doc-title-${document.id}`}>
 				<div className="flex items-start justify-between gap-4">
 					{/* Left Content */}
 					<div className="flex-1">
 						{/* Type Badge and Number */}
 						<div className="flex items-center gap-3 mb-2 flex-wrap">
-							{document.type === "ordinance" && (
-								<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-blue-100 text-blue-800">
-									<FileText className="w-3 h-3" aria-hidden="true" />
-									<span>{documentType}</span>
-								</span>
-							)}
-							{document.type === "resolution" && (
-								<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-green-100 text-green-800">
-									<FileText className="w-3 h-3" aria-hidden="true" />
-									<span>{documentType}</span>
-								</span>
-							)}
-							{document.type !== "ordinance" &&
-								document.type !== "resolution" && (
-									<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium bg-gray-100 text-gray-800">
-										<FileText className="w-3 h-3" aria-hidden="true" />
-										<span>{documentType}</span>
-									</span>
-								)}
-							<span className="text-sm text-[#a60202] font-semibold">
+							<span
+								className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${badgeClass}`}
+							>
+								<FileText className="w-3 h-3" aria-hidden="true" />
+								<span>{documentType}</span>
+							</span>
+							<span className={`text-sm ${BRAND_TEXT_CLASS} font-semibold`}>
 								{documentNumber}
 							</span>
 						</div>
@@ -114,7 +71,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 						>
 							<Link
 								href={`/legislative-documents/${document.id}`}
-								className="hover:text-[#a60202] focus-visible:text-[#a60202] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a60202] transition-colors rounded"
+								className={`${BRAND_LINK_HOVER_CLASS} transition-colors rounded`}
 								aria-label={`View details for ${documentTitle}`}
 							>
 								{documentTitle}
@@ -171,37 +128,18 @@ export function DocumentCard({ document }: DocumentCardProps) {
 						<Link href={`/legislative-documents/${document.id}`}>
 							<Button
 								aria-label={readMoreLabel}
-								className="bg-[#a60202] hover:bg-[#8a0101] w-full"
+								className={`${BRAND_BUTTON_CLASS} w-full`}
 							>
 								View More
 							</Button>
 						</Link>
-						{hasPdfFile ? (
-							<Button
-								variant="outline"
-								title="Download PDF"
-								onClick={handleDownload}
-								disabled={isDownloading}
-								className="min-w-30"
-								aria-label={
-									isDownloading
-										? "Downloading PDF..."
-										: `Download PDF for ${documentNumber}`
-								}
-								aria-busy={isDownloading}
-							>
-								{isDownloading ? (
-									<Loader2
-										className="w-4 h-4 animate-spin"
-										aria-hidden="true"
-									/>
-								) : (
-									<>
-										<Download className="w-4 h-4 mr-2" aria-hidden="true" />
-										Download
-									</>
-								)}
-							</Button>
+						{hasPdfFile && document.storageBucket && document.storagePath ? (
+							<DocumentDownloadButton
+								storageBucket={document.storageBucket}
+								storagePath={document.storagePath}
+								filename={downloadFilename}
+								ariaLabel={`Download PDF for ${documentNumber}`}
+							/>
 						) : null}
 					</div>
 				</div>

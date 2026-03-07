@@ -1,7 +1,5 @@
-"use client";
-import { buildQueryString, type PaginationInfo } from "@repo/shared";
+import type { PaginationInfo } from "@repo/shared";
 import { PaginationControl } from "@repo/ui/components/pagination-control";
-import { useRouter } from "next/navigation";
 
 interface PaginationControlsProps {
 	pagination: PaginationInfo;
@@ -12,16 +10,6 @@ export function PaginationControls({
 	pagination,
 	currentFilters,
 }: PaginationControlsProps) {
-	const router = useRouter();
-
-	const handlePageChange = (newPage: number) => {
-		const queryString = buildQueryString({
-			...currentFilters,
-			page: newPage.toString(),
-		});
-		router.push(`/legislative-documents?${queryString}`);
-	};
-
 	const { currentPage, totalItems, itemsPerPage } = pagination;
 
 	return (
@@ -29,7 +17,6 @@ export function PaginationControls({
 			totalItems={totalItems}
 			itemsPerPage={itemsPerPage}
 			currentPage={currentPage}
-			onPageChange={handlePageChange}
 			baseUrl="/legislative-documents"
 			searchParams={currentFilters}
 			showCount

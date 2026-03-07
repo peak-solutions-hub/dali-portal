@@ -1,5 +1,12 @@
 import { z } from "zod";
 import {
+	LEGISLATIVE_FEATURED_LIMIT,
+	LEGISLATIVE_ITEMS_PER_PAGE,
+	LEGISLATIVE_MAX_ITEMS_PER_PAGE,
+	LEGISLATIVE_YEAR_MAX,
+	LEGISLATIVE_YEAR_MIN,
+} from "../constants/legislative-document-rules";
+import {
 	ClassificationTypeEnum,
 	DocumentSchema,
 	LegislativeDocumentTypeEnum,
@@ -13,7 +20,11 @@ export const LegislativeDocumentSchema = z.object({
 	id: z.number().int(),
 	documentId: z.uuid(),
 	officialNumber: z.string(),
-	seriesYear: z.number().int().min(1950).max(2100),
+	seriesYear: z
+		.number()
+		.int()
+		.min(LEGISLATIVE_YEAR_MIN)
+		.max(LEGISLATIVE_YEAR_MAX),
 	type: LegislativeDocumentTypeEnum,
 	dateEnacted: z.coerce.date(),
 	createdAt: z.coerce.date(),
@@ -63,10 +74,15 @@ export const PaginationInfoSchema = z.object({
 export const GetLegislativeDocumentListSchema = z.object({
 	search: z.string().optional(),
 	type: LegislativeDocumentTypeEnum.optional(),
-	year: z.coerce.number().int().min(1950).optional(),
+	year: z.coerce.number().int().min(LEGISLATIVE_YEAR_MIN).optional(),
 	classification: ClassificationTypeEnum.optional(),
 	page: z.coerce.number().int().min(1).default(1),
-	limit: z.coerce.number().int().min(1).max(100).default(10),
+	limit: z.coerce
+		.number()
+		.int()
+		.min(1)
+		.max(LEGISLATIVE_MAX_ITEMS_PER_PAGE)
+		.default(LEGISLATIVE_ITEMS_PER_PAGE),
 });
 
 /**
@@ -80,7 +96,12 @@ export const GetLegislativeDocumentByIdSchema = z.object({
  * Statistics for home page
  */
 export const GetLatestLegislativeDocumentSchema = z.object({
-	limit: z.coerce.number().int().min(1).max(5).default(5),
+	limit: z.coerce
+		.number()
+		.int()
+		.min(1)
+		.max(LEGISLATIVE_FEATURED_LIMIT)
+		.default(LEGISLATIVE_FEATURED_LIMIT),
 });
 
 /**

@@ -7,6 +7,10 @@ import {
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
+import {
+	BRAND_TEXT_CLASS,
+	getDocumentTypeBadgeClass,
+} from "@repo/ui/lib/legislative-document-ui";
 import { Calendar } from "@repo/ui/lib/lucide-react";
 
 interface DocumentHeaderProps {
@@ -24,12 +28,7 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 			? getClassificationLabel(document.document.classification)
 			: "N/A";
 
-	const typeBadgeClass =
-		document.type === "ordinance"
-			? "bg-blue-100 text-blue-800 border-transparent"
-			: document.type === "resolution"
-				? "bg-green-100 text-green-800 border-transparent"
-				: "bg-gray-100 text-gray-800 border-transparent";
+	const typeBadgeClass = getDocumentTypeBadgeClass(document.type);
 
 	return (
 		<header>
@@ -66,7 +65,9 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 			</h1>
 
 			{/* Date Enacted */}
-			<div className="flex items-center gap-2 text-md sm:text-base text-[#a60202] font-medium mt-2">
+			<div
+				className={`flex items-center gap-2 text-md sm:text-base ${BRAND_TEXT_CLASS} font-medium mt-2`}
+			>
 				<Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
 				<span>Date Enacted: {formattedDate}</span>
 			</div>
