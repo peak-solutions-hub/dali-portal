@@ -2,13 +2,11 @@
 
 import { Button } from "@repo/ui/components/button";
 import { Download, Loader2 } from "@repo/ui/lib/lucide-react";
-import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useCallback, useState } from "react";
-import { downloadFile } from "@/utils/download-utils";
+import { downloadFileFromUrl } from "@/utils/download-utils";
 
 interface DocumentDownloadButtonProps {
-	storageBucket: string;
-	storagePath: string;
+	pdfUrl?: string;
 	filename: string;
 	/** Optional label override; defaults to "Download" */
 	label?: string;
@@ -18,8 +16,7 @@ interface DocumentDownloadButtonProps {
 }
 
 export function DocumentDownloadButton({
-	storageBucket,
-	storagePath,
+	pdfUrl,
 	filename,
 	label = "Download",
 	className = "min-w-30",
@@ -28,23 +25,24 @@ export function DocumentDownloadButton({
 	const [isDownloading, setIsDownloading] = useState(false);
 
 	const handleDownload = useCallback(async () => {
+		if (!pdfUrl) return;
+
 		setIsDownloading(true);
 		try {
-			const supabase = createBrowserClient();
-			await downloadFile(supabase, storageBucket, storagePath, filename);
+			await downloadFileFromUrl(pdfUrl, filename);
 		} catch {
 			// Error already logged and handled by downloadFile
 		} finally {
 			setIsDownloading(false);
 		}
-	}, [storageBucket, storagePath, filename]);
+	}, [pdfUrl, filename]);
 
 	return (
 		<Button
 			variant="outline"
 			title="Download PDF"
 			onClick={handleDownload}
-			disabled={isDownloading}
+			disabled={isDownloading || !pdfUrl}
 			className={className}
 			aria-label={
 				isDownloading

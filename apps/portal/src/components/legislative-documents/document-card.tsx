@@ -5,6 +5,7 @@ import {
 	getDocumentNumber,
 	getDocumentTitle,
 	getDocumentTypeLabel,
+	isValidPdfUrl,
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
@@ -38,7 +39,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 			? getClassificationLabel(document.document.classification)
 			: "N/A";
 
-	const hasPdfFile = Boolean(document.storagePath && document.storageBucket);
+	const hasPdfFile = Boolean(document.pdfUrl && isValidPdfUrl(document.pdfUrl));
 	const downloadFilename = getDocumentFilename(document);
 	const readMoreLabel = `View ${documentType} ${documentNumber}`;
 	const badgeClass = getDocumentTypeBadgeClass(document.type);
@@ -133,10 +134,9 @@ export function DocumentCard({ document }: DocumentCardProps) {
 								View More
 							</Button>
 						</Link>
-						{hasPdfFile && document.storageBucket && document.storagePath ? (
+						{hasPdfFile ? (
 							<DocumentDownloadButton
-								storageBucket={document.storageBucket}
-								storagePath={document.storagePath}
+								pdfUrl={document.pdfUrl}
 								filename={downloadFilename}
 								ariaLabel={`Download PDF for ${documentNumber}`}
 							/>
