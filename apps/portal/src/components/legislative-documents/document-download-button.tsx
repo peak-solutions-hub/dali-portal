@@ -31,7 +31,7 @@ export function DocumentDownloadButton({
 		try {
 			await downloadFileFromUrl(pdfUrl, filename);
 		} catch {
-			// Error already logged and handled by downloadFile
+			// Error already logged and handled by downloadFileFromUrl
 		} finally {
 			setIsDownloading(false);
 		}

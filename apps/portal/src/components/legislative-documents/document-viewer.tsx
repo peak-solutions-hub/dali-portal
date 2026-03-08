@@ -5,10 +5,7 @@ import {
 	type LegislativeDocumentWithDetails,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import {
-	BRAND_BUTTON_CLASS,
-	BRAND_SPINNER_CLASS,
-} from "@repo/ui/lib/legislative-document-ui";
+import { BRAND_BUTTON_CLASS } from "@repo/ui/lib/legislative-document-ui";
 import {
 	Download,
 	ExternalLink,

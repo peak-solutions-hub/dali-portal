@@ -18,7 +18,6 @@ import {
 import {
 	BRAND_BUTTON_CLASS,
 	BRAND_OUTLINE_BUTTON_CLASS,
-	BRAND_SPINNER_CLASS,
 	BRAND_TEXT_CLASS,
 } from "@repo/ui/lib/legislative-document-ui";
 import {
