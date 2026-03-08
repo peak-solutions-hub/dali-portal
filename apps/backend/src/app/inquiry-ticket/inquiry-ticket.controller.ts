@@ -1,7 +1,13 @@
 import { Controller } from "@nestjs/common";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
-import { AppError, contract, ROLE_PERMISSIONS } from "@repo/shared";
+import {
+	AppError,
+	contract,
+	INQUIRY_ASSIGNEES,
+	INQUIRY_ASSIGNERS,
+	ROLE_PERMISSIONS,
+} from "@repo/shared";
 import { Roles } from "@/app/auth/decorators/roles.decorator";
 import { Captcha } from "@/app/captcha/captcha.guard";
 import { InquiryTicketService } from "@/app/inquiry-ticket/inquiry-ticket.service";
@@ -113,17 +119,29 @@ export class InquiryTicketController {
 	}
 
 	@SkipThrottle({ short: true, default: true })
+	@Roles(...ROLE_PERMISSIONS.INQUIRY_TICKETS)
 	@Implement(contract.inquiries.updateStatus)
 	updateStatus() {
 		return implement(contract.inquiries.updateStatus).handler(
-			async ({ input }) => {
-				return await this.inquiryService.updateStatus(input);
+			async ({ input, context }) => {
+				const { request } = context as ORPCContext;
+				const userId = request.user?.id;
+				const userRole = request.user?.role;
+
+				if (!userId) {
+					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+				}
+
+				return await this.inquiryService.updateStatus(input, {
+					id: userId,
+					role: userRole,
+				});
 			},
 		);
 	}
 
 	@SkipThrottle({ short: true, default: true })
-	@Roles(...ROLE_PERMISSIONS.INQUIRY_TICKETS)
+	@Roles(...INQUIRY_ASSIGNERS)
 	@Implement(contract.inquiries.assignToMe)
 	assignToMe() {
 		return implement(contract.inquiries.assignToMe).handler(
@@ -131,23 +149,126 @@ export class InquiryTicketController {
 				// Extract user ID from auth context
 				const { request } = context as ORPCContext;
 				const userId = request.user?.id;
+				const userRole = request.user?.role;
 
 				if (!userId) {
 					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
 				}
 
-				return await this.inquiryService.assignToMe(input.id, userId);
+				return await this.inquiryService.assignTo(input.id, userId, {
+					id: userId,
+					role: userRole,
+				});
 			},
 		);
 	}
 
 	@SkipThrottle({ short: true, default: true })
-	@Roles(...ROLE_PERMISSIONS.INQUIRY_TICKETS)
+	@Roles(...INQUIRY_ASSIGNERS)
 	@Implement(contract.inquiries.assignTicket)
 	assignTo() {
 		return implement(contract.inquiries.assignTicket).handler(
-			async ({ input }) => {
-				return await this.inquiryService.assignTo(input.id, input.assignedTo);
+			async ({ input, context }) => {
+				const { request } = context as ORPCContext;
+				const userId = request.user?.id;
+				const userRole = request.user?.role;
+
+				if (!userId) {
+					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+				}
+
+				return await this.inquiryService.assignTo(input.id, input.assignedTo, {
+					id: userId,
+					role: userRole,
+				});
+			},
+		);
+	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Roles(...INQUIRY_ASSIGNEES)
+	@Implement(contract.inquiries.requestAssignment)
+	requestAssignment() {
+		return implement(contract.inquiries.requestAssignment).handler(
+			async ({ input, context }) => {
+				const { request } = context as ORPCContext;
+				const userId = request.user?.id;
+				const userRole = request.user?.role;
+
+				if (!userId) {
+					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+				}
+
+				return await this.inquiryService.requestAssignment(input.id, {
+					id: userId,
+					role: userRole,
+				});
+			},
+		);
+	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Roles(...INQUIRY_ASSIGNEES)
+	@Implement(contract.inquiries.confirmAssignment)
+	confirmAssignment() {
+		return implement(contract.inquiries.confirmAssignment).handler(
+			async ({ input, context }) => {
+				const { request } = context as ORPCContext;
+				const userId = request.user?.id;
+				const userRole = request.user?.role;
+
+				if (!userId) {
+					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+				}
+
+				return await this.inquiryService.confirmAssignment(input.id, {
+					id: userId,
+					role: userRole,
+				});
+			},
+		);
+	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Roles(...INQUIRY_ASSIGNEES)
+	@Implement(contract.inquiries.approveReassignment)
+	approveReassignment() {
+		return implement(contract.inquiries.approveReassignment).handler(
+			async ({ input, context }) => {
+				const { request } = context as ORPCContext;
+				const userId = request.user?.id;
+				const userRole = request.user?.role;
+
+				if (!userId) {
+					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+				}
+
+				return await this.inquiryService.approveReassignment(input.id, {
+					id: userId,
+					role: userRole,
+				});
+			},
+		);
+	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Roles(...INQUIRY_ASSIGNEES)
+	@Implement(contract.inquiries.rejectReassignment)
+	rejectReassignment() {
+		return implement(contract.inquiries.rejectReassignment).handler(
+			async ({ input, context }) => {
+				const { request } = context as ORPCContext;
+				const userId = request.user?.id;
+				const userRole = request.user?.role;
+
+				if (!userId) {
+					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
+				}
+
+				return await this.inquiryService.rejectReassignment(input.id, {
+					id: userId,
+					role: userRole,
+				});
 			},
 		);
 	}

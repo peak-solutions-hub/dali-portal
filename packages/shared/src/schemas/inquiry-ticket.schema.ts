@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { FILE_COUNT_LIMITS, TEXT_LIMITS } from "../constants";
 import {
+	INQUIRY_ASSIGNMENT_STATUS_VALUES,
 	INQUIRY_CATEGORY_VALUES,
 	INQUIRY_STATUS_VALUES,
 	SENDER_TYPE_VALUES,
@@ -11,6 +12,7 @@ import {
 const InquiryTicketStatusEnum = z.enum(INQUIRY_STATUS_VALUES);
 const InquiryTicketCategoryEnum = z.enum(INQUIRY_CATEGORY_VALUES);
 const InquiryMessageSenderTypeEnum = z.enum(SENDER_TYPE_VALUES);
+const InquiryAssignmentStatusEnum = z.enum(INQUIRY_ASSIGNMENT_STATUS_VALUES);
 
 /**
  * Attachment with pre-generated signed URL for viewing/downloading.
@@ -35,6 +37,9 @@ export const InquiryTicketSchema = z.object({
 	id: z.uuid(),
 	referenceNumber: z.string(),
 	assignedTo: z.uuid().nullable(),
+	assignmentStatus: InquiryAssignmentStatusEnum,
+	assignmentRequestedBy: z.uuid().nullable(),
+	pendingReassignmentTo: z.uuid().nullable(),
 	citizenEmail: z.string().nullable(),
 	citizenFirstName: z.string().nullable(),
 	citizenLastName: z.string().nullable(),
@@ -244,6 +249,22 @@ export const AssignInquiryTicketSchema = z.object({
 	id: z.uuid(),
 	/** Target user ID to assign to, or null to unassign */
 	assignedTo: z.uuid().nullable(),
+});
+
+export const RequestInquiryAssignmentSchema = z.object({
+	id: z.uuid(),
+});
+
+export const ConfirmInquiryAssignmentSchema = z.object({
+	id: z.uuid(),
+});
+
+export const ApproveInquiryReassignmentSchema = z.object({
+	id: z.uuid(),
+});
+
+export const RejectInquiryReassignmentSchema = z.object({
+	id: z.uuid(),
 });
 
 export const TrackInquiryTicketSchema = z.object({

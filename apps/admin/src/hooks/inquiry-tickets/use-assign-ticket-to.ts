@@ -56,6 +56,14 @@ export function useAssignTicketTo(
 						toast.success(
 							`Inquiry ${result.referenceNumber} has been unassigned`,
 						);
+					} else if (result.pendingReassignmentTo === assignedTo) {
+						toast.success(
+							`Reassignment requested for inquiry ${result.referenceNumber}`,
+						);
+					} else if (result.assignmentStatus === "pending") {
+						toast.success(
+							`Inquiry ${result.referenceNumber} assigned (pending confirmation)`,
+						);
 					} else {
 						toast.success(
 							`Inquiry ${result.referenceNumber} assigned to ${result.user?.fullName ?? "staff member"}`,
