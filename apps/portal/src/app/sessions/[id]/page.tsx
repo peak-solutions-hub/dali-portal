@@ -73,7 +73,7 @@ export default async function SessionDetailPage({
 		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 	if (!uuidRegex.test(id)) notFound();
 	return (
-		<div className="min-h-screen bg-[#f9fafb]">
+		<div className="min-h-[calc(100svh-4.5rem)] sm:min-h-[calc(100svh-5rem)] bg-[#f9fafb]">
 			<ScrollToTop />
 			<OnlineStatusBanner />
 			<ScrollToTopButton />
