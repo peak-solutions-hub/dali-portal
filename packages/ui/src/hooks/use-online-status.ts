@@ -1,10 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+function subscribe(callback: () => void) {
+	window.addEventListener("online", callback);
+	window.addEventListener("offline", callback);
+	return () => {
+		window.removeEventListener("online", callback);
+		window.removeEventListener("offline", callback);
+	};
+}
 
 /**
  * Hook to reactively track the browser's network connectivity status.
  * Listens to the `online` and `offline` window events and cleans up on unmount.
+ *
+ * Uses `useSyncExternalStore` so the server snapshot (`true`) matches the SSR
+ * output, avoiding hydration mismatches even when the client is offline.
  *
  * @returns `true` when the browser is online, `false` when offline
  *
@@ -16,22 +28,9 @@ import { useEffect, useState } from "react";
  * ```
  */
 export function useOnlineStatus(): boolean {
-	const [isOnline, setIsOnline] = useState<boolean>(
-		typeof navigator !== "undefined" ? navigator.onLine : true,
+	return useSyncExternalStore(
+		subscribe,
+		() => navigator.onLine,
+		() => true,
 	);
-
-	useEffect(() => {
-		const handleOnline = () => setIsOnline(true);
-		const handleOffline = () => setIsOnline(false);
-
-		window.addEventListener("online", handleOnline);
-		window.addEventListener("offline", handleOffline);
-
-		return () => {
-			window.removeEventListener("online", handleOnline);
-			window.removeEventListener("offline", handleOffline);
-		};
-	}, []);
-
-	return isOnline;
 }
