@@ -7,6 +7,8 @@ import {
 	formatCitizenFullName,
 	type GetInquiryTicketByIdInput,
 	type GetInquiryTicketListInput,
+	INQUIRY_ASSIGNABLE_ROLES,
+	INQUIRY_ASSIGNERS,
 	INQUIRY_CATEGORY_LABELS,
 	type InquiryMessage,
 	type InquiryMessageWithAttachments,
@@ -15,6 +17,7 @@ import {
 	type InquiryTicketListResponse,
 	type InquiryTicketResponse,
 	type InquiryTicketWithMessagesAndAttachments,
+	type RoleType,
 	type TrackInquiryTicketInput,
 	type TrackInquiryTicketResponse,
 	type UpdateInquiryTicketStatusInput,
@@ -31,6 +34,14 @@ const ATTACHMENTS_BUCKET = "attachments";
 @Injectable()
 export class InquiryTicketService {
 	private readonly logger = new Logger(InquiryTicketService.name);
+
+	private isAssigner(role?: RoleType): boolean {
+		return role != null && INQUIRY_ASSIGNERS.includes(role);
+	}
+
+	private isAssignee(role?: RoleType): boolean {
+		return role != null && INQUIRY_ASSIGNABLE_ROLES.includes(role);
+	}
 
 	constructor(
 		private readonly db: DbService,
@@ -266,8 +277,13 @@ export class InquiryTicketService {
 
 	async updateStatus(
 		input: UpdateInquiryTicketStatusInput,
+		actor: { id: string; role?: RoleType },
 	): Promise<InquiryTicketResponse> {
 		const { id, status, closureRemarks } = input;
+
+		if (!this.isAssignee(actor.role)) {
+			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
+		}
 
 		const inquiryTicket = await this.db.inquiryTicket.findFirst({
 			where: { id },
@@ -283,6 +299,14 @@ export class InquiryTicketService {
 
 		if (!inquiryTicket) {
 			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		if (inquiryTicket.assignedTo !== actor.id) {
+			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
+		}
+
+		if (inquiryTicket.assignmentStatus !== "confirmed") {
+			throw new AppError("GENERAL.BAD_REQUEST");
 		}
 
 		const updated = await this.db.inquiryTicket.update({
@@ -375,6 +399,269 @@ export class InquiryTicketService {
 		};
 	}
 
+	async assignTo(
+		id: string,
+		assignedTo: string | null,
+		assigner: { id: string; role?: RoleType },
+	): Promise<InquiryTicketResponse> {
+		const ticket = await this.db.inquiryTicket.findFirst({
+			where: { id },
+		});
+
+		if (!ticket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		if (!this.isAssigner(assigner.role)) {
+			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
+		}
+
+		// Validate target user exists and is active before assigning
+		if (assignedTo !== null) {
+			const targetUser = await this.db.user.findFirst({
+				where: {
+					id: assignedTo,
+					status: "active",
+					role: { name: { in: INQUIRY_ASSIGNABLE_ROLES } },
+				},
+			});
+
+			if (!targetUser) {
+				throw new AppError("GENERAL.BAD_REQUEST");
+			}
+		}
+
+		// Reassignment flow: if current assignment is confirmed, require approval
+		if (
+			assignedTo !== null &&
+			ticket.assignedTo &&
+			ticket.assignedTo !== assignedTo &&
+			ticket.assignmentStatus === "confirmed"
+		) {
+			const updated = await this.db.inquiryTicket.update({
+				where: { id },
+				data: {
+					pendingReassignmentTo: assignedTo,
+					assignmentRequestedBy: assigner.id,
+				},
+				include: {
+					user: {
+						select: {
+							id: true,
+							fullName: true,
+						},
+					},
+				},
+			});
+
+			return {
+				...updated,
+				createdAt: updated.createdAt.toISOString(),
+			};
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id },
+			data: {
+				assignedTo,
+				assignmentStatus: assignedTo ? "pending" : "confirmed",
+				assignmentRequestedBy: null,
+				pendingReassignmentTo: null,
+				// Auto-transition from 'new' to 'open' when assigned to someone
+				...(assignedTo !== null &&
+					ticket.status === "new" && { status: "open" }),
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
+	}
+
+	async requestAssignment(
+		ticketId: string,
+		requester: { id: string; role?: RoleType },
+	): Promise<InquiryTicketResponse> {
+		if (!this.isAssignee(requester.role) || this.isAssigner(requester.role)) {
+			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
+		}
+
+		const ticket = await this.db.inquiryTicket.findFirst({
+			where: { id: ticketId },
+		});
+
+		if (!ticket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		if (ticket.assignedTo) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id: ticketId },
+			data: {
+				assignmentRequestedBy: requester.id,
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
+	}
+
+	async confirmAssignment(
+		ticketId: string,
+		assignee: { id: string; role?: RoleType },
+	): Promise<InquiryTicketResponse> {
+		if (!this.isAssignee(assignee.role)) {
+			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
+		}
+
+		const ticket = await this.db.inquiryTicket.findFirst({
+			where: { id: ticketId },
+		});
+
+		if (!ticket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		if (ticket.assignedTo !== assignee.id) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		if (ticket.assignmentStatus !== "pending") {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id: ticketId },
+			data: {
+				assignmentStatus: "confirmed",
+				pendingReassignmentTo: null,
+				assignmentRequestedBy: null,
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
+	}
+
+	async approveReassignment(
+		ticketId: string,
+		assignee: { id: string; role?: RoleType },
+	): Promise<InquiryTicketResponse> {
+		if (!this.isAssignee(assignee.role)) {
+			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
+		}
+
+		const ticket = await this.db.inquiryTicket.findFirst({
+			where: { id: ticketId },
+		});
+
+		if (!ticket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		if (ticket.assignedTo !== assignee.id || !ticket.pendingReassignmentTo) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id: ticketId },
+			data: {
+				assignedTo: ticket.pendingReassignmentTo,
+				assignmentStatus: "pending",
+				pendingReassignmentTo: null,
+				assignmentRequestedBy: null,
+				...(ticket.status === "new" && { status: "open" }),
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
+	}
+
+	async rejectReassignment(
+		ticketId: string,
+		assignee: { id: string; role?: RoleType },
+	): Promise<InquiryTicketResponse> {
+		if (!this.isAssignee(assignee.role)) {
+			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
+		}
+
+		const ticket = await this.db.inquiryTicket.findFirst({
+			where: { id: ticketId },
+		});
+
+		if (!ticket) {
+			throw new AppError("INQUIRY.NOT_FOUND");
+		}
+
+		if (ticket.assignedTo !== assignee.id || !ticket.pendingReassignmentTo) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		const updated = await this.db.inquiryTicket.update({
+			where: { id: ticketId },
+			data: {
+				pendingReassignmentTo: null,
+				assignmentRequestedBy: null,
+			},
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
+		});
+
+		return {
+			...updated,
+			createdAt: updated.createdAt.toISOString(),
+		};
+	}
+
 	async assignToMe(
 		ticketId: string,
 		userId: string,
@@ -392,6 +679,9 @@ export class InquiryTicketService {
 			where: { id: ticketId },
 			data: {
 				assignedTo: userId,
+				assignmentStatus: "pending",
+				pendingReassignmentTo: null,
+				assignmentRequestedBy: null,
 				// Auto-transition from 'new' to 'open' when assigned
 				...(ticket.status === "new" && { status: "open" }),
 			},

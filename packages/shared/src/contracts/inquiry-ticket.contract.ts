@@ -1,7 +1,10 @@
 import { oc } from "@orpc/contract";
 import { ERRORS } from "../constants";
 import {
+	ApproveInquiryReassignmentSchema,
+	AssignInquiryTicketSchema,
 	AssignInquiryToMeSchema,
+	ConfirmInquiryAssignmentSchema,
 	CreateInquiryTicketResponseSchema,
 	CreateInquiryTicketSchema,
 	GetInquiryTicketByIdSchema,
@@ -14,6 +17,8 @@ import {
 	InquiryTicketSchema,
 	InquiryTicketWithMessagesAndAttachmentsSchema,
 	InquiryTicketWithMessagesResponseSchema,
+	RejectInquiryReassignmentSchema,
+	RequestInquiryAssignmentSchema,
 	SendInquiryMessageSchema,
 	TrackInquiryTicketResponseSchema,
 	TrackInquiryTicketSchema,
@@ -157,14 +162,103 @@ export const assignInquiryToMe = oc
 		path: "/inquiries/{id}/assign-to-me",
 		summary: "Assign inquiry to current user",
 		description:
-			"Staff assigns the inquiry ticket to themselves. Status changes from 'new' to 'open' if applicable.",
+			"Eligible assigners assign the inquiry ticket to themselves. Status changes from 'new' to 'open' if applicable.",
 		tags: ["Inquiry", "Admin"],
 	})
 	.errors({
 		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
 		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	})
 	.input(AssignInquiryToMeSchema)
+	.output(InquiryTicketResponseSchema);
+
+export const assignInquiryTicket = oc
+	.route({
+		method: "PATCH",
+		path: "/inquiries/{id}/assign",
+		summary: "Assign inquiry to a staff member",
+		description:
+			"Staff assigns an inquiry ticket to another staff member or council member. Pass null to unassign.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+	})
+	.input(AssignInquiryTicketSchema)
+	.output(InquiryTicketResponseSchema);
+
+export const requestInquiryAssignment = oc
+	.route({
+		method: "PATCH",
+		path: "/inquiries/{id}/request-assignment",
+		summary: "Request assignment for an inquiry",
+		description:
+			"Eligible assignees can request to handle an unassigned inquiry ticket.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+	})
+	.input(RequestInquiryAssignmentSchema)
+	.output(InquiryTicketResponseSchema);
+
+export const confirmInquiryAssignment = oc
+	.route({
+		method: "PATCH",
+		path: "/inquiries/{id}/confirm-assignment",
+		summary: "Confirm assigned inquiry",
+		description: "Assignee confirms they will handle the inquiry ticket.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+	})
+	.input(ConfirmInquiryAssignmentSchema)
+	.output(InquiryTicketResponseSchema);
+
+export const approveInquiryReassignment = oc
+	.route({
+		method: "PATCH",
+		path: "/inquiries/{id}/approve-reassignment",
+		summary: "Approve reassignment request",
+		description:
+			"Current assignee approves a pending reassignment to another staff member.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+	})
+	.input(ApproveInquiryReassignmentSchema)
+	.output(InquiryTicketResponseSchema);
+
+export const rejectInquiryReassignment = oc
+	.route({
+		method: "PATCH",
+		path: "/inquiries/{id}/reject-reassignment",
+		summary: "Reject reassignment request",
+		description: "Current assignee rejects a pending reassignment request.",
+		tags: ["Inquiry", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.INQUIRY.NOT_FOUND,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+	})
+	.input(RejectInquiryReassignmentSchema)
 	.output(InquiryTicketResponseSchema);
 
 export const createInquiryUploadUrls = oc
@@ -197,4 +291,9 @@ export const inquiryTicketContract = {
 	updateStatus: updateInquiryTicketStatus,
 	getStatusCounts: getInquiryStatusCounts,
 	assignToMe: assignInquiryToMe,
+	assignTicket: assignInquiryTicket,
+	requestAssignment: requestInquiryAssignment,
+	confirmAssignment: confirmInquiryAssignment,
+	approveReassignment: approveInquiryReassignment,
+	rejectReassignment: rejectInquiryReassignment,
 };

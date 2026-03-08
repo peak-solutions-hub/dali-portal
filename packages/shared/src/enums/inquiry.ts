@@ -32,3 +32,14 @@ export type InquiryMessageSenderType =
 export const SENDER_TYPE_VALUES: InquiryMessageSenderType[] = Object.values(
 	InquiryMessageSenderType,
 );
+
+export const InquiryAssignmentStatus = {
+	PENDING: "pending",
+	CONFIRMED: "confirmed",
+} as const;
+
+export type InquiryAssignmentStatus =
+	(typeof InquiryAssignmentStatus)[keyof typeof InquiryAssignmentStatus];
+
+export const INQUIRY_ASSIGNMENT_STATUS_VALUES: InquiryAssignmentStatus[] =
+	Object.values(InquiryAssignmentStatus);

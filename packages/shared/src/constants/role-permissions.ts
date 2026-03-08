@@ -82,6 +82,25 @@ export const ROLE_PERMISSIONS = {
 } as const;
 
 /**
+ * Inquiry assignment role groups
+ * - Assigners can assign/reassign/unassign
+ * - Assignees can be assigned and can confirm/approve/reject reassignment
+ */
+export const INQUIRY_ASSIGNERS: RoleType[] = ["vice_mayor", "ovm_staff"];
+
+export const INQUIRY_ASSIGNEES: RoleType[] = [
+	"vice_mayor",
+	"head_admin",
+	"admin_staff",
+	"ovm_staff",
+	"councilor",
+];
+
+export const INQUIRY_ASSIGNABLE_ROLES: RoleType[] = INQUIRY_ASSIGNEES.filter(
+	(role) => ROLE_PERMISSIONS.INQUIRY_TICKETS.includes(role),
+);
+
+/**
  * Check if a user role has permission for a specific feature
  * @param role - The user's role
  * @param feature - The feature key from ROLE_PERMISSIONS

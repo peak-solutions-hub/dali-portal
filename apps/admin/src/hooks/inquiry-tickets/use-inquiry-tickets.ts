@@ -20,6 +20,7 @@ export interface UseInquiryTicketsOptions {
 	status: string;
 	page: number;
 	searchQuery?: string;
+	currentUserId?: string;
 }
 
 export interface UseInquiryTicketsReturn {
@@ -32,6 +33,7 @@ export interface UseInquiryTicketsReturn {
 		waiting_for_citizen: number;
 		resolved: number;
 		rejected: number;
+		assigned_to_me: number;
 	};
 	isLoading: boolean;
 	isLoadingCounts: boolean;
@@ -43,6 +45,7 @@ export function useInquiryTickets({
 	status,
 	page,
 	searchQuery = "",
+	currentUserId,
 }: UseInquiryTicketsOptions): UseInquiryTicketsReturn {
 	const queryClient = useQueryClient();
 
@@ -73,11 +76,30 @@ export function useInquiryTickets({
 
 	const allTickets = allTicketsData ?? [];
 
+	// Tickets matching the search query only (no status filter) — used to
+	// recompute tab counts when a search is active.
+	const searchFilteredTickets = useMemo(() => {
+		if (!searchQuery) return allTickets;
+		const q = searchQuery.toLowerCase();
+		return allTickets.filter(
+			(ticket) =>
+				ticket.referenceNumber.toLowerCase().includes(q) ||
+				(ticket.citizenFirstName &&
+					ticket.citizenFirstName.toLowerCase().includes(q)) ||
+				(ticket.citizenLastName &&
+					ticket.citizenLastName.toLowerCase().includes(q)) ||
+				ticket.subject.toLowerCase().includes(q),
+		);
+	}, [allTickets, searchQuery]);
+
 	// Client-side filter by status and search query.
 	const filteredTickets = useMemo(() => {
 		return allTickets.filter((ticket) => {
 			const matchesStatus =
-				status === "all" || ticket.status === (status as InquiryStatus);
+				status === "all" ||
+				(status === "assigned_to_me"
+					? currentUserId != null && ticket.assignedTo === currentUserId
+					: ticket.status === (status as InquiryStatus));
 
 			const matchesSearch =
 				searchQuery === "" ||
@@ -114,14 +136,41 @@ export function useInquiryTickets({
 		hasPreviousPage: safePage > 1,
 	};
 
-	const counts = statusCountsData ?? {
-		all: 0,
-		new: 0,
-		open: 0,
-		waiting_for_citizen: 0,
-		resolved: 0,
-		rejected: 0,
-	};
+	const assignedToMeCount = currentUserId
+		? searchFilteredTickets.filter((t) => t.assignedTo === currentUserId).length
+		: 0;
+
+	// When a search is active, derive counts from the search-filtered pool so
+	// the tab numbers reflect what the user is actually looking at.
+	const counts = useMemo(() => {
+		if (!searchQuery) {
+			return {
+				...(statusCountsData ?? {
+					all: 0,
+					new: 0,
+					open: 0,
+					waiting_for_citizen: 0,
+					resolved: 0,
+					rejected: 0,
+				}),
+				assigned_to_me: assignedToMeCount,
+			};
+		}
+
+		return {
+			all: searchFilteredTickets.length,
+			new: searchFilteredTickets.filter((t) => t.status === "new").length,
+			open: searchFilteredTickets.filter((t) => t.status === "open").length,
+			waiting_for_citizen: searchFilteredTickets.filter(
+				(t) => t.status === "waiting_for_citizen",
+			).length,
+			resolved: searchFilteredTickets.filter((t) => t.status === "resolved")
+				.length,
+			rejected: searchFilteredTickets.filter((t) => t.status === "rejected")
+				.length,
+			assigned_to_me: assignedToMeCount,
+		};
+	}, [searchQuery, statusCountsData, searchFilteredTickets, assignedToMeCount]);
 
 	const error = ticketsError
 		? ticketsError.message || "Failed to fetch inquiry tickets"
