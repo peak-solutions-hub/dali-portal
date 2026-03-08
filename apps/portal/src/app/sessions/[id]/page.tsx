@@ -16,7 +16,7 @@ import { ScrollToTop } from "@/components/scroll-to-top";
 import { SessionDetailContent } from "@/components/sessions";
 import { api } from "@/lib/api.client";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
-import SesisonDetailLoading from "./loading";
+import SessionDetailLoading from "./loading";
 
 interface PageProps {
 	params: Promise<{ id: string }>;
@@ -77,7 +77,7 @@ export default async function SessionDetailPage({
 			<ScrollToTop />
 			<OnlineStatusBanner />
 			<ScrollToTopButton />
-			<OfflineAwareSuspense fallback={<SesisonDetailLoading />}>
+			<OfflineAwareSuspense fallback={<SessionDetailLoading />}>
 				<SessionDetailContent id={id} searchParams={urlParams} />
 			</OfflineAwareSuspense>
 		</div>
