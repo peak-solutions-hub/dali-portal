@@ -8,6 +8,9 @@ import {
 	validateSearchParams,
 } from "@repo/shared";
 import { Card } from "@repo/ui/components/card";
+import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
+import { OnlineStatusBanner } from "@repo/ui/components/online-status-banner";
+import { ScrollToTop as ScrollToTopButton } from "@repo/ui/components/scroll-to-top";
 import { BRAND_TEXT_CLASS } from "@repo/ui/lib/legislative-document-ui";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -16,8 +19,10 @@ import {
 	PaginationControls,
 	SearchFilterBar,
 } from "@/components/legislative-documents/";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import { api } from "@/lib/api.client";
 import { createPageMetadata } from "@/lib/seo-metadata";
+import LegislativeDocumentsLoading from "./loading";
 
 export const metadata: Metadata = createPageMetadata({
 	title: "Legislative Documents — Iloilo City",
@@ -42,8 +47,33 @@ export default async function LegislativeDocumentsPage({
 }: PageProps) {
 	const params = await searchParams;
 
+	return (
+		<>
+			<ScrollToTop />
+			<OnlineStatusBanner />
+			<ScrollToTopButton />
+			<OfflineAwareSuspense fallback={<LegislativeDocumentsLoading />}>
+				<LegislativeDocumentsContent searchParams={params} />
+			</OfflineAwareSuspense>
+		</>
+	);
+}
+
+interface LegislativeDocumentsContentProps {
+	searchParams: {
+		search?: string;
+		type?: string;
+		year?: string;
+		classification?: string;
+		page?: string;
+	};
+}
+
+async function LegislativeDocumentsContent({
+	searchParams,
+}: LegislativeDocumentsContentProps) {
 	// Validate search parameters with Zod
-	const validationResult = validateSearchParams(params);
+	const validationResult = validateSearchParams(searchParams);
 
 	// If validation fails, redirect to valid default params
 	if (!validationResult.success) {

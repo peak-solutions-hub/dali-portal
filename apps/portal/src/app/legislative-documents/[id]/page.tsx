@@ -1,6 +1,9 @@
 import { isDefinedError } from "@orpc/client";
 import { getClassificationLabel, transformDocumentDates } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
+import { OnlineStatusBanner } from "@repo/ui/components/online-status-banner";
+import { ScrollToTop as ScrollToTopButton } from "@repo/ui/components/scroll-to-top";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -10,8 +13,10 @@ import {
 	DocumentSidebar,
 	DocumentViewer,
 } from "@/components/legislative-documents/";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import { api } from "@/lib/api.client";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
+import DocumentDetailLoading from "./loading";
 
 interface PageProps {
 	params: Promise<{
@@ -77,6 +82,19 @@ export async function generateMetadata({
 export default async function DocumentDetailPage({ params }: PageProps) {
 	const { id } = await params;
 
+	return (
+		<div className="min-h-screen bg-gray-50 pb-12">
+			<ScrollToTop />
+			<OnlineStatusBanner />
+			<ScrollToTopButton />
+			<OfflineAwareSuspense fallback={<DocumentDetailLoading />}>
+				<DocumentDetailContent id={id} />
+			</OfflineAwareSuspense>
+		</div>
+	);
+}
+
+async function DocumentDetailContent({ id }: { id: string }) {
 	// Validate numeric id
 	const idNum = Number(id);
 	if (!Number.isFinite(idNum) || idNum <= 0) {
@@ -98,7 +116,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 	const document = transformDocumentDates(documentData);
 
 	return (
-		<div className="min-h-screen bg-gray-50 pb-12">
+		<>
 			<div className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm">
 				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-4">
 					<Link href="/legislative-documents">
@@ -129,6 +147,6 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 					</div>
 				</div>
 			</div>
-		</div>
+		</>
 	);
 }
