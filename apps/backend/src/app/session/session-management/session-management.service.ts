@@ -96,10 +96,7 @@ export class SessionManagementService {
 		const { type, status, dateFrom, dateTo, defaultStatusFilter } = input;
 
 		if (dateFrom && dateTo && dateFrom > dateTo) {
-			throw new AppError(
-				"GENERAL.BAD_REQUEST",
-				"dateFrom must be before or equal to dateTo",
-			);
+			throw new AppError("SESSION.INVALID_DATE_RANGE");
 		}
 
 		return {
@@ -181,7 +178,7 @@ export class SessionManagementService {
 			};
 		} catch (error) {
 			if (error instanceof AppError) throw error;
-			throw new AppError("SESSION.LOAD_FAILED");
+			throw new AppError("SESSION.LIST_FAILED");
 		}
 	}
 
@@ -222,7 +219,7 @@ export class SessionManagementService {
 		} catch (error) {
 			if (error instanceof AppError) throw error;
 			this.logger.error("Failed to load session by ID", error);
-			throw new AppError("SESSION.LOAD_FAILED");
+			throw new AppError("SESSION.FETCH_FAILED");
 		}
 	}
 
@@ -561,7 +558,7 @@ export class SessionManagementService {
 		} catch (error) {
 			if (error instanceof AppError) throw error;
 			this.logger.error("Failed to load approved documents", error);
-			throw new AppError("SESSION.LOAD_FAILED");
+			throw new AppError("SESSION.LIST_FAILED");
 		}
 	}
 

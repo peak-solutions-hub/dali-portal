@@ -1,6 +1,7 @@
 export { DocumentViewButton } from "./document-view-button";
 export { DownloadAgendaButton } from "./download-agenda-button";
 export { QuillContent } from "./quill-content";
+export { SessionContent } from "./session-content";
 export { SessionDetailContent } from "./session-detail-content";
 export { SessionDetailStyles } from "./session-detail-styles";
 export { SessionFilters } from "./session-filters";

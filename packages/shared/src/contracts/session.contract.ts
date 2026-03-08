@@ -48,8 +48,8 @@ export const listSessions = oc
 		tags: ["Sessions", "Public"],
 	})
 	.errors({
-		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
-		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
+		"SESSION.INVALID_DATE_RANGE": ERRORS.SESSION.INVALID_DATE_RANGE,
+		"SESSION.LIST_FAILED": ERRORS.SESSION.LIST_FAILED,
 	})
 	.input(GetSessionListSchema)
 	.output(SessionListResponseSchema);
@@ -67,8 +67,8 @@ export const getSessionById = oc
 		tags: ["Sessions", "Public"],
 	})
 	.errors({
-		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
-		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
+		"SESSION.NOT_FOUND": ERRORS.SESSION.NOT_FOUND,
+		"SESSION.FETCH_FAILED": ERRORS.SESSION.FETCH_FAILED,
 	})
 	.input(GetSessionByIdSchema)
 	.output(SessionWithAgendaSchema);
@@ -133,8 +133,8 @@ export const adminListSessions = oc
 		tags: ["Sessions", "Admin"],
 	})
 	.errors({
-		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
-		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
+		"SESSION.INVALID_DATE_RANGE": ERRORS.SESSION.INVALID_DATE_RANGE,
+		"SESSION.LIST_FAILED": ERRORS.SESSION.LIST_FAILED,
 	})
 	.input(GetSessionListAdminSchema)
 	.output(AdminSessionListResponseSchema);
@@ -152,8 +152,8 @@ export const adminGetSessionById = oc
 		tags: ["Sessions", "Admin"],
 	})
 	.errors({
-		NOT_FOUND: ERRORS.SESSION.NOT_FOUND,
-		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
+		"SESSION.NOT_FOUND": ERRORS.SESSION.NOT_FOUND,
+		"SESSION.FETCH_FAILED": ERRORS.SESSION.FETCH_FAILED,
 	})
 	.input(GetSessionByIdSchema)
 	.output(AdminSessionWithAgendaSchema);
@@ -286,7 +286,7 @@ export const listApprovedDocuments = oc
 		tags: ["Sessions", "Admin"],
 	})
 	.errors({
-		LOAD_FAILED: ERRORS.SESSION.LOAD_FAILED,
+		LIST_FAILED: ERRORS.SESSION.LIST_FAILED,
 	})
 	.output(ApprovedDocumentListResponseSchema);
 

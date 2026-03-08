@@ -118,9 +118,17 @@ export const ERRORS = {
 			status: 500,
 			message: "Failed to create session. Please try again.",
 		},
-		LOAD_FAILED: {
+		INVALID_DATE_RANGE: {
+			status: 400,
+			message: 'The "From" date cannot be later than the "To" date.',
+		},
+		LIST_FAILED: {
 			status: 500,
-			message: "Failed to load session data. Please try again.",
+			message: "Failed to load sessions.",
+		},
+		FETCH_FAILED: {
+			status: 500,
+			message: "Failed to load session details.",
 		},
 		SAVE_FAILED: {
 			status: 500,
