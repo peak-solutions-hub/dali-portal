@@ -29,12 +29,12 @@ model AssistanceRecord {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model CallerSlip {
-  id          String       @id(map: "caller_slips_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String           @id(map: "caller_slips_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
-  status      String
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  generatedBy String       @map("generated_by") @db.Uuid
-  user        User         @relation(fields: [generatedBy], references: [id], map: "caller_slips_generated_by_fkey")
+  status      CallerSlipStatus @default(pending)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  generatedBy String           @map("generated_by") @db.Uuid
+  user        User             @relation(fields: [generatedBy], references: [id], map: "caller_slips_generated_by_fkey")
   invitation  Invitation[]
 
   @@map("caller_slip")
@@ -70,7 +70,7 @@ model Document {
   purpose             PurposeType
   source              SourceType
   status              StatusType
-  classification      ClassificationType
+  classification      ClassificationType?
   documentAudit       DocumentAudit[]
   documentVersion     DocumentVersion[]
   invitation          Invitation[]
@@ -88,8 +88,8 @@ model DocumentAudit {
   documentId    String   @map("document_id") @db.Uuid
   versionNumber Decimal  @map("version_number") @db.Decimal
   filePath      String   @map("file_path")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   remarks       String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   user          User     @relation(fields: [actorId], references: [id], map: "document_audits_actor_id_fkey")
   document      Document @relation(fields: [documentId], references: [id], map: "document_audits_document_id_fkey")
 
@@ -165,14 +165,14 @@ model InquiryTicket {
 model Invitation {
   id                 String        @id(map: "invitations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   documentId         String        @map("document_id") @db.Uuid
-  callerSlipId       String        @map("caller_slip_id") @db.Uuid
+  callerSlipId       String?       @map("caller_slip_id") @db.Uuid
   eventVenue         String        @map("event_venue")
   eventStartTime     DateTime      @map("event_start_time") @db.Timestamptz(6)
   eventEndTime       DateTime      @map("event_end_time") @db.Timestamptz(6)
   vmDecisionRemarks  String?       @map("vm_decision_remarks")
   representativeName String?       @map("representative_name")
   vmDecision         DecisionType? @map("vm_decision")
-  callerSlip         CallerSlip    @relation(fields: [callerSlipId], references: [id], map: "invitations_caller_slip_id_fkey")
+  callerSlip         CallerSlip?   @relation(fields: [callerSlipId], references: [id], map: "invitations_caller_slip_id_fkey")
   document           Document      @relation(fields: [documentId], references: [id], map: "invitations_document_id_fkey")
 
   @@map("invitation")
@@ -450,6 +450,13 @@ enum ConferenceRoom {
   room_b
 
   @@map("conference_room")
+}
+
+enum CallerSlipStatus {
+  pending
+  completed
+
+  @@map("caller_slip_status")
 }
 
 enum RoomBookingStatus {

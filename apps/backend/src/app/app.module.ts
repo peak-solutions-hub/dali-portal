@@ -8,7 +8,9 @@ import { Request } from "express";
 import { AppController } from "@/app/app.controller";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
 import { JwtStrategy } from "@/app/auth/strategies/jwt.strategy";
+import { CallerSlipsModule } from "@/app/caller-slips/caller-slips.module";
 import { DbModule } from "@/app/db/db.module";
+import { DocumentsModule } from "@/app/documents/documents.module";
 import {
 	DriverAdapterExceptionFilter,
 	PrismaClientExceptionFilter,
@@ -44,6 +46,8 @@ declare module "@orpc/nest" {
 		DbModule,
 		SupabaseModule,
 		PassportModule,
+		CallerSlipsModule,
+		DocumentsModule,
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
 		RolesModule,
