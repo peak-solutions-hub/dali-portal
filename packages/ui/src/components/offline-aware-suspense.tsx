@@ -109,8 +109,8 @@ export function OfflineAwareSuspense({
 			const probeController = new AbortController();
 			const timeout = setTimeout(() => probeController.abort(), 4000);
 			try {
-				await fetch("/favicon.ico", {
-					method: "HEAD",
+				await fetch("/api/ping", {
+					method: "GET",
 					cache: "no-store",
 					signal: probeController.signal,
 				});
