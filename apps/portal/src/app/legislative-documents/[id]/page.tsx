@@ -18,6 +18,8 @@ import { api } from "@/lib/api.client";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 import DocumentDetailLoading from "./loading";
 
+export const revalidate = 300;
+
 interface PageProps {
 	params: Promise<{
 		id: string;
@@ -105,10 +107,19 @@ async function DocumentDetailContent({ id }: { id: string }) {
 		id: idNum,
 	});
 
-	if (error || !documentData) {
-		if (error && isDefinedError(error)) {
-			console.error("Failed to fetch document:", error.message);
+	if (error) {
+		if (isDefinedError(error) && error.code === "NOT_FOUND") {
+			notFound();
 		}
+
+		throw new Error(
+			isDefinedError(error)
+				? error.message
+				: "Unable to load legislative document details.",
+		);
+	}
+
+	if (!documentData) {
 		notFound();
 	}
 
