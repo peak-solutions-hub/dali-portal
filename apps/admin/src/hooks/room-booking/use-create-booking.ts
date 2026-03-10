@@ -1,17 +1,10 @@
 "use client";
 
-import {
-	type AttachmentMimeType,
-	type ConferenceRoom,
-	isAdminBookingRole,
-	type RoomBookingListResponse,
-	type RoomBookingResponse,
-} from "@repo/shared";
+import { type AttachmentMimeType, type ConferenceRoom } from "@repo/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api, orpc } from "@/lib/api.client";
-import { useAuthStore } from "@/stores/auth-store";
 
 export interface CreateBookingInput {
 	title: string;
@@ -57,7 +50,6 @@ export function useCreateBooking(
 	const [error, setError] = useState<string | null>(null);
 	const clearError = useCallback(() => setError(null), []);
 	const queryClient = useQueryClient();
-	const userProfile = useAuthStore((s) => s.userProfile);
 
 	const mutation = useMutation({
 		mutationFn: async (input: CreateBookingInput) => {
@@ -111,60 +103,9 @@ export function useCreateBooking(
 
 			return data;
 		},
-		onMutate: async (newBooking) => {
-			await queryClient.cancelQueries({
-				queryKey: orpc.roomBookings.getList.key(),
-			});
-
-			const previousQueries = queryClient.getQueriesData({
-				queryKey: orpc.roomBookings.getList.key(),
-			});
-
-			const optimisticStatus =
-				userProfile?.role.name && isAdminBookingRole(userProfile.role.name)
-					? "confirmed"
-					: "pending";
-
-			const optimisticBooking: RoomBookingResponse = {
-				id: `temp-${Date.now()}`,
-				bookedBy: userProfile?.id ?? "",
-				title: newBooking.title,
-				startTime: toISODateTime(newBooking.date, newBooking.startTime),
-				endTime: toISODateTime(newBooking.date, newBooking.endTime),
-				requestedFor: newBooking.requestedFor,
-				room: newBooking.room,
-				attachmentUrl: null,
-				status: optimisticStatus,
-				createdAt: new Date().toISOString(),
-				user: userProfile
-					? {
-							id: userProfile.id,
-							fullName: userProfile.fullName,
-						}
-					: null,
-			};
-
-			queryClient.setQueriesData(
-				{ queryKey: orpc.roomBookings.getList.key() },
-				(old: RoomBookingListResponse | undefined) => {
-					if (!old || !old.bookings) return old;
-					return {
-						...old,
-						bookings: [...old.bookings, optimisticBooking],
-					};
-				},
-			);
-
-			return { previousQueries };
-		},
-		onError: (err, newBooking, context) => {
+		onError: (err) => {
 			setError(err.message);
 			toast.error(err.message);
-			if (context?.previousQueries) {
-				context.previousQueries.forEach(([queryKey, data]) => {
-					queryClient.setQueryData(queryKey, data);
-				});
-			}
 		},
 		onSuccess: () => {
 			toast.success("Booking created successfully");
