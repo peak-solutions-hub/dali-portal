@@ -1,0 +1,18 @@
+{
+	"name": "@repo/playwright-utils",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./auth": "./src/auth.ts",
+		"./locators": "./src/locators.ts"
+	},
+	"peerDependencies": {
+		"@playwright/test": "^1.58.2",
+		"@supabase/supabase-js": "^2.90.0"
+	},
+	"devDependencies": {
+		"@repo/typescript-config": "workspace:*"
+	}
+}
