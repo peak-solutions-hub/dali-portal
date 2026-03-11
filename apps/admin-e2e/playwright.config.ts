@@ -22,6 +22,10 @@ export default defineConfig({
 	webServer: [
 		{
 			command: "pnpm --filter backend dev",
+			env: {
+				...process.env,
+				RESEND_API_KEY: process.env.RESEND_API_KEY ?? "test-resend-api-key",
+			},
 			url: "http://127.0.0.1:8080",
 			reuseExistingServer: !process.env.CI,
 			timeout: 120_000,
