@@ -83,7 +83,7 @@ export const updateRoomBookingStatus = oc
 		path: "/bookings/{id}/status",
 		summary: "Approve or reject a pending booking",
 		description:
-			"Transitions a PENDING booking to CONFIRMED or REJECTED. Re-runs conflict detection before confirming. Restricted to head_admin, vice_mayor, and admin_staff.",
+			"Transitions a PENDING booking to CONFIRMED or REJECTED. Re-runs conflict detection before confirming. Restricted to head_admin, vice_mayor, admin_staff, legislative_staff, and ovm_staff.",
 		tags: ["Room Booking", "Admin"],
 	})
 	.errors({

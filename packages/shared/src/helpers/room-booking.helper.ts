@@ -25,6 +25,8 @@ export const ADMIN_BOOKING_ROLES: RoleType[] = [
 	"vice_mayor",
 	"head_admin",
 	"admin_staff",
+	"ovm_staff",
+	"legislative_staff",
 ];
 
 /**
