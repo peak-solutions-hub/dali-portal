@@ -1,5 +1,6 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -33,75 +34,19 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import { ArrowUpDown, Download, FileText, Filter, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api.client";
 import { DatePickerField } from "./date-picker-field";
 
-// Mock data based on Figma design
-export const MOCK_VISITOR_LOGS = [
-	{
-		id: "1",
-		dateVisited: "2025-10-10T09:30:00",
-		constituentName: "Maria Santos",
-		purpose: "Assistance Request",
-		affiliation: null,
-		remarks: "Requesting financial assistance for medical expenses",
-		loggedBy: "Ruth",
-	},
-	{
-		id: "2",
-		dateVisited: "2025-10-12T11:00:00",
-		constituentName: "Rosa Fernandez",
-		purpose: "Document Submission",
-		affiliation: null,
-		remarks: "Submitted requirements for burial assistance",
-		loggedBy: "Secretariat Staff",
-	},
-	{
-		id: "3",
-		dateVisited: "2025-10-13T14:15:00",
-		constituentName: "Antonio Cruz",
-		purpose: "Inquiry",
-		affiliation: null,
-		remarks: "Inquired about senior citizen benefits",
-		loggedBy: "Ruth",
-	},
-	{
-		id: "4",
-		dateVisited: "2025-10-14T10:00:00",
-		constituentName: "Miguel Reyes",
-		purpose: "Consultation",
-		affiliation: "Iloilo Youth Council",
-		remarks: "Consultation regarding youth programs",
-		loggedBy: "Ruth",
-	},
-	{
-		id: "5",
-		dateVisited: "2025-10-15T13:45:00",
-		constituentName: "Juan Dela Cruz",
-		purpose: "Assistance Request",
-		affiliation: null,
-		remarks: "Walk-in for medical assistance - scheduled for follow-up",
-		loggedBy: "Secretariat Staff",
-	},
-	{
-		id: "6",
-		dateVisited: "2025-10-16T15:30:00",
-		constituentName: "Pedro Santos",
-		purpose: "Other",
-		affiliation: "Barangay Molo",
-		remarks: "Follow-up on previous assistance application",
-		loggedBy: "Ruth",
-	},
-	{
-		id: "7",
-		dateVisited: "2025-09-28T09:00:00",
-		constituentName: "Elena Garcia",
-		purpose: "Inquiry",
-		affiliation: null,
-		remarks: "Asked about housing assistance programs",
-		loggedBy: "Secretariat Staff",
-	},
-];
+type VisitorLogEntry = {
+	id: string;
+	dateVisited: string;
+	constituentName: string;
+	purpose: string;
+	affiliation: string | null;
+	remarks: string | null;
+	loggedBy: string;
+};
 
 function formatDateTime(isoString: string): string {
 	const date = new Date(isoString);
@@ -162,6 +107,8 @@ const INITIAL_VISITOR_FORM_STATE = {
 export function VisitorLogs() {
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [formState, setFormState] = useState(INITIAL_VISITOR_FORM_STATE);
+	const [visitorLogs, setVisitorLogs] = useState<VisitorLogEntry[]>([]);
+	const [formError, setFormError] = useState<string | null>(null);
 	const [filterType, setFilterType] = useState<
 		"none" | "today" | "last7" | "range"
 	>("none");
@@ -171,13 +118,43 @@ export function VisitorLogs() {
 	const [alphaOrder, setAlphaOrder] = useState<"none" | "asc" | "desc">("none");
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+	const fetchVisitorLogs = async () => {
+		const [error, data] = await api.visitorLogs.list();
+		if (error || !data) {
+			console.error("Failed to load visitor logs", error);
+			return;
+		}
+
+		setVisitorLogs(data);
+	};
+
+	useEffect(() => {
+		void fetchVisitorLogs();
+	}, []);
+
 	const handleInputChange = (field: keyof typeof formState, value: string) => {
 		setFormState((prev) => ({ ...prev, [field]: value }));
 	};
 
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		// This submission handler just closes the dialog for now.
+
+		const [error] = await api.visitorLogs.create({
+			familyName: formState.familyName,
+			firstName: formState.firstName,
+			affiliation: formState.affiliation,
+			purpose: formState.purpose,
+		});
+
+		if (error) {
+			setFormError(
+				isDefinedError(error) ? error.message : "Failed to save visitor log.",
+			);
+			return;
+		}
+
+		setFormError(null);
+		await fetchVisitorLogs();
 		setFormState(INITIAL_VISITOR_FORM_STATE);
 		setIsDialogOpen(false);
 	};
@@ -222,7 +199,7 @@ export function VisitorLogs() {
 		});
 	};
 
-	const totalVisits = MOCK_VISITOR_LOGS.length;
+	const totalVisits = visitorLogs.length;
 	const hasRangeValues = Boolean(rangeStart || rangeEnd);
 	const filterCount =
 		filterType === "none"
@@ -234,7 +211,7 @@ export function VisitorLogs() {
 				: 1;
 	const hasActiveFilters = filterCount > 0;
 	const filteredLogs = useMemo(() => {
-		let data = [...MOCK_VISITOR_LOGS];
+		let data = [...visitorLogs];
 
 		if (filterType === "today") {
 			const today = getTodayDateInput();
@@ -266,7 +243,7 @@ export function VisitorLogs() {
 		});
 
 		return data;
-	}, [filterType, rangeStart, rangeEnd, alphaOrder, dateOrder]);
+	}, [filterType, rangeStart, rangeEnd, alphaOrder, dateOrder, visitorLogs]);
 
 	const activeDateLabel = (() => {
 		if (filterType === "today") {
@@ -471,6 +448,9 @@ export function VisitorLogs() {
 									</DialogDescription>
 								</DialogHeader>
 								<form onSubmit={handleSubmit} className="space-y-4">
+									{formError && (
+										<p className="text-sm text-red-600">{formError}</p>
+									)}
 									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 										<div>
 											<label className="text-sm font-medium text-gray-700">

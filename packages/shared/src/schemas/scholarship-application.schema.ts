@@ -1,0 +1,42 @@
+import { z } from "zod";
+
+export const CreateScholarshipApplicationSchema = z.object({
+	seq: z.string().min(1),
+	studentId: z.string().min(1),
+	lastName: z.string().min(1),
+	givenName: z.string().min(1),
+	extName: z.string().optional(),
+	scholarshipMiddleName: z.string().min(1),
+	scholarshipSex: z.enum(["male", "female", "prefer_not_to_say"]),
+	scholarshipBirthdate: z.iso.datetime(),
+	completeProgramName: z.string().min(1),
+	yearLevel: z.string().min(1),
+	streetBarangay: z.string().min(1),
+	townCityMunicipality: z.string().min(1),
+	province: z.string().min(1),
+	zipCode: z.string().min(1),
+	contactNumber: z.string().min(1),
+	emailAddress: z.string().optional(),
+	heiUii: z.string().min(1),
+	heiName: z.string().min(1),
+	fatherLastName: z.string().min(1),
+	fatherGivenName: z.string().min(1),
+	fatherMiddleName: z.string().min(1),
+	motherMaidenLastName: z.string().min(1),
+	motherMaidenGivenName: z.string().min(1),
+	motherMaidenMiddleName: z.string().min(1),
+	guardianName: z.string().optional(),
+	guardianContactNo: z.string().min(1),
+	guardianEmailAddress: z.string().optional(),
+});
+
+export const CreateScholarshipApplicationResponseSchema = z.object({
+	id: z.string(),
+});
+
+export type CreateScholarshipApplicationInput = z.infer<
+	typeof CreateScholarshipApplicationSchema
+>;
+export type CreateScholarshipApplicationResponse = z.infer<
+	typeof CreateScholarshipApplicationResponseSchema
+>;

@@ -15,6 +15,7 @@ type DatePickerFieldProps = {
 	date: Date | undefined;
 	onSelect: (date: Date | undefined) => void;
 	disabled?: (date: Date) => boolean;
+	error?: boolean;
 };
 
 export function DatePickerField({
@@ -22,18 +23,23 @@ export function DatePickerField({
 	date,
 	onSelect,
 	disabled,
+	error = false,
 }: DatePickerFieldProps) {
 	const currentYear = new Date().getFullYear();
 	const minYear = Math.max(currentYear - 100, 1950);
 
 	return (
 		<div className="space-y-1.5">
-			<p className="text-xs text-gray-500">{label}</p>
+			{label ? (
+				<p className="text-sm font-medium text-gray-700">{label}</p>
+			) : null}
 			<Popover>
 				<PopoverTrigger asChild>
 					<Button
 						variant="outline"
-						className="w-full h-9 justify-start gap-2 text-left text-sm font-normal border-[rgba(0,0,0,0.1)] hover:bg-white"
+						className={`h-9 w-full justify-start gap-2 border-[rgba(0,0,0,0.1)] text-left text-sm font-normal hover:bg-white ${
+							error ? "border-red-500" : ""
+						}`}
 					>
 						<CalendarIcon className="h-4 w-4 text-gray-500" />
 						{date ? format(date, "P") : "Pick a date"}
@@ -57,6 +63,9 @@ export function DatePickerField({
 					/>
 				</PopoverContent>
 			</Popover>
+			{error ? (
+				<p className="text-xs text-red-600">This field is required.</p>
+			) : null}
 		</div>
 	);
 }

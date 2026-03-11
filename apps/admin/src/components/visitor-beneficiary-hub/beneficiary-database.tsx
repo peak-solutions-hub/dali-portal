@@ -1,5 +1,6 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -42,98 +43,19 @@ import {
 	Filter,
 	MapPin,
 	PenLine,
-	Plus,
 	Search,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api.client";
+import { AssistanceForm } from "./assistance-form";
+import {
+	ASSISTANCE_TYPES,
+	INITIAL_BENEFICIARY_FORM_STATE,
+	type MainFormState,
+	SCHOLARSHIP_REQUIRED_FIELDS,
+} from "./beneficiary-form-config";
 import { DatePickerField } from "./date-picker-field";
-import { MOCK_VISITOR_LOGS } from "./visitor-logs";
-
-const INITIAL_BENEFICIARY_FORM_STATE = {
-	familyName: "",
-	firstName: "",
-	middleName: "",
-	municipality: "",
-	barangay: "",
-	sex: "",
-	civilStatus: "",
-	age: "",
-	phoneNumber: "",
-	email: "",
-	purpose: "",
-};
-
-const ILOILO_LOCALITIES = [
-	"Ajuy",
-	"Alimodian",
-	"Anilao",
-	"Badiangan",
-	"Balasan",
-	"Banate",
-	"Barotac Nuevo",
-	"Barotac Viejo",
-	"Batad",
-	"Bingawan",
-	"Cabatuan",
-	"Calinog",
-	"Carles",
-	"Concepcion",
-	"Dingle",
-	"Dueñas",
-	"Dumangas",
-	"Estancia",
-	"Guimbal",
-	"Igbaras",
-	"Janiuay",
-	"Lambunao",
-	"Leganes",
-	"Lemery",
-	"Leon",
-	"Maasin",
-	"Miagao",
-	"Mina",
-	"New Lucena",
-	"Oton",
-	"Pavia",
-	"Pototan",
-	"San Dionisio",
-	"San Enrique",
-	"San Joaquin",
-	"San Miguel",
-	"San Rafael",
-	"Santa Barbara",
-	"Sara",
-	"Tigbauan",
-	"Tubungan",
-	"Zarraga",
-];
-
-const SEX_OPTIONS = [
-	{ label: "Male", value: "male" },
-	{ label: "Female", value: "female" },
-	{ label: "Prefer not to say", value: "prefer_not_to_say" },
-];
-
-const CIVIL_STATUS_OPTIONS = [
-	{ label: "Single", value: "single" },
-	{ label: "Married", value: "married" },
-	{ label: "Widowed", value: "widowed" },
-	{ label: "Separated", value: "separated" },
-];
-
-const ASSISTANCE_TYPES = [
-	"Medicine Assistance",
-	"Burial Assistance",
-	"Hospital Bill Assistance",
-	"Laboratory Fees Assistance",
-	"Scholarship Grant",
-];
-
-const BENEFICIARY_SOURCE_LOGS = MOCK_VISITOR_LOGS.filter(
-	(log) =>
-		log.purpose.toLowerCase().includes("assistance") ||
-		log.remarks.toLowerCase().includes("assistance"),
-);
+import { ScholarshipForm } from "./scholarship-form";
 
 function formatNameDisplay(fullName: string): string {
 	const parts = fullName.trim().split(/\s+/);
@@ -149,7 +71,10 @@ type VisitEntry = {
 	title: string;
 	assistanceType: string;
 	notes?: string;
+	assistanceDetails?: Partial<Record<keyof MainFormState, string>>;
 };
+
+type AssistanceType = (typeof ASSISTANCE_TYPES)[number];
 
 type BeneficiaryRecord = {
 	id: string;
@@ -164,6 +89,10 @@ type BeneficiaryRecord = {
 	purpose: string;
 	createdAt: string;
 	visits: VisitEntry[];
+	assistanceDetails: Record<
+		string,
+		Partial<Record<keyof MainFormState, string>>
+	>;
 };
 
 type VisitEditorState = {
@@ -171,51 +100,191 @@ type VisitEditorState = {
 	visit: VisitEntry;
 };
 
-const MOCK_BENEFICIARIES: BeneficiaryRecord[] = BENEFICIARY_SOURCE_LOGS.map(
-	(log, index) => {
-		const sexOption =
-			SEX_OPTIONS[index % SEX_OPTIONS.length] ?? SEX_OPTIONS[0] ?? undefined;
-		const civilStatusOption =
-			CIVIL_STATUS_OPTIONS[index % CIVIL_STATUS_OPTIONS.length] ??
-			CIVIL_STATUS_OPTIONS[0] ??
-			undefined;
-		const assistanceType =
-			ASSISTANCE_TYPES[index % ASSISTANCE_TYPES.length] ??
-			ASSISTANCE_TYPES[0] ??
-			"Assistance Request";
+const INITIAL_BENEFICIARIES: BeneficiaryRecord[] = [];
 
-		return {
-			id: `${log.id}-beneficiary`,
-			name: log.constituentName,
-			municipality: log.affiliation ?? "Iloilo City",
-			barangay: log.affiliation ?? "--",
-			sex: sexOption?.label ?? "Unspecified",
-			civilStatus: civilStatusOption?.label ?? "Unspecified",
-			age: (42 + index * 3).toString(),
-			phoneNumber: "0917 123 4567",
-			email: "sample@example.com",
-			purpose: assistanceType,
-			createdAt: log.dateVisited,
-			visits: [
-				{
-					id: `${log.id}-visit`,
-					date: log.dateVisited,
-					title: "Walk-in Visit",
-					assistanceType,
-					notes: "",
-				},
-			],
-		};
-	},
-);
+const ASSISTANCE_REQUIRED_FIELDS: Record<
+	AssistanceType,
+	Array<keyof MainFormState>
+> = {
+	"Medicine Assistance": ["medicineName"],
+	"Burial Assistance": ["deceasedName", "relationToDeceased"],
+	"Hospital Bill Assistance": ["hospitalName"],
+	"Laboratory Fees Assistance": ["laboratoryType"],
+	"Scholarship Grant": SCHOLARSHIP_REQUIRED_FIELDS,
+};
 
-const ASSISTANCE_FILTER_OPTIONS = Array.from(
-	new Set(
-		MOCK_BENEFICIARIES.map((beneficiary) => beneficiary.purpose).filter(
-			(purpose): purpose is string => Boolean(purpose),
-		),
-	),
-).sort();
+const ASSISTANCE_FIELD_LABELS: Partial<Record<keyof MainFormState, string>> = {
+	medicineName: "Medicine / Prescription",
+	hospitalName: "Hospital Name",
+	deceasedName: "Deceased Name",
+	relationToDeceased: "Relation to Deceased",
+	laboratoryType: "Laboratory Test Type",
+	seq: "SEQ",
+	studentId: "Student ID",
+	lastName: "Last Name",
+	givenName: "Given Name",
+	scholarshipMiddleName: "Middle Name",
+	scholarshipSex: "Sex",
+	scholarshipBirthdate: "Birthdate",
+	birthdate: "Birthdate",
+	assistanceDate: "Date",
+	completeProgramName: "Complete Program Name",
+	yearLevel: "Year Level",
+	streetBarangay: "Street & Barangay",
+	townCityMunicipality: "Town/City/Municipality",
+	province: "Province",
+	zipCode: "ZIP Code",
+	contactNumber: "Contact Number",
+	emailAddress: "Email Address",
+	heiUii: "HEI UII",
+	heiName: "HEI Name",
+	fatherLastName: "Father's Last Name",
+	fatherGivenName: "Father's Given Name",
+	fatherMiddleName: "Father's Middle Name",
+	motherMaidenLastName: "Mother's Maiden Last Name",
+	motherMaidenGivenName: "Mother's Maiden Given Name",
+	motherMaidenMiddleName: "Mother's Maiden Middle Name",
+	endorsementDate: "Endorsement Date",
+	guardianName: "Name of Guardian",
+	guardianContactNo: "Guardian Contact No.",
+	guardianEmailAddress: "Guardian Email Address",
+};
+
+const ASSISTANCE_FIELD_PLACEHOLDERS: Partial<
+	Record<keyof MainFormState, string>
+> = {
+	medicineName: "Enter medicine details",
+	hospitalName: "Enter hospital name",
+	deceasedName: "Enter deceased name",
+	relationToDeceased: "e.g. Son, Spouse",
+	laboratoryType: "Enter requested laboratory test",
+	birthdate: "dd/mm/yyyy",
+	emailAddress: "name@example.com",
+	guardianEmailAddress: "guardian@example.com",
+};
+
+const EMAIL_FIELDS = new Set<keyof MainFormState>([
+	"emailAddress",
+	"guardianEmailAddress",
+]);
+
+const SCHOLARSHIP_ACADEMIC_FIELDS: Array<keyof MainFormState> = [
+	"studentId",
+	"completeProgramName",
+	"yearLevel",
+	"heiUii",
+	"heiName",
+];
+
+const PERSONAL_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"seq",
+	"lastName",
+	"givenName",
+	"scholarshipMiddleName",
+	"extName",
+	"scholarshipSex",
+	"scholarshipBirthdate",
+	"contactNumber",
+	"emailAddress",
+];
+
+const ADDRESS_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"streetBarangay",
+	"townCityMunicipality",
+	"province",
+	"zipCode",
+];
+
+const FAMILY_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"fatherLastName",
+	"fatherGivenName",
+	"fatherMiddleName",
+	"motherMaidenLastName",
+	"motherMaidenGivenName",
+	"motherMaidenMiddleName",
+	"guardianName",
+	"guardianContactNo",
+	"guardianEmailAddress",
+];
+
+const VISIT_DETAILS_MULTI_STEP_THRESHOLD = 8;
+const VISIT_DETAILS_FIELDS_PER_STEP = 8;
+
+function isAssistanceType(value: string): value is AssistanceType {
+	return ASSISTANCE_TYPES.includes(value as AssistanceType);
+}
+
+function getRequiredFieldsForAssistance(
+	assistanceType: string,
+): Array<keyof MainFormState> {
+	if (!isAssistanceType(assistanceType)) return [];
+	return ASSISTANCE_REQUIRED_FIELDS[assistanceType] ?? [];
+}
+
+function hasSavedScholarshipProfile(
+	beneficiary: BeneficiaryRecord | undefined,
+): boolean {
+	if (!beneficiary) {
+		return false;
+	}
+
+	const scholarshipDetails = beneficiary.assistanceDetails["Scholarship Grant"];
+	if (!scholarshipDetails) {
+		return false;
+	}
+
+	return SCHOLARSHIP_REQUIRED_FIELDS.some((field) => {
+		const value = scholarshipDetails[field];
+		return typeof value === "string" && value.trim() !== "";
+	});
+}
+
+function getRequiredFieldsForVisit(
+	beneficiary: BeneficiaryRecord | undefined,
+	assistanceType: string,
+): Array<keyof MainFormState> {
+	if (
+		assistanceType === "Scholarship Grant" &&
+		hasSavedScholarshipProfile(beneficiary)
+	) {
+		return SCHOLARSHIP_ACADEMIC_FIELDS;
+	}
+
+	return getRequiredFieldsForAssistance(assistanceType);
+}
+
+function chunkFields<T>(fields: T[], chunkSize: number): T[][] {
+	if (fields.length === 0) return [];
+	const chunks: T[][] = [];
+	for (let index = 0; index < fields.length; index += chunkSize) {
+		chunks.push(fields.slice(index, index + chunkSize));
+	}
+	return chunks;
+}
+
+function formatAssistanceDetailValue(
+	field: keyof MainFormState,
+	value: string,
+): string {
+	if (value.trim() === "") {
+		return "-";
+	}
+
+	if (field === "scholarshipSex") {
+		if (value === "male") return "Male";
+		if (value === "female") return "Female";
+		if (value === "prefer_not_to_say") return "Prefer not to say";
+	}
+
+	if (field.includes("date")) {
+		const parsedDate = new Date(value);
+		if (!Number.isNaN(parsedDate.getTime())) {
+			return format(parsedDate, "MMM d, yyyy");
+		}
+	}
+
+	return value;
+}
 
 const PROFILE_TABS: Array<{ id: "overview" | "timeline"; label: string }> = [
 	{ id: "overview", label: "Overview" },
@@ -223,11 +292,24 @@ const PROFILE_TABS: Array<{ id: "overview" | "timeline"; label: string }> = [
 ];
 
 export function BeneficiaryDatabase() {
-	const [beneficiaries, setBeneficiaries] =
-		useState<BeneficiaryRecord[]>(MOCK_BENEFICIARIES);
-	const [isDialogOpen, setIsDialogOpen] = useState(false);
-	const [formState, setFormState] = useState(INITIAL_BENEFICIARY_FORM_STATE);
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRecord[]>(
+		INITIAL_BENEFICIARIES,
+	);
+	const [isScholarshipDialogOpen, setIsScholarshipDialogOpen] = useState(false);
+	const [isAssistanceDialogOpen, setIsAssistanceDialogOpen] = useState(false);
+	const [scholarshipFormState, setScholarshipFormState] =
+		useState<MainFormState>(INITIAL_BENEFICIARY_FORM_STATE);
+	const [assistanceFormState, setAssistanceFormState] = useState<MainFormState>(
+		INITIAL_BENEFICIARY_FORM_STATE,
+	);
+	const [scholarshipErrorMessage, setScholarshipErrorMessage] = useState<
+		string | null
+	>(null);
+	const [assistanceErrorMessage, setAssistanceErrorMessage] = useState<
+		string | null
+	>(null);
+	const [nextScholarshipSeq, setNextScholarshipSeq] = useState(1);
+	const [nextAssistanceNo, setNextAssistanceNo] = useState(1);
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const [selectedAssistance, setSelectedAssistance] = useState<string[]>([]);
 	const [dateFrom, setDateFrom] = useState<Date | undefined>();
@@ -244,6 +326,19 @@ export function BeneficiaryDatabase() {
 	const [editingVisit, setEditingVisit] = useState<VisitEditorState | null>(
 		null,
 	);
+	const [visitEditorError, setVisitEditorError] = useState<string | null>(null);
+	const [visitDetailsStep, setVisitDetailsStep] = useState(1);
+	const assistanceFilterOptions = useMemo(
+		() =>
+			Array.from(
+				new Set(
+					beneficiaries
+						.map((beneficiary) => beneficiary.purpose)
+						.filter((purpose): purpose is string => Boolean(purpose)),
+				),
+			).sort(),
+		[beneficiaries],
+	);
 
 	const isDateRangeInvalid = Boolean(dateFrom && dateTo && dateFrom > dateTo);
 	const selectedBeneficiary = selectedBeneficiaryId
@@ -251,40 +346,343 @@ export function BeneficiaryDatabase() {
 				(beneficiary) => beneficiary.id === selectedBeneficiaryId,
 			) ?? null)
 		: null;
+	const selectedBeneficiaryProfileSections = useMemo(() => {
+		if (!selectedBeneficiary) {
+			return [] as Array<{
+				title: string;
+				fields: Array<{
+					field: keyof MainFormState;
+					label: string;
+					value: string;
+				}>;
+			}>;
+		}
+
+		const mergedDetails = new Map<keyof MainFormState, string>();
+		Object.values(selectedBeneficiary.assistanceDetails).forEach((details) => {
+			Object.entries(details ?? {}).forEach(([field, value]) => {
+				if (typeof value !== "string" || value.trim() === "") {
+					return;
+				}
+
+				mergedDetails.set(field as keyof MainFormState, value);
+			});
+		});
+
+		const mapFieldsToDetails = (fields: Array<keyof MainFormState>) =>
+			fields
+				.filter((field) => {
+					const value = mergedDetails.get(field);
+					return typeof value === "string" && value.trim() !== "";
+				})
+				.map((field) => {
+					const value = mergedDetails.get(field) ?? "";
+					return {
+						field,
+						label: ASSISTANCE_FIELD_LABELS[field] ?? field,
+						value: formatAssistanceDetailValue(field, value),
+					};
+				});
+
+		const categorizedSections = [
+			{
+				title: "Personal Information",
+				fields: mapFieldsToDetails(PERSONAL_INFORMATION_FIELDS),
+			},
+			{
+				title: "Academic Information",
+				fields: mapFieldsToDetails(SCHOLARSHIP_ACADEMIC_FIELDS),
+			},
+			{
+				title: "Address Information",
+				fields: mapFieldsToDetails(ADDRESS_INFORMATION_FIELDS),
+			},
+			{
+				title: "Family Information",
+				fields: mapFieldsToDetails(FAMILY_INFORMATION_FIELDS),
+			},
+		].filter((section) => section.fields.length > 0);
+
+		const categorizedFields = new Set<keyof MainFormState>([
+			...PERSONAL_INFORMATION_FIELDS,
+			...SCHOLARSHIP_ACADEMIC_FIELDS,
+			...ADDRESS_INFORMATION_FIELDS,
+			...FAMILY_INFORMATION_FIELDS,
+		]);
+
+		const additionalFields = Array.from(mergedDetails.entries())
+			.filter(([field]) => !categorizedFields.has(field))
+			.map(([field, value]) => ({
+				field,
+				label: ASSISTANCE_FIELD_LABELS[field] ?? field,
+				value: formatAssistanceDetailValue(field, value),
+			}));
+
+		if (additionalFields.length > 0) {
+			categorizedSections.push({
+				title: "Other Assistance Information",
+				fields: additionalFields,
+			});
+		}
+
+		return categorizedSections;
+	}, [selectedBeneficiary]);
+	const editingVisitBeneficiary = editingVisit
+		? beneficiaries.find(
+				(beneficiary) => beneficiary.id === editingVisit.beneficiaryId,
+			)
+		: undefined;
+
+	const requiredVisitFields = editingVisit
+		? getRequiredFieldsForVisit(
+				editingVisitBeneficiary,
+				editingVisit.visit.assistanceType,
+			)
+		: [];
+	const visitRequiredFieldSteps =
+		requiredVisitFields.length > VISIT_DETAILS_MULTI_STEP_THRESHOLD
+			? chunkFields(requiredVisitFields, VISIT_DETAILS_FIELDS_PER_STEP)
+			: [requiredVisitFields];
+	const totalVisitRequiredSteps = Math.max(visitRequiredFieldSteps.length, 1);
+	const activeVisitRequiredStep = Math.min(
+		visitDetailsStep,
+		totalVisitRequiredSteps,
+	);
+	const currentVisitRequiredFields =
+		visitRequiredFieldSteps[activeVisitRequiredStep - 1] ?? [];
+	const isVisitRequiredDetailsMultiStep = totalVisitRequiredSteps > 1;
+	const missingRequiredVisitFields = editingVisit
+		? requiredVisitFields.filter(
+				(field) =>
+					(editingVisit.visit.assistanceDetails?.[field] ?? "").trim() === "",
+			)
+		: [];
+	const missingCurrentStepFields = editingVisit
+		? currentVisitRequiredFields.filter(
+				(field) =>
+					(editingVisit.visit.assistanceDetails?.[field] ?? "").trim() === "",
+			)
+		: [];
+	const isRepeatScholarshipVisit =
+		editingVisit?.visit.assistanceType === "Scholarship Grant" &&
+		hasSavedScholarshipProfile(editingVisitBeneficiary);
+
+	const fetchBeneficiaries = async () => {
+		const [error, data] = await api.beneficiaries.list();
+
+		if (error || !data) {
+			console.error("Failed to load beneficiaries", error);
+			return;
+		}
+
+		setBeneficiaries(
+			data.map((item) => ({
+				...item,
+				visits: item.visits.map((visit) => ({
+					...visit,
+					assistanceDetails: (visit.assistanceDetails ?? {}) as Partial<
+						Record<keyof MainFormState, string>
+					>,
+				})),
+				assistanceDetails: Object.fromEntries(
+					Object.entries(item.assistanceDetails).map(([key, value]) => [
+						key,
+						value as Partial<Record<keyof MainFormState, string>>,
+					]),
+				),
+			})),
+		);
+	};
 
 	useEffect(() => {
 		setProfileTab("overview");
 	}, [selectedBeneficiaryId]);
 
-	const handleInputChange = (field: keyof typeof formState, value: string) => {
-		setFormState((prev) => ({ ...prev, [field]: value }));
+	useEffect(() => {
+		void fetchBeneficiaries();
+	}, []);
+
+	const formatAutoNumber = (value: number) => value.toString().padStart(4, "0");
+
+	const handleScholarshipInputChange = (
+		field: keyof MainFormState,
+		value: MainFormState[keyof MainFormState],
+	) => {
+		setScholarshipFormState((prev) => ({ ...prev, [field]: value }));
 	};
 
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		const requiredFields: Array<keyof typeof formState> = [
-			"familyName",
-			"firstName",
-			"middleName",
-			"barangay",
-			"sex",
-			"civilStatus",
-			"age",
-			"phoneNumber",
-			"purpose",
-		];
-		const hasMissingField =
-			requiredFields.some((field) => formState[field].trim() === "") ||
-			formState.municipality.trim() === "";
+	const hasValue = (value: MainFormState[keyof MainFormState]) => {
+		if (typeof value === "string") {
+			return value.trim() !== "";
+		}
 
-		if (hasMissingField) {
-			setErrorMessage("Please complete all required fields before saving.");
+		return value instanceof Date;
+	};
+
+	const handleAssistanceInputChange = (
+		field: keyof MainFormState,
+		value: MainFormState[keyof MainFormState],
+	) => {
+		setAssistanceFormState((prev) => ({ ...prev, [field]: value }));
+	};
+
+	const handleScholarshipSubmit = async (
+		event: React.FormEvent<HTMLFormElement>,
+	) => {
+		event.preventDefault();
+
+		const hasMissingFields = SCHOLARSHIP_REQUIRED_FIELDS.some(
+			(field) => !hasValue(scholarshipFormState[field]),
+		);
+
+		if (hasMissingFields) {
+			setScholarshipErrorMessage(
+				"Please complete all required scholarship fields before submitting.",
+			);
 			return;
 		}
 
-		setErrorMessage(null);
-		setFormState(INITIAL_BENEFICIARY_FORM_STATE);
-		setIsDialogOpen(false);
+		const [error] = await api.scholarshipApplications.create({
+			seq: scholarshipFormState.seq,
+			studentId: scholarshipFormState.studentId,
+			lastName: scholarshipFormState.lastName,
+			givenName: scholarshipFormState.givenName,
+			extName: scholarshipFormState.extName,
+			scholarshipMiddleName: scholarshipFormState.scholarshipMiddleName,
+			scholarshipSex: scholarshipFormState.scholarshipSex as
+				| "male"
+				| "female"
+				| "prefer_not_to_say",
+			scholarshipBirthdate:
+				scholarshipFormState.scholarshipBirthdate?.toISOString() ?? "",
+			completeProgramName: scholarshipFormState.completeProgramName,
+			yearLevel: scholarshipFormState.yearLevel,
+			streetBarangay: scholarshipFormState.streetBarangay,
+			townCityMunicipality: scholarshipFormState.townCityMunicipality,
+			province: scholarshipFormState.province,
+			zipCode: scholarshipFormState.zipCode,
+			contactNumber: scholarshipFormState.contactNumber,
+			emailAddress: scholarshipFormState.emailAddress,
+			heiUii: scholarshipFormState.heiUii,
+			heiName: scholarshipFormState.heiName,
+			fatherLastName: scholarshipFormState.fatherLastName,
+			fatherGivenName: scholarshipFormState.fatherGivenName,
+			fatherMiddleName: scholarshipFormState.fatherMiddleName,
+			motherMaidenLastName: scholarshipFormState.motherMaidenLastName,
+			motherMaidenGivenName: scholarshipFormState.motherMaidenGivenName,
+			motherMaidenMiddleName: scholarshipFormState.motherMaidenMiddleName,
+			guardianName: scholarshipFormState.guardianName,
+			guardianContactNo: scholarshipFormState.guardianContactNo,
+			guardianEmailAddress: scholarshipFormState.guardianEmailAddress,
+		});
+
+		if (error) {
+			setScholarshipErrorMessage(
+				isDefinedError(error) ? error.message : "Failed to save scholarship.",
+			);
+			return;
+		}
+
+		setScholarshipErrorMessage(null);
+		setNextScholarshipSeq((prev) => prev + 1);
+		setScholarshipFormState(INITIAL_BENEFICIARY_FORM_STATE);
+		setIsScholarshipDialogOpen(false);
+		await fetchBeneficiaries();
+	};
+
+	const handleAssistanceSubmit = async (
+		event: React.FormEvent<HTMLFormElement>,
+	) => {
+		event.preventDefault();
+
+		const assistanceRequiredFields: Array<keyof MainFormState> = [
+			"seq",
+			"purpose",
+			"assistanceDate",
+			"firstName",
+			"familyName",
+			"streetBarangay",
+			"contactNumber",
+			"laboratoryType",
+			"hospitalName",
+			"medicineName",
+			"givenName",
+			"endorsementDate",
+		];
+
+		const hasMissingFields = assistanceRequiredFields.some(
+			(field) => !hasValue(assistanceFormState[field]),
+		);
+
+		if (hasMissingFields) {
+			setAssistanceErrorMessage(
+				"Please complete all required assistance fields before submitting.",
+			);
+			return;
+		}
+
+		const [error] = await api.assistanceRecords.create({
+			seq: assistanceFormState.seq,
+			purpose: assistanceFormState.purpose,
+			assistanceDate: assistanceFormState.assistanceDate?.toISOString(),
+			firstName: assistanceFormState.firstName,
+			familyName: assistanceFormState.familyName,
+			streetBarangay: assistanceFormState.streetBarangay,
+			contactNumber: assistanceFormState.contactNumber,
+			laboratoryType: assistanceFormState.laboratoryType,
+			hospitalName: assistanceFormState.hospitalName,
+			medicineName: assistanceFormState.medicineName,
+			givenName: assistanceFormState.givenName,
+			endorsementDate: assistanceFormState.endorsementDate?.toISOString() ?? "",
+		});
+
+		if (error) {
+			setAssistanceErrorMessage(
+				isDefinedError(error) ? error.message : "Failed to save assistance.",
+			);
+			return;
+		}
+
+		setAssistanceErrorMessage(null);
+		setNextAssistanceNo((prev) => prev + 1);
+		setAssistanceFormState(INITIAL_BENEFICIARY_FORM_STATE);
+		setIsAssistanceDialogOpen(false);
+		await fetchBeneficiaries();
+	};
+
+	const handleScholarshipDialogChange = (open: boolean) => {
+		setIsScholarshipDialogOpen(open);
+		if (!open) {
+			setScholarshipErrorMessage(null);
+			setScholarshipFormState(INITIAL_BENEFICIARY_FORM_STATE);
+		}
+	};
+
+	const handleAssistanceDialogChange = (open: boolean) => {
+		setIsAssistanceDialogOpen(open);
+		if (!open) {
+			setAssistanceErrorMessage(null);
+			setAssistanceFormState(INITIAL_BENEFICIARY_FORM_STATE);
+		}
+	};
+
+	const handleAddScholarshipOpen = () => {
+		setScholarshipErrorMessage(null);
+		setScholarshipFormState({
+			...INITIAL_BENEFICIARY_FORM_STATE,
+			purpose: "Scholarship Grant",
+			seq: formatAutoNumber(nextScholarshipSeq),
+		});
+		setIsScholarshipDialogOpen(true);
+	};
+
+	const handleAddAssistanceOpen = () => {
+		setAssistanceErrorMessage(null);
+		setAssistanceFormState({
+			...INITIAL_BENEFICIARY_FORM_STATE,
+			seq: formatAutoNumber(nextAssistanceNo),
+		});
+		setIsAssistanceDialogOpen(true);
 	};
 
 	const totalBeneficiaries = beneficiaries.length;
@@ -389,6 +787,11 @@ export function BeneficiaryDatabase() {
 			title: "Walk-in Visit",
 			assistanceType: selectedBeneficiary.purpose || "Assistance Request",
 			notes: "",
+			assistanceDetails: {
+				...(isAssistanceType(selectedBeneficiary.purpose)
+					? selectedBeneficiary.assistanceDetails[selectedBeneficiary.purpose]
+					: {}),
+			},
 		};
 		setBeneficiaries((prev) =>
 			prev.map((beneficiary) =>
@@ -399,6 +802,8 @@ export function BeneficiaryDatabase() {
 		);
 		setProfileTab("timeline");
 		setEditingVisit({ beneficiaryId: selectedBeneficiary.id, visit: newVisit });
+		setVisitEditorError(null);
+		setVisitDetailsStep(1);
 	};
 
 	const openVisitEditor = (beneficiaryId: string, visitId: string) => {
@@ -409,7 +814,21 @@ export function BeneficiaryDatabase() {
 			(entry) => entry.id === visitId,
 		);
 		if (!visit) return;
-		setEditingVisit({ beneficiaryId, visit: { ...visit } });
+		const assistanceDetails = isAssistanceType(visit.assistanceType)
+			? targetBeneficiary?.assistanceDetails[visit.assistanceType]
+			: undefined;
+		setEditingVisit({
+			beneficiaryId,
+			visit: {
+				...visit,
+				assistanceDetails: {
+					...assistanceDetails,
+					...visit.assistanceDetails,
+				},
+			},
+		});
+		setVisitEditorError(null);
+		setVisitDetailsStep(1);
 		setProfileTab("timeline");
 	};
 
@@ -417,28 +836,121 @@ export function BeneficiaryDatabase() {
 		field: "title" | "assistanceType" | "notes",
 		value: string,
 	) => {
+		setEditingVisit((prev) => {
+			if (!prev) return prev;
+			if (field === "assistanceType") {
+				const beneficiary = beneficiaries.find(
+					(item) => item.id === prev.beneficiaryId,
+				);
+				const savedDetails = isAssistanceType(value)
+					? beneficiary?.assistanceDetails[value]
+					: undefined;
+				return {
+					...prev,
+					visit: {
+						...prev.visit,
+						assistanceType: value,
+						assistanceDetails: {
+							...savedDetails,
+							...prev.visit.assistanceDetails,
+						},
+					},
+				};
+			}
+
+			return { ...prev, visit: { ...prev.visit, [field]: value } };
+		});
+		setVisitEditorError(null);
+		if (field === "assistanceType") {
+			setVisitDetailsStep(1);
+		}
+	};
+
+	const handleVisitAssistanceDetailChange = (
+		field: keyof MainFormState,
+		value: string,
+	) => {
 		setEditingVisit((prev) =>
-			prev ? { ...prev, visit: { ...prev.visit, [field]: value } } : prev,
+			prev
+				? {
+						...prev,
+						visit: {
+							...prev.visit,
+							assistanceDetails: {
+								...prev.visit.assistanceDetails,
+								[field]: value,
+							},
+						},
+					}
+				: prev,
 		);
+		setVisitEditorError(null);
 	};
 
 	const handleVisitDetailsSave = () => {
 		if (!editingVisit) return;
+		if (missingRequiredVisitFields.length > 0) {
+			if (isVisitRequiredDetailsMultiStep) {
+				const firstStepWithMissing = visitRequiredFieldSteps.findIndex((step) =>
+					step.some((field) => missingRequiredVisitFields.includes(field)),
+				);
+				if (firstStepWithMissing >= 0) {
+					setVisitDetailsStep(firstStepWithMissing + 1);
+				}
+			}
+			setVisitEditorError(
+				"Please complete all required details for this assistance type.",
+			);
+			return;
+		}
+
+		const assistanceType = editingVisit.visit.assistanceType;
+		const detailsSnapshot = editingVisit.visit.assistanceDetails ?? {};
 		setBeneficiaries((prev) =>
 			prev.map((beneficiary) => {
 				if (beneficiary.id !== editingVisit.beneficiaryId) return beneficiary;
+				const nextAssistanceDetails = isAssistanceType(assistanceType)
+					? {
+							...beneficiary.assistanceDetails,
+							[assistanceType]: {
+								...(beneficiary.assistanceDetails[assistanceType] ?? {}),
+								...detailsSnapshot,
+							},
+						}
+					: beneficiary.assistanceDetails;
+
 				return {
 					...beneficiary,
+					assistanceDetails: nextAssistanceDetails,
 					visits: beneficiary.visits.map((visit) =>
 						visit.id === editingVisit.visit.id ? editingVisit.visit : visit,
 					),
 				};
 			}),
 		);
+		setVisitEditorError(null);
 		setEditingVisit(null);
 	};
 
-	const handleVisitEditorClose = () => setEditingVisit(null);
+	const handleVisitEditorClose = () => {
+		setVisitEditorError(null);
+		setEditingVisit(null);
+		setVisitDetailsStep(1);
+	};
+
+	const handleVisitDetailsNextStep = () => {
+		if (missingCurrentStepFields.length > 0) {
+			setVisitEditorError("Please complete all required fields in this step.");
+			return;
+		}
+		setVisitEditorError(null);
+		setVisitDetailsStep((prev) => Math.min(prev + 1, totalVisitRequiredSteps));
+	};
+
+	const handleVisitDetailsPreviousStep = () => {
+		setVisitEditorError(null);
+		setVisitDetailsStep((prev) => Math.max(prev - 1, 1));
+	};
 
 	return (
 		<>
@@ -509,12 +1021,12 @@ export function BeneficiaryDatabase() {
 												Assistance Requested
 											</h3>
 											<div className="max-h-40 space-y-2 overflow-y-auto pr-1">
-												{ASSISTANCE_FILTER_OPTIONS.length === 0 && (
+												{assistanceFilterOptions.length === 0 && (
 													<p className="text-sm text-gray-500">
 														No assistance types available yet.
 													</p>
 												)}
-												{ASSISTANCE_FILTER_OPTIONS.map((option) => (
+												{assistanceFilterOptions.map((option) => (
 													<label
 														key={option}
 														className="flex cursor-pointer items-center gap-2"
@@ -622,231 +1134,58 @@ export function BeneficiaryDatabase() {
 							</div>
 						</div>
 						<div className="flex flex-wrap gap-3 justify-end">
-							<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+							<Dialog
+								open={isScholarshipDialogOpen}
+								onOpenChange={handleScholarshipDialogChange}
+							>
 								<Button
-									onClick={() => setIsDialogOpen(true)}
-									className="gap-2 rounded-md bg-[#a60202] px-5 py-2 text-white shadow-sm transition hover:bg-[#8a0101]"
+									onClick={handleAddScholarshipOpen}
+									className="rounded-md bg-[#a60202] px-5 py-2 text-white shadow-sm transition hover:bg-[#8a0101]"
 								>
-									<Plus className="h-4 w-4" />
-									Add Beneficiary
+									Add Scholarship
 								</Button>
 								<DialogContent className="sm:max-w-2xl">
 									<DialogHeader>
-										<DialogTitle>Add Beneficiary</DialogTitle>
+										<DialogTitle>Add Scholarship</DialogTitle>
 										<DialogDescription>
-											Fill in beneficiary details for tracking assistance cases.
+											Encode scholarship beneficiary details.
 										</DialogDescription>
 									</DialogHeader>
-									<form onSubmit={handleSubmit} className="space-y-4">
-										{errorMessage && (
-											<p className="text-sm text-red-600">{errorMessage}</p>
-										)}
-										<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-											<div>
-												<label className="text-sm font-medium text-gray-700">
-													Family Name <span className="text-red-500">*</span>
-												</label>
-												<Input
-													value={formState.familyName}
-													onChange={(e) =>
-														handleInputChange("familyName", e.target.value)
-													}
-													placeholder="Enter family name"
-													required
-												/>
-											</div>
-											<div>
-												<label className="text-sm font-medium text-gray-700">
-													First Name <span className="text-red-500">*</span>
-												</label>
-												<Input
-													value={formState.firstName}
-													onChange={(e) =>
-														handleInputChange("firstName", e.target.value)
-													}
-													placeholder="Enter first name"
-													required
-												/>
-											</div>
-											<div>
-												<label className="text-sm font-medium text-gray-700">
-													Middle Name <span className="text-red-500">*</span>
-												</label>
-												<Input
-													value={formState.middleName}
-													onChange={(e) =>
-														handleInputChange("middleName", e.target.value)
-													}
-													placeholder="Enter middle name"
-													required
-												/>
-											</div>
-										</div>
-										<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-											<div>
-												<label className="text-sm font-medium text-gray-700">
-													Municipality / City{" "}
-													<span className="text-red-500">*</span>
-												</label>
-												<Select
-													value={formState.municipality}
-													onValueChange={(value) =>
-														handleInputChange("municipality", value)
-													}
-												>
-													<SelectTrigger>
-														<SelectValue placeholder="Select municipality" />
-													</SelectTrigger>
-													<SelectContent className="max-h-60 overflow-y-auto overscroll-contain">
-														{ILOILO_LOCALITIES.map((locale) => (
-															<SelectItem
-																key={`beneficiary-${locale}`}
-																value={locale}
-															>
-																{locale}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
-											<div>
-												<label className="text-sm font-medium text-gray-700">
-													Barangay <span className="text-red-500">*</span>
-												</label>
-												<Input
-													value={formState.barangay}
-													onChange={(e) =>
-														handleInputChange("barangay", e.target.value)
-													}
-													placeholder="Enter barangay"
-													required
-												/>
-											</div>
-											<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-												<div>
-													<label className="text-sm font-medium text-gray-700">
-														Sex <span className="text-red-500">*</span>
-													</label>
-													<Select
-														value={formState.sex}
-														onValueChange={(value) =>
-															handleInputChange("sex", value)
-														}
-													>
-														<SelectTrigger>
-															<SelectValue placeholder="Select sex" />
-														</SelectTrigger>
-														<SelectContent>
-															{SEX_OPTIONS.map((option) => (
-																<SelectItem
-																	key={option.value}
-																	value={option.value}
-																>
-																	{option.label}
-																</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
-												</div>
-												<div>
-													<label className="text-sm font-medium text-gray-700">
-														Civil Status <span className="text-red-500">*</span>
-													</label>
-													<Select
-														value={formState.civilStatus}
-														onValueChange={(value) =>
-															handleInputChange("civilStatus", value)
-														}
-													>
-														<SelectTrigger>
-															<SelectValue placeholder="Select civil status" />
-														</SelectTrigger>
-														<SelectContent>
-															{CIVIL_STATUS_OPTIONS.map((option) => (
-																<SelectItem
-																	key={option.value}
-																	value={option.value}
-																>
-																	{option.label}
-																</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
-												</div>
-											</div>
-										</div>
-										<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-											<div>
-												<label className="text-sm font-medium text-gray-700">
-													Age <span className="text-red-500">*</span>
-												</label>
-												<Input
-													type="number"
-													min="0"
-													value={formState.age}
-													onChange={(e) =>
-														handleInputChange("age", e.target.value)
-													}
-													placeholder="Age"
-													required
-												/>
-											</div>
-											<div>
-												<label className="text-sm font-medium text-gray-700">
-													Phone Number <span className="text-red-500">*</span>
-												</label>
-												<Input
-													type="tel"
-													value={formState.phoneNumber}
-													onChange={(e) =>
-														handleInputChange("phoneNumber", e.target.value)
-													}
-													placeholder="e.g. 0917 123 4567"
-													required
-												/>
-											</div>
-											<div>
-												<label className="text-sm font-medium text-gray-700">
-													Email{" "}
-													<span className="font-normal text-gray-500">
-														(optional)
-													</span>
-												</label>
-												<Input
-													type="email"
-													value={formState.email}
-													onChange={(e) =>
-														handleInputChange("email", e.target.value)
-													}
-													placeholder="name@example.com"
-												/>
-											</div>
-										</div>
-										<div>
-											<label className="text-sm font-medium text-gray-700">
-												Purpose of Assistance{" "}
-												<span className="text-red-500">*</span>
-											</label>
-											<Input
-												value={formState.purpose}
-												onChange={(e) =>
-													handleInputChange("purpose", e.target.value)
-												}
-												placeholder="Describe assistance needed"
-												required
-											/>
-										</div>
-										<DialogFooter>
-											<Button
-												type="button"
-												variant="ghost"
-												onClick={() => setIsDialogOpen(false)}
-											>
-												Cancel
-											</Button>
-											<Button type="submit">Save Beneficiary</Button>
-										</DialogFooter>
-									</form>
+
+									<ScholarshipForm
+										formState={scholarshipFormState}
+										handleInputChange={handleScholarshipInputChange}
+										errorMessage={scholarshipErrorMessage}
+										onSubmit={handleScholarshipSubmit}
+										onCancel={() => setIsScholarshipDialogOpen(false)}
+									/>
+								</DialogContent>
+							</Dialog>
+
+							<Dialog
+								open={isAssistanceDialogOpen}
+								onOpenChange={handleAssistanceDialogChange}
+							>
+								<Button
+									onClick={handleAddAssistanceOpen}
+									className="rounded-md bg-[#a60202] px-5 py-2 text-white shadow-sm transition hover:bg-[#8a0101]"
+								>
+									Add Assistance
+								</Button>
+								<DialogContent className="sm:max-w-2xl">
+									<DialogHeader>
+										<DialogTitle>Add Assistance</DialogTitle>
+										<DialogDescription>
+											Encode assistance beneficiary details.
+										</DialogDescription>
+									</DialogHeader>
+									<AssistanceForm
+										formState={assistanceFormState}
+										handleInputChange={handleAssistanceInputChange}
+										errorMessage={assistanceErrorMessage}
+										onSubmit={handleAssistanceSubmit}
+										onCancel={() => setIsAssistanceDialogOpen(false)}
+									/>
 								</DialogContent>
 							</Dialog>
 
@@ -874,6 +1213,11 @@ export function BeneficiaryDatabase() {
 											}}
 											className="space-y-4"
 										>
+											{visitEditorError && (
+												<p className="text-sm text-red-600">
+													{visitEditorError}
+												</p>
+											)}
 											<div>
 												<label className="text-sm font-medium text-gray-700">
 													Visit Title
@@ -909,6 +1253,130 @@ export function BeneficiaryDatabase() {
 													</SelectContent>
 												</Select>
 											</div>
+											{requiredVisitFields.length > 0 && (
+												<div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+													<div>
+														<p className="text-sm font-medium text-gray-900">
+															Required Details for{" "}
+															{editingVisit.visit.assistanceType}
+														</p>
+														{isVisitRequiredDetailsMultiStep ? (
+															<p className="text-xs text-gray-600">
+																Step {activeVisitRequiredStep} of{" "}
+																{totalVisitRequiredSteps}
+															</p>
+														) : null}
+														{isRepeatScholarshipVisit ? (
+															<p className="text-xs text-sky-700">
+																Previous scholarship profile loaded. Update
+																academic information only.
+															</p>
+														) : null}
+														{missingRequiredVisitFields.length > 0 ? (
+															<p className="text-xs text-amber-700">
+																Complete{" "}
+																{isVisitRequiredDetailsMultiStep
+																	? missingCurrentStepFields.length
+																	: missingRequiredVisitFields.length}{" "}
+																missing required field
+																{(isVisitRequiredDetailsMultiStep
+																	? missingCurrentStepFields.length
+																	: missingRequiredVisitFields.length) > 1
+																	? "s"
+																	: ""}
+																{isVisitRequiredDetailsMultiStep
+																	? " in this step"
+																	: ""}
+																.
+															</p>
+														) : (
+															<p className="text-xs text-emerald-700">
+																All required fields for this assistance are
+																complete.
+															</p>
+														)}
+													</div>
+													<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+														{currentVisitRequiredFields.map((field) => {
+															const value =
+																editingVisit.visit.assistanceDetails?.[field] ??
+																"";
+															const label =
+																ASSISTANCE_FIELD_LABELS[field] ?? field;
+															const isMissing = value.trim() === "";
+															if (field === "scholarshipSex") {
+																return (
+																	<div key={field}>
+																		<label className="text-sm font-medium text-gray-700">
+																			{label}{" "}
+																			<span className="text-red-500">*</span>
+																		</label>
+																		<Select
+																			value={value}
+																			onValueChange={(nextValue) =>
+																				handleVisitAssistanceDetailChange(
+																					field,
+																					nextValue,
+																				)
+																			}
+																		>
+																			<SelectTrigger
+																				className={
+																					isMissing
+																						? "border-red-300"
+																						: undefined
+																				}
+																			>
+																				<SelectValue placeholder="Select sex" />
+																			</SelectTrigger>
+																			<SelectContent>
+																				<SelectItem value="male">
+																					Male
+																				</SelectItem>
+																				<SelectItem value="female">
+																					Female
+																				</SelectItem>
+																				<SelectItem value="prefer_not_to_say">
+																					Prefer not to say
+																				</SelectItem>
+																			</SelectContent>
+																		</Select>
+																	</div>
+																);
+															}
+
+															return (
+																<div key={field}>
+																	<label className="text-sm font-medium text-gray-700">
+																		{label}{" "}
+																		<span className="text-red-500">*</span>
+																	</label>
+																	<Input
+																		type={
+																			EMAIL_FIELDS.has(field) ? "email" : "text"
+																		}
+																		value={value}
+																		onChange={(event) =>
+																			handleVisitAssistanceDetailChange(
+																				field,
+																				event.target.value,
+																			)
+																		}
+																		placeholder={
+																			ASSISTANCE_FIELD_PLACEHOLDERS[field] ??
+																			"Enter value"
+																		}
+																		className={
+																			isMissing ? "border-red-300" : undefined
+																		}
+																		required
+																	/>
+																</div>
+															);
+														})}
+													</div>
+												</div>
+											)}
 											<div>
 												<label className="text-sm font-medium text-gray-700">
 													Notes / Outcome
@@ -930,7 +1398,27 @@ export function BeneficiaryDatabase() {
 												>
 													Cancel
 												</Button>
-												<Button type="submit">Save Details</Button>
+												{isVisitRequiredDetailsMultiStep &&
+													activeVisitRequiredStep > 1 && (
+														<Button
+															type="button"
+															variant="outline"
+															onClick={handleVisitDetailsPreviousStep}
+														>
+															Back
+														</Button>
+													)}
+												{isVisitRequiredDetailsMultiStep &&
+												activeVisitRequiredStep < totalVisitRequiredSteps ? (
+													<Button
+														type="button"
+														onClick={handleVisitDetailsNextStep}
+													>
+														Next
+													</Button>
+												) : (
+													<Button type="submit">Save Details</Button>
+												)}
 											</DialogFooter>
 										</form>
 									)}
@@ -1066,61 +1554,101 @@ export function BeneficiaryDatabase() {
 									))}
 								</div>
 								{profileTab === "overview" ? (
-									<div className="grid gap-4 pt-4 text-sm text-gray-900 sm:grid-cols-2">
-										<div className="space-y-1">
-											<p className="text-xs uppercase text-gray-500">Sex</p>
-											<p className="font-medium">{selectedBeneficiary.sex}</p>
+									<div className="space-y-4 pt-4">
+										<div className="grid gap-4 text-sm text-gray-900 sm:grid-cols-2">
+											<div className="space-y-1">
+												<p className="text-xs uppercase text-gray-500">Sex</p>
+												<p className="font-medium">{selectedBeneficiary.sex}</p>
+											</div>
+											<div className="space-y-1">
+												<p className="text-xs uppercase text-gray-500">Age</p>
+												<p className="font-medium">{selectedBeneficiary.age}</p>
+											</div>
+											<div className="space-y-1">
+												<p className="text-xs uppercase text-gray-500">
+													Contact
+												</p>
+												<p className="font-medium">
+													{selectedBeneficiary.phoneNumber}
+												</p>
+											</div>
+											<div className="space-y-1">
+												<p className="text-xs uppercase text-gray-500">Email</p>
+												<p className="font-medium">
+													{selectedBeneficiary.email || "—"}
+												</p>
+											</div>
+											<div className="space-y-1">
+												<p className="text-xs uppercase text-gray-500">
+													Registered
+												</p>
+												<p className="font-medium">
+													{format(
+														new Date(selectedBeneficiary.createdAt),
+														"MMM d, yyyy",
+													)}
+												</p>
+											</div>
+											<div className="space-y-1">
+												<p className="text-xs uppercase text-gray-500">
+													Assistance Requested
+												</p>
+												<p className="font-medium">
+													{selectedBeneficiary.purpose}
+												</p>
+											</div>
+											<div className="space-y-1">
+												<p className="text-xs uppercase text-gray-500">
+													Municipality / City
+												</p>
+												<p className="font-medium">
+													{selectedBeneficiary.municipality}
+												</p>
+											</div>
+											<div className="space-y-1">
+												<p className="text-xs uppercase text-gray-500">
+													Barangay
+												</p>
+												<p className="font-medium">
+													{selectedBeneficiary.barangay}
+												</p>
+											</div>
 										</div>
-										<div className="space-y-1">
-											<p className="text-xs uppercase text-gray-500">Age</p>
-											<p className="font-medium">{selectedBeneficiary.age}</p>
-										</div>
-										<div className="space-y-1">
-											<p className="text-xs uppercase text-gray-500">Contact</p>
-											<p className="font-medium">
-												{selectedBeneficiary.phoneNumber}
+
+										<div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+											<p className="text-sm font-semibold text-gray-900">
+												Complete Assistance Details
 											</p>
-										</div>
-										<div className="space-y-1">
-											<p className="text-xs uppercase text-gray-500">Email</p>
-											<p className="font-medium">
-												{selectedBeneficiary.email || "—"}
-											</p>
-										</div>
-										<div className="space-y-1">
-											<p className="text-xs uppercase text-gray-500">
-												Registered
-											</p>
-											<p className="font-medium">
-												{format(
-													new Date(selectedBeneficiary.createdAt),
-													"MMM d, yyyy",
-												)}
-											</p>
-										</div>
-										<div className="space-y-1">
-											<p className="text-xs uppercase text-gray-500">
-												Assistance Requested
-											</p>
-											<p className="font-medium">
-												{selectedBeneficiary.purpose}
-											</p>
-										</div>
-										<div className="space-y-1">
-											<p className="text-xs uppercase text-gray-500">
-												Municipality / City
-											</p>
-											<p className="font-medium">
-												{selectedBeneficiary.municipality}
-											</p>
-										</div>
-										<div className="space-y-1">
-											<p className="text-xs uppercase text-gray-500">
-												Barangay
-											</p>
-											<p className="font-medium">
-												{selectedBeneficiary.barangay}
-											</p>
+											{selectedBeneficiaryProfileSections.length === 0 ? (
+												<p className="text-sm text-gray-500">
+													No saved assistance details yet.
+												</p>
+											) : (
+												<div className="space-y-4">
+													{selectedBeneficiaryProfileSections.map((section) => (
+														<div key={section.title} className="space-y-2">
+															<p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+																{section.title}
+															</p>
+															<div className="grid gap-3 sm:grid-cols-2">
+																{section.fields.map((detail) => (
+																	<div
+																		key={`${section.title}-${detail.field}`}
+																		className="space-y-0.5"
+																	>
+																		<p className="text-xs uppercase text-gray-500">
+																			{detail.label}
+																		</p>
+																		<p className="text-sm font-medium text-gray-900">
+																			{detail.value}
+																		</p>
+																	</div>
+																))}
+															</div>
+														</div>
+													))}
+												</div>
+											)}
 										</div>
 									</div>
 								) : (
