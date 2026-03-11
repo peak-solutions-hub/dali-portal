@@ -32,7 +32,7 @@ export class VisitorLogService {
 				firstName: input.firstName.trim(),
 				lastName: input.familyName.trim(),
 				extName: null,
-				contactNumber: "N/A",
+				contactNumber: input.contactNumber.trim(),
 				sex: "male",
 			},
 		});

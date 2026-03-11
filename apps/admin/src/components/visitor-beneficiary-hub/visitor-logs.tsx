@@ -100,6 +100,7 @@ function endOfDayMs(date: Date): number {
 const INITIAL_VISITOR_FORM_STATE = {
 	familyName: "",
 	firstName: "",
+	contactNumber: "",
 	affiliation: "",
 	purpose: "",
 };
@@ -108,6 +109,7 @@ export function VisitorLogs() {
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [formState, setFormState] = useState(INITIAL_VISITOR_FORM_STATE);
 	const [visitorLogs, setVisitorLogs] = useState<VisitorLogEntry[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
 	const [formError, setFormError] = useState<string | null>(null);
 	const [filterType, setFilterType] = useState<
 		"none" | "today" | "last7" | "range"
@@ -119,13 +121,16 @@ export function VisitorLogs() {
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
 
 	const fetchVisitorLogs = async () => {
+		setIsLoading(true);
 		const [error, data] = await api.visitorLogs.list();
 		if (error || !data) {
 			console.error("Failed to load visitor logs", error);
+			setIsLoading(false);
 			return;
 		}
 
 		setVisitorLogs(data);
+		setIsLoading(false);
 	};
 
 	useEffect(() => {
@@ -142,6 +147,7 @@ export function VisitorLogs() {
 		const [error] = await api.visitorLogs.create({
 			familyName: formState.familyName,
 			firstName: formState.firstName,
+			contactNumber: formState.contactNumber,
 			affiliation: formState.affiliation,
 			purpose: formState.purpose,
 		});
@@ -286,8 +292,8 @@ export function VisitorLogs() {
 			<div className="space-y-4">
 				<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
 					<p className="text-sm text-gray-500">
-						Only visitors who received assistance or beneficiary services appear
-						in this list.
+						All visitor entries appear in this log. Beneficiary records are
+						managed separately.
 					</p>
 					<p className="text-sm text-gray-500">
 						Showing {filteredLogs.length} of {totalVisits} records
@@ -478,6 +484,19 @@ export function VisitorLogs() {
 												required
 											/>
 										</div>
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Contact Number <span className="text-red-500">*</span>
+											</label>
+											<Input
+												value={formState.contactNumber}
+												onChange={(e) =>
+													handleInputChange("contactNumber", e.target.value)
+												}
+												placeholder="e.g. 09171234567"
+												required
+											/>
+										</div>
 									</div>
 									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 										<div>
@@ -565,33 +584,55 @@ export function VisitorLogs() {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{filteredLogs.map((log, index) => (
-							<TableRow
-								key={log.id}
-								className={`border-b border-gray-200 hover:bg-gray-50/50 ${
-									index % 2 === 1 ? "bg-gray-50/30" : "bg-white"
-								}`}
-							>
-								<TableCell className="px-6 py-4 text-sm font-medium text-gray-900">
-									{log.constituentName}
-								</TableCell>
-								<TableCell className="px-6 py-4 text-sm text-gray-900">
-									{log.purpose}
-								</TableCell>
-								<TableCell className="px-6 py-4 text-sm text-gray-500">
-									{log.affiliation ?? "-"}
-								</TableCell>
-								<TableCell className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-									{log.remarks}
-								</TableCell>
-								<TableCell className="px-6 py-4 text-sm text-gray-900">
-									{formatDateTime(log.dateVisited)}
-								</TableCell>
-								<TableCell className="px-6 py-4 text-sm text-gray-900">
-									{log.loggedBy}
+						{isLoading ? (
+							<TableRow className="border-b border-gray-200 bg-white">
+								<TableCell
+									colSpan={6}
+									className="px-6 py-10 text-center text-sm text-gray-500"
+								>
+									Loading visitor logs...
 								</TableCell>
 							</TableRow>
-						))}
+						) : filteredLogs.length === 0 ? (
+							<TableRow className="border-b border-gray-200 bg-white">
+								<TableCell
+									colSpan={6}
+									className="px-6 py-10 text-center text-sm text-gray-500"
+								>
+									{hasActiveFilters
+										? "No visitors match the selected filters."
+										: "No visitors have been logged yet."}
+								</TableCell>
+							</TableRow>
+						) : (
+							filteredLogs.map((log, index) => (
+								<TableRow
+									key={log.id}
+									className={`border-b border-gray-200 hover:bg-gray-50/50 ${
+										index % 2 === 1 ? "bg-gray-50/30" : "bg-white"
+									}`}
+								>
+									<TableCell className="px-6 py-4 text-sm font-medium text-gray-900">
+										{log.constituentName}
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm text-gray-900">
+										{log.purpose}
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm text-gray-500">
+										{log.affiliation ?? "-"}
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+										{log.remarks}
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm text-gray-900">
+										{formatDateTime(log.dateVisited)}
+									</TableCell>
+									<TableCell className="px-6 py-4 text-sm text-gray-900">
+										{log.loggedBy}
+									</TableCell>
+								</TableRow>
+							))
+						)}
 					</TableBody>
 				</Table>
 			</div>

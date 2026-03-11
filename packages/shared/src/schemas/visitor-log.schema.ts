@@ -15,6 +15,7 @@ export const VisitorLogListSchema = VisitorLogSchema.array();
 export const CreateVisitorLogSchema = z.object({
 	familyName: z.string().min(1),
 	firstName: z.string().min(1),
+	contactNumber: z.string().min(1),
 	affiliation: z.string().optional(),
 	purpose: z.string().min(1),
 	remarks: z.string().optional(),

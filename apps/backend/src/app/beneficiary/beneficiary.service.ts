@@ -127,6 +127,12 @@ export class BeneficiaryService {
 
 	async list(): Promise<BeneficiaryListResponse> {
 		const constituents = await this.db.constituent.findMany({
+			where: {
+				OR: [
+					{ assistanceRecord: { some: {} } },
+					{ scholarshipApplication: { some: {} } },
+				],
+			},
 			include: {
 				household: true,
 				visitorLog: {
@@ -146,7 +152,13 @@ export class BeneficiaryService {
 
 	async getById(id: string): Promise<BeneficiaryResponse> {
 		const constituent = await this.db.constituent.findFirst({
-			where: { id },
+			where: {
+				id,
+				OR: [
+					{ assistanceRecord: { some: {} } },
+					{ scholarshipApplication: { some: {} } },
+				],
+			},
 			include: {
 				household: true,
 				visitorLog: {

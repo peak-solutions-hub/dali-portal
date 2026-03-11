@@ -209,6 +209,7 @@ export function AssistanceForm({
 						</span>
 						<Input
 							className="border-0 shadow-none focus-visible:ring-0"
+							type="tel"
 							value={formState.contactNumber}
 							onChange={(event) =>
 								updateField(
@@ -218,7 +219,9 @@ export function AssistanceForm({
 							}
 							placeholder="9XXXXXXXXX"
 							inputMode="numeric"
-							pattern="^9\\d{9}$"
+							pattern="9[0-9]{9}"
+							maxLength={10}
+							autoComplete="tel-national"
 							title="Enter a valid Philippine mobile number (e.g., 9XXXXXXXXX)."
 							required
 						/>
