@@ -1,8 +1,11 @@
 import { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { config as loadEnv } from "dotenv";
 import request from "supertest";
 import { App } from "supertest/types";
-import { AppModule } from "./../src/app.module";
+import { AppModule } from "./../src/app/app.module";
+
+loadEnv({ path: ".env.test" });
 
 describe("AppController (e2e)", () => {
 	let app: INestApplication<App>;

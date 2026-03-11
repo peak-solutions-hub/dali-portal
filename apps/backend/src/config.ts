@@ -1,16 +1,35 @@
+function getNumberFromEnv(value: string | undefined, fallback: number): number {
+	if (!value || value === "undefined") {
+		return fallback;
+	}
+
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getStringFromEnv(value: string | undefined, fallback: string): string {
+	if (!value || value === "undefined") {
+		return fallback;
+	}
+
+	return value;
+}
+
 export default () => ({
-	port: parseInt(process.env.PORT ?? "8080", 10),
+	port: getNumberFromEnv(process.env.PORT, 8080),
 	database: {
 		url: process.env.DATABASE_URL,
 	},
 	// env looks like "http://localhost:3000,http://localhost:3001"
-	corsOrigins:
-		process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001",
+	corsOrigins: getStringFromEnv(
+		process.env.CORS_ORIGINS,
+		"http://localhost:3000,http://localhost:3001",
+	),
 	// Rate limiting configuration
 	throttle: {
 		// default rate limit: 100 requests per min
-		ttl: process.env.THROTTLE_TTL ?? 60000,
-		limit: process.env.THROTTLE_LIMIT ?? 100,
+		ttl: getNumberFromEnv(process.env.THROTTLE_TTL, 60000),
+		limit: getNumberFromEnv(process.env.THROTTLE_LIMIT, 100),
 	},
 	// captcha
 	turnstile: {

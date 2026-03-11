@@ -7,6 +7,27 @@
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
 			"outputs": [".next/**", "!.next/cache/**", "dist/**"]
 		},
+		"test": {
+			"dependsOn": ["test:unit", "test:integration"]
+		},
+		"test:unit": {
+			"dependsOn": ["^build"],
+			"outputs": ["coverage/**"]
+		},
+		"test:integration": {
+			"dependsOn": ["^build"],
+			"outputs": ["coverage/**"]
+		},
+		"test:e2e": {
+			"dependsOn": ["^build"],
+			"passThroughEnv": [
+				"PLAYWRIGHT_*",
+				"SUPABASE_*",
+				"NEXT_PUBLIC_*",
+				"TEST_*"
+			],
+			"cache": false
+		},
 		"check-types": {
 			"dependsOn": ["^check-types", "^build"]
 		},
