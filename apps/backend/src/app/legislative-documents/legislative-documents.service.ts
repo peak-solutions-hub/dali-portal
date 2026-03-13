@@ -4,7 +4,10 @@ import type {
 	GetLegislativeDocumentListInput,
 	LegislativeDocumentListResponse,
 	LegislativeDocumentWithDetails,
+	PublishLegislativeDocumentInput,
+	PublishLegislativeDocumentResponse,
 } from "@repo/shared";
+import { AppError } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 import {
 	type LegislativeDocumentWithRelations,
@@ -12,6 +15,7 @@ import {
 	transformPagination,
 } from "@/app/legislative-documents/pipes";
 import { Prisma } from "@/generated/prisma/client";
+import type { ClassificationType as PrismaClassificationType } from "@/generated/prisma/enums";
 
 const LEGISLATIVE_DOCUMENT_INCLUDE = {
 	document: {
@@ -151,6 +155,141 @@ export class LegislativeDocumentsService {
 		};
 	}
 
+	async publish(
+		input: PublishLegislativeDocumentInput,
+		actorId: string,
+	): Promise<PublishLegislativeDocumentResponse> {
+		const document = await this.db.document.findUnique({
+			where: { id: input.documentId },
+			include: {
+				documentVersion: {
+					orderBy: { versionNumber: "desc" },
+					take: 1,
+				},
+			},
+		});
+
+		if (!document) {
+			throw new AppError("DOCUMENT.NOT_FOUND");
+		}
+
+		if (document.purpose !== "for_agenda" || document.status !== "calendared") {
+			throw new AppError(
+				"GENERAL.BAD_REQUEST",
+				"Document must be calendared before publishing to archive.",
+			);
+		}
+
+		const legislativeType = this.toLegislativeType(document.type);
+
+		if (!legislativeType) {
+			throw new AppError(
+				"GENERAL.BAD_REQUEST",
+				"Only proposed ordinances and proposed resolutions can be published to archive.",
+			);
+		}
+
+		const latestVersion = document.documentVersion[0];
+
+		if (!latestVersion) {
+			throw new AppError(
+				"GENERAL.BAD_REQUEST",
+				"Document has no uploaded version to publish.",
+			);
+		}
+
+		const duplicateOfficialNumber = await this.db.legislativeDocument.findFirst(
+			{
+				where: {
+					officialNumber: input.officialNumber,
+					seriesYear: new Prisma.Decimal(input.seriesYear),
+					NOT: {
+						documentId: input.documentId,
+					},
+				},
+			},
+		);
+
+		if (duplicateOfficialNumber) {
+			throw new AppError(
+				"GENERAL.CONFLICT",
+				"A legislative document with this official number already exists.",
+			);
+		}
+
+		const result = await this.db.$transaction(async (tx) => {
+			const existingLegislativeDocument =
+				await tx.legislativeDocument.findFirst({
+					where: {
+						documentId: input.documentId,
+					},
+				});
+
+			const publishedDocument = await tx.document.update({
+				where: { id: input.documentId },
+				data: {
+					status: "published",
+					...(input.category
+						? { classification: input.category as PrismaClassificationType }
+						: {}),
+				},
+			});
+
+			const legislativeDocument = existingLegislativeDocument
+				? await tx.legislativeDocument.update({
+						where: { id: existingLegislativeDocument.id },
+						data: {
+							officialNumber: input.officialNumber,
+							seriesYear: new Prisma.Decimal(input.seriesYear),
+							type: legislativeType,
+							dateEnacted: input.dateEnacted,
+						},
+					})
+				: await tx.legislativeDocument.create({
+						data: {
+							documentId: input.documentId,
+							officialNumber: input.officialNumber,
+							seriesYear: new Prisma.Decimal(input.seriesYear),
+							type: legislativeType,
+							dateEnacted: input.dateEnacted,
+							sponsorNames: [],
+							authorNames: [],
+						},
+					});
+
+			await tx.documentAudit.create({
+				data: {
+					actorId,
+					documentId: input.documentId,
+					versionNumber: latestVersion.versionNumber,
+					filePath: latestVersion.filePath,
+				},
+			});
+
+			return {
+				legislativeDocumentId: Number(legislativeDocument.id),
+				documentId: publishedDocument.id,
+				status: publishedDocument.status,
+			};
+		});
+
+		return result;
+	}
+
+	private toLegislativeType(
+		documentType: string,
+	): "ordinance" | "resolution" | null {
+		if (documentType === "proposed_ordinance") {
+			return "ordinance";
+		}
+
+		if (documentType === "proposed_resolution") {
+			return "resolution";
+		}
+
+		return null;
+	}
+
 	private buildWhereClause(params: {
 		search?: string;
 		type?: string;
@@ -170,7 +309,8 @@ export class LegislativeDocumentsService {
 
 		if (classification) {
 			where.document = {
-				classification: classification as Prisma.EnumClassificationTypeFilter,
+				classification:
+					classification as Prisma.EnumClassificationTypeNullableFilter,
 			};
 		}
 

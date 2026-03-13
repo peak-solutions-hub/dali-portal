@@ -15,6 +15,7 @@ export interface NavigationItem {
 	href: string;
 	icon: React.ElementType;
 	allowedRoles: RoleType[];
+	children?: NavigationItem[];
 }
 
 /**
@@ -33,12 +34,14 @@ export const navigationItems: NavigationItem[] = [
 		href: "/document-tracker",
 		icon: FileSearch,
 		allowedRoles: ROLE_PERMISSIONS.DOCUMENT_TRACKER,
-	},
-	{
-		name: "Caller's Slips",
-		href: "/caller-slips",
-		icon: ClipboardList,
-		allowedRoles: ROLE_PERMISSIONS.CALLER_SLIPS,
+		children: [
+			{
+				name: "Caller's Slips",
+				href: "/caller-slips",
+				icon: ClipboardList,
+				allowedRoles: ROLE_PERMISSIONS.CALLER_SLIPS,
+			},
+		],
 	},
 	{
 		name: "Session Management",
@@ -73,9 +76,8 @@ export const navigationItems: NavigationItem[] = [
 ];
 
 /**
- * Filter navigation items based on user role
- * @param role - The user's role
- * @returns Filtered navigation items the user has access to
+ * Filter navigation items based on user role.
+ * Keeps parent items if the parent or any child is visible.
  */
 export function getFilteredNavItems(
 	role: RoleType | undefined,
@@ -83,5 +85,11 @@ export function getFilteredNavItems(
 	if (!role) {
 		return [];
 	}
-	return navigationItems.filter((item) => item.allowedRoles.includes(role));
+	return navigationItems.filter((item) => {
+		const parentVisible = item.allowedRoles.includes(role);
+		const childrenVisible = item.children?.some((child) =>
+			child.allowedRoles.includes(role),
+		);
+		return parentVisible || childrenVisible;
+	});
 }
