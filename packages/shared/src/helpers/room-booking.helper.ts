@@ -113,6 +113,11 @@ export const MIME_EXTENSIONS: Record<string, string[]> = {
 	"application/pdf": [".pdf"],
 	"image/jpeg": [".jpg", ".jpeg"],
 	"image/jpg": [".jpg", ".jpeg"],
+	"image/png": [".png"],
+	"application/msword": [".doc"],
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+		".docx",
+	],
 };
 
 // ---------------------------------------------------------------------------

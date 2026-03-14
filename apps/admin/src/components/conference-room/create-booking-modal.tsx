@@ -49,11 +49,16 @@ export function CreateBookingModal({
 	const currentDate = values.date ?? selectedDate;
 	const { data: dateBookingsData } = useRoomBookings(currentDate);
 
-	const { createBooking, isCreating, error, clearError } = useCreateBooking(
-		() => {
-			onClose();
-		},
-	);
+	const {
+		createBooking,
+		isCreating,
+		isUploadingAttachment,
+		uploadProgress,
+		error,
+		clearError,
+	} = useCreateBooking(() => {
+		onClose();
+	});
 
 	const roomAvailability = useMemo(() => {
 		const startMinutes = parseTimeToMinutes(values.startTime);
@@ -106,12 +111,12 @@ export function CreateBookingModal({
 		return empty;
 	}, [dateBookingsData, values.startTime, values.endTime]);
 
-	useEffect(() => {
-		if (!values.room) return;
-		const room = values.room as ConferenceRoom;
-		if (roomAvailability[room]?.disabled) {
-			setValues((prev) => ({ ...prev, room: "" }));
+	const selectedRoomConflict = useMemo(() => {
+		if (!values.room) {
+			return null;
 		}
+
+		return roomAvailability[values.room as ConferenceRoom] ?? null;
 	}, [roomAvailability, values.room]);
 
 	// Populate form on open
@@ -148,6 +153,10 @@ export function CreateBookingModal({
 
 		if (!values.room) {
 			errors.room = "Conference room is required.";
+		} else if (selectedRoomConflict?.disabled) {
+			errors.room = selectedRoomConflict.note
+				? `Selected room is occupied for this schedule (${selectedRoomConflict.note}). Please choose another room or timeslot.`
+				: "Selected room is occupied for this schedule. Please choose another room or timeslot.";
 		}
 
 		if (!values.date) {
@@ -220,7 +229,7 @@ export function CreateBookingModal({
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (fileError) {
+		if (fileError || isUploadingAttachment) {
 			return;
 		}
 
@@ -247,7 +256,11 @@ export function CreateBookingModal({
 
 	if (!isOpen) return null;
 
-	const isSubmitDisabled = isCreating || Boolean(fileError);
+	const isSubmitDisabled =
+		isCreating ||
+		isUploadingAttachment ||
+		Boolean(fileError) ||
+		Boolean(selectedRoomConflict?.disabled);
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -280,9 +293,17 @@ export function CreateBookingModal({
 						onChange={handleChange}
 						fieldErrors={fieldErrors}
 						roomAvailability={roomAvailability}
+						selectedRoomConflictNote={
+							selectedRoomConflict?.disabled
+								? (selectedRoomConflict.note ??
+									"This room is occupied for the selected date and time.")
+								: null
+						}
 						error={error}
 						fileError={fileError}
 						onFileError={setFileError}
+						isUploadingAttachment={isUploadingAttachment}
+						uploadProgress={uploadProgress}
 					/>
 
 					{/* Buttons */}
@@ -301,7 +322,11 @@ export function CreateBookingModal({
 							className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-70"
 						>
 							{isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
-							{isCreating ? "Submitting..." : "Submit Request"}
+							{isUploadingAttachment
+								? `Uploading attachment${uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}`
+								: isCreating
+									? "Submitting..."
+									: "Submit Request"}
 						</button>
 					</div>
 				</form>

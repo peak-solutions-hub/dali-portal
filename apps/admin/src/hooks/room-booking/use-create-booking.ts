@@ -19,6 +19,8 @@ export interface CreateBookingInput {
 export interface UseCreateBookingReturn {
 	createBooking: (input: CreateBookingInput) => Promise<{ success: boolean }>;
 	isCreating: boolean;
+	isUploadingAttachment: boolean;
+	uploadProgress: number | null;
 	error: string | null;
 	clearError: () => void;
 }
@@ -32,22 +34,81 @@ function toISODateTime(date: Date, timeStr: string): string {
 	return d.toISOString();
 }
 
-function inferAttachmentMimeType(fileName: string): AttachmentMimeType {
-	const extension = fileName.split(".").pop()?.toLowerCase();
+function inferAttachmentMimeType(file: File): AttachmentMimeType {
+	const mimeType = file.type.toLowerCase();
+	if (
+		mimeType === "application/pdf" ||
+		mimeType === "image/jpeg" ||
+		mimeType === "image/jpg" ||
+		mimeType === "image/png" ||
+		mimeType === "application/msword" ||
+		mimeType ===
+			"application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	) {
+		return mimeType as AttachmentMimeType;
+	}
 
+	const extension = file.name.split(".").pop()?.toLowerCase();
 	if (extension === "pdf") return "application/pdf";
 	if (extension === "jpeg") return "image/jpeg";
 	if (extension === "jpg") return "image/jpg";
+	if (extension === "png") return "image/png";
+	if (extension === "doc") return "application/msword";
+	if (extension === "docx") {
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	}
 
 	throw new Error(
-		"Unsupported attachment type. Please upload PDF or JPG/JPEG.",
+		"Unsupported attachment type. Please upload PDF, PNG, JPG/JPEG, DOC, or DOCX.",
 	);
+}
+
+function uploadFileWithProgress(
+	uploadUrl: string,
+	file: File,
+	onProgress: (progressPercent: number) => void,
+): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const xhr = new XMLHttpRequest();
+		xhr.open("PUT", uploadUrl);
+		xhr.setRequestHeader(
+			"Content-Type",
+			file.type || "application/octet-stream",
+		);
+
+		xhr.upload.onprogress = (event) => {
+			if (!event.lengthComputable) {
+				return;
+			}
+
+			const progress = Math.round((event.loaded / event.total) * 100);
+			onProgress(progress);
+		};
+
+		xhr.onload = () => {
+			if (xhr.status >= 200 && xhr.status < 300) {
+				onProgress(100);
+				resolve();
+				return;
+			}
+
+			reject(new Error(`Failed to upload attachment (${xhr.status})`));
+		};
+
+		xhr.onerror = () => {
+			reject(new Error("Failed to upload attachment. Please try again."));
+		};
+
+		xhr.send(file);
+	});
 }
 
 export function useCreateBooking(
 	onSuccess?: () => void,
 ): UseCreateBookingReturn {
 	const [error, setError] = useState<string | null>(null);
+	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+	const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 	const clearError = useCallback(() => setError(null), []);
 	const queryClient = useQueryClient();
 
@@ -56,7 +117,7 @@ export function useCreateBooking(
 			let attachmentUrl: string | undefined;
 
 			if (input.attachmentFile) {
-				const mimeType = inferAttachmentMimeType(input.attachmentFile.name);
+				const mimeType = inferAttachmentMimeType(input.attachmentFile);
 				const [uploadErr, uploadData] =
 					await api.roomBookings.generateUploadUrl({
 						fileName: input.attachmentFile.name,
@@ -70,20 +131,16 @@ export function useCreateBooking(
 					);
 				}
 
-				const uploadResponse = await fetch(uploadData.uploadUrl, {
-					method: "PUT",
-					headers: {
-						"Content-Type":
-							input.attachmentFile.type || "application/octet-stream",
+				setIsUploadingAttachment(true);
+				setUploadProgress(0);
+				await uploadFileWithProgress(
+					uploadData.uploadUrl,
+					input.attachmentFile,
+					(progressPercent) => {
+						setUploadProgress(progressPercent);
 					},
-					body: input.attachmentFile,
-				});
-
-				if (!uploadResponse.ok) {
-					throw new Error(
-						`Failed to upload attachment (${uploadResponse.status})`,
-					);
-				}
+				);
+				setIsUploadingAttachment(false);
 
 				attachmentUrl = uploadData.path;
 			}
@@ -104,14 +161,18 @@ export function useCreateBooking(
 			return data;
 		},
 		onError: (err) => {
+			setIsUploadingAttachment(false);
+			setUploadProgress(null);
 			setError(err.message);
 			toast.error(err.message);
 		},
 		onSuccess: () => {
+			setUploadProgress(null);
 			toast.success("Booking created successfully");
 			onSuccess?.();
 		},
 		onSettled: () => {
+			setIsUploadingAttachment(false);
 			queryClient.invalidateQueries({
 				queryKey: orpc.roomBookings.getList.key(),
 			});
@@ -121,6 +182,7 @@ export function useCreateBooking(
 	const createBooking = useCallback(
 		async (input: CreateBookingInput): Promise<{ success: boolean }> => {
 			setError(null);
+			setUploadProgress(null);
 			try {
 				await mutation.mutateAsync(input);
 				return { success: true };
@@ -131,5 +193,12 @@ export function useCreateBooking(
 		[mutation],
 	);
 
-	return { createBooking, isCreating: mutation.isPending, error, clearError };
+	return {
+		createBooking,
+		isCreating: mutation.isPending,
+		isUploadingAttachment,
+		uploadProgress,
+		error,
+		clearError,
+	};
 }

@@ -20,7 +20,13 @@ import { EditBookingModal } from "./edit-booking-modal";
 import { MonthView } from "./month-view";
 import { ViewBookingModal } from "./view-booking-modal";
 
-export function RoomBookingCalendar() {
+interface RoomBookingCalendarProps {
+	onSelectedDateChange?: (date: Date) => void;
+}
+
+export function RoomBookingCalendar({
+	onSelectedDateChange,
+}: RoomBookingCalendarProps) {
 	const today = useMemo(() => new Date(), []);
 	const [currentDate, setCurrentDate] = useState(today);
 	const [selectedDate, setSelectedDate] = useState(today);
@@ -72,6 +78,10 @@ export function RoomBookingCalendar() {
 		const timer = setInterval(() => setNow(new Date()), 60000);
 		return () => clearInterval(timer);
 	}, []);
+
+	useEffect(() => {
+		onSelectedDateChange?.(selectedDate);
+	}, [onSelectedDateChange, selectedDate]);
 
 	const timeLinePosition = useMemo(
 		() => getTimeLinePosition(selectedDate, today, now),
