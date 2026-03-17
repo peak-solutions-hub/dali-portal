@@ -23,6 +23,10 @@
 			"passThroughEnv": [
 				"PLAYWRIGHT_*",
 				"SUPABASE_*",
+				"RESEND_API_KEY",
+				"TURNSTILE_SECRET_KEY",
+				"PORTAL_URL",
+				"ADMIN_URL",
 				"NEXT_PUBLIC_*",
 				"TEST_*"
 			],

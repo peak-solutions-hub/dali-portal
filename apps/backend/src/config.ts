@@ -33,12 +33,22 @@ export default () => ({
 	},
 	// captcha
 	turnstile: {
-		secretKey: process.env.TURNSTILE_SECRET_KEY,
+		secretKey:
+			process.env.TURNSTILE_SECRET_KEY ??
+			(process.env.NODE_ENV === "production"
+				? undefined
+				: "test-turnstile-secret-key"),
 		timeout: 10000,
 		// abort request if it takes longer than 10s
 	},
 	// email service
-	resend: { apiKey: process.env.RESEND_API_KEY },
+	resend: {
+		apiKey:
+			process.env.RESEND_API_KEY ??
+			(process.env.NODE_ENV === "production"
+				? undefined
+				: "test-resend-api-key"),
+	},
 	// supabase
 	supabase: {
 		url: process.env.SUPABASE_URL,
