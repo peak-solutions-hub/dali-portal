@@ -21,6 +21,9 @@ const ALLOWED_ATTACHMENT_MIME_TYPES = [
 	"application/pdf",
 	"image/jpeg",
 	"image/jpg",
+	"image/png",
+	"application/msword",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ] as const;
 
 export const AttachmentMimeTypeEnum = z.enum(ALLOWED_ATTACHMENT_MIME_TYPES);

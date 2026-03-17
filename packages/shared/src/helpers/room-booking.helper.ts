@@ -25,6 +25,8 @@ export const ADMIN_BOOKING_ROLES: RoleType[] = [
 	"vice_mayor",
 	"head_admin",
 	"admin_staff",
+	"ovm_staff",
+	"legislative_staff",
 ];
 
 /**
@@ -111,6 +113,11 @@ export const MIME_EXTENSIONS: Record<string, string[]> = {
 	"application/pdf": [".pdf"],
 	"image/jpeg": [".jpg", ".jpeg"],
 	"image/jpg": [".jpg", ".jpeg"],
+	"image/png": [".png"],
+	"application/msword": [".doc"],
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+		".docx",
+	],
 };
 
 // ---------------------------------------------------------------------------

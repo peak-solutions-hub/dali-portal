@@ -244,7 +244,8 @@ export const ERRORS = {
 		},
 		CONFLICT: {
 			status: 409,
-			message: "This time slot is already taken by another booking.",
+			message:
+				"The selected room is already occupied for this date and time. Please choose a different room or adjust the schedule.",
 		},
 		PAST_BOOKING: {
 			status: 400,
@@ -261,7 +262,8 @@ export const ERRORS = {
 		},
 		INVALID_ATTACHMENT: {
 			status: 400,
-			message: "File must be a PDF, JPEG, or JPG and must not exceed 5MB.",
+			message:
+				"Attachment must be PDF, PNG, JPG/JPEG, DOC, or DOCX, and must not exceed 5MB.",
 		},
 		CANNOT_APPROVE: {
 			status: 400,

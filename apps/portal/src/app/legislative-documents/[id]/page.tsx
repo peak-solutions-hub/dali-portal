@@ -1,14 +1,24 @@
 import { isDefinedError } from "@orpc/client";
 import { getClassificationLabel, transformDocumentDates } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { Card } from "@repo/ui/components/card";
+import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
+import { OnlineStatusBanner } from "@repo/ui/components/online-status-banner";
+import { ScrollToTop as ScrollToTopButton } from "@repo/ui/components/scroll-to-top";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DocumentHeader, PDFViewer } from "@/components/legislative-documents/";
+import {
+	DocumentHeader,
+	DocumentSidebar,
+	DocumentViewer,
+} from "@/components/legislative-documents/";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import { api } from "@/lib/api.client";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
+import DocumentDetailLoading from "./loading";
+
+export const revalidate = 300;
 
 interface PageProps {
 	params: Promise<{
@@ -74,6 +84,19 @@ export async function generateMetadata({
 export default async function DocumentDetailPage({ params }: PageProps) {
 	const { id } = await params;
 
+	return (
+		<div className="min-h-screen bg-gray-50 pb-12">
+			<ScrollToTop />
+			<OnlineStatusBanner />
+			<ScrollToTopButton />
+			<OfflineAwareSuspense fallback={<DocumentDetailLoading />}>
+				<DocumentDetailContent id={id} />
+			</OfflineAwareSuspense>
+		</div>
+	);
+}
+
+async function DocumentDetailContent({ id }: { id: string }) {
 	// Validate numeric id
 	const idNum = Number(id);
 	if (!Number.isFinite(idNum) || idNum <= 0) {
@@ -84,10 +107,19 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 		id: idNum,
 	});
 
-	if (error || !documentData) {
-		if (error && isDefinedError(error)) {
-			console.error("Failed to fetch document:", error.message);
+	if (error) {
+		if (isDefinedError(error) && error.code === "NOT_FOUND") {
+			notFound();
 		}
+
+		throw new Error(
+			isDefinedError(error)
+				? error.message
+				: "Unable to load legislative document details.",
+		);
+	}
+
+	if (!documentData) {
 		notFound();
 	}
 
@@ -95,14 +127,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 	const document = transformDocumentDates(documentData);
 
 	return (
-		<div className="min-h-screen bg-gray-50">
-			<div className="bg-white border-b border-gray-200">
-				<div className="container mx-auto px-4 py-4">
+		<>
+			<div className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm">
+				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-4">
 					<Link href="/legislative-documents">
 						<Button
 							variant="outline"
 							size="sm"
-							className="flex items-center gap-2"
+							className="flex items-center gap-2 cursor-pointer"
 						>
 							<ChevronLeft className="h-4 w-4" />
 							Back to Documents
@@ -111,14 +143,21 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 				</div>
 			</div>
 
-			<div className="container mx-auto px-4 py-8">
-				<Card className="p-4 sm:p-6 md:p-8">
-					<div className="space-y-6">
+			<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
+				<div className="space-y-6">
+					<article className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-sm">
 						<DocumentHeader document={document} />
-						<PDFViewer document={document} />
+					</article>
+					<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+						<div className="order-2 lg:order-1 lg:col-span-2">
+							<DocumentViewer document={document} pdfUrl={document.pdfUrl} />
+						</div>
+						<div className="order-1 lg:order-2 lg:col-span-1">
+							<DocumentSidebar document={document} />
+						</div>
 					</div>
-				</Card>
+				</div>
 			</div>
-		</div>
+		</>
 	);
 }

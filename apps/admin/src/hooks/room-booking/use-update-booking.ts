@@ -32,15 +32,32 @@ function toISODateTime(date: Date, timeStr: string): string {
 	return d.toISOString();
 }
 
-function inferAttachmentMimeType(fileName: string): AttachmentMimeType {
-	const extension = fileName.split(".").pop()?.toLowerCase();
+function inferAttachmentMimeType(file: File): AttachmentMimeType {
+	const mimeType = file.type.toLowerCase();
+	if (
+		mimeType === "application/pdf" ||
+		mimeType === "image/jpeg" ||
+		mimeType === "image/jpg" ||
+		mimeType === "image/png" ||
+		mimeType === "application/msword" ||
+		mimeType ===
+			"application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	) {
+		return mimeType as AttachmentMimeType;
+	}
 
+	const extension = file.name.split(".").pop()?.toLowerCase();
 	if (extension === "pdf") return "application/pdf";
 	if (extension === "jpeg") return "image/jpeg";
 	if (extension === "jpg") return "image/jpg";
+	if (extension === "png") return "image/png";
+	if (extension === "doc") return "application/msword";
+	if (extension === "docx") {
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	}
 
 	throw new Error(
-		"Unsupported attachment type. Please upload PDF or JPG/JPEG.",
+		"Unsupported attachment type. Please upload PDF, PNG, JPG/JPEG, DOC, or DOCX.",
 	);
 }
 
@@ -54,7 +71,7 @@ export function useUpdateBooking(onSuccess?: () => void) {
 			let attachmentUrl = input.attachmentUrl;
 
 			if (input.attachmentFile) {
-				const mimeType = inferAttachmentMimeType(input.attachmentFile.name);
+				const mimeType = inferAttachmentMimeType(input.attachmentFile);
 				const [uploadErr, uploadData] =
 					await api.roomBookings.generateUploadUrl({
 						fileName: input.attachmentFile.name,
