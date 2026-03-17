@@ -22,6 +22,8 @@ jobs:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
       TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      TURNSTILE_SECRET_KEY: test-turnstile-secret-key
+      RESEND_API_KEY: test-resend-api-key
 
     steps:
       - uses: actions/checkout@v6
@@ -81,7 +83,12 @@ jobs:
         run: pnpm playwright:install
 
       - name: Run UI e2e tests (Playwright)
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true'
         run: pnpm turbo run test:e2e --filter=portal-e2e --filter=admin-e2e
+
+      - name: Note skipped UI e2e tests
+        if: steps.prepare_backend_env.outputs.has_test_db != 'true'
+        run: echo "Skipped UI e2e because TEST_DATABASE_URL is not available in this workflow context."
 
       - name: Upload Playwright report (portal)
         if: ${{ !cancelled() }}
