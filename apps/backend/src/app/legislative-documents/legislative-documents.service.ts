@@ -11,6 +11,7 @@ import {
 	transformLegislativeDocument,
 	transformPagination,
 } from "@/app/legislative-documents/pipes";
+import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
 import { Prisma } from "@/generated/prisma/client";
 
 const LEGISLATIVE_DOCUMENT_INCLUDE = {
@@ -24,9 +25,14 @@ const LEGISLATIVE_DOCUMENT_INCLUDE = {
 	},
 } satisfies Prisma.LegislativeDocumentInclude;
 
+const DOCUMENTS_BUCKET = "documents";
+
 @Injectable()
 export class LegislativeDocumentsService {
-	constructor(private readonly db: DbService) {}
+	constructor(
+		private readonly db: DbService,
+		private readonly storage: SupabaseStorageService,
+	) {}
 
 	private toResponse(
 		doc: LegislativeDocumentWithRelations,
@@ -82,9 +88,10 @@ export class LegislativeDocumentsService {
 		});
 
 		const transformedDocs = documents.map((doc) => this.toResponse(doc));
+		const enrichedDocs = await this.enrichWithPdfUrls(transformedDocs);
 
 		return {
-			documents: transformedDocs,
+			documents: enrichedDocs,
 			pagination: transformPagination({
 				page: validatedPage,
 				limit,
@@ -105,7 +112,8 @@ export class LegislativeDocumentsService {
 			});
 		}
 
-		return this.toResponse(document);
+		const response = this.toResponse(document);
+		return this.enrichWithPdfUrl(response);
 	}
 
 	async getStatistics(): Promise<{
@@ -140,15 +148,61 @@ export class LegislativeDocumentsService {
 		});
 
 		const transformedDocs = documents.map((doc) => this.toResponse(doc));
+		const enrichedDocs = await this.enrichWithPdfUrls(transformedDocs);
 
 		return {
-			documents: transformedDocs,
+			documents: enrichedDocs,
 			pagination: transformPagination({
 				page: 1,
 				limit,
-				totalItems: transformedDocs.length,
+				totalItems: enrichedDocs.length,
 			}),
 		};
+	}
+
+	private async enrichWithPdfUrl(
+		doc: LegislativeDocumentWithDetails,
+	): Promise<LegislativeDocumentWithDetails> {
+		if (!doc.storagePath) return doc;
+
+		const result = await this.storage.getSignedUrl(
+			DOCUMENTS_BUCKET,
+			doc.storagePath,
+		);
+
+		return result.signedUrl ? { ...doc, pdfUrl: result.signedUrl } : doc;
+	}
+
+	private async enrichWithPdfUrls(
+		docs: LegislativeDocumentWithDetails[],
+	): Promise<LegislativeDocumentWithDetails[]> {
+		const pathMap = new Map<string, number[]>();
+		for (let i = 0; i < docs.length; i++) {
+			const path = docs[i].storagePath;
+			if (path) {
+				if (!pathMap.has(path)) pathMap.set(path, []);
+				pathMap.get(path)!.push(i);
+			}
+		}
+
+		if (pathMap.size === 0) return docs;
+
+		const paths = [...pathMap.keys()];
+		const results = await this.storage.getSignedUrls(DOCUMENTS_BUCKET, paths);
+
+		const enriched = [...docs];
+		for (const result of results) {
+			if (result.signedUrl) {
+				const indices = pathMap.get(result.path);
+				if (indices) {
+					for (const idx of indices) {
+						enriched[idx] = { ...enriched[idx], pdfUrl: result.signedUrl };
+					}
+				}
+			}
+		}
+
+		return enriched;
 	}
 
 	private buildWhereClause(params: {
