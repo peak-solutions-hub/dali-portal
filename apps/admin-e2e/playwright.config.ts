@@ -1,8 +1,41 @@
+import fs from "node:fs";
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-if (!process.env.TEST_DATABASE_URL) {
+const backendTestEnvPath = path.resolve(process.cwd(), "../backend/.env.test");
+
+function readBackendTestEnv(key: string): string | undefined {
+	if (!fs.existsSync(backendTestEnvPath)) {
+		return undefined;
+	}
+
+	const content = fs.readFileSync(backendTestEnvPath, "utf-8");
+	const line = content
+		.split(/\r?\n/)
+		.find((entry) => entry.trim().startsWith(`${key}=`));
+
+	if (!line) {
+		return undefined;
+	}
+
+	const raw = line.slice(line.indexOf("=") + 1).trim();
+	return raw.replace(/^['"]|['"]$/g, "");
+}
+
+const testDatabaseUrl =
+	process.env.TEST_DATABASE_URL ?? readBackendTestEnv("DATABASE_URL");
+const testDbSafe =
+	process.env.TEST_DB_SAFE ?? readBackendTestEnv("TEST_DB_SAFE");
+
+if (!testDatabaseUrl) {
 	throw new Error(
-		"TEST_DATABASE_URL is required for admin-e2e. Use test DB credentials only.",
+		"TEST_DATABASE_URL is required for admin-e2e. Set it in shell env or apps/backend/.env.test.",
+	);
+}
+
+if (testDbSafe !== "true") {
+	throw new Error(
+		"TEST_DB_SAFE=true is required for admin-e2e to run against a test database safely (shell env or apps/backend/.env.test).",
 	);
 }
 
@@ -10,8 +43,8 @@ const backendEnv = {
 	...process.env,
 	NODE_ENV: process.env.NODE_ENV ?? "test",
 	PORT: process.env.PORT ?? "8080",
-	DATABASE_URL: process.env.TEST_DATABASE_URL,
-	TEST_DB_SAFE: process.env.TEST_DB_SAFE ?? "true",
+	DATABASE_URL: testDatabaseUrl,
+	TEST_DB_SAFE: testDbSafe,
 	TURNSTILE_SECRET_KEY:
 		process.env.TURNSTILE_SECRET_KEY ?? "test-turnstile-secret-key",
 	RESEND_API_KEY: process.env.RESEND_API_KEY ?? "test-resend-api-key",
