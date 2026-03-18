@@ -8,10 +8,10 @@ describe("config", () => {
 		const prevThrottleLimit = process.env.THROTTLE_LIMIT;
 		const prevThrottleTtl = process.env.THROTTLE_TTL;
 
-		env.PORT = undefined;
-		env.CORS_ORIGINS = undefined;
-		env.THROTTLE_LIMIT = undefined;
-		env.THROTTLE_TTL = undefined;
+		delete env.PORT;
+		delete env.CORS_ORIGINS;
+		delete env.THROTTLE_LIMIT;
+		delete env.THROTTLE_TTL;
 
 		const config = buildConfig();
 
@@ -22,9 +22,28 @@ describe("config", () => {
 		expect(config.throttle.limit).toBe(100);
 		expect(config.throttle.ttl).toBe(60000);
 
-		process.env.PORT = prevPort;
-		process.env.CORS_ORIGINS = prevCors;
-		process.env.THROTTLE_LIMIT = prevThrottleLimit;
-		process.env.THROTTLE_TTL = prevThrottleTtl;
+		if (prevPort === undefined) {
+			delete env.PORT;
+		} else {
+			env.PORT = prevPort;
+		}
+
+		if (prevCors === undefined) {
+			delete env.CORS_ORIGINS;
+		} else {
+			env.CORS_ORIGINS = prevCors;
+		}
+
+		if (prevThrottleLimit === undefined) {
+			delete env.THROTTLE_LIMIT;
+		} else {
+			env.THROTTLE_LIMIT = prevThrottleLimit;
+		}
+
+		if (prevThrottleTtl === undefined) {
+			delete env.THROTTLE_TTL;
+		} else {
+			env.THROTTLE_TTL = prevThrottleTtl;
+		}
 	});
 });

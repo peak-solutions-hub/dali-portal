@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export interface SupabaseAuthOptions {
 	supabaseUrl: string;
 	supabaseKey: string;
+	appOrigin: string;
 	email: string;
 	password: string;
 }
@@ -43,8 +44,10 @@ export async function authenticateViaSupabase(
 	}
 
 	const { access_token, refresh_token } = data.session;
-
-	const origin = options.supabaseUrl;
+	const origin = options.appOrigin;
+	const supabaseProjectRef = new URL(options.supabaseUrl).hostname.split(
+		".",
+	)[0];
 
 	return {
 		cookies: [],
@@ -53,7 +56,7 @@ export async function authenticateViaSupabase(
 				origin,
 				localStorage: [
 					{
-						name: `sb-${new URL(origin).hostname.split(".")[0]}-auth-token`,
+						name: `sb-${supabaseProjectRef}-auth-token`,
 						value: JSON.stringify({
 							access_token,
 							refresh_token,

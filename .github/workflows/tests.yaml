@@ -21,7 +21,12 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_ANON_KEY: test-supabase-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
+      SUPABASE_JWT_SECRET: test-supabase-jwt-secret
       TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      TEST_DB_SAFE: "true"
       TURNSTILE_SECRET_KEY: test-turnstile-secret-key
       RESEND_API_KEY: test-resend-api-key
 
@@ -48,12 +53,12 @@ jobs:
         run: |
           if [ -z "$TEST_DATABASE_URL" ]; then
             if [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "TEST_DATABASE_URL is unavailable in this PR context. Skipping backend integration/e2e tests."
+              echo "TEST_DATABASE_URL is unavailable in this PR context. Skipping backend integration tests."
               echo "has_test_db=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
-            echo "TEST_DATABASE_URL is required for backend integration/e2e tests."
+            echo "TEST_DATABASE_URL is required for backend integration tests."
             exit 1
           fi
 
@@ -61,6 +66,12 @@ jobs:
           DATABASE_URL="$TEST_DATABASE_URL"
           TEST_DB_SAFE="true"
           NODE_ENV="test"
+          SUPABASE_URL="$SUPABASE_URL"
+          SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+          SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
+          SUPABASE_JWT_SECRET="$SUPABASE_JWT_SECRET"
+          TURNSTILE_SECRET_KEY="$TURNSTILE_SECRET_KEY"
+          RESEND_API_KEY="$RESEND_API_KEY"
           EOF
           echo "has_test_db=true" >> "$GITHUB_OUTPUT"
 
@@ -71,20 +82,16 @@ jobs:
         if: steps.prepare_backend_env.outputs.has_test_db == 'true'
         run: pnpm --filter backend test:integration
 
-      - name: Run backend e2e tests
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-        run: pnpm --filter backend test:e2e
-
       - name: Note skipped backend DB tests
         if: steps.prepare_backend_env.outputs.has_test_db != 'true'
-        run: echo "Skipped backend integration/e2e because TEST_DATABASE_URL is not available in this workflow context."
+        run: echo "Skipped backend integration because TEST_DATABASE_URL is not available in this workflow context."
 
       - name: Install Playwright browsers
         run: pnpm playwright:install
 
       - name: Run UI e2e tests (Playwright)
         if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-        run: pnpm turbo run test:e2e --filter=portal-e2e --filter=admin-e2e
+        run: pnpm run test:e2e
 
       - name: Note skipped UI e2e tests
         if: steps.prepare_backend_env.outputs.has_test_db != 'true'
