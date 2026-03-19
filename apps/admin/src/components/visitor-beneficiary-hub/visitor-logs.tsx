@@ -36,6 +36,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpDown, Download, FileText, Filter, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { api, orpc } from "@/lib/api.client";
 import { DatePickerField } from "./date-picker-field";
 
@@ -150,6 +151,7 @@ export function VisitorLogs() {
 		}
 
 		setFormError(null);
+		toast.success("Visitor added.");
 		await queryClient.invalidateQueries({
 			queryKey: visitorLogsQuery.queryKey,
 		});

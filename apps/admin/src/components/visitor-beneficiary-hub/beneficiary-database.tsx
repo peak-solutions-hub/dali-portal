@@ -47,6 +47,7 @@ import {
 	Search,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { api, orpc } from "@/lib/api.client";
 import { AssistanceForm } from "./assistance-form";
 import {
@@ -606,6 +607,7 @@ export function BeneficiaryDatabase() {
 		setNextScholarshipSeq((prev) => prev + 1);
 		setScholarshipFormState(INITIAL_BENEFICIARY_FORM_STATE);
 		setIsScholarshipDialogOpen(false);
+		toast.success("Scholarship beneficiary added.");
 		await queryClient.invalidateQueries({
 			queryKey: beneficiariesQuery.queryKey,
 		});
@@ -668,6 +670,7 @@ export function BeneficiaryDatabase() {
 		setNextAssistanceNo((prev) => prev + 1);
 		setAssistanceFormState(INITIAL_BENEFICIARY_FORM_STATE);
 		setIsAssistanceDialogOpen(false);
+		toast.success("Assistance beneficiary added.");
 		await queryClient.invalidateQueries({
 			queryKey: beneficiariesQuery.queryKey,
 		});
