@@ -33,9 +33,10 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpDown, Download, FileText, Filter, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api.client";
+import { useMemo, useState } from "react";
+import { api, orpc } from "@/lib/api.client";
 import { DatePickerField } from "./date-picker-field";
 
 type VisitorLogEntry = {
@@ -106,10 +107,16 @@ const INITIAL_VISITOR_FORM_STATE = {
 };
 
 export function VisitorLogs() {
+	const queryClient = useQueryClient();
+	const visitorLogsQuery = orpc.visitorLogs.list.queryOptions();
+	const { data: visitorLogsData, isLoading } = useQuery<VisitorLogEntry[]>({
+		...visitorLogsQuery,
+		staleTime: 5 * 60 * 1000,
+		gcTime: 30 * 60 * 1000,
+	});
+	const visitorLogs = visitorLogsData ?? [];
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [formState, setFormState] = useState(INITIAL_VISITOR_FORM_STATE);
-	const [visitorLogs, setVisitorLogs] = useState<VisitorLogEntry[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
 	const [formError, setFormError] = useState<string | null>(null);
 	const [filterType, setFilterType] = useState<
 		"none" | "today" | "last7" | "range"
@@ -119,23 +126,6 @@ export function VisitorLogs() {
 	const [dateOrder, setDateOrder] = useState<"desc" | "asc">("desc");
 	const [alphaOrder, setAlphaOrder] = useState<"none" | "asc" | "desc">("none");
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-	const fetchVisitorLogs = async () => {
-		setIsLoading(true);
-		const [error, data] = await api.visitorLogs.list();
-		if (error || !data) {
-			console.error("Failed to load visitor logs", error);
-			setIsLoading(false);
-			return;
-		}
-
-		setVisitorLogs(data);
-		setIsLoading(false);
-	};
-
-	useEffect(() => {
-		void fetchVisitorLogs();
-	}, []);
 
 	const handleInputChange = (field: keyof typeof formState, value: string) => {
 		setFormState((prev) => ({ ...prev, [field]: value }));
@@ -160,7 +150,9 @@ export function VisitorLogs() {
 		}
 
 		setFormError(null);
-		await fetchVisitorLogs();
+		await queryClient.invalidateQueries({
+			queryKey: visitorLogsQuery.queryKey,
+		});
 		setFormState(INITIAL_VISITOR_FORM_STATE);
 		setIsDialogOpen(false);
 	};

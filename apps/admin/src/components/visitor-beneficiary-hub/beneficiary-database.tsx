@@ -35,6 +35,7 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import { Textarea } from "@repo/ui/components/textarea";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfDay, format, startOfDay } from "date-fns";
 import {
 	ArrowUpDown,
@@ -46,7 +47,7 @@ import {
 	Search,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api.client";
+import { api, orpc } from "@/lib/api.client";
 import { AssistanceForm } from "./assistance-form";
 import {
 	ASSISTANCE_TYPES,
@@ -291,10 +292,50 @@ const PROFILE_TABS: Array<{ id: "overview" | "timeline"; label: string }> = [
 	{ id: "timeline", label: "Timeline" },
 ];
 
+const normalizeBeneficiaries = (
+	data: Array<
+		BeneficiaryRecord & {
+			visits: Array<
+				VisitEntry & {
+					assistanceDetails?: Partial<
+						Record<keyof MainFormState, string>
+					> | null;
+				}
+			>;
+			assistanceDetails: Record<
+				string,
+				Partial<Record<keyof MainFormState, string>> | null
+			>;
+		}
+	>,
+): BeneficiaryRecord[] =>
+	data.map((item) => ({
+		...item,
+		visits: item.visits.map((visit) => ({
+			...visit,
+			assistanceDetails: (visit.assistanceDetails ?? {}) as Partial<
+				Record<keyof MainFormState, string>
+			>,
+		})),
+		assistanceDetails: Object.fromEntries(
+			Object.entries(item.assistanceDetails).map(([key, value]) => [
+				key,
+				value as Partial<Record<keyof MainFormState, string>>,
+			]),
+		),
+	}));
+
 export function BeneficiaryDatabase() {
-	const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRecord[]>(
-		INITIAL_BENEFICIARIES,
-	);
+	const queryClient = useQueryClient();
+	const beneficiariesQuery = orpc.beneficiaries.list.queryOptions();
+	const { data: beneficiariesData, isLoading: isBeneficiariesLoading } =
+		useQuery({
+			...beneficiariesQuery,
+			staleTime: 5 * 60 * 1000,
+			gcTime: 30 * 60 * 1000,
+			select: (data) => normalizeBeneficiaries(data ?? []),
+		});
+	const beneficiaries = beneficiariesData ?? INITIAL_BENEFICIARIES;
 	const [isScholarshipDialogOpen, setIsScholarshipDialogOpen] = useState(false);
 	const [isAssistanceDialogOpen, setIsAssistanceDialogOpen] = useState(false);
 	const [scholarshipFormState, setScholarshipFormState] =
@@ -467,40 +508,18 @@ export function BeneficiaryDatabase() {
 		editingVisit?.visit.assistanceType === "Scholarship Grant" &&
 		hasSavedScholarshipProfile(editingVisitBeneficiary);
 
-	const fetchBeneficiaries = async () => {
-		const [error, data] = await api.beneficiaries.list();
-
-		if (error || !data) {
-			console.error("Failed to load beneficiaries", error);
-			return;
-		}
-
-		setBeneficiaries(
-			data.map((item) => ({
-				...item,
-				visits: item.visits.map((visit) => ({
-					...visit,
-					assistanceDetails: (visit.assistanceDetails ?? {}) as Partial<
-						Record<keyof MainFormState, string>
-					>,
-				})),
-				assistanceDetails: Object.fromEntries(
-					Object.entries(item.assistanceDetails).map(([key, value]) => [
-						key,
-						value as Partial<Record<keyof MainFormState, string>>,
-					]),
-				),
-			})),
+	const updateBeneficiaries = (
+		updater: (prev: BeneficiaryRecord[]) => BeneficiaryRecord[],
+	) => {
+		queryClient.setQueryData<BeneficiaryRecord[]>(
+			beneficiariesQuery.queryKey,
+			(prev) => (prev ? updater(prev) : prev),
 		);
 	};
 
 	useEffect(() => {
 		setProfileTab("overview");
 	}, [selectedBeneficiaryId]);
-
-	useEffect(() => {
-		void fetchBeneficiaries();
-	}, []);
 
 	const formatAutoNumber = (value: number) => value.toString().padStart(4, "0");
 
@@ -587,7 +606,9 @@ export function BeneficiaryDatabase() {
 		setNextScholarshipSeq((prev) => prev + 1);
 		setScholarshipFormState(INITIAL_BENEFICIARY_FORM_STATE);
 		setIsScholarshipDialogOpen(false);
-		await fetchBeneficiaries();
+		await queryClient.invalidateQueries({
+			queryKey: beneficiariesQuery.queryKey,
+		});
 	};
 
 	const handleAssistanceSubmit = async (
@@ -647,7 +668,9 @@ export function BeneficiaryDatabase() {
 		setNextAssistanceNo((prev) => prev + 1);
 		setAssistanceFormState(INITIAL_BENEFICIARY_FORM_STATE);
 		setIsAssistanceDialogOpen(false);
-		await fetchBeneficiaries();
+		await queryClient.invalidateQueries({
+			queryKey: beneficiariesQuery.queryKey,
+		});
 	};
 
 	const handleScholarshipDialogChange = (open: boolean) => {
@@ -793,7 +816,7 @@ export function BeneficiaryDatabase() {
 					: {}),
 			},
 		};
-		setBeneficiaries((prev) =>
+		updateBeneficiaries((prev) =>
 			prev.map((beneficiary) =>
 				beneficiary.id === selectedBeneficiary.id
 					? { ...beneficiary, visits: [...beneficiary.visits, newVisit] }
@@ -906,7 +929,7 @@ export function BeneficiaryDatabase() {
 
 		const assistanceType = editingVisit.visit.assistanceType;
 		const detailsSnapshot = editingVisit.visit.assistanceDetails ?? {};
-		setBeneficiaries((prev) =>
+		updateBeneficiaries((prev) =>
 			prev.map((beneficiary) => {
 				if (beneficiary.id !== editingVisit.beneficiaryId) return beneficiary;
 				const nextAssistanceDetails = isAssistanceType(assistanceType)
@@ -1446,13 +1469,24 @@ export function BeneficiaryDatabase() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{filteredBeneficiaries.length === 0 ? (
+							{isBeneficiariesLoading ? (
 								<TableRow>
 									<TableCell
 										colSpan={4}
 										className="px-6 py-8 text-center text-sm text-gray-500"
 									>
-										No beneficiaries match the selected filters.
+										Loading beneficiaries...
+									</TableCell>
+								</TableRow>
+							) : filteredBeneficiaries.length === 0 ? (
+								<TableRow>
+									<TableCell
+										colSpan={4}
+										className="px-6 py-8 text-center text-sm text-gray-500"
+									>
+										{hasActiveFilters
+											? "No beneficiaries match the selected filters."
+											: "No beneficiaries have been logged yet."}
 									</TableCell>
 								</TableRow>
 							) : (
