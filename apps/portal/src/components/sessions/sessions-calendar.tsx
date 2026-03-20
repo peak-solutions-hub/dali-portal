@@ -7,6 +7,7 @@ import {
 	isSameDay,
 	validateSessionSearchParams,
 } from "@repo/shared";
+
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
@@ -18,14 +19,14 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { ChevronLeftIcon, ChevronRightIcon } from "@repo/ui/lib/lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import * as React from "react";
 import {
 	getSessionStatusLabel,
 	getSessionTypeBadgeClass,
 	getSessionTypeLabel,
-} from "@/lib/session-ui";
+} from "@repo/ui/lib/session-ui";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import * as React from "react";
 
 interface SessionsCalendarProps {
 	sessions: Session[];
@@ -94,10 +95,10 @@ export function SessionsCalendar({
 		const validatedParams = validationResult.data;
 
 		// Add validated filters
-		if (validatedParams.types && validatedParams.types.length > 0) {
+		if (validatedParams.types && validatedParams.types !== "all") {
 			filters.types = validatedParams.types.join(",");
 		}
-		if (validatedParams.statuses && validatedParams.statuses.length > 0) {
+		if (validatedParams.statuses && validatedParams.statuses !== "all") {
 			filters.statuses = validatedParams.statuses.join(",");
 		}
 		if (validatedParams.dateFrom) {
@@ -130,15 +131,20 @@ export function SessionsCalendar({
 
 	// Calculate year range from session data
 	const yearRange = React.useMemo(() => {
+		const currentYear = new Date().getFullYear();
+
 		if (sessions.length === 0) {
-			return { minYear: year, maxYear: year };
+			return {
+				minYear: Math.min(year, currentYear),
+				maxYear: Math.max(year, currentYear),
+			};
 		}
 
 		const years = sessions.map((session) =>
 			new Date(session.scheduleDate).getFullYear(),
 		);
-		const minYear = Math.min(...years);
-		const maxYear = Math.max(...years);
+		const minYear = Math.min(...years, currentYear);
+		const maxYear = Math.max(...years, currentYear);
 
 		return { minYear, maxYear };
 	}, [sessions, year]);

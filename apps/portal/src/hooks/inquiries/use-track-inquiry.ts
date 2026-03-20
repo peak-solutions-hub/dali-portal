@@ -25,7 +25,7 @@ export interface UseTrackInquiryReturn {
 }
 
 /**
- * Hook for tracking inquiry tickets by reference number and email
+ * Hook for tracking inquiry tickets by reference number and contact number
  * Handles API calls, error handling, and loading states
  */
 export function useTrackInquiry(
@@ -60,7 +60,7 @@ export function useTrackInquiry(
 
 				if (!response?.id) {
 					const notFoundMessage =
-						"Inquiry not found. Please check your reference number and email.";
+						"Inquiry not found. Please check your reference number and contact number.";
 					setError(notFoundMessage);
 					options?.onError?.(notFoundMessage);
 					return { success: false };

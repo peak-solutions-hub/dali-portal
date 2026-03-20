@@ -89,6 +89,84 @@ export const ERRORS = {
 			message: "Storage bucket not found.",
 		},
 	},
+	SESSION: {
+		NOT_FOUND: {
+			status: 404,
+			message: "Session not found.",
+		},
+		DUPLICATE_DATE: {
+			status: 409,
+			message: "A session already exists for this date.",
+		},
+		INVALID_STATUS_TRANSITION: {
+			status: 400,
+			message: "This status transition is not allowed.",
+		},
+		NOT_DRAFT: {
+			status: 400,
+			message: "Session must be in draft status for this operation.",
+		},
+		NOT_SCHEDULED: {
+			status: 400,
+			message: "Session must be in scheduled status for this operation.",
+		},
+		DELETE_NOT_DRAFT: {
+			status: 400,
+			message: "Only draft sessions can be deleted.",
+		},
+		CREATION_FAILED: {
+			status: 500,
+			message: "Failed to create session. Please try again.",
+		},
+		INVALID_DATE_RANGE: {
+			status: 400,
+			message: 'The "From" date cannot be later than the "To" date.',
+		},
+		LIST_FAILED: {
+			status: 500,
+			message: "Failed to load sessions.",
+		},
+		FETCH_FAILED: {
+			status: 500,
+			message: "Failed to load session details.",
+		},
+		SAVE_FAILED: {
+			status: 500,
+			message: "Failed to save session draft. Please try again.",
+		},
+		PUBLISH_FAILED: {
+			status: 500,
+			message: "Failed to publish session. Please try again.",
+		},
+		UNPUBLISH_FAILED: {
+			status: 500,
+			message: "Failed to unpublish session. Please try again.",
+		},
+		COMPLETE_FAILED: {
+			status: 500,
+			message: "Failed to mark session as completed. Please try again.",
+		},
+		DELETE_FAILED: {
+			status: 500,
+			message: "Failed to delete session. Please try again.",
+		},
+		REMOVE_ITEM_FAILED: {
+			status: 500,
+			message: "Failed to remove agenda item. Please try again.",
+		},
+		AGENDA_UPLOAD_FAILED: {
+			status: 500,
+			message: "Failed to upload session agenda. Please try again.",
+		},
+		AGENDA_SAVE_FAILED: {
+			status: 500,
+			message: "Failed to save agenda PDF. Please try again.",
+		},
+		AGENDA_DELETE_FAILED: {
+			status: 500,
+			message: "Failed to remove agenda PDF. Please try again.",
+		},
+	},
 	AUTH: {
 		MISSING_TOKEN: {
 			status: 401,
@@ -157,6 +235,39 @@ export const ERRORS = {
 		RESET_EMAIL_FAILED: {
 			status: 500,
 			message: "Failed to send password reset email. Please try again.",
+		},
+	},
+	ROOM_BOOKING: {
+		NOT_FOUND: {
+			status: 404,
+			message: "Room booking not found.",
+		},
+		CONFLICT: {
+			status: 409,
+			message:
+				"The selected room is already occupied for this date and time. Please choose a different room or adjust the schedule.",
+		},
+		PAST_BOOKING: {
+			status: 400,
+			message: "Cannot book a time slot in the past.",
+		},
+		FORBIDDEN: {
+			status: 403,
+			message: "You don't have permission to modify this booking.",
+		},
+		INVALID_TIME_RANGE: {
+			status: 400,
+			message:
+				"Start time must be before end time and the duration must be at least 15 minutes.",
+		},
+		INVALID_ATTACHMENT: {
+			status: 400,
+			message:
+				"Attachment must be PDF, PNG, JPG/JPEG, DOC, or DOCX, and must not exceed 5MB.",
+		},
+		CANNOT_APPROVE: {
+			status: 400,
+			message: "Only pending bookings can be approved or rejected.",
 		},
 	},
 } as const;

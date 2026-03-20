@@ -46,7 +46,7 @@ export const trackInquiryTicket = oc
 		path: "/inquiries/track",
 		summary: "Track inquiry status",
 		description:
-			"Citizens track inquiry status using their reference number and email.",
+			"Citizens track inquiry status using their reference number and contact number.",
 		tags: ["Inquiry", "Public"],
 	})
 	.errors({

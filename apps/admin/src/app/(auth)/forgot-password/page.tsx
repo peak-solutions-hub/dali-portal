@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isDefinedError } from "@orpc/client";
 import {
 	DEACTIVATED_MESSAGE,
 	type ResetPasswordInput,
@@ -15,7 +16,6 @@ import {
 	Mail,
 	Send,
 } from "@repo/ui/lib/lucide-react";
-import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -42,40 +42,34 @@ function ForgotPasswordForm() {
 
 	const onSubmit = async (data: ResetPasswordInput) => {
 		try {
-			// First, check if the email exists and is deactivated
-			const [checkError, checkResult] = await api.users.checkEmailStatus({
+			const [error] = await api.users.requestPasswordReset({
 				email: data.email,
 			});
 
-			if (checkError) {
-				toast.error("Failed to process request");
-				return;
-			}
-
-			// If email doesn't exist, still show success (security: prevent account enumeration)
-			if (!checkResult?.exists) {
-				setSubmittedEmail(data.email);
-				setEmailSent(true);
-				return;
-			}
-
-			// If email exists but account is deactivated, show error toast
-			if (checkResult.isDeactivated) {
-				toast.error(DEACTIVATED_MESSAGE);
-				return;
-			}
-
-			// Email exists and is active, proceed with password reset
-			const supabase = createBrowserClient();
-			const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-				redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
-			});
-
 			if (error) {
-				toast.error(error.message);
+				const errCode = (error as { code?: string })?.code;
+				const errStatus = (error as { status?: number })?.status;
+
+				const isDeactivated =
+					errCode === "AUTH.DEACTIVATED_ACCOUNT" ||
+					errCode === "DEACTIVATED_ACCOUNT";
+
+				if (isDeactivated) {
+					toast.error(DEACTIVATED_MESSAGE);
+				} else if (errStatus === 429) {
+					toast.error("Too many requests. Please try again later.");
+				} else if (isDefinedError(error)) {
+					toast.error(error.message);
+				} else {
+					toast.error(
+						(error as { message?: string }).message ??
+							"Failed to process request",
+					);
+				}
 				return;
 			}
 
+			// Regardless of if user existed or not, we show success
 			setSubmittedEmail(data.email);
 			setEmailSent(true);
 		} catch (_err) {
@@ -94,36 +88,43 @@ function ForgotPasswordForm() {
 		return (
 			<div className="space-y-6">
 				<div className="text-center">
-					<div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-						<CheckCircle2 className="w-8 h-8 text-green-600" />
-					</div>
-					<h3 className="text-lg font-semibold text-gray-900 mb-2">
+					<h3 className="text-xl font-bold text-gray-900 mb-2">
 						Check Your Email
 					</h3>
-					<p className="text-sm text-gray-600 mb-2">
-						We've sent a password reset link to:
+					<p className="text-sm text-gray-600 mb-4">
+						If an account exists for this email, we've sent a password reset
+						link to:
 					</p>
-					<p className="text-sm font-medium text-[#a60202] mb-4">
-						{submittedEmail}
-					</p>
-					<p className="text-xs text-gray-500">
-						Click the link in the email to reset your password. The link will
-						expire in 24 hours.
-					</p>
+
+					<div className="bg-red-50/50 border border-[#a60202]/20 rounded-xl p-4 mb-5 shadow-sm">
+						<p className="text-base font-bold text-[#a60202] break-all">
+							{submittedEmail}
+						</p>
+					</div>
+
+					<div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-left">
+						<p className="text-sm text-gray-600 flex gap-2">
+							<span className="text-gray-900 font-medium">Note:</span>
+							You must click the link within 24 hours before it expires.
+						</p>
+					</div>
 				</div>
 
-				<div className="space-y-3">
-					<Button onClick={handleTryAgain} variant="outline" className="w-full">
-						Try a different email
-					</Button>
-
+				<div className="space-y-3 pt-2">
 					<Button
 						onClick={() => router.push("/login")}
-						variant="ghost"
-						className="w-full text-[#a60202] hover:text-[#8a0101] hover:bg-red-50"
+						className="w-full h-12 bg-[#a60202] hover:bg-[#8a0101] text-white shadow-lg shadow-[#a60202]/20 transition-all duration-200"
 					>
 						<ArrowLeft className="w-4 h-4 mr-2" />
 						Back to Sign In
+					</Button>
+
+					<Button
+						onClick={handleTryAgain}
+						variant="outline"
+						className="w-full h-12 border-gray-300 hover:bg-gray-50 text-gray-700"
+					>
+						Try a different email
 					</Button>
 				</div>
 			</div>
@@ -132,66 +133,69 @@ function ForgotPasswordForm() {
 
 	// Form state
 	return (
-		<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-			<div>
-				<label className="block mb-2 text-sm font-semibold text-gray-700">
-					Email Address
-				</label>
-				<div className="relative">
-					<Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-					<Input
-						type="email"
-						{...register("email")}
-						placeholder="your.email@iloilo.gov.ph"
-						className="h-12 pl-11 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
-						disabled={isSubmitting}
-					/>
+		<>
+			<AuthHeader
+				title="Forgot Password"
+				subtitle="Enter your email to receive a password reset link"
+				icon={Mail}
+			/>
+			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+				<div>
+					<label className="block mb-2 text-sm font-semibold text-gray-700">
+						Email Address
+					</label>
+					<div className="relative">
+						<Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+						<Input
+							type="email"
+							{...register("email")}
+							placeholder="your.email@iloilo.gov.ph"
+							className="h-12 pl-11 border-gray-300 focus:border-[#a60202] focus:ring-[#a60202]"
+							disabled={isSubmitting}
+						/>
+					</div>
+					{errors.email && (
+						<p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+					)}
 				</div>
-				{errors.email && (
-					<p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-				)}
-			</div>
 
-			<Button
-				type="submit"
-				disabled={isSubmitting}
-				className="w-full h-12 bg-[#a60202] hover:bg-[#8a0101] text-white shadow-lg shadow-[#a60202]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-			>
-				{isSubmitting ? (
-					<>
-						<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-						Sending...
-					</>
-				) : (
-					<>
-						<Send className="w-4 h-4 mr-2" />
-						Send Reset Link
-					</>
-				)}
-			</Button>
+				<div className="space-y-3">
+					<Button
+						type="submit"
+						disabled={isSubmitting}
+						className="w-full h-12 bg-[#a60202] hover:bg-[#8a0101] text-white shadow-lg shadow-[#a60202]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						{isSubmitting ? (
+							<>
+								<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+								Sending...
+							</>
+						) : (
+							<>
+								<Send className="w-4 h-4 mr-2" />
+								Send Reset Link
+							</>
+						)}
+					</Button>
 
-			<div className="text-center">
-				<button
-					type="button"
-					onClick={() => router.push("/login")}
-					className="text-sm text-[#a60202] hover:text-[#8a0101] hover:underline font-medium inline-flex items-center gap-1"
-				>
-					<ArrowLeft className="w-3 h-3" />
-					Back to Sign In
-				</button>
-			</div>
-		</form>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => router.push("/login")}
+						className="w-full h-12 border-gray-300 hover:bg-gray-50 text-gray-700"
+					>
+						<ArrowLeft className="w-4 h-4 mr-2" />
+						Back to Sign In
+					</Button>
+				</div>
+			</form>
+		</>
 	);
 }
 
 export default function ForgotPasswordPage() {
 	return (
 		<AuthCard>
-			<AuthHeader
-				title="Forgot Password"
-				subtitle="Enter your email to receive a password reset link"
-				icon={Mail}
-			/>
 			<ForgotPasswordForm />
 		</AuthCard>
 	);

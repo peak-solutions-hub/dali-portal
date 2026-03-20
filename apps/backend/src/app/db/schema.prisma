@@ -89,6 +89,7 @@ model DocumentAudit {
   versionNumber Decimal  @map("version_number") @db.Decimal
   filePath      String   @map("file_path")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  remarks       String?
   user          User     @relation(fields: [actorId], references: [id], map: "document_audits_actor_id_fkey")
   document      Document @relation(fields: [documentId], references: [id], map: "document_audits_document_id_fkey")
 
@@ -140,18 +141,21 @@ model InquiryMessage {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model InquiryTicket {
-  id              String           @id(map: "inquiry_tickets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  referenceNumber String           @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
-  assignedTo      String?          @map("assigned_to") @db.Uuid
-  citizenEmail    String           @map("citizen_email")
-  citizenName     String           @map("citizen_name")
-  subject         String
-  closureRemarks  String?          @map("closure_remarks")
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  category        InquiryCategory
-  status          InquiryStatus
-  inquiryMessages InquiryMessage[]
-  user            User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
+  id                   String           @id(map: "inquiry_tickets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceNumber      String           @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
+  assignedTo           String?          @map("assigned_to") @db.Uuid
+  citizenEmail         String?          @map("citizen_email")
+  citizenFirstName     String?          @map("citizen_first_name")
+  citizenLastName      String?          @map("citizen_last_name")
+  citizenContactNumber String?          @map("citizen_contact_number")
+  citizenAddress       String?          @map("citizen_address")
+  subject              String
+  closureRemarks       String?          @map("closure_remarks")
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  category             InquiryCategory
+  status               InquiryStatus
+  inquiryMessages      InquiryMessage[]
+  user                 User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
 
   @@map("inquiry_ticket")
 }
@@ -205,15 +209,17 @@ model Role {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model RoomBooking {
-  id           String            @id(map: "room_bookings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bookedBy     String            @map("booked_by") @db.Uuid
-  title        String
-  startTime    DateTime          @map("start_time") @db.Timestamptz(6)
-  endTime      DateTime          @map("end_time") @db.Timestamptz(6)
-  requestedFor String            @map("requested_for")
-  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  status       RoomBookingStatus
-  user         User              @relation(fields: [bookedBy], references: [id], map: "room_bookings_booked_by_fkey")
+  id            String            @id(map: "room_bookings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookedBy      String            @map("booked_by") @db.Uuid
+  title         String
+  startTime     DateTime          @map("start_time") @db.Timestamptz(6)
+  endTime       DateTime          @map("end_time") @db.Timestamptz(6)
+  requestedFor  String            @map("requested_for")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  status        RoomBookingStatus
+  room          ConferenceRoom
+  attachmentUrl String?           @map("attachment_url")
+  user          User              @relation(fields: [bookedBy], references: [id], map: "room_bookings_booked_by_fkey")
 
   @@map("room_booking")
 }
@@ -401,7 +407,6 @@ enum ClassificationType {
   ways_and_means
   women_and_family_relations
   youth_and_sports_development
-  disaster_relief_disaster_management
 
   @@map("classification_type")
 }
@@ -440,6 +445,13 @@ enum DecisionType {
   @@map("decision_type")
 }
 
+enum ConferenceRoom {
+  room_a
+  room_b
+
+  @@map("conference_room")
+}
+
 enum RoomBookingStatus {
   pending
   confirmed
@@ -449,17 +461,17 @@ enum RoomBookingStatus {
 }
 
 enum SessionSection {
-  intro
+  call_to_order
   opening_prayer_invocation
   national_anthem_and_pledge_of_allegiance
   roll_call
-  reading_and_or_approval_of_minutes
-  first_reading_and_references
-  committee_report
+  reading_and_or_approval_of_the_minutes
+  first_reading_and_reference_of_business
+  committee_reports
   calendar_of_business
   third_reading
   other_matters
-  closing_prayer
+  closing_prayers
   adjournment
 
   @@map("session_section")

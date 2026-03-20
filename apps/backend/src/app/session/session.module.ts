@@ -1,10 +1,13 @@
 import { Module } from "@nestjs/common";
-import { SessionController } from "./session.controller";
-import { SessionService } from "./session.service";
+import { SessionManagementModule } from "./session-management/session-management.module";
+import { SessionPortalModule } from "./session-portal/session-portal.module";
 
+/**
+ * Aggregate module that re-exports both portal (public) and management (admin)
+ * session sub-modules. Import this single module in AppModule.
+ */
 @Module({
-	controllers: [SessionController],
-	providers: [SessionService],
-	exports: [SessionService],
+	imports: [SessionPortalModule, SessionManagementModule],
+	exports: [SessionPortalModule, SessionManagementModule],
 })
 export class SessionModule {}

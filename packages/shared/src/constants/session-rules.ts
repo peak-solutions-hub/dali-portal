@@ -5,7 +5,8 @@
  * 1. Pagination limits for session listings
  * 2. Storage bucket names for session files
  * 3. Session Status workflow and transitions
- * 4. Default values and constraints
+ * 4. Public file access rules
+ * 5. Default values and constraints
  *
  * These constants are used by:
  * - Frontend: To configure pagination and file handling
@@ -27,7 +28,6 @@ export const SESSION_ITEMS_PER_PAGE = 10;
 
 /**
  * Maximum number of sessions that can be requested in a single query
- * Used for validation in backend
  */
 export const SESSION_MAX_ITEMS_PER_PAGE = 100;
 
@@ -41,30 +41,29 @@ export const SESSION_MIN_ITEMS_PER_PAGE = 1;
 // =============================================================================
 
 /**
- * Supabase storage bucket name for session agenda files
- * Used by getSessionAgendaUrl in lib/sessions.ts
+ * Supabase storage bucket for session agenda PDF files.
+ * Used by agenda PDF upload/download and signed URL generation.
  */
-export const SESSION_AGENDA_BUCKET = "session-agendas";
+export const SESSION_AGENDA_BUCKET = "agendas";
 
 /**
- * Supabase storage bucket name for session agenda item attachments
- * Used for agenda item attachment downloads
+ * Supabase storage bucket for legislative document file attachments.
+ * Used by agenda item file URL and public document file URL handlers.
  */
-export const SESSION_AGENDA_ITEM_ATTACHMENTS_BUCKET =
-	"session-agenda-item-attachments";
+export const SESSION_DOCUMENTS_BUCKET = "documents";
 
 // =============================================================================
 // FILE URL CONFIGURATION
 // =============================================================================
 
 /**
- * Default expiration time for signed URLs (in seconds)
+ * Default expiration time for signed URLs (in seconds).
  * 3600 seconds = 1 hour
  */
 export const DEFAULT_SIGNED_URL_EXPIRY = 3600;
 
 /**
- * Extended expiration time for session files that need longer access (in seconds)
+ * Extended expiration time for session files that need longer access (in seconds).
  * 7200 seconds = 2 hours
  */
 export const EXTENDED_SIGNED_URL_EXPIRY = 7200;
@@ -81,23 +80,23 @@ export const EXTENDED_SIGNED_URL_EXPIRY = 7200;
  * DRAFT (Admin creates session with agenda builder):
  *   - Admin creates new session in "draft" status
  *   - Admin builds agenda by adding:
- *     * Approved documents from document tracker
+ *     * Approved documents from the Document Tracker (status 'approved',
+ *       purpose 'for_agenda')
  *     * Custom agenda items (Prayer, Roll Call, etc.)
  *   - Admin can reorder, edit, or delete agenda items
- *   - Session is saved as draft (not visible to public)
+ *   - Session is not visible to the public
  *
  * DRAFT → SCHEDULED (Admin finalizes session):
- *   - Admin reviews and finalizes session agenda
+ *   - Admin reviews and finalizes the agenda
  *   - Session status transitions to "scheduled"
- *   - Session becomes visible to public portal
- *   - Agenda is locked (no more changes allowed)
- *   - Citizens can view upcoming session details
+ *   - Session and its agenda become publicly visible
+ *   - Linked documents and their attachments are publicly accessible
+ *   - Agenda is locked — no further changes allowed
  *
  * SCHEDULED → COMPLETED (After session concludes):
  *   - Admin marks session as completed after it takes place
- *   - Optional: Upload minutes and journal files
- *   - Session remains visible to public as historical record
- *   - Documents linked in agenda update their status to "calendared" then "published"
+ *   - Session remains publicly visible as a historical record
+ *   - All documents and attachments remain publicly accessible
  *
  * Visual Flow:
  *   DRAFT → SCHEDULED → COMPLETED
@@ -129,8 +128,7 @@ export function isSessionTransitionAllowed(
 	currentStatus: SessionStatus,
 	nextStatus: SessionStatus,
 ): boolean {
-	const allowed = getNextSessionStatuses(currentStatus);
-	return allowed.includes(nextStatus);
+	return getNextSessionStatuses(currentStatus).includes(nextStatus);
 }
 
 /**
@@ -144,22 +142,116 @@ export function getInitialSessionStatus(): SessionStatus {
  * Check if a status is a terminal (final) state.
  */
 export function isTerminalSessionStatus(status: SessionStatus): boolean {
-	const nextStatuses = getNextSessionStatuses(status);
-	return nextStatuses.length === 0;
+	return getNextSessionStatuses(status).length === 0;
 }
 
 /**
- * Check if a session status is editable (draft status only).
+ * Check if a session is editable (draft status only).
  */
 export function isSessionEditable(status: SessionStatus): boolean {
 	return status === SessionStatus.DRAFT;
 }
 
 /**
- * Check if a session is visible to the public.
+ * Check if a session is publicly visible.
  */
 export function isSessionPubliclyVisible(status: SessionStatus): boolean {
 	return (
 		status === SessionStatus.SCHEDULED || status === SessionStatus.COMPLETED
+	);
+}
+
+// =============================================================================
+// AGENDA DOCUMENT RULES
+// =============================================================================
+
+/**
+ * Documents eligible to be added to a session agenda must have:
+ * - status: 'approved'
+ * - purpose: 'for_agenda'
+ */
+export const AGENDA_DOCUMENT_ELIGIBLE_STATUS = "approved" as const;
+export const AGENDA_DOCUMENT_ELIGIBLE_PURPOSE = "for_agenda" as const;
+
+/**
+ * Check whether a document is eligible to be included in a session agenda.
+ * Used both when admins build the agenda and when validating public access.
+ */
+export function isDocumentEligibleForAgenda(
+	status: string,
+	purpose: string,
+): boolean {
+	return (
+		status === AGENDA_DOCUMENT_ELIGIBLE_STATUS &&
+		purpose === AGENDA_DOCUMENT_ELIGIBLE_PURPOSE
+	);
+}
+
+// =============================================================================
+// PUBLIC FILE ACCESS RULES
+// =============================================================================
+
+/**
+ * Rules governing which files are publicly accessible via the session portal.
+ * All signed URL generation is handled server-side; the server enforces these
+ * rules before returning a URL. Clients should use the `useSessionFile` hook.
+ *
+ * Three publicly accessible file types:
+ *
+ * 1. Session agenda PDF
+ *    Endpoint: GET /sessions/{id}/agenda-pdf-url
+ *    Conditions:
+ *      - session.status is 'scheduled' or 'completed'
+ *      - session.agendaFilePath is set
+ *
+ * 2. Agenda item attachment
+ *    Endpoint: GET /sessions/{sessionId}/agenda-items/{agendaItemId}/file-url
+ *    Conditions:
+ *      - session.status is 'scheduled' or 'completed'
+ *      - agendaItem.sessionId matches sessionId (prevents IDOR)
+ *      - agendaItem.attachmentPath is set
+ *
+ * 3. Legislative document file (by documentId)
+ *    Endpoint: GET /sessions/documents/{documentId}/file-url
+ *    Conditions:
+ *      - document.status is 'approved' AND document.purpose is 'for_agenda' (both required)
+ *      - document is linked to an agenda item on a 'scheduled' or 'completed' session
+ *
+ * Signed URLs expire after DEFAULT_SIGNED_URL_EXPIRY seconds.
+ */
+
+/**
+ * Check whether the agenda PDF for a session may be served publicly.
+ */
+export function isSessionAgendaPdfPubliclyAccessible(
+	sessionStatus: SessionStatus,
+	agendaFilePath: string | null,
+): boolean {
+	return isSessionPubliclyVisible(sessionStatus) && agendaFilePath !== null;
+}
+
+/**
+ * Check whether an agenda item's attachment file may be served publicly.
+ * The caller must also verify the agenda item belongs to the given session.
+ */
+export function isAgendaItemAttachmentPubliclyAccessible(
+	sessionStatus: SessionStatus,
+	attachmentPath: string | null,
+): boolean {
+	return isSessionPubliclyVisible(sessionStatus) && attachmentPath !== null;
+}
+
+/**
+ * Check whether a legislative document file may be served publicly.
+ * The caller must also verify the document is linked to a publicly visible session.
+ */
+export function isDocumentFilePubliclyAccessible(
+	sessionStatus: SessionStatus,
+	docStatus: string,
+	docPurpose: string,
+): boolean {
+	return (
+		isSessionPubliclyVisible(sessionStatus) &&
+		isDocumentEligibleForAgenda(docStatus, docPurpose)
 	);
 }

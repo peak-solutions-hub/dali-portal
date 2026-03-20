@@ -84,7 +84,14 @@ export function useInquiryTickets({
 				ticket.referenceNumber
 					.toLowerCase()
 					.includes(searchQuery.toLowerCase()) ||
-				ticket.citizenName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				(ticket.citizenFirstName &&
+					ticket.citizenFirstName
+						.toLowerCase()
+						.includes(searchQuery.toLowerCase())) ||
+				(ticket.citizenLastName &&
+					ticket.citizenLastName
+						.toLowerCase()
+						.includes(searchQuery.toLowerCase())) ||
 				ticket.subject.toLowerCase().includes(searchQuery.toLowerCase());
 
 			return matchesStatus && matchesSearch;

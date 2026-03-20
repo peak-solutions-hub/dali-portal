@@ -3,6 +3,7 @@ export * from "./beneficiary.contract";
 export * from "./inquiry-ticket.contract";
 export * from "./legislative-document.contract";
 export * from "./role.contract";
+export * from "./room-booking.contract";
 export * from "./scholarship-application.contract";
 export * from "./user.contract";
 export * from "./visitor-log.contract";

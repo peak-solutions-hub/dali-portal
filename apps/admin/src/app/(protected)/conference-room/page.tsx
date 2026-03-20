@@ -1,42 +1,96 @@
 "use client";
 
+import { isAdminBookingRole } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { Plus } from "lucide-react";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/ui/components/tabs";
+import { CalendarDays, ClipboardList, Plus, User } from "lucide-react";
 import { useState } from "react";
 import {
-	BookingModal,
+	BookingRequestsList,
+	CreateBookingModal,
+	MyBookingsList,
 	RoomBookingCalendar,
 } from "@/components/conference-room";
+import {
+	useMyBookings,
+	usePendingRoomBookings,
+	useRoomBookings,
+} from "@/hooks/room-booking";
+import { useAuthStore } from "@/stores";
 
 export default function ConferenceRoomBooking() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date());
+	const userProfile = useAuthStore((s) => s.userProfile);
+	const userRole = userProfile?.role.name;
+	const canManageRequests = userRole ? isAdminBookingRole(userRole) : false;
+
+	// Pre-fetch data for all tabs on initial load
+	useRoomBookings(new Date());
+	useMyBookings(userProfile?.id ?? null);
+	usePendingRoomBookings(canManageRequests);
 
 	return (
 		<div className="min-h-screen">
-			<div className="p-1">
-				<div className="flex items-center justify-between ml-6">
-					<h1 className="text-2xl font-semibold text-[#101828]">
-						Conference Room Booking
-					</h1>
-					<Button
-						onClick={() => setIsModalOpen(true)}
-						className="mr-6 py-2 bg-[#a60202] hover:bg-[#8a0101] text-white gap-2"
-					>
-						<Plus className="w-4 h-4" />
-						Create Booking
-					</Button>
-				</div>
-				<p className="text-sm text-[#4a5565] ml-6">
-					View bookings and create reservations
-				</p>
-				<RoomBookingCalendar />
+			<div className="flex items-center justify-between ml-6">
+				<h1 className="text-2xl font-semibold text-[#101828]">
+					Conference Room Booking
+				</h1>
+				<Button
+					onClick={() => setIsModalOpen(true)}
+					className="mr-6 py-2 bg-[#a60202] hover:bg-[#8a0101] text-white gap-2"
+				>
+					<Plus className="w-4 h-4" />
+					Create Booking
+				</Button>
 			</div>
+			<p className="text-sm text-[#4a5565] ml-6 mb-4">
+				View bookings and create reservations
+			</p>
 
-			<BookingModal
+			<Tabs defaultValue="calendar" className="px-6">
+				<TabsList>
+					<TabsTrigger value="calendar" className="gap-1.5">
+						<CalendarDays className="h-4 w-4" />
+						Calendar
+					</TabsTrigger>
+					<TabsTrigger value="my-bookings" className="gap-1.5">
+						<User className="h-4 w-4" />
+						My Bookings
+					</TabsTrigger>
+					{canManageRequests && (
+						<TabsTrigger value="requests" className="gap-1.5">
+							<ClipboardList className="h-4 w-4" />
+							Booking Requests
+						</TabsTrigger>
+					)}
+				</TabsList>
+
+				<TabsContent value="calendar" className="mt-6">
+					<RoomBookingCalendar onSelectedDateChange={setSelectedCalendarDate} />
+				</TabsContent>
+
+				<TabsContent value="my-bookings" className="mt-6">
+					<MyBookingsList />
+				</TabsContent>
+
+				{canManageRequests && (
+					<TabsContent value="requests" className="mt-6">
+						<BookingRequestsList />
+					</TabsContent>
+				)}
+			</Tabs>
+
+			<CreateBookingModal
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
 				selectedTime=""
-				selectedDate=""
+				selectedDate={selectedCalendarDate}
 			/>
 		</div>
 	);

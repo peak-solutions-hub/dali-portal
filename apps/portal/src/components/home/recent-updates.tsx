@@ -1,8 +1,8 @@
 import { Card } from "@repo/ui/components/card";
 import { Calendar, FileText } from "@repo/ui/lib/lucide-react";
+import { getSessionTypeBadgeClass } from "@repo/ui/lib/session-ui";
 import { format } from "date-fns";
 import Link from "next/link";
-import { getSessionTypeBadgeClass } from "@/lib/session-ui";
 
 interface Document {
 	id: string;
@@ -205,7 +205,7 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 													</p>
 													<p className="text-sm text-gray-500">10:00 AM</p>
 													<p className="text-xs text-[#a60202] mt-2 font-medium">
-														View Proposed Agenda →
+														View Session →
 													</p>
 												</div>
 											</div>

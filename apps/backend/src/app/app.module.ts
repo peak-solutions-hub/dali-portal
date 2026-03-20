@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD, REQUEST } from "@nestjs/core";
+import { PassportModule } from "@nestjs/passport";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { ORPCError, ORPCModule, onError } from "@orpc/nest";
 import { experimental_RethrowHandlerPlugin as RethrowHandlerPlugin } from "@orpc/server/plugins";
@@ -7,9 +8,11 @@ import { Request } from "express";
 import { AppController } from "@/app/app.controller";
 import { AssistanceRecordModule } from "@/app/assistance-record/assistance-record.module";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
+import { JwtStrategy } from "@/app/auth/strategies/jwt.strategy";
 import { BeneficiaryModule } from "@/app/beneficiary/beneficiary.module";
 import { DbModule } from "@/app/db/db.module";
 import {
+	DriverAdapterExceptionFilter,
 	PrismaClientExceptionFilter,
 	PrismaInitializationExceptionFilter,
 	PrismaRustPanicExceptionFilter,
@@ -20,6 +23,7 @@ import { ThrottlerExceptionFilter } from "@/app/exceptions/throttler-exception.f
 import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module";
 import { LegislativeDocumentsModule } from "@/app/legislative-documents/legislative-documents.module";
 import { RolesModule } from "@/app/roles/roles.module";
+import { RoomBookingModule } from "@/app/room-booking/room-booking.module";
 import { ScholarshipApplicationModule } from "@/app/scholarship-application/scholarship-application.module";
 import { SessionModule } from "@/app/session/session.module";
 import { UsersModule } from "@/app/users/users.module";
@@ -43,9 +47,11 @@ declare module "@orpc/nest" {
 		LibModule,
 		DbModule,
 		SupabaseModule,
+		PassportModule,
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
 		RolesModule,
+		RoomBookingModule,
 		UsersModule,
 		SessionModule,
 		VisitorLogModule,
@@ -92,6 +98,7 @@ declare module "@orpc/nest" {
 	controllers: [AppController],
 	providers: [
 		AppService,
+		JwtStrategy,
 		// Global guards - applied to all routes
 		// RolesGuard handles both authentication and authorization
 		// Routes without @Roles() decorator are public (no authentication required)
@@ -130,6 +137,11 @@ declare module "@orpc/nest" {
 		{
 			provide: APP_FILTER,
 			useClass: PrismaRustPanicExceptionFilter,
+		},
+		// Driver adapter errors (pool exhaustion from @prisma/adapter-pg)
+		{
+			provide: APP_FILTER,
+			useClass: DriverAdapterExceptionFilter,
 		},
 	],
 })

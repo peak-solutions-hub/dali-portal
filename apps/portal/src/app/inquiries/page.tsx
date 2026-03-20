@@ -1,19 +1,29 @@
+import type { Metadata } from "next";
 import { InquiryTabs } from "@/components/inquiries/inquiry-tabs";
+import { createPageMetadata } from "@/lib/seo-metadata";
+
+export const metadata: Metadata = createPageMetadata({
+	title: "Submit an Inquiry — Iloilo City",
+	description:
+		"Submit a concern, request an appointment, or follow up on a document request with the Iloilo City Vice Mayor's Office.",
+	url: "/inquiries",
+	imagePath: "/inquiries/opengraph-image",
+});
 
 type PageProps = {
 	searchParams: Promise<{
 		tab?: string;
 		// for auto filling the track form if user clicks through from email
 		ref?: string;
-		email?: string;
+		contact?: string;
 	}>;
 };
 
 export default async function InquiriesPage({ searchParams }: PageProps) {
 	const params = await searchParams;
 
-	// If ref and email are provided (from email link), auto-switch to track tab
-	const activeTab = params.ref && params.email ? "track" : params.tab;
+	// If ref and contact are provided (from email link), auto-switch to track tab
+	const activeTab = params.ref && params.contact ? "track" : params.tab;
 
 	return (
 		<div className="min-h-screen bg-gray-50/50 pb-24">
@@ -35,7 +45,7 @@ export default async function InquiriesPage({ searchParams }: PageProps) {
 						<InquiryTabs
 							activeTab={activeTab}
 							prefillRef={params.ref}
-							prefillEmail={params.email}
+							prefillContact={params.contact}
 						/>
 					</div>
 				</div>

@@ -1,10 +1,19 @@
 import { isDefinedError } from "@orpc/client";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { InquiryDetails } from "@/components/inquiries/inquiry-details";
 import { api } from "@/lib/api.client";
 
 interface PageProps {
 	params: Promise<{ id: string }>;
+}
+
+export function generateMetadata(): Metadata {
+	return {
+		title: "Inquiry Details",
+		description: "Track and view inquiry details.",
+		robots: { index: false, follow: false },
+	};
 }
 
 export default async function InquiryPage({ params }: PageProps) {

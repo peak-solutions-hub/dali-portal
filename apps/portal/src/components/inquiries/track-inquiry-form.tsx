@@ -1,10 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-	TrackInquiryTicketInput,
-	TrackInquiryTicketSchema,
-} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import {
@@ -20,7 +16,7 @@ import {
 	AlertCircle,
 	ArrowRight,
 	Loader2,
-	Mail,
+	Phone,
 	Ticket,
 } from "@repo/ui/lib/lucide-react";
 import { useRouter } from "next/navigation";
@@ -30,17 +26,21 @@ import { useTrackInquiry } from "@/hooks/inquiries/use-track-inquiry";
 import { isCaptchaError } from "@/utils/captcha-utils";
 import { CaptchaErrorModal } from "./captcha-error-modal";
 import { InquiryFormHeader } from "./form/inquiry-form-header";
+import {
+	TrackInquiryFormSchema,
+	type TrackInquiryFormValues,
+} from "./form/schema";
 
 interface TrackInquiryFormProps {
 	/** Pre-fill reference number from email link */
 	prefillRef?: string;
-	/** Pre-fill email from email link */
-	prefillEmail?: string;
+	/** Pre-fill contact number for tracking */
+	prefillContact?: string;
 }
 
 export function TrackInquiryForm({
 	prefillRef,
-	prefillEmail,
+	prefillContact,
 }: TrackInquiryFormProps) {
 	const router = useRouter();
 	const hasAutoTracked = useRef(false);
@@ -54,26 +54,26 @@ export function TrackInquiryForm({
 		},
 	});
 
-	const form = useForm<TrackInquiryTicketInput>({
-		resolver: zodResolver(TrackInquiryTicketSchema),
+	const form = useForm<TrackInquiryFormValues>({
+		resolver: zodResolver(TrackInquiryFormSchema),
 		mode: "onChange",
 		reValidateMode: "onChange",
 		defaultValues: {
 			referenceNumber: prefillRef ?? "",
-			citizenEmail: prefillEmail ?? "",
+			citizenContactNumber: prefillContact ?? "",
 		},
 	});
 
 	// Auto-track when prefill values are provided (from email link)
 	useEffect(() => {
-		if (prefillRef && prefillEmail && !hasAutoTracked.current) {
+		if (prefillRef && prefillContact && !hasAutoTracked.current) {
 			hasAutoTracked.current = true;
 			track({
 				referenceNumber: prefillRef,
-				citizenEmail: prefillEmail,
+				citizenContactNumber: prefillContact,
 			});
 		}
-	}, [prefillRef, prefillEmail, track]);
+	}, [prefillRef, prefillContact, track]);
 
 	// Show captcha errors in modal
 	useEffect(() => {
@@ -84,12 +84,28 @@ export function TrackInquiryForm({
 		}
 	}, [error, clearError]);
 
-	const onSubmit = async (data: TrackInquiryTicketInput) => {
+	const onSubmit = async (data: TrackInquiryFormValues) => {
+		// Strict contact number check on submit — the lenient on-change schema allows
+		// valid partials (e.g. "09") to pass while typing, so we re-validate here
+		// to catch incomplete numbers before reaching the API.
+		const normalizedContact = data.citizenContactNumber.replace(/[\s-]/g, "");
+		if (
+			!/^09\d{9}$/.test(normalizedContact) &&
+			!/^\+639\d{9}$/.test(normalizedContact)
+		) {
+			form.setError("citizenContactNumber", {
+				type: "manual",
+				message:
+					"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+			});
+			form.setFocus("citizenContactNumber");
+			return;
+		}
 		await track(data);
 	};
 
 	// Show loading state when auto-tracking from email link
-	const isAutoTracking = prefillRef && prefillEmail && isTracking && !error;
+	const isAutoTracking = prefillRef && prefillContact && isTracking && !error;
 
 	if (isAutoTracking) {
 		return (
@@ -154,18 +170,18 @@ export function TrackInquiryForm({
 
 							<FormField
 								control={form.control}
-								name="citizenEmail"
+								name="citizenContactNumber"
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel className="text-gray-700 font-medium">
-											Email Address
+											Contact Number
 										</FormLabel>
 										<FormControl>
 											<div className="relative group">
-												<Mail className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
+												<Phone className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
 												<Input
-													type="email"
-													placeholder="juan@example.com"
+													type="tel"
+													placeholder="09171234567"
 													className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all"
 													{...field}
 												/>
