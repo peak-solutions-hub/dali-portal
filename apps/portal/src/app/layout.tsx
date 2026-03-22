@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
 import "@repo/ui/globals.css";
+import { OfflineUI } from "@repo/ui/components/offline-ui";
+import { StreamGuard } from "@repo/ui/components/stream-guard";
 import { PublicFooter, PublicHeader } from "@/components/layout/";
 import {
 	BASE_OPEN_GRAPH,
@@ -53,7 +55,6 @@ export const metadata: Metadata = {
 		telephone: false,
 	},
 };
-
 export default function RootLayout({
 	children,
 }: Readonly<{
@@ -65,7 +66,9 @@ export default function RootLayout({
 				className={`${inter.variable} ${playfairDisplay.variable} antialiased flex flex-col min-h-screen`}
 			>
 				<PublicHeader />
-				<main className="flex-1 pt-18 sm:pt-20">{children}</main>
+				<main className="flex-1 pt-18 sm:pt-20">
+					<StreamGuard fallback={<OfflineUI />}> {children} </StreamGuard>
+				</main>
 				<PublicFooter />
 				<Toaster position="bottom-right" richColors />
 			</body>
