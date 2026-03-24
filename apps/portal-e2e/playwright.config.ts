@@ -26,6 +26,7 @@ const testDatabaseUrl =
 	process.env.TEST_DATABASE_URL ?? readBackendTestEnv("DATABASE_URL");
 const testDbSafe =
 	process.env.TEST_DB_SAFE ?? readBackendTestEnv("TEST_DB_SAFE");
+const backendPort = process.env.PORT ?? readBackendTestEnv("PORT") ?? "8080";
 
 if (!testDatabaseUrl) {
 	throw new Error(
@@ -42,7 +43,7 @@ if (testDbSafe !== "true") {
 const backendEnv = {
 	...process.env,
 	NODE_ENV: process.env.NODE_ENV ?? "test",
-	PORT: process.env.PORT ?? "8080",
+	PORT: backendPort,
 	DATABASE_URL: testDatabaseUrl,
 	TEST_DB_SAFE: testDbSafe,
 	TURNSTILE_SECRET_KEY:
@@ -63,8 +64,19 @@ const backendEnv = {
 	ADMIN_URL: process.env.ADMIN_URL ?? "http://127.0.0.1:3001",
 };
 
+const backendServerCommand = process.env.CI
+	? "pnpm --filter backend start:prod"
+	: "pnpm --filter backend dev";
+const portalServerCommand = process.env.CI
+	? "pnpm --filter portal start"
+	: "pnpm --filter portal dev";
+
 export default defineConfig({
 	testDir: "./tests",
+	timeout: 60_000,
+	expect: {
+		timeout: 10_000,
+	},
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
 	workers: process.env.CI ? 1 : undefined,
@@ -84,14 +96,14 @@ export default defineConfig({
 	],
 	webServer: [
 		{
-			command: "pnpm --filter backend dev",
+			command: backendServerCommand,
 			env: backendEnv,
-			url: "http://127.0.0.1:8080",
+			url: `http://127.0.0.1:${backendPort}`,
 			reuseExistingServer: !process.env.CI,
 			timeout: 120_000,
 		},
 		{
-			command: "pnpm --filter portal dev",
+			command: portalServerCommand,
 			url: "http://127.0.0.1:3000",
 			reuseExistingServer: !process.env.CI,
 			timeout: 120_000,

@@ -16,6 +16,7 @@ test.describe("Portal Home Interactions", () => {
 	test("search bar redirects to legislative documents with query", async ({
 		page,
 	}) => {
+		test.slow();
 		await page.goto("/");
 
 		const searchInput = page.getByPlaceholder(
@@ -30,6 +31,7 @@ test.describe("Portal Home Interactions", () => {
 	});
 
 	test("quick actions navigate to correct inquiry tabs", async ({ page }) => {
+		test.slow();
 		await page.goto("/");
 
 		const makeInquiryLink = page

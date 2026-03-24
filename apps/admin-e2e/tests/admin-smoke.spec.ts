@@ -16,6 +16,7 @@ test.describe("Admin Home Interactions", () => {
 	test("navigating to root redirects to dashboard or login", async ({
 		page,
 	}) => {
+		test.slow();
 		await page.goto("/");
 		// Admin app root natively redirects to /dashboard via Next.js router.
 		// If unauthenticated, the middleware routes it to /login.

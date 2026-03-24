@@ -1,6 +1,30 @@
+import fs from "node:fs";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 
-const BACKEND_URL = "http://127.0.0.1:8080";
+const backendTestEnvPath = path.resolve(process.cwd(), "../backend/.env.test");
+
+function readBackendTestEnv(key: string): string | undefined {
+	if (!fs.existsSync(backendTestEnvPath)) {
+		return undefined;
+	}
+
+	const content = fs.readFileSync(backendTestEnvPath, "utf-8");
+	const line = content
+		.split(/\r?\n/)
+		.find((entry) => entry.trim().startsWith(`${key}=`));
+
+	if (!line) {
+		return undefined;
+	}
+
+	const raw = line.slice(line.indexOf("=") + 1).trim();
+	return raw.replace(/^['"]|['"]$/g, "");
+}
+
+const BACKEND_PORT = process.env.PORT ?? readBackendTestEnv("PORT") ?? "8080";
+const BACKEND_URL =
+	process.env.BACKEND_URL ?? `http://127.0.0.1:${BACKEND_PORT}`;
 
 test.describe("Backend API smoke tests", () => {
 	test("GET / returns 200", async ({ request }) => {
