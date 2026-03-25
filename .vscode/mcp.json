@@ -8,9 +8,13 @@
 			"type": "http",
 			"url": "https://mcp.context7.com/mcp"
 		},
-		"supabase": {
+		"supabase-dev": {
 			"type": "http",
 			"url": "https://mcp.supabase.com/mcp?project_ref=nuhhfqopetrlqzheqthe&features=storage%2Cdocs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment"
+		},
+		"supabase-test": {
+			"type": "http",
+			"url": "https://mcp.supabase.com/mcp?project_ref=chpzylvkzntkqiljozbg&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cstorage"
 		},
 		"figma": {
 			"type": "http",

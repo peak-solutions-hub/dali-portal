@@ -35,9 +35,9 @@ export default () => ({
 	turnstile: {
 		secretKey:
 			process.env.TURNSTILE_SECRET_KEY ??
-			(process.env.NODE_ENV === "production"
-				? undefined
-				: "test-turnstile-secret-key"),
+			(process.env.NODE_ENV === "test"
+				? "test-turnstile-secret-key"
+				: undefined),
 		timeout: 10000,
 		// abort request if it takes longer than 10s
 	},
@@ -45,9 +45,7 @@ export default () => ({
 	resend: {
 		apiKey:
 			process.env.RESEND_API_KEY ??
-			(process.env.NODE_ENV === "production"
-				? undefined
-				: "test-resend-api-key"),
+			(process.env.NODE_ENV === "test" ? "test-resend-api-key" : undefined),
 	},
 	// supabase
 	supabase: {

@@ -65,8 +65,8 @@ const backendEnv = {
 };
 
 const backendServerCommand = process.env.CI
-	? "pnpm --filter backend start:prod"
-	: "pnpm --filter backend dev";
+	? "pnpm --filter backend db:test:prepare && pnpm --filter backend start:prod"
+	: "pnpm --filter backend db:test:prepare && pnpm --filter backend dev";
 const portalServerCommand = process.env.CI
 	? "pnpm --filter portal start"
 	: "pnpm --filter portal dev";

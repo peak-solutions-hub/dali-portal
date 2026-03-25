@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  baseline-browser-mapping: latest
+  baseline-browser-mapping: 2.10.8
 
 importers:
 
@@ -24,7 +24,7 @@ importers:
         specifier: ^1.58.2
         version: 1.58.2
       baseline-browser-mapping:
-        specifier: latest
+        specifier: 2.10.8
         version: 2.10.8
       concurrently:
         specifier: ^9.2.1
@@ -121,7 +121,7 @@ importers:
         specifier: ^19
         version: 19.2.2(@types/react@19.2.2)
       baseline-browser-mapping:
-        specifier: latest
+        specifier: 2.10.8
         version: 2.10.8
       tailwindcss:
         specifier: ^4.1.18
@@ -324,7 +324,7 @@ importers:
         specifier: ^2.16.0
         version: 2.16.0
       baseline-browser-mapping:
-        specifier: latest
+        specifier: 2.10.8
         version: 2.10.8
       tailwindcss:
         specifier: ^4.1.18

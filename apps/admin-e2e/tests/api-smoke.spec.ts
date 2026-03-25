@@ -32,7 +32,7 @@ test.describe("Backend API smoke tests", () => {
 		expect(response.ok()).toBeTruthy();
 	});
 
-	test("API responds with valid JSON on known endpoint", async ({
+	test("API known endpoint responds without server error", async ({
 		request,
 	}) => {
 		const response = await request.get(`${BACKEND_URL}/`);
