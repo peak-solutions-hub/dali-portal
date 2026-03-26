@@ -83,7 +83,7 @@ export const updateRoomBookingStatus = oc
 		path: "/bookings/{id}/status",
 		summary: "Approve or reject a pending booking",
 		description:
-			"Transitions a PENDING booking to CONFIRMED or REJECTED. Re-runs conflict detection before confirming. Restricted to head_admin, vice_mayor, and admin_staff.",
+			"Transitions a PENDING booking to CONFIRMED or REJECTED. Re-runs conflict detection before confirming. Restricted to head_admin, vice_mayor, admin_staff, legislative_staff, and ovm_staff.",
 		tags: ["Room Booking", "Admin"],
 	})
 	.errors({
@@ -151,7 +151,7 @@ export const generateBookingUploadUrl = oc
 		path: "/bookings/upload-url",
 		summary: "Generate a signed upload URL for a booking attachment",
 		description:
-			"Returns a short-lived Supabase signed upload URL. The client uploads the file directly to Supabase Storage and then passes the resulting path in CreateRoomBooking.attachmentUrl. File must be PDF, JPEG, or JPG and ≤ 5 MB.",
+			"Returns a short-lived Supabase signed upload URL. The client uploads the file directly to Supabase Storage and then passes the resulting path in CreateRoomBooking.attachmentUrl. File must be PDF, PNG, JPG/JPEG, DOC, or DOCX and ≤ 5 MB.",
 		tags: ["Room Booking", "Admin"],
 	})
 	.errors({

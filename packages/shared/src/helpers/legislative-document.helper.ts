@@ -4,6 +4,11 @@
  */
 
 import { z } from "zod";
+import {
+	LEGISLATIVE_ITEMS_PER_PAGE,
+	LEGISLATIVE_MAX_ITEMS_PER_PAGE,
+	LEGISLATIVE_YEAR_MIN,
+} from "../constants/legislative-document-rules";
 import { ClassificationType } from "../enums/document";
 import { LegislativeDocumentType } from "../enums/legislative-document";
 import {
@@ -101,8 +106,9 @@ export const CLASSIFICATION_TYPES = Object.entries(
 
 /**
  * Default items per page for pagination
+ * @deprecated Use LEGISLATIVE_ITEMS_PER_PAGE from constants instead
  */
-export const ITEMS_PER_PAGE = 10;
+export const ITEMS_PER_PAGE = LEGISLATIVE_ITEMS_PER_PAGE;
 
 /**
  * Format a date to Philippine locale format (e.g., "January 15, 2024")
@@ -232,7 +238,11 @@ export const searchParamsSchema = z.object({
 		.default("all")
 		.transform((val) => (val === "" ? "all" : val)),
 	year: z
-		.union([z.coerce.number().int().min(1950), z.literal("all"), z.literal("")])
+		.union([
+			z.coerce.number().int().min(LEGISLATIVE_YEAR_MIN),
+			z.literal("all"),
+			z.literal(""),
+		])
 		.optional()
 		.default("all")
 		.transform((val) => (val === "" ? "all" : val)),
@@ -246,9 +256,9 @@ export const searchParamsSchema = z.object({
 		.number()
 		.int()
 		.min(1)
-		.max(100)
+		.max(LEGISLATIVE_MAX_ITEMS_PER_PAGE)
 		.optional()
-		.default(ITEMS_PER_PAGE),
+		.default(LEGISLATIVE_ITEMS_PER_PAGE),
 });
 
 export type SearchParams = z.infer<typeof searchParamsSchema>;

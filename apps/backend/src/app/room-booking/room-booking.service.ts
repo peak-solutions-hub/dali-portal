@@ -97,7 +97,7 @@ export class RoomBookingService {
 		const conflicting = await this.db.roomBooking.findFirst({
 			where: {
 				room: room as never,
-				status: "confirmed",
+				OR: [{ status: "confirmed" }, { status: "pending" }],
 				...(excludeBookingId && {
 					id: { not: excludeBookingId },
 				}),

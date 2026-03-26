@@ -58,6 +58,7 @@ interface BookingFormFieldsProps {
 	values: BookingFormValues;
 	onChange: (field: keyof BookingFormValues, value: unknown) => void;
 	fieldErrors?: Partial<Record<keyof BookingFormValues, string>>;
+	selectedRoomConflictNote?: string | null;
 	/** Optional room availability metadata used to disable and annotate room options. */
 	roomAvailability?: Partial<
 		Record<ConferenceRoom, { disabled: boolean; note?: string }>
@@ -73,12 +74,15 @@ interface BookingFormFieldsProps {
 	/** File validation error. */
 	fileError: string | null;
 	onFileError: (msg: string | null) => void;
+	isUploadingAttachment?: boolean;
+	uploadProgress?: number | null;
 }
 
 export function BookingFormFields({
 	values,
 	onChange,
 	fieldErrors,
+	selectedRoomConflictNote,
 	roomAvailability,
 	existingAttachmentUrl,
 	removeExistingAttachment,
@@ -86,9 +90,11 @@ export function BookingFormFields({
 	error,
 	fileError,
 	onFileError,
+	isUploadingAttachment = false,
+	uploadProgress = null,
 }: BookingFormFieldsProps) {
 	const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
-	const { maxFileSize } = FILE_UPLOAD_PRESETS.ATTACHMENTS;
+	const { maxFileSize, allowedMimeTypes } = FILE_UPLOAD_PRESETS.ATTACHMENTS;
 	const formErrorRef = useRef<HTMLDivElement | null>(null);
 	const roomErrorRef = useRef<HTMLDivElement | null>(null);
 	const dateErrorRef = useRef<HTMLDivElement | null>(null);
@@ -109,7 +115,7 @@ export function BookingFormFields({
 		path: "room-bookings",
 		maxFiles: 1,
 		maxFileSize,
-		allowedMimeTypes: ["application/pdf", "image/jpeg", "image/jpg"],
+		allowedMimeTypes: [...allowedMimeTypes],
 	});
 
 	useEffect(() => {
@@ -179,6 +185,8 @@ export function BookingFormFields({
 			target = titleErrorRef.current;
 		} else if (fieldErrors?.requestedFor) {
 			target = requestedForErrorRef.current;
+		} else if (selectedRoomConflictNote) {
+			target = roomErrorRef.current;
 		} else if (fileError) {
 			target = fileErrorRef.current;
 		}
@@ -190,7 +198,7 @@ export function BookingFormFields({
 		requestAnimationFrame(() => {
 			target?.scrollIntoView({ behavior: "smooth", block: "center" });
 		});
-	}, [error, fieldErrors, fileError]);
+	}, [error, fieldErrors, fileError, selectedRoomConflictNote]);
 
 	const handleRemoveFile = () => {
 		setFiles([]);
@@ -261,9 +269,15 @@ export function BookingFormFields({
 				{fieldErrors?.room && (
 					<p className="text-sm text-red-600 mt-2">{fieldErrors.room}</p>
 				)}
+				{selectedRoomConflictNote && !fieldErrors?.room && (
+					<p className="text-sm text-red-700 mt-2">
+						This room is occupied for the selected schedule:{" "}
+						{selectedRoomConflictNote}
+					</p>
+				)}
 				{allRoomsBooked && !fieldErrors?.room && (
-					<p className="text-sm text-amber-700 mt-2">
-						All conference rooms are already booked for the selected time.
+					<p className="text-sm text-amber-700 mt-2" role="status">
+						All conference rooms are currently occupied for this date and time.
 					</p>
 				)}
 			</div>
@@ -436,8 +450,8 @@ export function BookingFormFields({
 							<div className="p-2 rounded-lg bg-gray-100">
 								<FileText className="h-5 w-5 text-gray-600" />
 							</div>
-							<div className="flex flex-col min-w-0 flex-1">
-								<span className="text-sm font-medium text-gray-900 truncate">
+							<div className="flex flex-col min-w-0 flex-1 max-w-full overflow-hidden">
+								<span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-gray-900">
 									{decodeURIComponent(
 										(existingAttachmentUrl.split("?")[0] ?? "")
 											.split("/")
@@ -501,10 +515,26 @@ export function BookingFormFields({
 							Click to upload or drag and drop
 						</p>
 						<p className="text-xs text-gray-500">
-							PDF, JPG, JPEG • Max 1 file • {formatBytes(maxFileSize)}
+							PDF, DOC, DOCX, JPG, JPEG, PNG • Max 1 file •{" "}
+							{formatBytes(maxFileSize)}
 						</p>
 					</div>
 				</div>
+
+				{isUploadingAttachment && (
+					<div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+						<p className="text-sm font-medium text-blue-800">
+							Uploading attachment
+							{uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}
+						</p>
+						<div className="mt-2 h-2 w-full rounded-full bg-blue-100">
+							<div
+								className="h-2 rounded-full bg-blue-600 transition-all"
+								style={{ width: `${uploadProgress ?? 0}%` }}
+							/>
+						</div>
+					</div>
+				)}
 
 				{files.length > 0 && (
 					<div className="grid gap-3 animate-in fade-in slide-in-from-top-1 mt-3">
@@ -513,13 +543,13 @@ export function BookingFormFields({
 							return (
 								<div
 									key={`${file.name}-${index}`}
-									className={`flex items-center justify-between p-3 rounded-xl border shadow-sm group transition-all ${
+									className={`flex max-w-full items-center gap-2 overflow-hidden p-3 rounded-xl border shadow-sm group transition-all ${
 										hasError
 											? "bg-red-50 border-red-200 hover:border-red-300"
 											: "bg-white border-gray-200 hover:border-[#a60202]/30"
 									}`}
 								>
-									<div className="flex items-center gap-3 overflow-hidden">
+									<div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden max-w-full">
 										<div
 											className={`p-2.5 rounded-lg ${
 												hasError
@@ -533,22 +563,23 @@ export function BookingFormFields({
 												<FileText className="h-4 w-4" />
 											)}
 										</div>
-										<div className="flex flex-col min-w-0">
+										<div className="flex flex-col min-w-0 flex-1 max-w-full overflow-hidden">
 											<span
 												className={`text-sm font-medium truncate transition-colors ${
 													hasError
 														? "text-red-700"
 														: "text-gray-700 group-hover:text-[#a60202]"
 												}`}
+												title={file.name}
 											>
 												{file.name}
 											</span>
-											<div className="flex items-center gap-2">
+											<div className="flex min-w-0 items-center gap-2">
 												<span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
 													{formatBytes(file.size, 2)}
 												</span>
 												{hasError && (
-													<span className="text-[10px] text-red-600 font-medium">
+													<span className="truncate text-[10px] text-red-600 font-medium">
 														{file.errors[0]?.message || "Invalid file"}
 													</span>
 												)}
@@ -561,7 +592,7 @@ export function BookingFormFields({
 											e.stopPropagation();
 											handleRemoveFile();
 										}}
-										className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
+										className="shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
 										aria-label={`Remove ${file.name}`}
 									>
 										<X className="h-4 w-4" />
