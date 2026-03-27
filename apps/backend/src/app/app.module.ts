@@ -73,7 +73,7 @@ declare module "@orpc/nest" {
 		// global rate limit
 		ThrottlerModule.forRoot([
 			{
-				// for bots: 3 reqs per sec
+				// for bots: 10 reqs per sec
 				name: "short",
 				ttl: 1000,
 				limit: 10,

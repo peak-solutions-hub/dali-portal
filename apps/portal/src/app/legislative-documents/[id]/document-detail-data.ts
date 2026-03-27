@@ -14,7 +14,7 @@ export interface CachedDocumentDetailResult {
 
 export function parseLegislativeDocumentId(id: string): number | null {
 	const idNum = Number(id);
-	if (!Number.isFinite(idNum) || idNum <= 0) {
+	if (!Number.isFinite(idNum) || !Number.isInteger(idNum) || idNum <= 0) {
 		return null;
 	}
 

@@ -1,5 +1,5 @@
 import { Controller } from "@nestjs/common";
-import { SkipThrottle, Throttle } from "@nestjs/throttler";
+import { SkipThrottle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { LegislativeDocumentsService } from "./legislative-documents.service";
