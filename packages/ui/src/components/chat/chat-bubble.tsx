@@ -1,3 +1,4 @@
+import { formatDateTimeInPHT } from "@repo/shared";
 import { Download, FileIcon, Shield } from "@repo/ui/lib/lucide-react";
 import type { ChatItem } from "./types";
 
@@ -10,13 +11,7 @@ interface ChatBubbleProps {
 }
 
 function formatTimestamp(iso: string) {
-	return new Date(iso).toLocaleString("en-US", {
-		month: "short",
-		day: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-		hour12: true,
-	});
+	return formatDateTimeInPHT(iso);
 }
 
 export function ChatBubble({

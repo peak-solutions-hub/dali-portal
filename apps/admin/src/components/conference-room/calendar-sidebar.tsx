@@ -1,5 +1,11 @@
 "use client";
 
+import {
+	formatFullDate,
+	getCalendarDays,
+	isSameDay,
+	monthNames,
+} from "@repo/shared";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
 	Calendar,
@@ -9,12 +15,6 @@ import {
 	MapPin,
 } from "lucide-react";
 import type { CalendarBooking } from "@/utils/booking-helpers";
-import {
-	formatFullDate,
-	getCalendarDays,
-	isSameDay,
-	monthNames,
-} from "@/utils/date-utils";
 
 interface CalendarSidebarProps {
 	currentDate: Date;

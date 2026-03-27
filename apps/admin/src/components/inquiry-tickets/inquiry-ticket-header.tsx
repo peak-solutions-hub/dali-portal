@@ -1,7 +1,11 @@
 "use client";
 
 import type { InquiryTicketWithMessagesResponse } from "@repo/shared";
-import { formatCitizenDisplayName, formatInquiryCategory } from "@repo/shared";
+import {
+	formatCitizenDisplayName,
+	formatDateTimeInPHT,
+	formatInquiryCategory,
+} from "@repo/shared";
 import { InquiryStatusBadge } from "@repo/ui/components/inquiry-status-badge";
 import { Separator } from "@repo/ui/components/separator";
 import { cn } from "@repo/ui/lib/utils";
@@ -135,14 +139,7 @@ export function InquiryTicketHeader({ ticket }: InquiryTicketHeaderProps) {
 											Date Submitted
 										</div>
 										<p className="text-sm font-medium truncate">
-											{new Date(ticket.createdAt).toLocaleString("en-US", {
-												month: "short",
-												day: "numeric",
-												year: "numeric",
-												hour: "numeric",
-												minute: "2-digit",
-												hour12: true,
-											})}
+											{formatDateTimeInPHT(ticket.createdAt)}
 										</p>
 									</div>
 									<div className="space-y-0.5 min-w-0 overflow-hidden">
