@@ -18,7 +18,7 @@ export function QuickActions() {
 					<div className="flex items-center gap-4 flex-1 lg:flex-initial justify-center">
 						{/* Make an Inquiry */}
 						<Link
-							href="/inquiries?tab=make"
+							href="/inquiries?tab=submit"
 							className="group flex items-center gap-3 px-6 py-3 bg-white/10 hover:bg-white/20 border-2 border-white/30 hover:border-white/50 rounded-md transition-all duration-200"
 						>
 							<MessageSquarePlus className="w-5 h-5 text-white" />
