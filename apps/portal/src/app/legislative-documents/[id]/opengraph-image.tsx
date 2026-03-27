@@ -1,6 +1,9 @@
 import { ImageResponse } from "next/og";
 
-import { api } from "@/lib/api.client";
+import {
+	getCachedLegislativeDocumentById,
+	parseLegislativeDocumentId,
+} from "./document-detail-data";
 
 export const alt = "Legislative Document Details";
 export const size = { width: 1200, height: 630 };
@@ -14,16 +17,14 @@ export default async function Image({ params }: Props) {
 	const { id } = await params;
 	const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-	const idNum = Number(id);
+	const idNum = parseLegislativeDocumentId(id);
 	let documentType = "Document";
 	let officialNumber = "Legislative Document";
 	let title = "View Details";
 	let dateText = "";
 
-	if (Number.isFinite(idNum) && idNum > 0) {
-		const [error, data] = await api.legislativeDocuments.getById({
-			id: idNum,
-		});
+	if (idNum !== null) {
+		const { error, data } = await getCachedLegislativeDocumentById(idNum);
 
 		if (!error && data) {
 			documentType = data.type === "ordinance" ? "Ordinance" : "Resolution";

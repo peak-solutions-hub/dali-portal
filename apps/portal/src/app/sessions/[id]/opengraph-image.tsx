@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-import { api } from "@/lib/api.client";
+import { getCachedSessionById, isValidSessionId } from "./session-detail-data";
 
 export const alt = "Council Session Details";
 export const size = { width: 1200, height: 630 };
@@ -24,17 +24,14 @@ export default async function Image({ params }: Props) {
 	const { id } = await params;
 	const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-	const uuidRegex =
-		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 	let sessionNumber = "";
 	let sessionType = "Council Session";
 	let sessionStatus = "";
 	let dateText = "";
 	let timeText = "";
 
-	if (uuidRegex.test(id)) {
-		const [error, data] = await api.sessions.getById({ id });
+	if (isValidSessionId(id)) {
+		const { error, data } = await getCachedSessionById(id);
 
 		if (!error && data) {
 			sessionNumber = `Session #${data.sessionNumber}`;

@@ -1,4 +1,3 @@
-import { isDefinedError } from "@orpc/client";
 import {
 	formatSessionDate,
 	formatSessionTime,
@@ -21,7 +20,7 @@ import {
 } from "@repo/ui/lib/session-ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { api } from "@/lib/api.client";
+import type { CachedSessionDetailResult } from "@/app/sessions/[id]/session-detail-data";
 import { DocumentViewButton } from "./document-view-button";
 import { DownloadAgendaButton } from "./download-agenda-button";
 import { QuillContent } from "./quill-content";
@@ -29,18 +28,20 @@ import { SessionDetailStyles } from "./session-detail-styles";
 import { SessionQuickNav } from "./session-quick-nav";
 import { SessionViewSwitcher } from "./session-view-switcher";
 
-export async function SessionDetailContent({
+export function SessionDetailContent({
 	id,
 	searchParams,
+	sessionResult,
 }: {
 	id: string;
 	searchParams: { [key: string]: string | string[] | undefined };
+	sessionResult: CachedSessionDetailResult;
 }) {
-	const [error, sessionData] = await api.sessions.getById({ id });
+	const { error, data: sessionData } = sessionResult;
 	if (error) {
-		if (isDefinedError(error) && error.code === "SESSION.NOT_FOUND") notFound();
+		if (error.defined && error.code === "SESSION.NOT_FOUND") notFound();
 		// Render a user-friendly error card for other failures
-		const errorDetail = isDefinedError(error) ? error.message : undefined;
+		const errorDetail = error.message;
 		return (
 			<>
 				<div className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm">
