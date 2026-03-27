@@ -16,12 +16,11 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 	const [isPending, startTransition] = useTransition();
 
 	useEffect(() => {
-		console.error("Legislative documents route error:", error);
+		console.error("Sessions route error:", error);
 	}, [error]);
 
 	const handleRetry = () => {
 		if (isOnline) {
-			// Use startTransition to trigger a proper re-render
 			startTransition(() => {
 				router.refresh();
 				reset();

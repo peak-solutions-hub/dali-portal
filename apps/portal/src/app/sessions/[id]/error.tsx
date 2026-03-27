@@ -16,12 +16,11 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 	const [isPending, startTransition] = useTransition();
 
 	useEffect(() => {
-		console.error("Legislative document detail route error:", error);
+		console.error("Session detail route error:", error);
 	}, [error]);
 
 	const handleRetry = () => {
 		if (isOnline) {
-			// Use startTransition to trigger a proper re-render
 			startTransition(() => {
 				router.refresh();
 				reset();
@@ -34,7 +33,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
 	const handleBack = () => {
 		startTransition(() => {
-			router.push("/legislative-documents");
+			router.push("/sessions");
 		});
 	};
 
@@ -47,12 +46,12 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
 				<div className="space-y-1.5">
 					<p className="text-base font-semibold text-gray-900">
-						{isOnline ? "Unable to load document" : "No internet connection"}
+						{isOnline ? "Unable to load session" : "No internet connection"}
 					</p>
 					<p className="text-sm text-gray-500">
 						{isOnline
-							? "The document page could not be loaded right now. Please try again."
-							: "The document page could not finish loading while offline. Reconnect and try again."}
+							? "The session page could not be loaded right now. Please try again."
+							: "The session page could not finish loading while offline. Reconnect and try again."}
 					</p>
 				</div>
 
@@ -77,7 +76,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 						className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#0038A8] px-5 py-2.5 text-sm font-semibold text-[#0038A8] hover:bg-[#0038A8]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0038A8] focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						<ChevronLeft className="size-4" aria-hidden="true" />
-						Back to documents
+						Back to sessions
 					</button>
 				</div>
 			</div>

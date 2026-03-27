@@ -1,4 +1,3 @@
-import { isDefinedError } from "@orpc/client";
 import { getClassificationLabel, transformDocumentDates } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
@@ -14,11 +13,15 @@ import {
 	DocumentViewer,
 } from "@/components/legislative-documents/";
 import { ScrollToTop } from "@/components/scroll-to-top";
-import { api } from "@/lib/api.client";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
+import {
+	getCachedLegislativeDocumentById,
+	LEGISLATIVE_DOCUMENT_DETAIL_REVALIDATE_SECONDS,
+	parseLegislativeDocumentId,
+} from "./document-detail-data";
 import DocumentDetailLoading from "./loading";
 
-export const revalidate = 300;
+export const revalidate = LEGISLATIVE_DOCUMENT_DETAIL_REVALIDATE_SECONDS;
 
 interface PageProps {
 	params: Promise<{
@@ -31,18 +34,16 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
 	const { id } = await params;
 
-	// Validate numeric id
-	const idNum = Number(id);
-	if (!Number.isFinite(idNum) || idNum <= 0) {
+	const idNum = parseLegislativeDocumentId(id);
+	if (idNum === null) {
 		return {
 			title: "Invalid Document",
 			description: "Invalid document ID.",
 		};
 	}
 
-	const [error, documentData] = await api.legislativeDocuments.getById({
-		id: idNum,
-	});
+	const { error, data: documentData } =
+		await getCachedLegislativeDocumentById(idNum);
 
 	if (error || !documentData) {
 		return {
@@ -97,25 +98,21 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 }
 
 async function DocumentDetailContent({ id }: { id: string }) {
-	// Validate numeric id
-	const idNum = Number(id);
-	if (!Number.isFinite(idNum) || idNum <= 0) {
+	const idNum = parseLegislativeDocumentId(id);
+	if (idNum === null) {
 		notFound();
 	}
 
-	const [error, documentData] = await api.legislativeDocuments.getById({
-		id: idNum,
-	});
+	const { error, data: documentData } =
+		await getCachedLegislativeDocumentById(idNum);
 
 	if (error) {
-		if (isDefinedError(error) && error.code === "NOT_FOUND") {
+		if (error.defined && error.code === "NOT_FOUND") {
 			notFound();
 		}
 
 		throw new Error(
-			isDefinedError(error)
-				? error.message
-				: "Unable to load legislative document details.",
+			error.message || "Unable to load legislative document details.",
 		);
 	}
 

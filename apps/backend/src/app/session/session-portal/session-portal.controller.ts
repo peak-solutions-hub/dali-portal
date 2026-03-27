@@ -1,5 +1,5 @@
 import { Controller } from "@nestjs/common";
-import { SkipThrottle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { SessionPortalService } from "./session-portal.service";
@@ -8,7 +8,7 @@ import { SessionPortalService } from "./session-portal.service";
 export class SessionPortalController {
 	constructor(private readonly sessionPortalService: SessionPortalService) {}
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.sessions.list)
 	list() {
 		return implement(contract.sessions.list).handler(async ({ input }) => {
@@ -16,7 +16,7 @@ export class SessionPortalController {
 		});
 	}
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.sessions.getById)
 	getById() {
 		return implement(contract.sessions.getById).handler(async ({ input }) => {
@@ -24,7 +24,7 @@ export class SessionPortalController {
 		});
 	}
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.sessions.getAgendaPdfUrl)
 	getAgendaPdfUrl() {
 		return implement(contract.sessions.getAgendaPdfUrl).handler(
@@ -34,7 +34,7 @@ export class SessionPortalController {
 		);
 	}
 
-	@SkipThrottle()
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.sessions.getPublicDocumentFileUrl)
 	getPublicDocumentFileUrl() {
 		return implement(contract.sessions.getPublicDocumentFileUrl).handler(
