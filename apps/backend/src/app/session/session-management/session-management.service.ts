@@ -136,7 +136,7 @@ export class SessionManagementService {
 			throw new AppError("SESSION.CREATION_FAILED");
 		}
 
-		// PHT midnight equals UTC-8h for storage comparisons.
+		// Convert PHT day start (00:00 at UTC+8) to UTC, which is 16:00Z on the previous day.
 		const start = new Date(Date.UTC(year, month - 1, day, -8, 0, 0, 0));
 		const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 

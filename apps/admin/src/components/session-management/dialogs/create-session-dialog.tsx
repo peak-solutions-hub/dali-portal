@@ -26,13 +26,21 @@ import {
 } from "@repo/ui/components/select";
 import { TimePicker } from "@repo/ui/components/time-picker";
 import { Calendar, Loader2, Plus } from "@repo/ui/lib/lucide-react";
-import { format, isBefore, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import { useState } from "react";
 import { api } from "@/lib/api.client";
 
 const PHT_OFFSET_HOURS = 8;
 
-const buildPhtDateTimeAsUtc = (date: Date, time: string): Date => {
+const buildPhtDateTimeAsUtc = (
+	selectedDateInCalendar: string,
+	time: string,
+): Date => {
+	const [rawYear = Number.NaN, rawMonth = Number.NaN, rawDay = Number.NaN] =
+		selectedDateInCalendar.split("-").map((part) => Number(part));
+	const year = Number.isNaN(rawYear) ? 0 : rawYear;
+	const month = Number.isNaN(rawMonth) ? 0 : rawMonth;
+	const day = Number.isNaN(rawDay) ? 0 : rawDay;
 	const [hoursPart = "10", minutesPart = "0"] = time.split(":");
 	const rawHours = Number(hoursPart);
 	const rawMinutes = Number(minutesPart);
@@ -40,15 +48,7 @@ const buildPhtDateTimeAsUtc = (date: Date, time: string): Date => {
 	const minutes = Number.isNaN(rawMinutes) ? 0 : rawMinutes;
 
 	return new Date(
-		Date.UTC(
-			date.getFullYear(),
-			date.getMonth(),
-			date.getDate(),
-			hours - PHT_OFFSET_HOURS,
-			minutes,
-			0,
-			0,
-		),
+		Date.UTC(year, month - 1, day, hours - PHT_OFFSET_HOURS, minutes, 0, 0),
 	);
 };
 
@@ -68,6 +68,7 @@ export function CreateSessionDialog({
 	const [sessionType, setSessionType] = useState("regular");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const todayInPht = formatIsoDateInPHT(new Date());
 
 	const resetForm = () => {
 		setSessionDate(undefined);
@@ -97,8 +98,13 @@ export function CreateSessionDialog({
 				return;
 			}
 
-			const selectedDateInCalendar = format(sessionDate, "yyyy-MM-dd");
-			const todayInPht = formatIsoDateInPHT(new Date());
+			const selectedDateInCalendar = formatIsoDateInPHT(sessionDate);
+
+			if (!selectedDateInCalendar) {
+				setError("Invalid session date");
+				setIsSubmitting(false);
+				return;
+			}
 
 			// Validate date is not in the past (PHT)
 			if (selectedDateInCalendar < todayInPht) {
@@ -108,12 +114,15 @@ export function CreateSessionDialog({
 			}
 
 			// Treat selected date+time as PHT and convert once to UTC for storage.
-			const scheduleDate = buildPhtDateTimeAsUtc(sessionDate, sessionTime);
+			const scheduleDate = buildPhtDateTimeAsUtc(
+				selectedDateInCalendar,
+				sessionTime,
+			);
 
 			// Validate time if selected date is today in PHT
 			if (
 				selectedDateInCalendar === todayInPht &&
-				isBefore(scheduleDate, new Date())
+				scheduleDate.getTime() < Date.now()
 			) {
 				setError("Session time cannot be in the past for today's date");
 				setIsSubmitting(false);
@@ -228,9 +237,10 @@ export function CreateSessionDialog({
 										mode="single"
 										selected={sessionDate}
 										onSelect={setSessionDate}
-										disabled={(date) =>
-											isBefore(startOfDay(date), startOfDay(new Date()))
-										}
+										disabled={(date) => {
+											const dateInPht = formatIsoDateInPHT(date);
+											return !dateInPht || dateInPht < todayInPht;
+										}}
 										classNames={{
 											today: "bg-transparent text-yellow-400 font-normal",
 											day_selected:

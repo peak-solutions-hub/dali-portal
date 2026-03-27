@@ -1,5 +1,6 @@
 "use client";
 
+import { dayNames, getCalendarDays, isSameDay, monthNames } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Popover,
@@ -10,12 +11,6 @@ import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useState } from "react";
 import type { CalendarBooking } from "@/utils/booking-helpers";
-import {
-	dayNames,
-	getCalendarDays,
-	isSameDay,
-	monthNames,
-} from "@/utils/date-utils";
 
 interface MonthViewProps {
 	currentDate: Date;
