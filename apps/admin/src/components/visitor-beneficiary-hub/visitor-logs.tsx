@@ -482,14 +482,30 @@ export function VisitorLogs() {
 											<label className="text-sm font-medium text-gray-700">
 												Contact Number <span className="text-red-500">*</span>
 											</label>
-											<Input
-												value={formState.contactNumber}
-												onChange={(e) =>
-													handleInputChange("contactNumber", e.target.value)
-												}
-												placeholder="e.g. 09171234567"
-												required
-											/>
+											<div className="flex items-center overflow-hidden rounded-md border border-input bg-transparent shadow-xs">
+												<span className="border-r bg-muted px-3 py-2 text-sm text-muted-foreground">
+													+63
+												</span>
+												<Input
+													className="border-0 shadow-none focus-visible:ring-0"
+													value={formState.contactNumber}
+													onChange={(event) =>
+														handleInputChange(
+															"contactNumber",
+															event.target.value
+																.replace(/\D/g, "")
+																.slice(0, 10),
+														)
+													}
+													placeholder="9XXXXXXXXX"
+													inputMode="numeric"
+													pattern="9[0-9]{9}"
+													maxLength={10}
+													autoComplete="tel-national"
+													title="Enter a valid Philippine mobile number (e.g., 9XXXXXXXXX)."
+													required
+												/>
+											</div>
 										</div>
 									</div>
 									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
