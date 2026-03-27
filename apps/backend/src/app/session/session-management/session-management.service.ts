@@ -19,6 +19,7 @@ import {
 	isSessionEditable,
 	isSessionTransitionAllowed,
 	type MarkSessionCompleteInput,
+	PH_TIME_ZONE,
 	type PublishSessionInput,
 	type RemoveAgendaItemInput,
 	type RemoveAgendaPdfInput,
@@ -117,6 +118,29 @@ export class SessionManagementService {
 				dateTo ? { scheduleDate: { lte: dateTo } } : {},
 			],
 		};
+	}
+
+	private getPhtDayRange(date: Date): { start: Date; end: Date } {
+		const parts = new Intl.DateTimeFormat("en-US", {
+			timeZone: PH_TIME_ZONE,
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+		}).formatToParts(date);
+
+		const year = Number(parts.find((part) => part.type === "year")?.value);
+		const month = Number(parts.find((part) => part.type === "month")?.value);
+		const day = Number(parts.find((part) => part.type === "day")?.value);
+
+		if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+			throw new AppError("SESSION.CREATION_FAILED");
+		}
+
+		// PHT midnight equals UTC-8h for storage comparisons.
+		const start = new Date(Date.UTC(year, month - 1, day, -8, 0, 0, 0));
+		const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+		return { start, end };
 	}
 
 	/* ============================
@@ -227,11 +251,10 @@ export class SessionManagementService {
 	 * Create a new draft session (ADMIN)
 	 */
 	async create(input: CreateSessionInput): Promise<AdminSessionResponse> {
-		// Check for duplicate session on the same date
-		const dateStart = new Date(input.scheduleDate);
-		dateStart.setUTCHours(0, 0, 0, 0);
-		const dateEnd = new Date(dateStart);
-		dateEnd.setUTCDate(dateEnd.getUTCDate() + 1);
+		// Check for duplicate session on the same Philippine calendar date.
+		const { start: dateStart, end: dateEnd } = this.getPhtDayRange(
+			new Date(input.scheduleDate),
+		);
 
 		const existing = await this.db.session.findFirst({
 			where: {

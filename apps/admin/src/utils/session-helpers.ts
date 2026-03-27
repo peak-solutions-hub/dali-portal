@@ -11,6 +11,7 @@
  * Place at: src/utils/quill-html-normalizer.ts
  */
 
+import { formatDateInPHT, parseDateInput } from "@repo/shared";
 import DOMPurify from "dompurify";
 
 // ─── DOMPurify config ────────────────────────────────────────────────────────
@@ -249,9 +250,7 @@ export function sanitizeQuillHtml(html: string | null | undefined): string {
  * Extracted from agenda-item-card.tsx and minutes-picker.tsx where it was duplicated.
  */
 export function formatMinutesDate(dateStr: string): string {
-	const [year, month, day] = dateStr.split("-");
-	const d = new Date(Number(year), Number(month) - 1, Number(day));
-	return d.toLocaleDateString("en-US", {
+	return formatDateInPHT(parseDateInput(dateStr), {
 		month: "long",
 		day: "2-digit",
 		year: "numeric",

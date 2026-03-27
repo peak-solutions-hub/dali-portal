@@ -26,6 +26,11 @@ import { useState } from "react";
 
 const SESSIONS_PER_GROUP = 5;
 
+const toPhtDateTime = (date: string, time: string): string => {
+	if (!date || !time) return "";
+	return `${date}T${time}:00+08:00`;
+};
+
 interface SessionSelectorDropdownProps {
 	sessions: Session[];
 	selectedSession: Session | null;
@@ -118,7 +123,7 @@ export function SessionSelectorDropdown({
 									<span>•</span>
 									<span>
 										{formatSessionTime(
-											`${selectedSession.date}T${selectedSession.time}`,
+											toPhtDateTime(selectedSession.date, selectedSession.time),
 										)}
 									</span>
 								</div>
@@ -340,7 +345,9 @@ function SessionGroup({
 								<>
 									<span>•</span>
 									<span>
-										{formatSessionTime(`${session.date}T${session.time}`)}
+										{formatSessionTime(
+											toPhtDateTime(session.date, session.time),
+										)}
 									</span>
 								</>
 							)}
