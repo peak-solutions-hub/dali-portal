@@ -16,12 +16,11 @@ import { ScrollToTop } from "@/components/scroll-to-top";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 import {
 	getCachedLegislativeDocumentById,
-	LEGISLATIVE_DOCUMENT_DETAIL_REVALIDATE_SECONDS,
 	parseLegislativeDocumentId,
 } from "./document-detail-data";
 import DocumentDetailLoading from "./loading";
 
-export const revalidate = LEGISLATIVE_DOCUMENT_DETAIL_REVALIDATE_SECONDS;
+export const revalidate = 300;
 
 interface PageProps {
 	params: Promise<{

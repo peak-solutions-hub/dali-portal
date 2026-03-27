@@ -3,8 +3,6 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { api } from "@/lib/api.client";
 
-export const LEGISLATIVE_DOCUMENT_DETAIL_REVALIDATE_SECONDS = 300;
-
 export interface CachedDocumentDetailResult {
 	data: Awaited<ReturnType<typeof api.legislativeDocuments.getById>>[1] | null;
 	error: {
@@ -55,7 +53,7 @@ const getLegislativeDocumentByIdWithDataCache = unstable_cache(
 	},
 	["legislative-document-detail"],
 	{
-		revalidate: LEGISLATIVE_DOCUMENT_DETAIL_REVALIDATE_SECONDS,
+		revalidate: 300,
 		tags: ["legislative-documents"],
 	},
 );

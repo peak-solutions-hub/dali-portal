@@ -16,13 +16,9 @@ import { ScrollToTop } from "@/components/scroll-to-top";
 import { SessionDetailContent } from "@/components/sessions";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 import SessionDetailLoading from "./loading";
-import {
-	getCachedSessionById,
-	isValidSessionId,
-	SESSION_DETAIL_REVALIDATE_SECONDS,
-} from "./session-detail-data";
+import { getCachedSessionById, isValidSessionId } from "./session-detail-data";
 
-export const revalidate = SESSION_DETAIL_REVALIDATE_SECONDS;
+export const revalidate = 300;
 
 interface PageProps {
 	params: Promise<{ id: string }>;

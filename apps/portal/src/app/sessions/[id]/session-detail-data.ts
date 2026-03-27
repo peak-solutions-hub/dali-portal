@@ -3,8 +3,6 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { api } from "@/lib/api.client";
 
-export const SESSION_DETAIL_REVALIDATE_SECONDS = 300;
-
 const SESSION_ID_REGEX =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -53,7 +51,7 @@ const getSessionByIdWithDataCache = unstable_cache(
 	},
 	["session-detail"],
 	{
-		revalidate: SESSION_DETAIL_REVALIDATE_SECONDS,
+		revalidate: 300,
 		tags: ["sessions"],
 	},
 );
