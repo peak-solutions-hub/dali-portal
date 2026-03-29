@@ -1,9 +1,12 @@
 import { Card } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
+import { DOCUMENT_CARD_BORDER_CLASS } from "@repo/ui/lib/legislative-document-ui";
 
 export function DocumentCardSkeleton() {
 	return (
-		<Card className="overflow-hidden hover:shadow-md focus-within:shadow-md transition-all border-l-4 border-l-[#a60202]">
+		<Card
+			className={`overflow-hidden hover:shadow-md focus-within:shadow-md transition-all ${DOCUMENT_CARD_BORDER_CLASS}`}
+		>
 			<article className="px-5">
 				<div className="flex items-start justify-between gap-4">
 					{/* Left Content */}

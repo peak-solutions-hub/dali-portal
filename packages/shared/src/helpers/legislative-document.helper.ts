@@ -4,6 +4,11 @@
  */
 
 import { z } from "zod";
+import {
+	LEGISLATIVE_ITEMS_PER_PAGE,
+	LEGISLATIVE_MAX_ITEMS_PER_PAGE,
+	LEGISLATIVE_YEAR_MIN,
+} from "../constants/legislative-document-rules";
 import { ClassificationType } from "../enums/document";
 import { LegislativeDocumentType } from "../enums/legislative-document";
 import {
@@ -14,6 +19,7 @@ import type {
 	GetLegislativeDocumentListInput,
 	LegislativeDocumentWithDetails,
 } from "../schemas/legislative-document.schema";
+import { formatDateInPHT, parseDateInput } from "./date-utils";
 
 /**
  * Display labels for legislative document types
@@ -101,8 +107,9 @@ export const CLASSIFICATION_TYPES = Object.entries(
 
 /**
  * Default items per page for pagination
+ * @deprecated Use LEGISLATIVE_ITEMS_PER_PAGE from constants instead
  */
-export const ITEMS_PER_PAGE = 10;
+export const ITEMS_PER_PAGE = LEGISLATIVE_ITEMS_PER_PAGE;
 
 /**
  * Format a date to Philippine locale format (e.g., "January 15, 2024")
@@ -110,11 +117,12 @@ export const ITEMS_PER_PAGE = 10;
 export function formatDate(date: Date | string): string {
 	if (!date) return "N/A";
 
-	const dateObj = typeof date === "string" ? new Date(date) : date;
+	const dateObj = parseDateInput(date);
 	if (Number.isNaN(dateObj.getTime())) return "N/A";
 
 	try {
-		return dateObj.toLocaleDateString("en-PH", {
+		return formatDateInPHT(dateObj, {
+			locale: "en-PH",
 			year: "numeric",
 			month: "long",
 			day: "numeric",
@@ -229,7 +237,11 @@ export const searchParamsSchema = z.object({
 		.default("all")
 		.transform((val) => (val === "" ? "all" : val)),
 	year: z
-		.union([z.coerce.number().int().min(1950), z.literal("all"), z.literal("")])
+		.union([
+			z.coerce.number().int().min(LEGISLATIVE_YEAR_MIN),
+			z.literal("all"),
+			z.literal(""),
+		])
 		.optional()
 		.default("all")
 		.transform((val) => (val === "" ? "all" : val)),
@@ -243,9 +255,9 @@ export const searchParamsSchema = z.object({
 		.number()
 		.int()
 		.min(1)
-		.max(100)
+		.max(LEGISLATIVE_MAX_ITEMS_PER_PAGE)
 		.optional()
-		.default(ITEMS_PER_PAGE),
+		.default(LEGISLATIVE_ITEMS_PER_PAGE),
 });
 
 export type SearchParams = z.infer<typeof searchParamsSchema>;
@@ -318,16 +330,16 @@ export function transformDocumentDates(
 ): LegislativeDocumentWithDetails {
 	return {
 		...doc,
-		dateEnacted: new Date(doc.dateEnacted),
-		createdAt: new Date(doc.createdAt),
+		dateEnacted: parseDateInput(doc.dateEnacted),
+		createdAt: parseDateInput(doc.createdAt),
 		document: {
 			...doc.document,
-			receivedAt: new Date(doc.document.receivedAt),
+			receivedAt: parseDateInput(doc.document.receivedAt),
 		},
 		latestVersion: doc.latestVersion
 			? {
 					...doc.latestVersion,
-					createdAt: new Date(doc.latestVersion.createdAt),
+					createdAt: parseDateInput(doc.latestVersion.createdAt),
 				}
 			: undefined,
 	};

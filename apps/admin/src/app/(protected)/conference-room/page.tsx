@@ -25,6 +25,7 @@ import { useAuthStore } from "@/stores";
 
 export default function ConferenceRoomBooking() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date());
 	const userProfile = useAuthStore((s) => s.userProfile);
 	const userRole = userProfile?.role.name;
 	const canManageRequests = userRole ? isAdminBookingRole(userRole) : false;
@@ -71,7 +72,7 @@ export default function ConferenceRoomBooking() {
 				</TabsList>
 
 				<TabsContent value="calendar" className="mt-6">
-					<RoomBookingCalendar />
+					<RoomBookingCalendar onSelectedDateChange={setSelectedCalendarDate} />
 				</TabsContent>
 
 				<TabsContent value="my-bookings" className="mt-6">
@@ -89,7 +90,7 @@ export default function ConferenceRoomBooking() {
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
 				selectedTime=""
-				selectedDate={new Date()}
+				selectedDate={selectedCalendarDate}
 			/>
 		</div>
 	);

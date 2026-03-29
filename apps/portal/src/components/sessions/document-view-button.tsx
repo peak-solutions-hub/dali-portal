@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDateInPHT } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import {
 	Dialog,
@@ -43,8 +44,7 @@ type DocumentViewButtonProps = {
 };
 
 function formatDate(iso: string): string {
-	const d = new Date(iso);
-	return d.toLocaleDateString("en-US", {
+	return formatDateInPHT(iso, {
 		month: "long",
 		day: "numeric",
 		year: "numeric",

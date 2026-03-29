@@ -1,6 +1,7 @@
 "use client";
 
 import { isDefinedError } from "@orpc/client";
+import { formatIsoDateInPHT } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Calendar as CalendarComponent } from "@repo/ui/components/calendar";
 import {
@@ -25,9 +26,31 @@ import {
 } from "@repo/ui/components/select";
 import { TimePicker } from "@repo/ui/components/time-picker";
 import { Calendar, Loader2, Plus } from "@repo/ui/lib/lucide-react";
-import { format, isAfter, isBefore, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import { useState } from "react";
 import { api } from "@/lib/api.client";
+
+const PHT_OFFSET_HOURS = 8;
+
+const buildPhtDateTimeAsUtc = (
+	selectedDateInCalendar: string,
+	time: string,
+): Date => {
+	const [rawYear = Number.NaN, rawMonth = Number.NaN, rawDay = Number.NaN] =
+		selectedDateInCalendar.split("-").map((part) => Number(part));
+	const year = Number.isNaN(rawYear) ? 0 : rawYear;
+	const month = Number.isNaN(rawMonth) ? 0 : rawMonth;
+	const day = Number.isNaN(rawDay) ? 0 : rawDay;
+	const [hoursPart = "10", minutesPart = "0"] = time.split(":");
+	const rawHours = Number(hoursPart);
+	const rawMinutes = Number(minutesPart);
+	const hours = Number.isNaN(rawHours) ? 10 : rawHours;
+	const minutes = Number.isNaN(rawMinutes) ? 0 : rawMinutes;
+
+	return new Date(
+		Date.UTC(year, month - 1, day, hours - PHT_OFFSET_HOURS, minutes, 0, 0),
+	);
+};
 
 interface CreateSessionDialogProps {
 	open: boolean;
@@ -45,6 +68,7 @@ export function CreateSessionDialog({
 	const [sessionType, setSessionType] = useState("regular");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const todayInPht = formatIsoDateInPHT(new Date());
 
 	const resetForm = () => {
 		setSessionDate(undefined);
@@ -74,33 +98,36 @@ export function CreateSessionDialog({
 				return;
 			}
 
-			// Validate date is not in the past
-			const today = startOfDay(new Date());
-			if (isBefore(startOfDay(sessionDate), today)) {
+			const selectedDateInCalendar = formatIsoDateInPHT(sessionDate);
+
+			if (!selectedDateInCalendar) {
+				setError("Invalid session date");
+				setIsSubmitting(false);
+				return;
+			}
+
+			// Validate date is not in the past (PHT)
+			if (selectedDateInCalendar < todayInPht) {
 				setError("Session date cannot be in the past");
 				setIsSubmitting(false);
 				return;
 			}
 
-			// Validate time if date is today
-			const isToday = startOfDay(sessionDate).getTime() === today.getTime();
-			if (isToday) {
-				const [hours, minutes] = sessionTime.split(":").map(Number);
-				const selectedDateTime = new Date();
-				selectedDateTime.setHours(hours ?? 0, minutes ?? 0, 0, 0);
-				const now = new Date();
+			// Treat selected date+time as PHT and convert once to UTC for storage.
+			const scheduleDate = buildPhtDateTimeAsUtc(
+				selectedDateInCalendar,
+				sessionTime,
+			);
 
-				if (isBefore(selectedDateTime, now)) {
-					setError("Session time cannot be in the past for today's date");
-					setIsSubmitting(false);
-					return;
-				}
+			// Validate time if selected date is today in PHT
+			if (
+				selectedDateInCalendar === todayInPht &&
+				scheduleDate.getTime() < Date.now()
+			) {
+				setError("Session time cannot be in the past for today's date");
+				setIsSubmitting(false);
+				return;
 			}
-
-			// Combine date + time into a single ISO-8601 datetime
-			const [hours, minutes] = sessionTime.split(":").map(Number);
-			const scheduleDate = new Date(sessionDate);
-			scheduleDate.setHours(hours ?? 10, minutes ?? 0, 0, 0);
 
 			const [err, data] = await api.sessions.create({
 				scheduleDate: scheduleDate.toISOString(),
@@ -210,9 +237,10 @@ export function CreateSessionDialog({
 										mode="single"
 										selected={sessionDate}
 										onSelect={setSessionDate}
-										disabled={(date) =>
-											isBefore(startOfDay(date), startOfDay(new Date()))
-										}
+										disabled={(date) => {
+											const dateInPht = formatIsoDateInPHT(date);
+											return !dateInPht || dateInPht < todayInPht;
+										}}
 										classNames={{
 											today: "bg-transparent text-yellow-400 font-normal",
 											day_selected:
