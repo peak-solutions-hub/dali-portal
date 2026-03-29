@@ -20,6 +20,7 @@ import {
 import {
 	getClassificationLabel,
 	getDocumentTypeBadgeClass,
+	getDocumentTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api.client";
@@ -129,7 +130,7 @@ export function DocumentViewerDialog({
 											className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${getDocumentTypeBadgeClass(document.type)}`}
 										>
 											<FileText className="w-3 h-3" />
-											{document.type}
+											{getDocumentTypeLabel(document.type)}
 										</span>
 										<span className="text-sm text-[#a60202] font-semibold">
 											{document.number}

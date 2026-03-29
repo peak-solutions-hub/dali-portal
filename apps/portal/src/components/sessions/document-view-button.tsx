@@ -20,6 +20,7 @@ import {
 import {
 	getClassificationLabel,
 	getDocumentTypeBadgeClass,
+	getDocumentTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import { useEffect, useState } from "react";
 import { useSessionFile } from "@/hooks/sessions/use-session-file";
@@ -132,7 +133,7 @@ export function DocumentViewButton({
 														className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${getDocumentTypeBadgeClass(documentType)}`}
 													>
 														<FileText className="w-3 h-3" />
-														{documentType}
+														{getDocumentTypeLabel(documentType)}
 													</span>
 													{codeNumber && (
 														<span className="text-sm text-[#a60202] font-semibold">

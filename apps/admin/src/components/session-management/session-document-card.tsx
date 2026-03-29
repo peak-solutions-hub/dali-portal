@@ -2,6 +2,7 @@ import type { SessionManagementDocument as Document } from "@repo/shared";
 import {
 	getClassificationLabel,
 	getDocumentTypeBadgeClass,
+	getDocumentTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import {
 	Calendar,
@@ -61,7 +62,7 @@ export function SessionDocumentCard({
 								className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${getDocumentTypeBadgeClass(document.type)}`}
 							>
 								<FileText className="w-3 h-3" aria-hidden="true" />
-								<span>{document.type}</span>
+								<span>{getDocumentTypeLabel(document.type)}</span>
 							</span>
 							<span className="text-sm text-[#a60202] font-semibold">
 								{document.number}
