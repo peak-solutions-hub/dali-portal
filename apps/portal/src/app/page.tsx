@@ -1,6 +1,9 @@
 import { isDefinedError } from "@orpc/client";
 import {
+	formatDateInPHT,
+	formatIsoDateInPHT,
 	formatSessionDate,
+	parseDateInput,
 	transformDocumentListDates,
 	transformSessionListDates,
 } from "@repo/shared";
@@ -25,6 +28,8 @@ export const metadata: Metadata = createPageMetadata({
 	imagePath: "/opengraph-image",
 });
 
+export const revalidate = 300;
+
 export default async function HomePage() {
 	// Fetch statistics
 	const [statsError, stats] = await api.legislativeDocuments.statistics({});
@@ -41,17 +46,39 @@ export default async function HomePage() {
 			limit: 5,
 		});
 
-	if (latestDocsError && isDefinedError(latestDocsError)) {
-		console.error("Failed to fetch latest documents:", latestDocsError.message);
+	let latestDocumentsSource = latestDocsResponse?.documents;
+
+	if (latestDocsError) {
+		if (isDefinedError(latestDocsError)) {
+			console.error(
+				"Failed to fetch latest documents:",
+				latestDocsError.message,
+			);
+		} else {
+			console.error("Failed to fetch latest documents:", latestDocsError);
+		}
+
+		// Production fallback for environments where /latest may be unavailable or transiently failing.
+		const [fallbackError, fallbackResponse] =
+			await api.legislativeDocuments.list({
+				page: 1,
+				limit: 5,
+			});
+
+		if (fallbackError) {
+			console.error("Fallback latest documents fetch failed:", fallbackError);
+		} else {
+			latestDocumentsSource = fallbackResponse?.documents;
+		}
 	}
 
 	// Transform documents and map to the format expected by RecentUpdates
-	const latestDocuments = latestDocsResponse?.documents
-		? transformDocumentListDates(latestDocsResponse.documents).map((doc) => {
-				const dateEnacted = new Date(doc.dateEnacted);
-				const month = dateEnacted.toLocaleString("en-US", { month: "short" });
-				const day = String(dateEnacted.getDate());
-				const fullDate = dateEnacted.toLocaleDateString("en-US", {
+	const latestDocuments = latestDocumentsSource
+		? transformDocumentListDates(latestDocumentsSource).map((doc) => {
+				const dateEnacted = parseDateInput(doc.dateEnacted);
+				const month = formatDateInPHT(dateEnacted, { month: "short" });
+				const day = formatDateInPHT(dateEnacted, { day: "numeric" });
+				const fullDate = formatDateInPHT(dateEnacted, {
 					month: "long",
 					day: "numeric",
 					year: "numeric",
@@ -90,12 +117,12 @@ export default async function HomePage() {
 		? transformSessionListDates(sessionsResponse.sessions)
 				.slice(0, 3)
 				.map((s) => {
-					const scheduleDate = new Date(s.scheduleDate);
-					const month = scheduleDate.toLocaleString("en-US", {
-						month: "short",
+					const scheduleDate = parseDateInput(s.scheduleDate);
+					const month = formatDateInPHT(scheduleDate, { month: "short" });
+					const day = formatDateInPHT(scheduleDate, {
+						day: "2-digit",
 					});
-					const day = String(scheduleDate.getDate()).padStart(2, "0");
-					const weekday = scheduleDate.toLocaleString("en-US", {
+					const weekday = formatDateInPHT(scheduleDate, {
 						weekday: "long",
 					});
 					const fullDate = formatSessionDate(scheduleDate);
@@ -104,7 +131,7 @@ export default async function HomePage() {
 						id: s.id,
 						type: s.type,
 						sessionNumber: String(s.sessionNumber),
-						date: String(scheduleDate.toISOString().split("T")[0]),
+						date: formatIsoDateInPHT(scheduleDate),
 						month,
 						day,
 						weekday,

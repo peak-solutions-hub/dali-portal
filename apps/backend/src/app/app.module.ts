@@ -1,13 +1,16 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD, REQUEST } from "@nestjs/core";
+import { PassportModule } from "@nestjs/passport";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { ORPCError, ORPCModule, onError } from "@orpc/nest";
 import { experimental_RethrowHandlerPlugin as RethrowHandlerPlugin } from "@orpc/server/plugins";
 import { Request } from "express";
 import { AppController } from "@/app/app.controller";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
+import { JwtStrategy } from "@/app/auth/strategies/jwt.strategy";
 import { DbModule } from "@/app/db/db.module";
 import {
+	DriverAdapterExceptionFilter,
 	PrismaClientExceptionFilter,
 	PrismaInitializationExceptionFilter,
 	PrismaRustPanicExceptionFilter,
@@ -40,6 +43,7 @@ declare module "@orpc/nest" {
 		LibModule,
 		DbModule,
 		SupabaseModule,
+		PassportModule,
 		InquiryTicketModule,
 		LegislativeDocumentsModule,
 		RolesModule,
@@ -69,10 +73,10 @@ declare module "@orpc/nest" {
 		// global rate limit
 		ThrottlerModule.forRoot([
 			{
-				// for bots: 3 reqs per sec
+				// for bots: 10 reqs per sec
 				name: "short",
 				ttl: 1000,
-				limit: 3,
+				limit: 10,
 			},
 			// for users: 60 reqs per 1 min
 			// override in controllers as needed
@@ -86,6 +90,7 @@ declare module "@orpc/nest" {
 	controllers: [AppController],
 	providers: [
 		AppService,
+		JwtStrategy,
 		// Global guards - applied to all routes
 		// RolesGuard handles both authentication and authorization
 		// Routes without @Roles() decorator are public (no authentication required)
@@ -124,6 +129,11 @@ declare module "@orpc/nest" {
 		{
 			provide: APP_FILTER,
 			useClass: PrismaRustPanicExceptionFilter,
+		},
+		// Driver adapter errors (pool exhaustion from @prisma/adapter-pg)
+		{
+			provide: APP_FILTER,
+			useClass: DriverAdapterExceptionFilter,
 		},
 	],
 })

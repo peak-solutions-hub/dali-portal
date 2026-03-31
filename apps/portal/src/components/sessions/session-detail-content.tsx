@@ -1,4 +1,3 @@
-import { isDefinedError } from "@orpc/client";
 import {
 	formatSessionDate,
 	formatSessionTime,
@@ -6,7 +5,8 @@ import {
 } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
-import { ChevronLeft } from "@repo/ui/lib/lucide-react";
+import { PageError } from "@repo/ui/components/page-error";
+import { ChevronLeft, RefreshCw } from "@repo/ui/lib/lucide-react";
 import {
 	formatAgendaItemNumber,
 	getClassificationLabel,
@@ -20,7 +20,7 @@ import {
 } from "@repo/ui/lib/session-ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { api } from "@/lib/api.client";
+import type { CachedSessionDetailResult } from "@/app/sessions/[id]/session-detail-data";
 import { DocumentViewButton } from "./document-view-button";
 import { DownloadAgendaButton } from "./download-agenda-button";
 import { QuillContent } from "./quill-content";
@@ -28,17 +28,20 @@ import { SessionDetailStyles } from "./session-detail-styles";
 import { SessionQuickNav } from "./session-quick-nav";
 import { SessionViewSwitcher } from "./session-view-switcher";
 
-export async function SessionDetailContent({
+export function SessionDetailContent({
 	id,
 	searchParams,
+	sessionResult,
 }: {
 	id: string;
 	searchParams: { [key: string]: string | string[] | undefined };
+	sessionResult: CachedSessionDetailResult;
 }) {
-	const [error, sessionData] = await api.sessions.getById({ id });
+	const { error, data: sessionData } = sessionResult;
 	if (error) {
-		if (isDefinedError(error) && error.code === "NOT_FOUND") notFound();
+		if (error.defined && error.code === "SESSION.NOT_FOUND") notFound();
 		// Render a user-friendly error card for other failures
+		const errorDetail = error.message;
 		return (
 			<>
 				<div className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm">
@@ -56,26 +59,37 @@ export async function SessionDetailContent({
 						</Link>
 					</div>
 				</div>
-				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-6 sm:py-8">
-					<div className="rounded-xl border border-red-200 bg-red-50 p-12">
-						<div className="text-center space-y-4">
-							<p className="text-lg text-red-800 font-semibold">
-								Unable to Load Session
-							</p>
-							<p className="text-sm text-red-700">
-								We're experiencing technical difficulties loading this session.
-								Please try again in a moment.
-							</p>
-							<Link href="/sessions">
-								<Button
-									variant="outline"
-									size="sm"
-									className="border-red-300 text-red-700 hover:bg-red-100 cursor-pointer"
-								>
-									Back to Sessions
-								</Button>
-							</Link>
-						</div>
+				<div className="flex min-h-[calc(100svh-9rem)] sm:min-h-[calc(100svh-10rem)] items-center justify-center px-4 sm:px-6 lg:px-19.5 py-12">
+					<div className="w-full max-w-xl">
+						<PageError
+							title="Unable to Load Session"
+							description="We couldn't load this session. Please try again in a moment."
+							detail={errorDetail}
+							action={
+								<div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+									<Link href={`/sessions/${id}`}>
+										<Button
+											variant="outline"
+											size="sm"
+											className="inline-flex w-full items-center justify-center gap-1.5 border-red-300 text-red-700 hover:bg-red-100 cursor-pointer sm:w-auto"
+										>
+											<RefreshCw className="size-3.5" aria-hidden="true" />
+											Try Again
+										</Button>
+									</Link>
+									<Link href="/sessions">
+										<Button
+											variant="outline"
+											size="sm"
+											className="inline-flex w-full items-center justify-center gap-1.5 border-red-300 bg-white text-red-700 hover:bg-red-50 cursor-pointer sm:w-auto"
+										>
+											<ChevronLeft className="size-3.5" aria-hidden="true" />
+											Back to Sessions
+										</Button>
+									</Link>
+								</div>
+							}
+						/>
 					</div>
 				</div>
 			</>

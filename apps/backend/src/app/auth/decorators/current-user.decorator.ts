@@ -3,11 +3,11 @@ import type { EnrichedUser } from "../guards/roles.guard";
 
 /**
  * Parameter decorator to extract the current authenticated user from the request.
- * Must be used in routes protected by AuthGuard (and optionally RolesGuard).
+ * Must be used in routes protected by RolesGuard.
  *
  * The user object contains:
- * - Supabase Auth fields (id, email, app_metadata, user_metadata, etc.)
- * - DB enriched fields (fullName, role, status) - available after RolesGuard runs
+ * - DB enriched fields (id, email, fullName, role, status)
+ * - JWT claims (sub, app_metadata, user_metadata)
  *
  * @example
  * ```typescript

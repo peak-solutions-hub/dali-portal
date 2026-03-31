@@ -118,9 +118,17 @@ export const ERRORS = {
 			status: 500,
 			message: "Failed to create session. Please try again.",
 		},
-		LOAD_FAILED: {
+		INVALID_DATE_RANGE: {
+			status: 400,
+			message: 'The "From" date cannot be later than the "To" date.',
+		},
+		LIST_FAILED: {
 			status: 500,
-			message: "Failed to load session data. Please try again.",
+			message: "Failed to load sessions.",
+		},
+		FETCH_FAILED: {
+			status: 500,
+			message: "Failed to load session details.",
 		},
 		SAVE_FAILED: {
 			status: 500,
@@ -236,7 +244,8 @@ export const ERRORS = {
 		},
 		CONFLICT: {
 			status: 409,
-			message: "This time slot is already taken by another booking.",
+			message:
+				"The selected room is already occupied for this date and time. Please choose a different room or adjust the schedule.",
 		},
 		PAST_BOOKING: {
 			status: 400,
@@ -253,7 +262,8 @@ export const ERRORS = {
 		},
 		INVALID_ATTACHMENT: {
 			status: 400,
-			message: "File must be a PDF, JPEG, or JPG and must not exceed 5MB.",
+			message:
+				"Attachment must be PDF, PNG, JPG/JPEG, DOC, or DOCX, and must not exceed 5MB.",
 		},
 		CANNOT_APPROVE: {
 			status: 400,

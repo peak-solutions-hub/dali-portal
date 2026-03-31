@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { formatFullDate } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { useUpdateBookingStatus } from "@/hooks/room-booking";
 import type { CalendarBooking } from "@/utils/booking-helpers";
-import { formatFullDate } from "@/utils/date-utils";
 import { BookingStatusBadge } from "./booking-status-badge";
 
 interface ViewBookingModalProps {
