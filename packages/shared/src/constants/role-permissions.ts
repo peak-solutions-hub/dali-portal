@@ -100,6 +100,9 @@ export const INQUIRY_ASSIGNABLE_ROLES: RoleType[] = INQUIRY_ASSIGNEES.filter(
 	(role) => ROLE_PERMISSIONS.INQUIRY_TICKETS.includes(role),
 );
 
+export const INQUIRY_ASSIGNMENT_REQUESTERS: RoleType[] =
+	INQUIRY_ASSIGNABLE_ROLES.filter((role) => role !== "councilor");
+
 /**
  * Check if a user role has permission for a specific feature
  * @param role - The user's role

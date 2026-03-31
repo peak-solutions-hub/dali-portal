@@ -23,6 +23,7 @@ import { useAuthStore } from "@/stores/auth-store";
 
 export default function InquiryTicketsPage() {
 	const { userProfile } = useAuthStore();
+	const isCouncilor = userProfile?.role.name === "councilor";
 	const [selectedStatus, setSelectedStatus] = useState<string>("new");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export default function InquiryTicketsPage() {
 		page: currentPage,
 		searchQuery,
 		currentUserId: userProfile?.id,
+		onlyAssignedToCurrentUser: isCouncilor,
 	});
 
 	const handleStatusChange = (status: string) => {
@@ -117,10 +119,12 @@ export default function InquiryTicketsPage() {
 							<TabsTrigger value="rejected" disabled={isLoadingCounts}>
 								Rejected ({isLoadingCounts ? "..." : counts.rejected})
 							</TabsTrigger>
-							<TabsTrigger value="assigned_to_me" disabled={isLoadingCounts}>
-								Assigned to Me (
-								{isLoadingCounts ? "..." : counts.assigned_to_me})
-							</TabsTrigger>
+							{!isCouncilor && (
+								<TabsTrigger value="assigned_to_me" disabled={isLoadingCounts}>
+									Assigned to Me (
+									{isLoadingCounts ? "..." : counts.assigned_to_me})
+								</TabsTrigger>
+							)}
 						</TabsList>
 					</Tabs>
 				</div>

@@ -9,6 +9,7 @@ import {
 	type GetInquiryTicketListInput,
 	INQUIRY_ASSIGNABLE_ROLES,
 	INQUIRY_ASSIGNERS,
+	INQUIRY_ASSIGNMENT_REQUESTERS,
 	INQUIRY_CATEGORY_LABELS,
 	type InquiryMessage,
 	type InquiryMessageWithAttachments,
@@ -42,6 +43,22 @@ export class InquiryTicketService {
 
 	private isAssignee(role?: RoleType): boolean {
 		return role != null && INQUIRY_ASSIGNABLE_ROLES.includes(role);
+	}
+
+	private canRequestAssignment(role?: RoleType): boolean {
+		return role != null && INQUIRY_ASSIGNMENT_REQUESTERS.includes(role);
+	}
+
+	private isCouncilor(role?: RoleType): boolean {
+		return role === "councilor";
+	}
+
+	private buildInquiryAccessWhere(actor?: { id?: string; role?: RoleType }) {
+		if (this.isCouncilor(actor?.role) && actor?.id) {
+			return { assignedTo: actor.id };
+		}
+
+		return {};
 	}
 
 	constructor(
@@ -112,6 +129,10 @@ export class InquiryTicketService {
 						CATEGORY: INQUIRY_CATEGORY_LABELS[response.category],
 						YEAR: new Date().getFullYear().toString(),
 						PORTAL_URL: portalUrl,
+						TRACKING_URL: portalUrl,
+						TRACK_INQUIRY_URL: portalUrl,
+						INQUIRY_TRACK_URL: portalUrl,
+						portal_url: portalUrl,
 					},
 				},
 			});
@@ -146,22 +167,25 @@ export class InquiryTicketService {
 	 */
 	async getWithMessages(
 		input: GetInquiryTicketByIdInput,
+		actor?: { id?: string; role?: RoleType },
 	): Promise<InquiryTicketWithMessagesAndAttachments> {
-		const inquiryTicketWithMessages =
-			await this.db.inquiryTicket.findFirstOrThrow({
-				where: { id: input.id },
-				include: {
-					inquiryMessages: {
-						orderBy: { createdAt: "asc" },
-					},
-					user: {
-						select: {
-							id: true,
-							fullName: true,
-						},
+		const inquiryTicketWithMessages = await this.db.inquiryTicket.findFirst({
+			where: {
+				id: input.id,
+				...this.buildInquiryAccessWhere(actor),
+			},
+			include: {
+				inquiryMessages: {
+					orderBy: { createdAt: "asc" },
+				},
+				user: {
+					select: {
+						id: true,
+						fullName: true,
 					},
 				},
-			});
+			},
+		});
 
 		if (!inquiryTicketWithMessages) {
 			throw new AppError("INQUIRY.NOT_FOUND");
@@ -182,9 +206,13 @@ export class InquiryTicketService {
 
 	async getById(
 		input: GetInquiryTicketByIdInput,
+		actor: { id: string; role?: RoleType },
 	): Promise<InquiryTicketResponse> {
 		const inquiryTicket = await this.db.inquiryTicket.findFirst({
-			where: { id: input.id },
+			where: {
+				id: input.id,
+				...this.buildInquiryAccessWhere(actor),
+			},
 			include: {
 				user: {
 					select: {
@@ -207,6 +235,7 @@ export class InquiryTicketService {
 
 	async getList(
 		input: GetInquiryTicketListInput,
+		actor: { id: string; role?: RoleType },
 	): Promise<InquiryTicketListResponse> {
 		const { status, category, limit, page } = input;
 
@@ -216,6 +245,7 @@ export class InquiryTicketService {
 		const where = {
 			...(status && { status }),
 			...(category && { category }),
+			...this.buildInquiryAccessWhere(actor),
 		};
 
 		// Get total count for pagination
@@ -258,18 +288,26 @@ export class InquiryTicketService {
 		};
 	}
 
-	async getStatusCounts(): Promise<InquiryStatusCounts> {
+	async getStatusCounts(actor: {
+		id: string;
+		role?: RoleType;
+	}): Promise<InquiryStatusCounts> {
+		const where = this.buildInquiryAccessWhere(actor);
 		// Get all counts in parallel for maximum efficiency
 		const [all, newCount, open, waiting, resolved, rejected] =
 			await Promise.all([
-				this.db.inquiryTicket.count(),
-				this.db.inquiryTicket.count({ where: { status: "new" } }),
-				this.db.inquiryTicket.count({ where: { status: "open" } }),
+				this.db.inquiryTicket.count({ where }),
+				this.db.inquiryTicket.count({ where: { ...where, status: "new" } }),
+				this.db.inquiryTicket.count({ where: { ...where, status: "open" } }),
 				this.db.inquiryTicket.count({
-					where: { status: "waiting_for_citizen" },
+					where: { ...where, status: "waiting_for_citizen" },
 				}),
-				this.db.inquiryTicket.count({ where: { status: "resolved" } }),
-				this.db.inquiryTicket.count({ where: { status: "rejected" } }),
+				this.db.inquiryTicket.count({
+					where: { ...where, status: "resolved" },
+				}),
+				this.db.inquiryTicket.count({
+					where: { ...where, status: "rejected" },
+				}),
 			]);
 
 		return {
@@ -368,6 +406,10 @@ export class InquiryTicketService {
 							MESSAGE_CONTENT: closureRemarks || "No remarks provided",
 							CATEGORY: INQUIRY_CATEGORY_LABELS[updated.category],
 							PORTAL_URL: portalUrl,
+							TRACKING_URL: portalUrl,
+							TRACK_INQUIRY_URL: portalUrl,
+							INQUIRY_TRACK_URL: portalUrl,
+							portal_url: portalUrl,
 							YEAR: new Date().getFullYear().toString(),
 						},
 					},
@@ -502,7 +544,10 @@ export class InquiryTicketService {
 		ticketId: string,
 		requester: { id: string; role?: RoleType },
 	): Promise<InquiryTicketResponse> {
-		if (!this.isAssignee(requester.role) || this.isAssigner(requester.role)) {
+		if (
+			!this.canRequestAssignment(requester.role) ||
+			this.isAssigner(requester.role)
+		) {
 			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
 		}
 

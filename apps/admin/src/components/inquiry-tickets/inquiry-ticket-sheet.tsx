@@ -297,10 +297,12 @@ export function InquiryTicketSheet({
 	const isAssigner = currentRole
 		? INQUIRY_ASSIGNERS.includes(currentRole)
 		: false;
+	const isCouncilor = currentRole === "councilor";
 	const isAssigneeEligible = currentRole
 		? INQUIRY_ASSIGNEES.includes(currentRole)
 		: false;
 	const canRequestAssignment =
+		!isCouncilor &&
 		!isAssigner &&
 		isAssigneeEligible &&
 		!ticket?.assignedTo &&

@@ -21,6 +21,7 @@ export interface UseInquiryTicketsOptions {
 	page: number;
 	searchQuery?: string;
 	currentUserId?: string;
+	onlyAssignedToCurrentUser?: boolean;
 }
 
 export interface UseInquiryTicketsReturn {
@@ -46,6 +47,7 @@ export function useInquiryTickets({
 	page,
 	searchQuery = "",
 	currentUserId,
+	onlyAssignedToCurrentUser = false,
 }: UseInquiryTicketsOptions): UseInquiryTicketsReturn {
 	const queryClient = useQueryClient();
 
@@ -76,12 +78,18 @@ export function useInquiryTickets({
 
 	const allTickets = allTicketsData ?? [];
 
+	const roleScopedTickets = useMemo(() => {
+		if (!onlyAssignedToCurrentUser) return allTickets;
+		if (!currentUserId) return [];
+		return allTickets.filter((ticket) => ticket.assignedTo === currentUserId);
+	}, [allTickets, onlyAssignedToCurrentUser, currentUserId]);
+
 	// Tickets matching the search query only (no status filter) — used to
 	// recompute tab counts when a search is active.
 	const searchFilteredTickets = useMemo(() => {
-		if (!searchQuery) return allTickets;
+		if (!searchQuery) return roleScopedTickets;
 		const q = searchQuery.toLowerCase();
-		return allTickets.filter(
+		return roleScopedTickets.filter(
 			(ticket) =>
 				ticket.referenceNumber.toLowerCase().includes(q) ||
 				(ticket.citizenFirstName &&
@@ -90,11 +98,11 @@ export function useInquiryTickets({
 					ticket.citizenLastName.toLowerCase().includes(q)) ||
 				ticket.subject.toLowerCase().includes(q),
 		);
-	}, [allTickets, searchQuery]);
+	}, [roleScopedTickets, searchQuery]);
 
 	// Client-side filter by status and search query.
 	const filteredTickets = useMemo(() => {
-		return allTickets.filter((ticket) => {
+		const matchingTickets = roleScopedTickets.filter((ticket) => {
 			const matchesStatus =
 				status === "all" ||
 				(status === "assigned_to_me"
@@ -118,7 +126,25 @@ export function useInquiryTickets({
 
 			return matchesStatus && matchesSearch;
 		});
-	}, [allTickets, status, searchQuery]);
+
+		if (status !== "assigned_to_me") {
+			return matchingTickets;
+		}
+
+		const statusPriority: Partial<Record<InquiryStatus, number>> = {
+			new: 0,
+			open: 1,
+			waiting_for_citizen: 1,
+			resolved: 2,
+			rejected: 2,
+		};
+
+		return [...matchingTickets].sort((a, b) => {
+			const aPriority = statusPriority[a.status] ?? 1;
+			const bPriority = statusPriority[b.status] ?? 1;
+			return aPriority - bPriority;
+		});
+	}, [roleScopedTickets, status, searchQuery, currentUserId]);
 
 	// Client-side pagination over the filtered set.
 	const totalItems = filteredTickets.length;
@@ -143,6 +169,22 @@ export function useInquiryTickets({
 	// When a search is active, derive counts from the search-filtered pool so
 	// the tab numbers reflect what the user is actually looking at.
 	const counts = useMemo(() => {
+		if (onlyAssignedToCurrentUser) {
+			return {
+				all: searchFilteredTickets.length,
+				new: searchFilteredTickets.filter((t) => t.status === "new").length,
+				open: searchFilteredTickets.filter((t) => t.status === "open").length,
+				waiting_for_citizen: searchFilteredTickets.filter(
+					(t) => t.status === "waiting_for_citizen",
+				).length,
+				resolved: searchFilteredTickets.filter((t) => t.status === "resolved")
+					.length,
+				rejected: searchFilteredTickets.filter((t) => t.status === "rejected")
+					.length,
+				assigned_to_me: searchFilteredTickets.length,
+			};
+		}
+
 		if (!searchQuery) {
 			return {
 				...(statusCountsData ?? {
@@ -170,7 +212,13 @@ export function useInquiryTickets({
 				.length,
 			assigned_to_me: assignedToMeCount,
 		};
-	}, [searchQuery, statusCountsData, searchFilteredTickets, assignedToMeCount]);
+	}, [
+		onlyAssignedToCurrentUser,
+		searchQuery,
+		statusCountsData,
+		searchFilteredTickets,
+		assignedToMeCount,
+	]);
 
 	const error = ticketsError
 		? ticketsError.message || "Failed to fetch inquiry tickets"
