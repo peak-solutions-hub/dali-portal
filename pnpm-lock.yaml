@@ -144,6 +144,9 @@ importers:
       admin:
         specifier: workspace:*
         version: link:../admin
+      backend:
+        specifier: workspace:*
+        version: link:../backend
 
   apps/backend:
     dependencies:
@@ -344,6 +347,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.90.0
         version: 2.90.1
+      backend:
+        specifier: workspace:*
+        version: link:../backend
       portal:
         specifier: workspace:*
         version: link:../portal
