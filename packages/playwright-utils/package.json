@@ -1,0 +1,36 @@
+{
+	"name": "@repo/playwright-utils",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./auth": {
+			"types": "./dist/auth.d.ts",
+			"default": "./dist/auth.js"
+		},
+		"./locators": {
+			"types": "./dist/locators.d.ts",
+			"default": "./dist/locators.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json"
+	},
+	"peerDependencies": {
+		"@playwright/test": "^1.58.2",
+		"@supabase/supabase-js": "^2.90.0"
+	},
+	"devDependencies": {
+		"@repo/typescript-config": "workspace:*",
+		"typescript": "5.9.3"
+	}
+}

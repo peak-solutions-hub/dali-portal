@@ -11,6 +11,7 @@
 - [Pull Requests](#pull-requests)
 - [Keeping Your Branch Updated](#keeping-your-branch-updated)
 - [File Naming](#file-naming)
+- [Testing](#testing)
 - [MCP Servers (AI Tooling)](#mcp-servers-ai-tooling)
 - [Backend Development](#backend-development)
 - [Frontend Development](#frontend-development)
@@ -33,8 +34,14 @@ dali-portal/
 │   │       └── lib/         # Utilities, client setup
 │   ├── admin/               # Next.js — Internal Dashboard (CSR, staff-facing)
 │   │   └── src/app/         # App Router pages, layouts, components
+│   ├── portal-e2e/          # Playwright E2E tests for portal
+│   │   └── tests/           # E2E specs (*.spec.ts)
+│   ├── admin-e2e/           # Playwright E2E tests for admin
+│   │   └── tests/           # E2E specs (*.spec.ts)
 │   └── backend/             # NestJS — REST API
-│       └── src/             # Modules, controllers, services
+│       ├── .env.test        # Test-only environment variables
+│       ├── src/             # Modules, controllers, services + unit specs
+│       └── test/            # Integration tests and Jest test configs
 ├── packages/
 │   ├── shared/              # Contracts, schemas, constants, utilities
 │   │   └── src/
@@ -276,6 +283,53 @@ git push --force-with-lease
 
 ---
 
+## Testing
+
+### Where to Add Tests
+
+| Test Type | Location | Naming Convention |
+|-----------|----------|-------------------|
+| Backend unit tests | `apps/backend/src/**` | `*.spec.ts` (non-integration) |
+| Backend integration tests | `apps/backend/test/**` | `*.integration-spec.ts` |
+| Portal E2E tests (Playwright) | `apps/portal-e2e/tests/**` | `*.spec.ts` |
+| Admin E2E tests (Playwright) | `apps/admin-e2e/tests/**` | `*.spec.ts` |
+
+### Scripts to Run
+
+Run from repository root unless noted.
+
+```bash
+# Run all tests in the monorepo
+pnpm test
+
+# Run grouped test pipelines
+pnpm test:unit
+pnpm test:integration
+pnpm test:e2e
+
+# Run backend tests directly
+pnpm --filter backend test
+pnpm --filter backend test:unit
+pnpm --filter backend test:integration
+
+# Run Playwright suites directly
+pnpm --filter portal-e2e test:e2e
+pnpm --filter admin-e2e test:e2e
+```
+
+### E2E Prerequisites
+
+- Install Playwright browsers once per machine: `pnpm playwright:install`
+- Ensure `apps/backend/.env.test` is configured for test DB usage
+- `TEST_DB_SAFE=true` and a valid test `DATABASE_URL` are required for E2E runs
+
+### Notes
+
+- Keep smoke flows under `apps/portal-e2e/tests/portal-smoke.spec.ts` and `apps/admin-e2e/tests/admin-smoke.spec.ts`
+- Add API smoke coverage in `apps/admin-e2e/tests/api-smoke.spec.ts` when endpoint behavior changes
+
+---
+
 ## MCP Servers (AI Tooling)
 
 This project uses Model Context Protocol (MCP) servers to enhance AI-assisted development. When using Copilot or other AI tools:
@@ -304,24 +358,34 @@ The backend uses **oRPC** for type-safe API contracts with **NestJS**.
 ### Directory Structure
 
 ```bash
-apps/backend/src/
-├── app/
-│   ├── db/                    # Database module (Prisma)
-│   │   ├── db.service.ts
-│   │   └── db.module.ts
-│   ├── exceptions/            # Global exception filters
-│   │   ├── index.ts
-│   │   ├── prisma-client-exception.filter.ts
-│   │   └── throttler-exception.filter.ts
-│   ├── <domain>/              # Feature modules
-│   │   ├── <domain>.controller.ts
-│   │   ├── <domain>.service.ts
-│   │   └── <domain>.module.ts
-│   └── app.module.ts          # Root module
-├── lib/
-│   ├── lib.module.ts          # Global libs
-│   └── <lib>.service.ts       # any lib wrapper
-└── main.ts                    # entry file
+apps/backend/
+├── .env.test                   # Test-only env values (used by integration/E2E)
+├── src/
+│   ├── app/
+│   │   ├── db/                 # Database module (Prisma)
+│   │   │   ├── db.service.ts
+│   │   │   └── db.module.ts
+│   │   ├── exceptions/         # Global exception filters
+│   │   │   ├── index.ts
+│   │   │   ├── prisma-client-exception.filter.ts
+│   │   │   └── throttler-exception.filter.ts
+│   │   ├── <domain>/           # Feature modules
+│   │   │   ├── <domain>.controller.ts
+│   │   │   ├── <domain>.service.ts
+│   │   │   └── <domain>.module.ts
+│   │   └── app.module.ts       # Root module
+│   ├── lib/
+│   │   ├── lib.module.ts       # Global libs
+│   │   └── <lib>.service.ts    # Any lib wrapper
+│   ├── config.spec.ts          # Example unit test in src
+│   └── main.ts                 # Entry file
+└── test/
+    ├── database.integration-spec.ts # Integration tests
+    ├── setup-integration.ts         # Integration test setup
+    ├── jest-unit.config.ts          # Unit test config
+    ├── jest-integration.config.ts   # Integration test config
+    └── sql/
+        └── reset-public.sql         # Test DB reset script
 ```
 
 ### Contract-First Workflow
