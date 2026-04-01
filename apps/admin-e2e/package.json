@@ -11,6 +11,7 @@
 		"@repo/playwright-utils": "workspace:*",
 		"@repo/typescript-config": "workspace:*",
 		"@supabase/supabase-js": "^2.90.0",
+		"backend": "workspace:*",
 		"admin": "workspace:*"
 	}
 }
