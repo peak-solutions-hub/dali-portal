@@ -37,7 +37,7 @@ COPY --from=installer /app/ .
 COPY --from=pruner /app/out/full/ .
 RUN pnpm --filter=@repo/shared build
 RUN pnpm --filter=portal build
-RUN test -f /app/apps/portal/.next/standalone/server.js
+RUN test -f /app/apps/portal/.next/standalone/apps/portal/server.js
 
 # Production image
 FROM node:22-alpine AS runner
