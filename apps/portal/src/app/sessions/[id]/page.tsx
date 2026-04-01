@@ -14,9 +14,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { SessionDetailContent } from "@/components/sessions";
-import { api } from "@/lib/api.client";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 import SessionDetailLoading from "./loading";
+import { getCachedSessionById, isValidSessionId } from "./session-detail-data";
+
+export const revalidate = 300;
 
 interface PageProps {
 	params: Promise<{ id: string }>;
@@ -27,12 +29,10 @@ export async function generateMetadata({
 	params,
 }: PageProps): Promise<Metadata> {
 	const { id } = await params;
-	const uuidRegex =
-		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-	if (!uuidRegex.test(id)) {
+	if (!isValidSessionId(id)) {
 		return { title: "Invalid Session", description: "Invalid session ID." };
 	}
-	const [error, sessionData] = await api.sessions.getById({ id });
+	const { error, data: sessionData } = await getCachedSessionById(id);
 	if (error || !sessionData) {
 		return {
 			title: "Session Not Found",
@@ -69,16 +69,19 @@ export default async function SessionDetailPage({
 }: PageProps) {
 	const { id } = await params;
 	const urlParams = await searchParams;
-	const uuidRegex =
-		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-	if (!uuidRegex.test(id)) notFound();
+	if (!isValidSessionId(id)) notFound();
+	const sessionResult = await getCachedSessionById(id);
 	return (
 		<div className="min-h-[calc(100svh-4.5rem)] sm:min-h-[calc(100svh-5rem)] bg-[#f9fafb]">
 			<ScrollToTop />
 			<OnlineStatusBanner />
 			<ScrollToTopButton />
 			<OfflineAwareSuspense fallback={<SessionDetailLoading />}>
-				<SessionDetailContent id={id} searchParams={urlParams} />
+				<SessionDetailContent
+					id={id}
+					searchParams={urlParams}
+					sessionResult={sessionResult}
+				/>
 			</OfflineAwareSuspense>
 		</div>
 	);

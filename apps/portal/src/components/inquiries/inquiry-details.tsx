@@ -3,6 +3,7 @@
 import { isDefinedError } from "@orpc/client";
 import {
 	formatCitizenFullName,
+	formatDateTimeInPHT,
 	type InquiryTicketWithMessagesAndAttachmentsResponse,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
@@ -233,13 +234,7 @@ export function InquiryDetails({ data: initialData }: InquiryDetailsProps) {
 										Last updated
 									</p>
 									<p className="text-sm font-medium">
-										{new Date(lastMessageDate).toLocaleString("en-US", {
-											month: "short",
-											day: "numeric",
-											hour: "numeric",
-											minute: "2-digit",
-											hour12: true,
-										})}
+										{formatDateTimeInPHT(lastMessageDate)}
 									</p>
 								</div>
 							</div>

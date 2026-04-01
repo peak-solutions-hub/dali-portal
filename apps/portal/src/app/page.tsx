@@ -1,6 +1,9 @@
 import { isDefinedError } from "@orpc/client";
 import {
+	formatDateInPHT,
+	formatIsoDateInPHT,
 	formatSessionDate,
+	parseDateInput,
 	transformDocumentListDates,
 	transformSessionListDates,
 } from "@repo/shared";
@@ -72,10 +75,10 @@ export default async function HomePage() {
 	// Transform documents and map to the format expected by RecentUpdates
 	const latestDocuments = latestDocumentsSource
 		? transformDocumentListDates(latestDocumentsSource).map((doc) => {
-				const dateEnacted = new Date(doc.dateEnacted);
-				const month = dateEnacted.toLocaleString("en-US", { month: "short" });
-				const day = String(dateEnacted.getDate());
-				const fullDate = dateEnacted.toLocaleDateString("en-US", {
+				const dateEnacted = parseDateInput(doc.dateEnacted);
+				const month = formatDateInPHT(dateEnacted, { month: "short" });
+				const day = formatDateInPHT(dateEnacted, { day: "numeric" });
+				const fullDate = formatDateInPHT(dateEnacted, {
 					month: "long",
 					day: "numeric",
 					year: "numeric",
@@ -114,12 +117,12 @@ export default async function HomePage() {
 		? transformSessionListDates(sessionsResponse.sessions)
 				.slice(0, 3)
 				.map((s) => {
-					const scheduleDate = new Date(s.scheduleDate);
-					const month = scheduleDate.toLocaleString("en-US", {
-						month: "short",
+					const scheduleDate = parseDateInput(s.scheduleDate);
+					const month = formatDateInPHT(scheduleDate, { month: "short" });
+					const day = formatDateInPHT(scheduleDate, {
+						day: "2-digit",
 					});
-					const day = String(scheduleDate.getDate()).padStart(2, "0");
-					const weekday = scheduleDate.toLocaleString("en-US", {
+					const weekday = formatDateInPHT(scheduleDate, {
 						weekday: "long",
 					});
 					const fullDate = formatSessionDate(scheduleDate);
@@ -128,7 +131,7 @@ export default async function HomePage() {
 						id: s.id,
 						type: s.type,
 						sessionNumber: String(s.sessionNumber),
-						date: String(scheduleDate.toISOString().split("T")[0]),
+						date: formatIsoDateInPHT(scheduleDate),
 						month,
 						day,
 						weekday,
