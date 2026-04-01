@@ -38,7 +38,7 @@ test.describe("Portal Home Interactions", () => {
 			.getByRole("main")
 			.getByRole("link", { name: "Make an Inquiry" });
 		await makeInquiryLink.click();
-		await expect(page).toHaveURL(/\/inquiries\?tab=make/);
+		await expect(page).toHaveURL(/\/inquiries\?tab=submit/);
 
 		await page.goto("/");
 		const trackInquiryLink = page
