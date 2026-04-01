@@ -168,6 +168,8 @@ export function RoomBookingCalendar({
 		setEditingBooking({
 			id: booking.id,
 			title: booking.purpose,
+			meetingType: booking.meetingType,
+			meetingTypeOthers: booking.meetingTypeOthers,
 			requestedFor: booking.requestedFor,
 			room: resolveConferenceRoom(
 				booking.roomKey || booking.room,
@@ -176,7 +178,7 @@ export function RoomBookingCalendar({
 			date: booking.date,
 			startTime: booking.startTime24,
 			endTime: booking.endTime24,
-			attachmentUrl: booking.attachmentUrl,
+			attachments: booking.attachments,
 		});
 	};
 

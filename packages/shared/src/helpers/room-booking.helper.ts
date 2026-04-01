@@ -1,6 +1,6 @@
 import { FILE_SIZE_LIMITS } from "../constants";
 import type { RoleType } from "../enums/role";
-import type { ConferenceRoom } from "../enums/room";
+import type { ConferenceRoom, MeetingType } from "../enums/room-booking";
 
 // ---------------------------------------------------------------------------
 // Role constants — single source of truth for the whole monorepo
@@ -99,6 +99,12 @@ export function isPastDateTime(
 /** Minimum booking duration in minutes. */
 export const MIN_DURATION_MINUTES = 15;
 
+/** Business hours start (08:00 / 8 AM) in minutes from midnight. */
+export const BUSINESS_HOUR_START_MINUTES = 8 * 60;
+
+/** Business hours end (17:00 / 5 PM) in minutes from midnight. */
+export const BUSINESS_HOUR_END_MINUTES = 17 * 60;
+
 /** Supabase Storage bucket for booking attachments. */
 export const BOOKING_ATTACHMENTS_BUCKET = "attachments";
 
@@ -137,4 +143,26 @@ export const CONFERENCE_ROOM_OPTIONS: {
 }[] = [
 	{ value: "room_a", label: CONFERENCE_ROOM_LABELS.room_a },
 	{ value: "room_b", label: CONFERENCE_ROOM_LABELS.room_b },
+];
+
+/** Human-readable meeting type labels keyed by the MeetingType enum value. */
+export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
+	committee_hearing: "Committee Hearing",
+	consultative_meeting: "Consultative Meeting",
+	meeting: "Meeting",
+	others: "Others",
+};
+
+/** Ordered list of meeting types for <Select> dropdowns. */
+export const MEETING_TYPE_OPTIONS: {
+	value: MeetingType;
+	label: string;
+}[] = [
+	{ value: "committee_hearing", label: MEETING_TYPE_LABELS.committee_hearing },
+	{
+		value: "consultative_meeting",
+		label: MEETING_TYPE_LABELS.consultative_meeting,
+	},
+	{ value: "meeting", label: MEETING_TYPE_LABELS.meeting },
+	{ value: "others", label: MEETING_TYPE_LABELS.others },
 ];

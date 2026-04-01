@@ -7,7 +7,10 @@ import {
 } from "@repo/shared";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useUpdateBooking } from "@/hooks/room-booking/use-update-booking";
+import {
+	type UpdateBookingInput,
+	useUpdateBooking,
+} from "@/hooks/room-booking/use-update-booking";
 import { resolveConferenceRoom } from "@/utils/booking-helpers";
 import {
 	BookingFormFields,
@@ -17,6 +20,8 @@ import {
 export interface EditBookingData {
 	id: string;
 	title: string;
+	meetingType: string;
+	meetingTypeOthers: string | null;
 	requestedFor: string;
 	room: string;
 	date: Date;
@@ -24,7 +29,7 @@ export interface EditBookingData {
 	startTime: string;
 	/** "HH:MM" 24-hour local time */
 	endTime: string;
-	attachmentUrl: string | null;
+	attachments: Array<{ path: string; url: string | null; fileName: string }>;
 }
 
 interface EditBookingModalProps {
@@ -45,14 +50,17 @@ export function EditBookingModal({
 		date: undefined,
 		startTime: "",
 		endTime: "",
+		meetingType: "",
+		meetingTypeOthers: "",
 		title: "",
 		requestedFor: "",
-		attachment: null,
+		attachments: [],
 	});
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
-	const [removeExistingAttachment, setRemoveExistingAttachment] =
-		useState(false);
+	const [removedAttachmentPaths, setRemovedAttachmentPaths] = useState<
+		string[]
+	>([]);
 
 	const { updateBooking, isUpdating, error, clearError } = useUpdateBooking(
 		() => {
@@ -73,12 +81,13 @@ export function EditBookingModal({
 			date: booking.date,
 			startTime: booking.startTime,
 			endTime: booking.endTime,
+			meetingType: booking.meetingType,
+			meetingTypeOthers: booking.meetingTypeOthers ?? "",
 			title: booking.title,
 			requestedFor: booking.requestedFor,
-			attachment: null,
-			removeExistingAttachment: false,
+			attachments: [],
 		});
-		setRemoveExistingAttachment(false);
+		setRemovedAttachmentPaths([]);
 	}, [isOpen, booking]);
 
 	const validateForm = (): BookingFieldErrors => {
@@ -99,6 +108,12 @@ export function EditBookingModal({
 		if (!values.title.trim()) {
 			errors.title = "Title is required.";
 		}
+		if (!values.meetingType) {
+			errors.meetingType = "Meeting type is required.";
+		}
+		if (values.meetingType === "others" && !values.meetingTypeOthers.trim()) {
+			errors.meetingTypeOthers = "Please specify the meeting type.";
+		}
 		if (!values.requestedFor.trim()) {
 			errors.requestedFor = "Requested for is required.";
 		}
@@ -113,20 +128,20 @@ export function EditBookingModal({
 			errors.endTime = "End time must be later than start time.";
 		}
 
-		const SEVEN_AM_MINUTES = 7 * 60; // 420
+		const EIGHT_AM_MINUTES = 8 * 60; // 480
 		const FIVE_PM_MINUTES = 17 * 60; // 1020
 
 		if (
 			startMinutes !== null &&
-			(startMinutes < SEVEN_AM_MINUTES || startMinutes > FIVE_PM_MINUTES)
+			(startMinutes < EIGHT_AM_MINUTES || startMinutes > FIVE_PM_MINUTES)
 		) {
-			errors.startTime = "Start time must be between 7:00 AM and 5:00 PM.";
+			errors.startTime = "Start time must be between 8:00 AM and 5:00 PM.";
 		}
 		if (
 			endMinutes !== null &&
-			(endMinutes < SEVEN_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
+			(endMinutes < EIGHT_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
 		) {
-			errors.endTime = "End time must be between 7:00 AM and 5:00 PM.";
+			errors.endTime = "End time must be between 8:00 AM and 5:00 PM.";
 		}
 
 		if (
@@ -148,8 +163,21 @@ export function EditBookingModal({
 				room: resolveConferenceRoom(value),
 			}));
 		} else {
-			if (field === "attachment" && value) {
-				setRemoveExistingAttachment(false);
+			if (field === "attachments") {
+				setRemovedAttachmentPaths((prev) =>
+					prev.filter((path) =>
+						booking?.attachments.some((attachment) => attachment.path === path),
+					),
+				);
+			}
+
+			if (field === "meetingType" && value !== "others") {
+				setValues((prev) => ({
+					...prev,
+					meetingType: String(value),
+					meetingTypeOthers: "",
+				}));
+				return;
 			}
 			setValues((prev) => ({ ...prev, [field]: value }));
 		}
@@ -187,15 +215,24 @@ export function EditBookingModal({
 		await updateBooking({
 			id: booking.id,
 			title: values.title,
+			meetingType: values.meetingType as UpdateBookingInput["meetingType"],
+			meetingTypeOthers:
+				values.meetingType === "others"
+					? values.meetingTypeOthers.trim() || null
+					: null,
 			date: values.date,
 			startTime: values.startTime,
 			endTime: values.endTime,
 			requestedFor: values.requestedFor,
 			room: values.room as ConferenceRoom,
-			...(removeExistingAttachment && !values.attachment
-				? { attachmentUrl: null }
+			attachmentPaths: booking.attachments
+				.filter(
+					(attachment) => !removedAttachmentPaths.includes(attachment.path),
+				)
+				.map((attachment) => attachment.path),
+			...(values.attachments.length > 0
+				? { attachmentFiles: values.attachments }
 				: {}),
-			...(values.attachment ? { attachmentFile: values.attachment } : {}),
 		});
 	};
 
@@ -232,9 +269,15 @@ export function EditBookingModal({
 						values={values}
 						onChange={handleChange}
 						fieldErrors={fieldErrors}
-						existingAttachmentUrl={booking.attachmentUrl}
-						removeExistingAttachment={removeExistingAttachment}
-						onRemoveExistingAttachmentChange={setRemoveExistingAttachment}
+						existingAttachments={booking.attachments}
+						removedExistingAttachmentPaths={removedAttachmentPaths}
+						onToggleExistingAttachmentRemoval={(path) => {
+							setRemovedAttachmentPaths((prev) =>
+								prev.includes(path)
+									? prev.filter((value) => value !== path)
+									: [...prev, path],
+							);
+						}}
 						error={error}
 						fileError={fileError}
 						onFileError={setFileError}

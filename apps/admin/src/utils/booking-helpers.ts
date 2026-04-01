@@ -2,6 +2,8 @@ import {
 	CONFERENCE_ROOM_LABELS,
 	type ConferenceRoom,
 	isSameDay,
+	MEETING_TYPE_LABELS,
+	type MeetingType,
 } from "@repo/shared";
 
 import type { TimeSlot } from "@/utils/time-utils";
@@ -66,6 +68,19 @@ function normalizeRoomKey(room: string): ConferenceRoom {
 	return resolveConferenceRoom(room);
 }
 
+function normalizeMeetingType(meetingType: string): MeetingType {
+	if (
+		meetingType === "committee_hearing" ||
+		meetingType === "consultative_meeting" ||
+		meetingType === "meeting" ||
+		meetingType === "others"
+	) {
+		return meetingType;
+	}
+
+	return "meeting";
+}
+
 // ---------------------------------------------------------------------------
 // CalendarBooking — shared interface used across all calendar sub-components
 // ---------------------------------------------------------------------------
@@ -86,10 +101,27 @@ export interface CalendarBooking {
 	roomKey: ConferenceRoom;
 	room: string;
 	purpose: string;
+	meetingType: MeetingType;
+	meetingTypeLabel: string;
+	meetingTypeOthers: string | null;
 	requestedFor: string;
 	status: "pending" | "confirmed" | "rejected";
-	attachmentUrl: string | null;
+	attachments: Array<{ path: string; url: string | null; fileName: string }>;
 	isPast: boolean;
+}
+
+export function toPhtIsoDateTime(date: Date, timeStr: string): string {
+	const parts = timeStr.split(":");
+	const hours = Number(parts[0] ?? 0);
+	const minutes = Number(parts[1] ?? 0);
+	const year = date.getFullYear();
+	const month = `${date.getMonth() + 1}`.padStart(2, "0");
+	const day = `${date.getDate()}`.padStart(2, "0");
+	const hour = `${hours}`.padStart(2, "0");
+	const minute = `${minutes}`.padStart(2, "0");
+	const phtDateTime = `${year}-${month}-${day}T${hour}:${minute}:00+08:00`;
+
+	return new Date(phtDateTime).toISOString();
 }
 
 // ---------------------------------------------------------------------------
@@ -123,9 +155,11 @@ interface ApiBooking {
 	endTime: string;
 	room: string;
 	title: string;
+	meetingType: string;
+	meetingTypeOthers: string | null;
 	requestedFor: string;
 	status: string;
-	attachmentUrl: string | null;
+	attachments: Array<{ path: string; url: string | null }>;
 	user?: { id: string; fullName: string } | null;
 }
 
@@ -133,6 +167,7 @@ interface ApiBooking {
 export function mapApiBookings(bookings: ApiBooking[]): CalendarBooking[] {
 	return bookings.map((b) => {
 		const roomKey = normalizeRoomKey(b.room);
+		const meetingType = normalizeMeetingType(b.meetingType);
 
 		return {
 			id: b.id,
@@ -146,9 +181,21 @@ export function mapApiBookings(bookings: ApiBooking[]): CalendarBooking[] {
 			roomKey,
 			room: CONFERENCE_ROOM_LABELS[roomKey],
 			purpose: b.title,
+			meetingType,
+			meetingTypeLabel: MEETING_TYPE_LABELS[meetingType],
+			meetingTypeOthers: b.meetingTypeOthers,
 			requestedFor: b.requestedFor,
 			status: b.status as "pending" | "confirmed" | "rejected",
-			attachmentUrl: b.attachmentUrl,
+			attachments: (b.attachments ?? []).map((attachment) => ({
+				path: attachment.path,
+				url: attachment.url,
+				fileName: decodeURIComponent(
+					(attachment.path.split("/").pop() ?? "attachment").replace(
+						/^\d+-/,
+						"",
+					),
+				),
+			})),
 			isPast: new Date(b.endTime) < new Date(),
 		};
 	});
@@ -170,7 +217,7 @@ export function getTimeLinePosition(
 	if (!isSameDay(selectedDate, today)) return null;
 	const totalMinutes = now.getHours() * 60 + now.getMinutes();
 
-	const START_MINUTES = 420; // 7:00 AM
+	const START_MINUTES = 480; // 8:00 AM
 	const END_MINUTES = 1020; // 5:00 PM
 
 	if (totalMinutes < START_MINUTES) return 0;

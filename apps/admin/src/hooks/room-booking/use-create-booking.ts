@@ -1,19 +1,26 @@
 "use client";
 
-import { type AttachmentMimeType, type ConferenceRoom } from "@repo/shared";
+import {
+	type AttachmentMimeType,
+	type ConferenceRoom,
+	type MeetingType,
+} from "@repo/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api, orpc } from "@/lib/api.client";
+import { toPhtIsoDateTime } from "@/utils/booking-helpers";
 
 export interface CreateBookingInput {
 	title: string;
+	meetingType: MeetingType;
+	meetingTypeOthers?: string;
 	date: Date;
 	startTime: string;
 	endTime: string;
 	requestedFor: string;
 	room: ConferenceRoom;
-	attachmentFile?: File;
+	attachmentFiles?: File[];
 }
 
 export interface UseCreateBookingReturn {
@@ -23,15 +30,6 @@ export interface UseCreateBookingReturn {
 	uploadProgress: number | null;
 	error: string | null;
 	clearError: () => void;
-}
-
-function toISODateTime(date: Date, timeStr: string): string {
-	const parts = timeStr.split(":");
-	const hours = Number(parts[0] ?? 0);
-	const minutes = Number(parts[1] ?? 0);
-	const d = new Date(date);
-	d.setHours(hours, minutes, 0, 0);
-	return d.toISOString();
 }
 
 function inferAttachmentMimeType(file: File): AttachmentMimeType {
@@ -114,44 +112,54 @@ export function useCreateBooking(
 
 	const mutation = useMutation({
 		mutationFn: async (input: CreateBookingInput) => {
-			let attachmentUrl: string | undefined;
+			const attachmentPaths: string[] = [];
 
-			if (input.attachmentFile) {
-				const mimeType = inferAttachmentMimeType(input.attachmentFile);
-				const [uploadErr, uploadData] =
-					await api.roomBookings.generateUploadUrl({
-						fileName: input.attachmentFile.name,
-						mimeType,
-						fileSize: input.attachmentFile.size,
-					});
-
-				if (uploadErr || !uploadData) {
-					throw new Error(
-						uploadErr?.message || "Failed to generate upload URL",
-					);
-				}
-
+			if (input.attachmentFiles && input.attachmentFiles.length > 0) {
+				const totalFiles = input.attachmentFiles.length;
 				setIsUploadingAttachment(true);
 				setUploadProgress(0);
-				await uploadFileWithProgress(
-					uploadData.uploadUrl,
-					input.attachmentFile,
-					(progressPercent) => {
-						setUploadProgress(progressPercent);
-					},
-				);
-				setIsUploadingAttachment(false);
 
-				attachmentUrl = uploadData.path;
+				for (const [index, file] of input.attachmentFiles.entries()) {
+					const mimeType = inferAttachmentMimeType(file);
+					const [uploadErr, uploadData] =
+						await api.roomBookings.generateUploadUrl({
+							fileName: file.name,
+							mimeType,
+							fileSize: file.size,
+						});
+
+					if (uploadErr || !uploadData) {
+						throw new Error(
+							uploadErr?.message || "Failed to generate upload URL",
+						);
+					}
+
+					await uploadFileWithProgress(
+						uploadData.uploadUrl,
+						file,
+						(progressPercent) => {
+							const totalProgress = Math.round(
+								((index + progressPercent / 100) / totalFiles) * 100,
+							);
+							setUploadProgress(totalProgress);
+						},
+					);
+
+					attachmentPaths.push(uploadData.path);
+				}
+
+				setIsUploadingAttachment(false);
 			}
 
 			const [err, data] = await api.roomBookings.create({
 				title: input.title,
-				startTime: toISODateTime(input.date, input.startTime),
-				endTime: toISODateTime(input.date, input.endTime),
+				meetingType: input.meetingType,
+				meetingTypeOthers: input.meetingTypeOthers,
+				startTime: toPhtIsoDateTime(input.date, input.startTime),
+				endTime: toPhtIsoDateTime(input.date, input.endTime),
 				requestedFor: input.requestedFor,
 				room: input.room,
-				...(attachmentUrl ? { attachmentUrl } : {}),
+				...(attachmentPaths.length > 0 ? { attachmentPaths } : {}),
 			});
 
 			if (err) {
