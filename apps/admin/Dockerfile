@@ -31,7 +31,8 @@ ENV BUILD_STANDALONE="true"
 
 COPY --from=installer /app/ .
 COPY --from=pruner /app/out/full/ .
-RUN pnpm turbo build --filter=admin
+RUN pnpm --filter=@repo/shared build
+RUN pnpm --filter=admin build
 RUN test -f /app/apps/admin/.next/standalone/server.js
 
 # Production image
