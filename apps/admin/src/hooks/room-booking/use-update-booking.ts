@@ -3,6 +3,7 @@
 import type {
 	AttachmentMimeType,
 	ConferenceRoom,
+	MeetingType,
 	RoomBookingListResponse,
 	RoomBookingResponse,
 } from "@repo/shared";
@@ -10,26 +11,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api, orpc } from "@/lib/api.client";
+import { toPhtIsoDateTime } from "@/utils/booking-helpers";
 
 export interface UpdateBookingInput {
 	id: string;
 	title?: string;
+	meetingType?: MeetingType;
+	meetingTypeOthers?: string | null;
 	date?: Date;
 	startTime?: string;
 	endTime?: string;
 	requestedFor?: string;
 	room?: ConferenceRoom;
-	attachmentFile?: File;
-	attachmentUrl?: string | null;
-}
-
-function toISODateTime(date: Date, timeStr: string): string {
-	const parts = timeStr.split(":");
-	const hours = Number(parts[0] ?? 0);
-	const minutes = Number(parts[1] ?? 0);
-	const d = new Date(date);
-	d.setHours(hours, minutes, 0, 0);
-	return d.toISOString();
+	attachmentFiles?: File[];
+	attachmentPaths?: string[];
 }
 
 function inferAttachmentMimeType(file: File): AttachmentMimeType {
@@ -68,57 +63,66 @@ export function useUpdateBooking(onSuccess?: () => void) {
 
 	const mutation = useMutation({
 		mutationFn: async (input: UpdateBookingInput) => {
-			let attachmentUrl = input.attachmentUrl;
+			const attachmentPaths = [...new Set(input.attachmentPaths ?? [])];
 
-			if (input.attachmentFile) {
-				const mimeType = inferAttachmentMimeType(input.attachmentFile);
-				const [uploadErr, uploadData] =
-					await api.roomBookings.generateUploadUrl({
-						fileName: input.attachmentFile.name,
-						mimeType,
-						fileSize: input.attachmentFile.size,
+			if (input.attachmentFiles && input.attachmentFiles.length > 0) {
+				for (const file of input.attachmentFiles) {
+					const mimeType = inferAttachmentMimeType(file);
+					const [uploadErr, uploadData] =
+						await api.roomBookings.generateUploadUrl({
+							fileName: file.name,
+							mimeType,
+							fileSize: file.size,
+						});
+
+					if (uploadErr || !uploadData) {
+						throw new Error(
+							uploadErr?.message || "Failed to generate upload URL",
+						);
+					}
+
+					const uploadResponse = await fetch(uploadData.uploadUrl, {
+						method: "PUT",
+						headers: {
+							"Content-Type": file.type || "application/octet-stream",
+						},
+						body: file,
 					});
 
-				if (uploadErr || !uploadData) {
-					throw new Error(
-						uploadErr?.message || "Failed to generate upload URL",
-					);
+					if (!uploadResponse.ok) {
+						throw new Error(
+							`Failed to upload attachment (${uploadResponse.status})`,
+						);
+					}
+
+					attachmentPaths.push(uploadData.path);
 				}
-
-				const uploadResponse = await fetch(uploadData.uploadUrl, {
-					method: "PUT",
-					headers: {
-						"Content-Type":
-							input.attachmentFile.type || "application/octet-stream",
-					},
-					body: input.attachmentFile,
-				});
-
-				if (!uploadResponse.ok) {
-					throw new Error(
-						`Failed to upload attachment (${uploadResponse.status})`,
-					);
-				}
-
-				attachmentUrl = uploadData.path;
 			}
 
 			const [err, data] = await api.roomBookings.update({
 				id: input.id,
 				...(input.title !== undefined && { title: input.title }),
+				...(input.meetingType !== undefined && {
+					meetingType: input.meetingType,
+				}),
+				...(input.meetingTypeOthers !== undefined && {
+					meetingTypeOthers: input.meetingTypeOthers,
+				}),
 				...(input.date &&
 					input.startTime && {
-						startTime: toISODateTime(input.date, input.startTime),
+						startTime: toPhtIsoDateTime(input.date, input.startTime),
 					}),
 				...(input.date &&
 					input.endTime && {
-						endTime: toISODateTime(input.date, input.endTime),
+						endTime: toPhtIsoDateTime(input.date, input.endTime),
 					}),
 				...(input.requestedFor !== undefined && {
 					requestedFor: input.requestedFor,
 				}),
 				...(input.room !== undefined && { room: input.room }),
-				...(attachmentUrl !== undefined && { attachmentUrl }),
+				...(input.attachmentPaths !== undefined || attachmentPaths.length > 0
+					? { attachmentPaths }
+					: {}),
 			});
 
 			if (err) {
@@ -149,16 +153,22 @@ export function useUpdateBooking(onSuccess?: () => void) {
 									...(updatedBooking.title !== undefined && {
 										title: updatedBooking.title,
 									}),
+									...(updatedBooking.meetingType !== undefined && {
+										meetingType: updatedBooking.meetingType,
+									}),
+									...(updatedBooking.meetingTypeOthers !== undefined && {
+										meetingTypeOthers: updatedBooking.meetingTypeOthers,
+									}),
 									...(updatedBooking.date &&
 										updatedBooking.startTime && {
-											startTime: toISODateTime(
+											startTime: toPhtIsoDateTime(
 												updatedBooking.date,
 												updatedBooking.startTime,
 											),
 										}),
 									...(updatedBooking.date &&
 										updatedBooking.endTime && {
-											endTime: toISODateTime(
+											endTime: toPhtIsoDateTime(
 												updatedBooking.date,
 												updatedBooking.endTime,
 											),
@@ -169,8 +179,10 @@ export function useUpdateBooking(onSuccess?: () => void) {
 									...(updatedBooking.room !== undefined && {
 										room: updatedBooking.room,
 									}),
-									...(updatedBooking.attachmentUrl !== undefined && {
-										attachmentUrl: updatedBooking.attachmentUrl,
+									...(updatedBooking.attachmentPaths !== undefined && {
+										attachments: booking.attachments.filter((attachment) =>
+											updatedBooking.attachmentPaths?.includes(attachment.path),
+										),
 									}),
 								};
 							}
