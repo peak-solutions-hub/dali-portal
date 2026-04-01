@@ -14,6 +14,7 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
+import { useDebounce } from "@repo/ui/hooks";
 import { Loader2, MessageCircle, Search, Tag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { InquiryTicketSheet } from "@/components/inquiry-tickets/inquiry-ticket-sheet";
@@ -30,16 +31,14 @@ export default function InquiryTicketsPage() {
 	const [searchInput, setSearchInput] = useState("");
 	const [searchQuery, setSearchQuery] = useState("");
 
-	// Debounce the search query by 300ms
-	useEffect(() => {
-		const t = setTimeout(() => setSearchQuery(searchInput), 300);
-		return () => clearTimeout(t);
-	}, [searchInput]);
+	// Debounce search input to avoid excessive API calls
+	const debouncedSearchInput = useDebounce(searchInput, 300);
 
-	// Reset to page 1 when search query changes
+	// Sync debounced query and reset pagination together.
 	useEffect(() => {
+		setSearchQuery(debouncedSearchInput);
 		setCurrentPage(1);
-	}, [searchQuery]);
+	}, [debouncedSearchInput]);
 
 	const {
 		tickets,
