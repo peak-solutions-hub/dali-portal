@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDayName, formatFullDate } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
@@ -12,7 +13,6 @@ import {
 import { useMemo } from "react";
 import { useDragSelect } from "@/hooks/room-booking";
 import type { CalendarBooking } from "@/utils/booking-helpers";
-import { formatDayName, formatFullDate } from "@/utils/date-utils";
 import { generateTimeSlots, isTimeSlotBooked } from "@/utils/time-utils";
 
 interface DayViewProps {
