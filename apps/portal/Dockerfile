@@ -36,6 +36,7 @@ ENV BUILD_STANDALONE="true"
 COPY --from=installer /app/ .
 COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo build --filter=portal
+RUN test -f /app/apps/portal/.next/standalone/server.js
 
 # Production image
 FROM node:22-alpine AS runner
