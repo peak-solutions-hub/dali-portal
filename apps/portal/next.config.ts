@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
 	transpilePackages: ["@repo/ui"],
 	htmlLimitedBots:
 		/Chrome-Lighthouse|Lighthouse|facebookexternalhit|Twitterbot|Slackbot|Bingbot/i,
-	output: "standalone",
+	output: process.env.BUILD_STANDALONE === "true" ? "standalone" : undefined,
 };
 
 export default nextConfig;

@@ -20,6 +20,7 @@ import {
 	type UpdateInquiryTicketStatusInput,
 } from "@repo/shared";
 import { customAlphabet } from "nanoid";
+import type { CreateEmailOptions } from "resend";
 import { DbService } from "@/app/db/db.service";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
 import { ConfigService } from "@/lib/config.service";
@@ -81,7 +82,13 @@ export class InquiryTicketService {
 
 		// send confirmation email only if citizen provided an email address
 		if (response.citizenEmail) {
-			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(response.referenceNumber)}`;
+			const contactParam = response.citizenContactNumber
+				? `&contact=${encodeURIComponent(response.citizenContactNumber)}`
+				: "";
+
+			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(
+				response.referenceNumber,
+			)}${contactParam}`;
 
 			const emailRes = await this.resend.send({
 				to: response.citizenEmail,
@@ -306,10 +313,13 @@ export class InquiryTicketService {
 			(status === "resolved" || status === "rejected") &&
 			updated.citizenEmail
 		) {
-			const emailParam = updated.citizenEmail
-				? `&email=${encodeURIComponent(updated.citizenEmail)}`
+			const contactParam = updated.citizenContactNumber
+				? `&contact=${encodeURIComponent(updated.citizenContactNumber)}`
 				: "";
-			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}${emailParam}`;
+
+			const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(
+				updated.referenceNumber,
+			)}${contactParam}`;
 
 			console.log(
 				`[InquiryTicket] Inquiry ${status}, sending email notification...`,
@@ -324,7 +334,7 @@ export class InquiryTicketService {
 				.send({
 					to: updated.citizenEmail,
 					template: {
-						id: "inquiry-resolution-email",
+						id: "inquiry-resolution",
 						variables: {
 							CITIZEN_NAME: formatCitizenFullName(updated) ?? "",
 							SUBJECT: updated.subject,
@@ -332,6 +342,7 @@ export class InquiryTicketService {
 							REFERENCE_NUMBER: updated.referenceNumber,
 							STAFF_NAME: inquiryTicket.user?.fullName || "Staff Member",
 							MESSAGE_CONTENT: closureRemarks || "No remarks provided",
+							CATEGORY: INQUIRY_CATEGORY_LABELS[updated.category],
 							PORTAL_URL: portalUrl,
 							YEAR: new Date().getFullYear().toString(),
 						},
@@ -413,10 +424,13 @@ export class InquiryTicketService {
 			};
 		}
 
-		const emailParam = updated.citizenEmail
-			? `&email=${encodeURIComponent(updated.citizenEmail)}`
+		const contactParam = updated.citizenContactNumber
+			? `&contact=${encodeURIComponent(updated.citizenContactNumber)}`
 			: "";
-		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(updated.referenceNumber)}${emailParam}`;
+
+		const portalUrl = `${this.config.getOrThrow("portalUrl")}/inquiries?ref=${encodeURIComponent(
+			updated.referenceNumber,
+		)}${contactParam}`;
 
 		console.log(
 			"[InquiryTicket] Inquiry assigned, sending email notification...",
@@ -427,49 +441,52 @@ export class InquiryTicketService {
 			},
 		);
 
-		this.resend
-			.send({
-				to: updated.citizenEmail,
-				template: {
-					id: "assigned-inquiry",
-					variables: {
-						CITIZEN_NAME: formatCitizenFullName(updated) ?? "",
-						REFERENCE_NUMBER: updated.referenceNumber,
-						SUBJECT: updated.subject,
-						STAFF_NAME: updated.user?.fullName || "Staff Member",
-						PORTAL_URL: portalUrl,
-						YEAR: new Date().getFullYear().toString(),
-					},
+		// Build payload and log it for debugging why assignment emails may not send
+		const assignedPayload: CreateEmailOptions = {
+			to: updated.citizenEmail,
+			template: {
+				id: "assigned-inquiry",
+				variables: {
+					CITIZEN_NAME: formatCitizenFullName(updated) ?? "",
+					REFERENCE_NUMBER: updated.referenceNumber,
+					SUBJECT: updated.subject,
+					CATEGORY: INQUIRY_CATEGORY_LABELS[updated.category],
+					STAFF_NAME: updated.user?.fullName || "Staff Member",
+					PORTAL_URL: portalUrl,
+					YEAR: new Date().getFullYear().toString(),
 				},
-			})
-			.then((result) => {
-				console.log(
-					"[InquiryTicket] Assignment notification - Resend response:",
-					{
-						success: !!result.data,
-						emailId: result.data?.id,
-						error: result.error,
-						to: updated.citizenEmail,
-						referenceNumber: updated.referenceNumber,
-					},
-				);
-				if (result.error) {
-					console.error(
-						"[InquiryTicket] Resend returned an error:",
-						result.error,
-					);
-				}
-			})
-			.catch((err) => {
+			},
+		};
+
+		console.log("[InquiryTicket] Assignment email payload:", assignedPayload);
+
+		try {
+			const result = await this.resend.send(assignedPayload);
+
+			console.log(
+				"[InquiryTicket] Assignment notification - Resend response:",
+				{
+					success: !!result.data,
+					emailId: result.data?.id,
+					error: result.error,
+					to: updated.citizenEmail,
+					referenceNumber: updated.referenceNumber,
+				},
+			);
+
+			if (result.error) {
 				console.error(
-					"[InquiryTicket] Failed to send assignment notification",
-					{
-						ticketId: updated.id,
-						referenceNumber: updated.referenceNumber,
-						error: err,
-					},
+					"[InquiryTicket] Resend returned an error:",
+					result.error,
 				);
+			}
+		} catch (err) {
+			console.error("[InquiryTicket] Failed to send assignment notification", {
+				ticketId: updated.id,
+				referenceNumber: updated.referenceNumber,
+				error: err,
 			});
+		}
 
 		return {
 			...updated,

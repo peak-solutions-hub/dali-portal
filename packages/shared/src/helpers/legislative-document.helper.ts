@@ -19,6 +19,7 @@ import type {
 	GetLegislativeDocumentListInput,
 	LegislativeDocumentWithDetails,
 } from "../schemas/legislative-document.schema";
+import { formatDateInPHT, parseDateInput } from "./date-utils";
 
 /**
  * Display labels for legislative document types
@@ -116,11 +117,12 @@ export const ITEMS_PER_PAGE = LEGISLATIVE_ITEMS_PER_PAGE;
 export function formatDate(date: Date | string): string {
 	if (!date) return "N/A";
 
-	const dateObj = typeof date === "string" ? new Date(date) : date;
+	const dateObj = parseDateInput(date);
 	if (Number.isNaN(dateObj.getTime())) return "N/A";
 
 	try {
-		return dateObj.toLocaleDateString("en-PH", {
+		return formatDateInPHT(dateObj, {
+			locale: "en-PH",
 			year: "numeric",
 			month: "long",
 			day: "numeric",
@@ -328,16 +330,16 @@ export function transformDocumentDates(
 ): LegislativeDocumentWithDetails {
 	return {
 		...doc,
-		dateEnacted: new Date(doc.dateEnacted),
-		createdAt: new Date(doc.createdAt),
+		dateEnacted: parseDateInput(doc.dateEnacted),
+		createdAt: parseDateInput(doc.createdAt),
 		document: {
 			...doc.document,
-			receivedAt: new Date(doc.document.receivedAt),
+			receivedAt: parseDateInput(doc.document.receivedAt),
 		},
 		latestVersion: doc.latestVersion
 			? {
 					...doc.latestVersion,
-					createdAt: new Date(doc.latestVersion.createdAt),
+					createdAt: parseDateInput(doc.latestVersion.createdAt),
 				}
 			: undefined,
 	};
