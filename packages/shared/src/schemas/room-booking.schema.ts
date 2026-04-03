@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { FILE_COUNT_LIMITS, FILE_SIZE_LIMITS } from "../constants";
 import {
 	CONFERENCE_ROOM_VALUES,
+	MEETING_TYPE_VALUES,
 	ROOM_BOOKING_STATUS_VALUES,
-} from "../enums/room";
+} from "../enums/room-booking";
 
 // ---------------------------------------------------------------------------
 // Enum helpers
@@ -15,6 +17,9 @@ const RoomBookingStatusEnum = z.enum(
 const ConferenceRoomEnum = z.enum(
 	CONFERENCE_ROOM_VALUES as [string, ...string[]],
 );
+
+const MeetingTypeEnum = z.enum(MEETING_TYPE_VALUES as [string, ...string[]]);
+const DateTimeWithOffsetSchema = z.string().datetime({ offset: true });
 
 // Allowed MIME types for booking attachments (request letters)
 const ALLOWED_ATTACHMENT_MIME_TYPES = [
@@ -37,13 +42,20 @@ export const RoomBookingSchema = z.object({
 	id: z.uuid(),
 	bookedBy: z.uuid(),
 	title: z.string(),
+	meetingType: MeetingTypeEnum,
+	meetingTypeOthers: z.string().nullable(),
 	startTime: z.date(),
 	endTime: z.date(),
 	requestedFor: z.string(),
 	room: ConferenceRoomEnum,
-	attachmentUrl: z.string().url().nullable(),
+	attachmentPaths: z.string().array(),
 	status: RoomBookingStatusEnum,
 	createdAt: z.date(),
+});
+
+export const RoomBookingAttachmentResponseSchema = z.object({
+	path: z.string(),
+	url: z.string().nullable(),
 });
 
 /** Response shape returned to clients — datetimes are serialised as ISO strings. */
@@ -51,11 +63,13 @@ export const RoomBookingResponseSchema = z.object({
 	id: z.uuid(),
 	bookedBy: z.uuid(),
 	title: z.string(),
+	meetingType: MeetingTypeEnum,
+	meetingTypeOthers: z.string().nullable(),
 	startTime: z.iso.datetime(),
 	endTime: z.iso.datetime(),
 	requestedFor: z.string(),
 	room: ConferenceRoomEnum,
-	attachmentUrl: z.string().nullable(),
+	attachments: RoomBookingAttachmentResponseSchema.array(),
 	status: RoomBookingStatusEnum,
 	createdAt: z.iso.datetime(),
 	user: z
@@ -103,25 +117,78 @@ export const GetRoomBookingByIdSchema = z.object({
 	id: z.uuid(),
 });
 
-export const CreateRoomBookingSchema = z.object({
-	title: z.string().min(1).max(255),
-	startTime: z.iso.datetime(),
-	endTime: z.iso.datetime(),
-	requestedFor: z.string().min(1).max(255),
-	room: ConferenceRoomEnum,
-	/** Storage path of a pre-uploaded attachment (optional). */
-	attachmentUrl: z.string().optional(),
-});
+export const CreateRoomBookingSchema = z
+	.object({
+		title: z.string().min(1).max(255),
+		meetingType: MeetingTypeEnum,
+		meetingTypeOthers: z.string().min(1).max(255).optional(),
+		startTime: DateTimeWithOffsetSchema,
+		endTime: DateTimeWithOffsetSchema,
+		requestedFor: z.string().min(1).max(255),
+		room: ConferenceRoomEnum,
+		/** Storage paths of pre-uploaded attachments (optional). */
+		attachmentPaths: z
+			.array(z.string().min(1))
+			.max(FILE_COUNT_LIMITS.SM)
+			.optional(),
+	})
+	.superRefine((value, context) => {
+		if (value.meetingType === "others" && !value.meetingTypeOthers?.trim()) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["meetingTypeOthers"],
+				message: "Please specify the meeting type when selecting others.",
+			});
+		}
 
-export const UpdateRoomBookingSchema = z.object({
-	id: z.uuid(),
-	title: z.string().min(1).max(255).optional(),
-	startTime: z.iso.datetime().optional(),
-	endTime: z.iso.datetime().optional(),
-	requestedFor: z.string().min(1).max(255).optional(),
-	room: ConferenceRoomEnum.optional(),
-	attachmentUrl: z.string().nullable().optional(),
-});
+		if (value.meetingType !== "others" && value.meetingTypeOthers) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["meetingTypeOthers"],
+				message:
+					"meetingTypeOthers is only allowed when meetingType is others.",
+			});
+		}
+	});
+
+export const UpdateRoomBookingSchema = z
+	.object({
+		id: z.uuid(),
+		title: z.string().min(1).max(255).optional(),
+		meetingType: MeetingTypeEnum.optional(),
+		meetingTypeOthers: z.string().min(1).max(255).nullable().optional(),
+		startTime: DateTimeWithOffsetSchema.optional(),
+		endTime: DateTimeWithOffsetSchema.optional(),
+		requestedFor: z.string().min(1).max(255).optional(),
+		room: ConferenceRoomEnum.optional(),
+		attachmentPaths: z
+			.array(z.string().min(1))
+			.max(FILE_COUNT_LIMITS.SM)
+			.optional(),
+	})
+	.superRefine((value, context) => {
+		if (value.meetingType === "others" && !value.meetingTypeOthers?.trim()) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["meetingTypeOthers"],
+				message: "Please specify the meeting type when selecting others.",
+			});
+		}
+
+		if (
+			value.meetingType !== undefined &&
+			value.meetingType !== "others" &&
+			value.meetingTypeOthers !== undefined &&
+			value.meetingTypeOthers !== null
+		) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["meetingTypeOthers"],
+				message:
+					"meetingTypeOthers is only allowed when meetingType is others.",
+			});
+		}
+	});
 
 export const UpdateRoomBookingStatusSchema = z.object({
 	id: z.uuid(),
@@ -140,7 +207,7 @@ export const GenerateBookingUploadUrlSchema = z.object({
 		.number()
 		.int()
 		.positive()
-		.max(5 * 1024 * 1024, "File size must not exceed 5MB"),
+		.max(FILE_SIZE_LIMITS.XS, "File size must not exceed 5MB"),
 });
 
 export const GenerateBookingUploadUrlResponseSchema = z.object({
@@ -153,6 +220,9 @@ export const GenerateBookingUploadUrlResponseSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export type RoomBookingResponse = z.infer<typeof RoomBookingResponseSchema>;
+export type RoomBookingAttachmentResponse = z.infer<
+	typeof RoomBookingAttachmentResponseSchema
+>;
 export type RoomBookingListResponse = z.infer<
 	typeof RoomBookingListResponseSchema
 >;

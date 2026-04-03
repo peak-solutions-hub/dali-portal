@@ -4,18 +4,11 @@ import {
 	CONFERENCE_ROOM_OPTIONS,
 	type ConferenceRoom,
 	FILE_UPLOAD_PRESETS,
+	MEETING_TYPE_OPTIONS,
 	TEXT_LIMITS,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Calendar } from "@repo/ui/components/calendar";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@repo/ui/components/dialog";
 import { formatBytes } from "@repo/ui/components/dropzone";
 import {
 	Popover,
@@ -48,10 +41,11 @@ export interface BookingFormValues {
 	date: Date | undefined;
 	startTime: string;
 	endTime: string;
+	meetingType: string;
+	meetingTypeOthers: string;
 	title: string;
 	requestedFor: string;
-	attachment: File | null;
-	removeExistingAttachment?: boolean;
+	attachments: File[];
 }
 
 interface BookingFormFieldsProps {
@@ -63,12 +57,16 @@ interface BookingFormFieldsProps {
 	roomAvailability?: Partial<
 		Record<ConferenceRoom, { disabled: boolean; note?: string }>
 	>;
-	/** Whether there is an existing attachment on the server (edit mode). */
-	existingAttachmentUrl?: string | null;
-	/** Whether existing attachment is marked for removal on save (edit mode). */
-	removeExistingAttachment?: boolean;
-	/** Toggle remove existing attachment marker (edit mode). */
-	onRemoveExistingAttachmentChange?: (value: boolean) => void;
+	/** Existing attachments persisted on the booking (edit mode). */
+	existingAttachments?: Array<{
+		path: string;
+		url: string | null;
+		fileName: string;
+	}>;
+	/** Paths of existing attachments marked for removal (edit mode). */
+	removedExistingAttachmentPaths?: string[];
+	/** Toggle remove marker for a specific existing attachment path (edit mode). */
+	onToggleExistingAttachmentRemoval?: (path: string) => void;
 	/** Form-level error message displayed at the top. */
 	error?: string | null;
 	/** File validation error. */
@@ -76,6 +74,8 @@ interface BookingFormFieldsProps {
 	onFileError: (msg: string | null) => void;
 	isUploadingAttachment?: boolean;
 	uploadProgress?: number | null;
+	uploadedAttachmentCount?: number;
+	totalAttachmentCount?: number;
 }
 
 export function BookingFormFields({
@@ -84,52 +84,45 @@ export function BookingFormFields({
 	fieldErrors,
 	selectedRoomConflictNote,
 	roomAvailability,
-	existingAttachmentUrl,
-	removeExistingAttachment,
-	onRemoveExistingAttachmentChange,
+	existingAttachments,
+	removedExistingAttachmentPaths,
+	onToggleExistingAttachmentRemoval,
 	error,
 	fileError,
 	onFileError,
 	isUploadingAttachment = false,
 	uploadProgress = null,
+	uploadedAttachmentCount = 0,
+	totalAttachmentCount = 0,
 }: BookingFormFieldsProps) {
-	const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
-	const { maxFileSize, allowedMimeTypes } = FILE_UPLOAD_PRESETS.ATTACHMENTS;
+	const { maxFileSize, maxFiles, allowedMimeTypes } =
+		FILE_UPLOAD_PRESETS.ATTACHMENTS;
+	const existingCount =
+		existingAttachments?.filter(
+			(attachment) =>
+				!(removedExistingAttachmentPaths ?? []).includes(attachment.path),
+		).length ?? 0;
+	const remainingAttachmentSlots = Math.max(maxFiles - existingCount, 0);
+	const uploadMaxFiles = Math.max(remainingAttachmentSlots, 1);
+	const hasReachedAttachmentLimit = remainingAttachmentSlots === 0;
 	const formErrorRef = useRef<HTMLDivElement | null>(null);
 	const roomErrorRef = useRef<HTMLDivElement | null>(null);
 	const dateErrorRef = useRef<HTMLDivElement | null>(null);
 	const startTimeErrorRef = useRef<HTMLDivElement | null>(null);
 	const endTimeErrorRef = useRef<HTMLDivElement | null>(null);
+	const meetingTypeErrorRef = useRef<HTMLDivElement | null>(null);
+	const meetingTypeOthersErrorRef = useRef<HTMLDivElement | null>(null);
 	const titleErrorRef = useRef<HTMLDivElement | null>(null);
 	const requestedForErrorRef = useRef<HTMLDivElement | null>(null);
 	const fileErrorRef = useRef<HTMLDivElement | null>(null);
 
-	const {
-		files,
-		setFiles,
-		getRootProps,
-		getInputProps,
-		isDragActive,
-		hasFileErrors,
-	} = useSupabaseUpload({
-		path: "room-bookings",
-		maxFiles: 1,
-		maxFileSize,
-		allowedMimeTypes: [...allowedMimeTypes],
-	});
-
-	useEffect(() => {
-		if (files.length <= 1) {
-			return;
-		}
-
-		const latestFile = files[files.length - 1];
-		if (!latestFile) {
-			return;
-		}
-
-		setFiles([latestFile]);
-	}, [files, setFiles]);
+	const { files, setFiles, getRootProps, getInputProps, isDragActive } =
+		useSupabaseUpload({
+			path: "room-bookings",
+			maxFiles: uploadMaxFiles,
+			maxFileSize,
+			allowedMimeTypes: [...allowedMimeTypes],
+		});
 
 	const selectedRoomLabel =
 		CONFERENCE_ROOM_OPTIONS.find((opt) => opt.value === values.room)?.label ??
@@ -141,16 +134,43 @@ export function BookingFormFields({
 		);
 
 	useEffect(() => {
-		const validFile = files.find((file) => file.errors.length === 0) ?? null;
-		const firstInvalidFile = files.find((file) => file.errors.length > 0);
+		if (hasReachedAttachmentLimit) {
+			if (files.length > 0) {
+				setFiles([]);
+			}
+			if (values.attachments.length > 0) {
+				onChange("attachments", []);
+			}
+			onFileError(
+				`Maximum of ${maxFiles} attachments reached. Remove at least one existing attachment to add new files.`,
+			);
+			return;
+		}
 
-		if (validFile) {
+		const validFiles = files.filter((file) => file.errors.length === 0);
+		const firstInvalidFile = files.find((file) => file.errors.length > 0);
+		const acceptedFiles = validFiles.slice(0, remainingAttachmentSlots);
+		const exceedsRemainingSlots = validFiles.length > remainingAttachmentSlots;
+
+		if (exceedsRemainingSlots) {
+			setFiles(acceptedFiles);
+			onFileError(`Maximum of ${maxFiles} attachments is allowed.`);
+			return;
+		}
+
+		if (acceptedFiles.length > 0) {
 			if (
-				!values.attachment ||
-				values.attachment.name !== validFile.name ||
-				values.attachment.size !== validFile.size
+				values.attachments.length !== acceptedFiles.length ||
+				values.attachments.some(
+					(existing, index) =>
+						existing.name !== acceptedFiles[index]?.name ||
+						existing.size !== acceptedFiles[index]?.size,
+				)
 			) {
-				onChange("attachment", validFile);
+				onChange(
+					"attachments",
+					acceptedFiles.map((file) => file as File),
+				);
 			}
 			onFileError(null);
 			return;
@@ -158,15 +178,23 @@ export function BookingFormFields({
 
 		if (firstInvalidFile) {
 			onFileError(firstInvalidFile.errors[0]?.message || "Invalid file");
+			return;
 		}
 
-		if (!hasFileErrors) {
-			if (values.attachment !== null) {
-				onChange("attachment", null);
-			}
-			onFileError(null);
+		if (values.attachments.length > 0) {
+			onChange("attachments", []);
 		}
-	}, [files, hasFileErrors, onChange, onFileError, values.attachment]);
+		onFileError(null);
+	}, [
+		files,
+		hasReachedAttachmentLimit,
+		maxFiles,
+		onChange,
+		onFileError,
+		remainingAttachmentSlots,
+		setFiles,
+		values.attachments,
+	]);
 
 	useEffect(() => {
 		let target: HTMLElement | null = null;
@@ -181,6 +209,10 @@ export function BookingFormFields({
 			target = startTimeErrorRef.current;
 		} else if (fieldErrors?.endTime) {
 			target = endTimeErrorRef.current;
+		} else if (fieldErrors?.meetingType) {
+			target = meetingTypeErrorRef.current;
+		} else if (fieldErrors?.meetingTypeOthers) {
+			target = meetingTypeOthersErrorRef.current;
 		} else if (fieldErrors?.title) {
 			target = titleErrorRef.current;
 		} else if (fieldErrors?.requestedFor) {
@@ -200,9 +232,15 @@ export function BookingFormFields({
 		});
 	}, [error, fieldErrors, fileError, selectedRoomConflictNote]);
 
-	const handleRemoveFile = () => {
-		setFiles([]);
-		onChange("attachment", null);
+	const handleRemoveFile = (indexToRemove: number) => {
+		const nextFiles = files.filter((_, index) => index !== indexToRemove);
+		setFiles(nextFiles);
+		onChange(
+			"attachments",
+			nextFiles
+				.filter((file) => file.errors.length === 0)
+				.map((file) => file as File),
+		);
 		onFileError(null);
 	};
 
@@ -341,7 +379,7 @@ export function BookingFormFields({
 						value={values.startTime}
 						onChange={(v) => onChange("startTime", v)}
 						placeholder="Select start time"
-						minTime="07:00"
+						minTime="08:00"
 						maxTime="17:00"
 						className={cn(
 							"bg-white border border-gray-300 shadow-sm focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
@@ -364,7 +402,7 @@ export function BookingFormFields({
 						value={values.endTime}
 						onChange={(v) => onChange("endTime", v)}
 						placeholder="Select end time"
-						minTime={values.startTime || "07:00"}
+						minTime={values.startTime || "08:00"}
 						maxTime="17:00"
 						className={cn(
 							"bg-white border border-gray-300 shadow-sm focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
@@ -376,6 +414,75 @@ export function BookingFormFields({
 					)}
 				</div>
 			</div>
+
+			{/* Meeting Type */}
+			<div ref={meetingTypeErrorRef}>
+				<label
+					htmlFor="meetingType"
+					className="block text-sm font-semibold text-gray-900 mb-2"
+				>
+					Meeting Type <span className="text-red-500">*</span>
+				</label>
+				<Select
+					value={values.meetingType}
+					onValueChange={(v) => {
+						if (!v) return;
+						onChange("meetingType", v);
+						if (v !== "others") {
+							onChange("meetingTypeOthers", "");
+						}
+					}}
+				>
+					<SelectTrigger
+						className={cn(
+							"w-full px-4 py-3 bg-white border border-gray-300 rounded-md text-gray-900 shadow-sm focus:ring-2 focus:ring-[#a60202]/20 focus:border-[#a60202] transition-colors",
+							fieldErrors?.meetingType &&
+								"border-red-500 ring-2 ring-red-500/20",
+						)}
+					>
+						<SelectValue placeholder="Select meeting type" />
+					</SelectTrigger>
+					<SelectContent>
+						{MEETING_TYPE_OPTIONS.map((option) => (
+							<SelectItem key={option.value} value={option.value}>
+								{option.label}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+				{fieldErrors?.meetingType && (
+					<p className="text-sm text-red-600 mt-2">{fieldErrors.meetingType}</p>
+				)}
+			</div>
+
+			{values.meetingType === "others" && (
+				<div ref={meetingTypeOthersErrorRef}>
+					<label
+						htmlFor="meetingTypeOthers"
+						className="block text-sm font-semibold text-gray-900 mb-2"
+					>
+						Please specify <span className="text-red-500">*</span>
+					</label>
+					<input
+						id="meetingTypeOthers"
+						type="text"
+						value={values.meetingTypeOthers}
+						onChange={(e) => onChange("meetingTypeOthers", e.target.value)}
+						maxLength={TEXT_LIMITS.SM}
+						className={cn(
+							"w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-md text-gray-900 focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
+							fieldErrors?.meetingTypeOthers &&
+								"border-red-500 ring-2 ring-red-500/20",
+						)}
+						placeholder="Specify meeting type..."
+					/>
+					{fieldErrors?.meetingTypeOthers && (
+						<p className="text-sm text-red-600 mt-2">
+							{fieldErrors.meetingTypeOthers}
+						</p>
+					)}
+				</div>
+			)}
 
 			{/* Title */}
 			<div ref={titleErrorRef}>
@@ -442,57 +549,65 @@ export function BookingFormFields({
 					Attach Letter (Optional)
 				</label>
 
-				{/* Existing attachment file card (edit mode) */}
-				{existingAttachmentUrl &&
-					!removeExistingAttachment &&
-					!values.attachment && (
-						<div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 mb-3">
-							<div className="p-2 rounded-lg bg-gray-100">
-								<FileText className="h-5 w-5 text-gray-600" />
-							</div>
-							<div className="flex flex-col min-w-0 flex-1 max-w-full overflow-hidden">
-								<span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-gray-900">
-									{decodeURIComponent(
-										(existingAttachmentUrl.split("?")[0] ?? "")
-											.split("/")
-											.pop() ?? "attachment",
-									)}
-								</span>
-								<span className="text-xs text-gray-500">
-									Current attachment
-								</span>
-							</div>
-							{onRemoveExistingAttachmentChange && (
-								<button
-									type="button"
-									onClick={() => setShowRemoveConfirm(true)}
-									className="p-2 hover:bg-red-50 rounded-md transition-colors shrink-0 text-gray-400 hover:text-red-600"
-									aria-label="Remove attachment"
-								>
-									<X className="w-4 h-4" />
-								</button>
-							)}
-						</div>
-					)}
+				{(existingAttachments?.length ?? 0) > 0 && (
+					<div className="space-y-2 mb-3">
+						<p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+							Current Attachments
+						</p>
+						{existingAttachments?.map((attachment) => {
+							const isMarked =
+								removedExistingAttachmentPaths?.includes(attachment.path) ??
+								false;
 
-				{/* Show "removed" notice if marked for removal */}
-				{existingAttachmentUrl &&
-					removeExistingAttachment &&
-					!values.attachment && (
-						<div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 mb-3 text-sm text-gray-500">
-							<FileText className="h-4 w-4 text-gray-400" />
-							<span>Attachment will be removed on save</span>
-							{onRemoveExistingAttachmentChange && (
-								<button
-									type="button"
-									onClick={() => onRemoveExistingAttachmentChange(false)}
-									className="ml-auto text-xs text-blue-600 hover:text-blue-800 font-medium"
+							return (
+								<div
+									key={attachment.path}
+									className={cn(
+										"flex items-center gap-3 p-3 rounded-lg border",
+										isMarked
+											? "border-dashed border-gray-300 bg-gray-50 text-gray-500"
+											: "border-gray-200 bg-white",
+									)}
 								>
-									Undo
-								</button>
-							)}
-						</div>
-					)}
+									<div className="p-2 rounded-lg bg-gray-100">
+										<FileText className="h-5 w-5 text-gray-600" />
+									</div>
+									<div className="flex flex-col min-w-0 flex-1 max-w-full overflow-hidden">
+										<span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
+											{attachment.fileName}
+										</span>
+										<span className="text-xs">
+											{isMarked
+												? "Will be removed on save"
+												: "Saved attachment"}
+										</span>
+									</div>
+									{onToggleExistingAttachmentRemoval && (
+										<button
+											type="button"
+											onClick={() =>
+												onToggleExistingAttachmentRemoval(attachment.path)
+											}
+											className={cn(
+												"p-2 rounded-md transition-colors shrink-0",
+												isMarked
+													? "text-blue-600 hover:bg-blue-50"
+													: "text-gray-400 hover:bg-red-50 hover:text-red-600",
+											)}
+											aria-label={
+												isMarked
+													? "Undo remove attachment"
+													: "Remove attachment"
+											}
+										>
+											<X className="w-4 h-4" />
+										</button>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				)}
 
 				{isDragActive && (
 					<div className="border-2 border-dashed border-primary bg-primary/10 rounded-lg p-3 text-center text-sm text-primary">
@@ -501,12 +616,23 @@ export function BookingFormFields({
 				)}
 
 				<div
-					{...getRootProps({
-						className:
-							"relative border-2 border-dashed rounded-2xl p-6 transition-all text-center bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer",
-					})}
+					{...(hasReachedAttachmentLimit
+						? {}
+						: getRootProps({
+								className:
+									"relative border-2 border-dashed rounded-2xl p-6 transition-all text-center bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer",
+							}))}
+					className={cn(
+						"relative border-2 border-dashed rounded-2xl p-6 transition-all text-center",
+						hasReachedAttachmentLimit
+							? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+							: "bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer",
+					)}
 				>
-					<input {...getInputProps()} aria-label="Upload booking attachment" />
+					<input
+						{...getInputProps({ disabled: hasReachedAttachmentLimit })}
+						aria-label="Upload booking attachment"
+					/>
 					<div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
 						<div className="p-3 bg-white rounded-full shadow-sm border border-gray-100 mb-1">
 							<Paperclip className="h-6 w-6 text-[#a60202]" />
@@ -515,16 +641,31 @@ export function BookingFormFields({
 							Click to upload or drag and drop
 						</p>
 						<p className="text-xs text-gray-500">
-							PDF, DOC, DOCX, JPG, JPEG, PNG • Max 1 file •{" "}
+							PDF, DOC, DOCX, JPG, JPEG, PNG • Max {maxFiles} files total •{" "}
 							{formatBytes(maxFileSize)}
 						</p>
+						{!hasReachedAttachmentLimit && existingAttachments && (
+							<p className="text-xs text-gray-500">
+								You can add up to {remainingAttachmentSlots} more file
+								{remainingAttachmentSlots === 1 ? "" : "s"}.
+							</p>
+						)}
+						{hasReachedAttachmentLimit && (
+							<p className="text-xs text-amber-700">
+								Maximum attachments reached. Remove at least one existing file
+								to add another.
+							</p>
+						)}
 					</div>
 				</div>
 
 				{isUploadingAttachment && (
 					<div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
 						<p className="text-sm font-medium text-blue-800">
-							Uploading attachment
+							Uploading attachment(s)
+							{totalAttachmentCount > 0
+								? ` ${Math.min(uploadedAttachmentCount, totalAttachmentCount)}/${totalAttachmentCount}`
+								: ""}
 							{uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}
 						</p>
 						<div className="mt-2 h-2 w-full rounded-full bg-blue-100">
@@ -590,7 +731,7 @@ export function BookingFormFields({
 										type="button"
 										onClick={(e) => {
 											e.stopPropagation();
-											handleRemoveFile();
+											handleRemoveFile(index);
 										}}
 										className="shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
 										aria-label={`Remove ${file.name}`}
@@ -603,40 +744,11 @@ export function BookingFormFields({
 					</div>
 				)}
 
+				{fieldErrors?.attachments && (
+					<p className="text-sm text-red-600 mt-2">{fieldErrors.attachments}</p>
+				)}
 				{fileError && <p className="text-sm text-red-600 mt-2">{fileError}</p>}
 			</div>
-
-			{/* Remove attachment confirmation dialog */}
-			<Dialog open={showRemoveConfirm} onOpenChange={setShowRemoveConfirm}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Remove Attachment</DialogTitle>
-						<DialogDescription>
-							Are you sure you want to remove the current attachment? This
-							change will take effect when you save.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setShowRemoveConfirm(false)}
-						>
-							Cancel
-						</Button>
-						<Button
-							type="button"
-							variant="destructive"
-							onClick={() => {
-								onRemoveExistingAttachmentChange?.(true);
-								setShowRemoveConfirm(false);
-							}}
-						>
-							Remove
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
 		</div>
 	);
 }

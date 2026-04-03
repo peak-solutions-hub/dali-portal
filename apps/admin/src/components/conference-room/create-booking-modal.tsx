@@ -8,7 +8,10 @@ import {
 } from "@repo/shared";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useCreateBooking } from "@/hooks/room-booking/use-create-booking";
+import {
+	type CreateBookingInput,
+	useCreateBooking,
+} from "@/hooks/room-booking/use-create-booking";
 import { useRoomBookings } from "@/hooks/room-booking/use-room-bookings";
 import { mapApiBookings } from "@/utils/booking-helpers";
 import { convertTo24HourFormat } from "@/utils/time-utils";
@@ -39,9 +42,11 @@ export function CreateBookingModal({
 		date: undefined,
 		startTime: "",
 		endTime: "",
+		meetingType: "",
+		meetingTypeOthers: "",
 		title: "",
 		requestedFor: "",
-		attachment: null,
+		attachments: [],
 	});
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
@@ -54,6 +59,8 @@ export function CreateBookingModal({
 		isCreating,
 		isUploadingAttachment,
 		uploadProgress,
+		uploadedAttachmentCount,
+		totalAttachmentCount,
 		error,
 		clearError,
 	} = useCreateBooking(() => {
@@ -141,9 +148,11 @@ export function CreateBookingModal({
 			date: selectedDate,
 			startTime,
 			endTime,
+			meetingType: "",
+			meetingTypeOthers: "",
 			title: "",
 			requestedFor: "",
-			attachment: null,
+			attachments: [],
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen]);
@@ -175,6 +184,14 @@ export function CreateBookingModal({
 			errors.title = "Title is required.";
 		}
 
+		if (!values.meetingType) {
+			errors.meetingType = "Meeting type is required.";
+		}
+
+		if (values.meetingType === "others" && !values.meetingTypeOthers.trim()) {
+			errors.meetingTypeOthers = "Please specify the meeting type.";
+		}
+
 		if (!values.requestedFor.trim()) {
 			errors.requestedFor = "Requested for is required.";
 		}
@@ -189,20 +206,20 @@ export function CreateBookingModal({
 			errors.endTime = "End time must be later than start time.";
 		}
 
-		const SEVEN_AM_MINUTES = 7 * 60; // 420
+		const EIGHT_AM_MINUTES = 8 * 60; // 480
 		const FIVE_PM_MINUTES = 17 * 60; // 1020
 
 		if (
 			startMinutes !== null &&
-			(startMinutes < SEVEN_AM_MINUTES || startMinutes > FIVE_PM_MINUTES)
+			(startMinutes < EIGHT_AM_MINUTES || startMinutes > FIVE_PM_MINUTES)
 		) {
-			errors.startTime = "Start time must be between 7:00 AM and 5:00 PM.";
+			errors.startTime = "Start time must be between 8:00 AM and 5:00 PM.";
 		}
 		if (
 			endMinutes !== null &&
-			(endMinutes < SEVEN_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
+			(endMinutes < EIGHT_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
 		) {
-			errors.endTime = "End time must be between 7:00 AM and 5:00 PM.";
+			errors.endTime = "End time must be between 8:00 AM and 5:00 PM.";
 		}
 
 		if (
@@ -245,12 +262,18 @@ export function CreateBookingModal({
 
 		await createBooking({
 			title: values.title.trim(),
+			meetingType: values.meetingType as CreateBookingInput["meetingType"],
+			...(values.meetingType === "others" && values.meetingTypeOthers.trim()
+				? { meetingTypeOthers: values.meetingTypeOthers.trim() }
+				: {}),
 			date: values.date,
 			startTime: values.startTime,
 			endTime: values.endTime,
 			requestedFor: values.requestedFor.trim(),
 			room: values.room as ConferenceRoom,
-			...(values.attachment ? { attachmentFile: values.attachment } : {}),
+			...(values.attachments.length > 0
+				? { attachmentFiles: values.attachments }
+				: {}),
 		});
 	};
 
@@ -304,6 +327,8 @@ export function CreateBookingModal({
 						onFileError={setFileError}
 						isUploadingAttachment={isUploadingAttachment}
 						uploadProgress={uploadProgress}
+						uploadedAttachmentCount={uploadedAttachmentCount}
+						totalAttachmentCount={totalAttachmentCount}
 					/>
 
 					{/* Buttons */}
@@ -323,7 +348,7 @@ export function CreateBookingModal({
 						>
 							{isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
 							{isUploadingAttachment
-								? `Uploading attachment${uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}`
+								? `Uploading attachment(s)${uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}`
 								: isCreating
 									? "Submitting..."
 									: "Submit Request"}

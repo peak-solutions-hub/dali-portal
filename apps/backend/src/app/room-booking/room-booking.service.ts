@@ -1,17 +1,21 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { RoleType } from "@repo/shared";
+import type { MeetingType, RoleType } from "@repo/shared";
 import {
 	ADMIN_BOOKING_ROLES,
 	AppError,
 	BOOKING_ATTACHMENTS_BUCKET,
 	BOOKING_UPLOAD_FOLDER,
+	BUSINESS_HOUR_END_MINUTES,
+	BUSINESS_HOUR_START_MINUTES,
 	type CreateRoomBookingInput,
+	FILE_COUNT_LIMITS,
 	type GenerateBookingUploadUrlInput,
 	type GenerateBookingUploadUrlResponse,
 	type GetRoomBookingByIdInput,
 	type GetRoomBookingListInput,
 	MIME_EXTENSIONS,
 	MIN_DURATION_MINUTES,
+	PH_TIME_ZONE,
 	type RoomBookingListResponse,
 	type RoomBookingResponse,
 	type UpdateRoomBookingInput,
@@ -20,32 +24,62 @@ import {
 import { DbService } from "@/app/db/db.service";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
 
+const HAS_TIMEZONE_SUFFIX = /([zZ]|[+-]\d{2}:\d{2})$/;
+
+const PHT_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+	timeZone: PH_TIME_ZONE,
+	hour: "2-digit",
+	minute: "2-digit",
+	hour12: false,
+});
+
+function normalizeBookingAttachmentPath(path: string): string {
+	const trimmed = path.trim().replace(/^\/+/, "");
+	const bucketPrefix = `${BOOKING_ATTACHMENTS_BUCKET}/`;
+	return trimmed.startsWith(bucketPrefix)
+		? trimmed.slice(bucketPrefix.length)
+		: trimmed;
+}
+
 /**
  * Maps a Prisma RoomBooking record (with optional user relation) to the
  * RoomBookingResponse shape required by clients.
  */
-function toResponse(record: {
-	id: string;
-	bookedBy: string;
-	title: string;
-	startTime: Date;
-	endTime: Date;
-	requestedFor: string;
-	room: string;
-	attachmentUrl: string | null;
-	status: string;
-	createdAt: Date;
-	user?: { id: string; fullName: string } | null;
-}): RoomBookingResponse {
+function toResponse(
+	record: {
+		id: string;
+		bookedBy: string;
+		title: string;
+		meetingType: string;
+		meetingTypeOthers: string | null;
+		startTime: Date;
+		endTime: Date;
+		requestedFor: string;
+		room: string;
+		attachments: Array<{ path: string }>;
+		status: string;
+		createdAt: Date;
+		user?: { id: string; fullName: string } | null;
+	},
+	signedUrlByPath: Map<string, string | null> = new Map(),
+): RoomBookingResponse {
 	return {
 		id: record.id,
 		bookedBy: record.bookedBy,
 		title: record.title,
+		meetingType: record.meetingType as RoomBookingResponse["meetingType"],
+		meetingTypeOthers: record.meetingTypeOthers,
 		startTime: record.startTime.toISOString(),
 		endTime: record.endTime.toISOString(),
 		requestedFor: record.requestedFor,
 		room: record.room as RoomBookingResponse["room"],
-		attachmentUrl: record.attachmentUrl,
+		attachments: record.attachments.map((attachment) => {
+			const normalizedPath = normalizeBookingAttachmentPath(attachment.path);
+			return {
+				path: normalizedPath,
+				url: signedUrlByPath.get(normalizedPath) ?? null,
+			};
+		}),
 		status: record.status as RoomBookingResponse["status"],
 		createdAt: record.createdAt.toISOString(),
 		user: record.user ?? null,
@@ -53,8 +87,9 @@ function toResponse(record: {
 }
 
 /** Include clause reused across queries. */
-const USER_INCLUDE = {
+const BOOKING_INCLUDE = {
 	user: { select: { id: true, fullName: true } },
+	attachments: { select: { path: true } },
 } as const;
 
 @Injectable()
@@ -66,14 +101,51 @@ export class RoomBookingService {
 		private readonly storage: SupabaseStorageService,
 	) {}
 
+	private normalizeAttachmentPath(path: string): string {
+		return normalizeBookingAttachmentPath(path);
+	}
+
+	private normalizeAttachmentPaths(paths: string[]): string[] {
+		return [
+			...new Set(paths.map((path) => this.normalizeAttachmentPath(path))),
+		];
+	}
+
 	// ---------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------
+
+	private parseBookingDateTime(value: string): Date {
+		const normalizedValue = HAS_TIMEZONE_SUFFIX.test(value)
+			? value
+			: `${value}+08:00`;
+		const parsed = new Date(normalizedValue);
+
+		if (Number.isNaN(parsed.getTime())) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		return parsed;
+	}
+
+	private getPhtMinutes(date: Date): number {
+		const parts = PHT_TIME_FORMATTER.formatToParts(date);
+		const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+		const minute = Number(
+			parts.find((part) => part.type === "minute")?.value ?? 0,
+		);
+
+		return hour * 60 + minute;
+	}
 
 	private validateTimeRange(startTime: Date, endTime: Date): void {
 		const now = new Date();
 		if (startTime < now) {
 			throw new AppError("ROOM_BOOKING.PAST_BOOKING");
+		}
+
+		if (endTime <= startTime) {
+			throw new AppError("ROOM_BOOKING.INVALID_TIME_RANGE");
 		}
 
 		const durationMs = endTime.getTime() - startTime.getTime();
@@ -82,6 +154,56 @@ export class RoomBookingService {
 		if (durationMinutes < MIN_DURATION_MINUTES) {
 			throw new AppError("ROOM_BOOKING.INVALID_TIME_RANGE");
 		}
+
+		const startMinutes = this.getPhtMinutes(startTime);
+		const endMinutes = this.getPhtMinutes(endTime);
+
+		if (
+			startMinutes < BUSINESS_HOUR_START_MINUTES ||
+			startMinutes > BUSINESS_HOUR_END_MINUTES ||
+			endMinutes < BUSINESS_HOUR_START_MINUTES ||
+			endMinutes > BUSINESS_HOUR_END_MINUTES
+		) {
+			throw new AppError("ROOM_BOOKING.INVALID_TIME_RANGE");
+		}
+	}
+
+	private normalizeMeetingTypeOthers(
+		meetingType: MeetingType,
+		meetingTypeOthers?: string,
+	): string | null {
+		if (meetingType !== "others") {
+			return null;
+		}
+
+		const normalized = meetingTypeOthers?.trim();
+		if (!normalized) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		return normalized;
+	}
+
+	private async getSignedUrlMap(
+		paths: string[],
+	): Promise<Map<string, string | null>> {
+		if (paths.length === 0) {
+			return new Map();
+		}
+
+		const normalizedPaths = this.normalizeAttachmentPaths(paths);
+
+		const signedAttachments = await this.storage.getSignedUrls(
+			BOOKING_ATTACHMENTS_BUCKET,
+			normalizedPaths,
+		);
+
+		return new Map(
+			signedAttachments.map((attachment) => [
+				attachment.path,
+				attachment.signedUrl,
+			]),
+		);
 	}
 
 	private isAdminRole(role: RoleType): boolean {
@@ -161,7 +283,7 @@ export class RoomBookingService {
 			this.db.roomBooking.count({ where }),
 			this.db.roomBooking.findMany({
 				where,
-				include: USER_INCLUDE,
+				include: BOOKING_INCLUDE,
 				orderBy: { startTime: "asc" },
 				take: limit,
 				skip,
@@ -170,34 +292,13 @@ export class RoomBookingService {
 
 		const totalPages = Math.ceil(totalItems / limit) || 1;
 
-		// Sign attachment URLs so clients can access them directly
-		const rawBookings = bookings.map(toResponse);
-		const attachmentPaths = rawBookings
-			.map((booking) => booking.attachmentUrl)
-			.filter((path): path is string => Boolean(path));
-
-		const signedAttachments = await this.storage.getSignedUrls(
-			BOOKING_ATTACHMENTS_BUCKET,
-			attachmentPaths,
+		const attachmentPaths = bookings.flatMap((booking) =>
+			booking.attachments.map((attachment) => attachment.path),
 		);
-
-		const signedUrlByPath = new Map(
-			signedAttachments.map((attachment) => [
-				attachment.path,
-				attachment.signedUrl,
-			]),
+		const signedUrlByPath = await this.getSignedUrlMap(attachmentPaths);
+		const signedBookings = bookings.map((booking) =>
+			toResponse(booking, signedUrlByPath),
 		);
-
-		const signedBookings = rawBookings.map((booking) => {
-			if (!booking.attachmentUrl) {
-				return booking;
-			}
-
-			return {
-				...booking,
-				attachmentUrl: signedUrlByPath.get(booking.attachmentUrl) ?? null,
-			};
-		});
 
 		return {
 			bookings: signedBookings,
@@ -219,22 +320,19 @@ export class RoomBookingService {
 	async getById(input: GetRoomBookingByIdInput): Promise<RoomBookingResponse> {
 		const booking = await this.db.roomBooking.findUnique({
 			where: { id: input.id },
-			include: USER_INCLUDE,
+			include: BOOKING_INCLUDE,
 		});
 
 		if (!booking) {
 			throw new AppError("ROOM_BOOKING.NOT_FOUND");
 		}
 
-		const response = toResponse(booking);
-		if (response.attachmentUrl) {
-			const { signedUrl } = await this.storage.getSignedUrlOrThrow(
-				BOOKING_ATTACHMENTS_BUCKET,
-				response.attachmentUrl,
-			);
-			return { ...response, attachmentUrl: signedUrl };
-		}
-		return response;
+		const attachmentPaths = booking.attachments.map(
+			(attachment) => attachment.path,
+		);
+		const signedUrlByPath = await this.getSignedUrlMap(attachmentPaths);
+
+		return toResponse(booking, signedUrlByPath);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -246,8 +344,19 @@ export class RoomBookingService {
 		userId: string,
 		userRole: RoleType,
 	): Promise<RoomBookingResponse> {
-		const startTime = new Date(input.startTime);
-		const endTime = new Date(input.endTime);
+		const startTime = this.parseBookingDateTime(input.startTime);
+		const endTime = this.parseBookingDateTime(input.endTime);
+		const meetingTypeOthers = this.normalizeMeetingTypeOthers(
+			input.meetingType as MeetingType,
+			input.meetingTypeOthers,
+		);
+		const attachmentPaths = this.normalizeAttachmentPaths(
+			input.attachmentPaths ?? [],
+		);
+
+		if (attachmentPaths.length > FILE_COUNT_LIMITS.SM) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
 
 		// Scenario 3 — Validate time range
 		this.validateTimeRange(startTime, endTime);
@@ -270,21 +379,31 @@ export class RoomBookingService {
 			data: {
 				bookedBy: userId,
 				title: input.title,
+				meetingType: input.meetingType as never,
+				meetingTypeOthers,
 				startTime,
 				endTime,
 				requestedFor: input.requestedFor,
 				room: input.room as never, // Prisma enum cast
-				attachmentUrl: input.attachmentUrl ?? null,
+				...(attachmentPaths.length > 0 && {
+					attachments: {
+						createMany: {
+							data: attachmentPaths.map((path) => ({ path })),
+						},
+					},
+				}),
 				status,
 			},
-			include: USER_INCLUDE,
+			include: BOOKING_INCLUDE,
 		});
 
 		this.logger.log(
 			`Booking created: ${booking.id} by user ${userId} with status "${status}"`,
 		);
 
-		return toResponse(booking);
+		const signedUrlByPath = await this.getSignedUrlMap(attachmentPaths);
+
+		return toResponse(booking, signedUrlByPath);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -302,7 +421,7 @@ export class RoomBookingService {
 
 		const booking = await this.db.roomBooking.findUnique({
 			where: { id: input.id },
-			include: USER_INCLUDE,
+			include: BOOKING_INCLUDE,
 		});
 
 		if (!booking) {
@@ -331,12 +450,16 @@ export class RoomBookingService {
 		const updated = await this.db.roomBooking.update({
 			where: { id: input.id },
 			data: { status: input.status },
-			include: USER_INCLUDE,
+			include: BOOKING_INCLUDE,
 		});
 
 		this.logger.log(`Booking ${input.id} status updated to "${input.status}"`);
 
-		return toResponse(updated);
+		const signedUrlByPath = await this.getSignedUrlMap(
+			updated.attachments.map((attachment) => attachment.path),
+		);
+
+		return toResponse(updated, signedUrlByPath);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -350,7 +473,7 @@ export class RoomBookingService {
 	): Promise<RoomBookingResponse> {
 		const booking = await this.db.roomBooking.findUnique({
 			where: { id: input.id },
-			include: USER_INCLUDE,
+			include: BOOKING_INCLUDE,
 		});
 
 		if (!booking) {
@@ -363,10 +486,10 @@ export class RoomBookingService {
 		}
 
 		const newStartTime = input.startTime
-			? new Date(input.startTime)
+			? this.parseBookingDateTime(input.startTime)
 			: booking.startTime;
 		const newEndTime = input.endTime
-			? new Date(input.endTime)
+			? this.parseBookingDateTime(input.endTime)
 			: booking.endTime;
 		const newRoom = input.room ?? booking.room;
 		const timesChanged =
@@ -377,6 +500,28 @@ export class RoomBookingService {
 			userRole === "councilor" &&
 			timesChanged &&
 			(booking.status === "confirmed" || booking.status === "rejected");
+
+		const resolvedMeetingType =
+			(input.meetingType as MeetingType | undefined) ??
+			(booking.meetingType as MeetingType);
+		const resolvedMeetingTypeOthers = this.normalizeMeetingTypeOthers(
+			resolvedMeetingType,
+			input.meetingTypeOthers !== undefined
+				? (input.meetingTypeOthers ?? undefined)
+				: (booking.meetingTypeOthers ?? undefined),
+		);
+
+		const currentAttachmentPaths = booking.attachments.map((attachment) =>
+			this.normalizeAttachmentPath(attachment.path),
+		);
+		const nextAttachmentPaths =
+			input.attachmentPaths !== undefined
+				? this.normalizeAttachmentPaths(input.attachmentPaths)
+				: currentAttachmentPaths;
+
+		if (nextAttachmentPaths.length > FILE_COUNT_LIMITS.SM) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
 
 		if (timesChanged) {
 			// Scenario 3 — Validate new time range
@@ -399,18 +544,32 @@ export class RoomBookingService {
 			where: { id: input.id },
 			data: {
 				...(input.title !== undefined && { title: input.title }),
+				...(input.meetingType !== undefined && {
+					meetingType: input.meetingType as never,
+				}),
+				...(input.meetingType !== undefined ||
+				input.meetingTypeOthers !== undefined
+					? { meetingTypeOthers: resolvedMeetingTypeOthers }
+					: {}),
 				...(input.requestedFor !== undefined && {
 					requestedFor: input.requestedFor,
 				}),
 				...(input.room !== undefined && { room: input.room as never }),
-				...(input.attachmentUrl !== undefined && {
-					attachmentUrl: input.attachmentUrl,
+				...(input.attachmentPaths !== undefined && {
+					attachments: {
+						deleteMany: {},
+						...(nextAttachmentPaths.length > 0 && {
+							createMany: {
+								data: nextAttachmentPaths.map((path) => ({ path })),
+							},
+						}),
+					},
 				}),
 				startTime: newStartTime,
 				endTime: newEndTime,
 				...(shouldResetToPending && { status: "pending" }),
 			},
-			include: USER_INCLUDE,
+			include: BOOKING_INCLUDE,
 		});
 
 		if (shouldResetToPending) {
@@ -419,19 +578,23 @@ export class RoomBookingService {
 			);
 		}
 
-		const oldAttachmentPath = booking.attachmentUrl;
-		const newAttachmentPath = updated.attachmentUrl;
-		const attachmentChanged =
-			oldAttachmentPath !== null && oldAttachmentPath !== newAttachmentPath;
-
-		if (attachmentChanged) {
-			await this.storage.deleteFile(
-				BOOKING_ATTACHMENTS_BUCKET,
-				oldAttachmentPath,
+		if (input.attachmentPaths !== undefined) {
+			const deletedAttachmentPaths = currentAttachmentPaths.filter(
+				(path) => !nextAttachmentPaths.includes(path),
 			);
+
+			if (deletedAttachmentPaths.length > 0) {
+				await Promise.all(
+					deletedAttachmentPaths.map((path) =>
+						this.storage.deleteFile(BOOKING_ATTACHMENTS_BUCKET, path),
+					),
+				);
+			}
 		}
 
-		return toResponse(updated);
+		const signedUrlByPath = await this.getSignedUrlMap(nextAttachmentPaths);
+
+		return toResponse(updated, signedUrlByPath);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -445,6 +608,11 @@ export class RoomBookingService {
 	): Promise<{ success: boolean }> {
 		const booking = await this.db.roomBooking.findUnique({
 			where: { id },
+			select: {
+				id: true,
+				bookedBy: true,
+				attachments: { select: { path: true } },
+			},
 		});
 
 		if (!booking) {
@@ -458,10 +626,11 @@ export class RoomBookingService {
 
 		await this.db.roomBooking.delete({ where: { id } });
 
-		if (booking.attachmentUrl) {
-			await this.storage.deleteFile(
-				BOOKING_ATTACHMENTS_BUCKET,
-				booking.attachmentUrl,
+		if (booking.attachments.length > 0) {
+			await Promise.all(
+				booking.attachments.map((attachment) =>
+					this.storage.deleteFile(BOOKING_ATTACHMENTS_BUCKET, attachment.path),
+				),
 			);
 		}
 

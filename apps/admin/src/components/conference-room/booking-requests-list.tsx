@@ -82,6 +82,8 @@ export function BookingRequestsList() {
 		setEditingBooking({
 			id: booking.id,
 			title: booking.purpose,
+			meetingType: booking.meetingType,
+			meetingTypeOthers: booking.meetingTypeOthers,
 			requestedFor: booking.requestedFor,
 			room: resolveConferenceRoom(
 				booking.roomKey || booking.room,
@@ -90,7 +92,7 @@ export function BookingRequestsList() {
 			date: booking.date,
 			startTime: booking.startTime24,
 			endTime: booking.endTime24,
-			attachmentUrl: booking.attachmentUrl,
+			attachments: booking.attachments,
 		});
 	};
 
@@ -208,16 +210,18 @@ export function BookingRequestsList() {
 											</div>
 										</TableCell>
 										<TableCell>
-											{booking.attachmentUrl ? (
+											{booking.attachments.length > 0 ? (
 												<a
-													href={booking.attachmentUrl}
+													href={booking.attachments[0]?.url ?? undefined}
 													target="_blank"
 													rel="noopener noreferrer"
 													className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
 													title="View attachment"
 												>
 													<FileText className="w-3.5 h-3.5" />
-													View
+													{booking.attachments.length === 1
+														? "View"
+														: `View (${booking.attachments.length})`}
 													<ExternalLink className="w-3 h-3" />
 												</a>
 											) : (

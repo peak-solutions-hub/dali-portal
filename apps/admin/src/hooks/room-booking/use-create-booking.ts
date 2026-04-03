@@ -1,19 +1,27 @@
 "use client";
 
-import { type AttachmentMimeType, type ConferenceRoom } from "@repo/shared";
+import {
+	type AttachmentMimeType,
+	type ConferenceRoom,
+	FILE_UPLOAD_PRESETS,
+	type MeetingType,
+} from "@repo/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api, orpc } from "@/lib/api.client";
+import { toPhtIsoDateTime } from "@/utils/booking-helpers";
 
 export interface CreateBookingInput {
 	title: string;
+	meetingType: MeetingType;
+	meetingTypeOthers?: string;
 	date: Date;
 	startTime: string;
 	endTime: string;
 	requestedFor: string;
 	room: ConferenceRoom;
-	attachmentFile?: File;
+	attachmentFiles?: File[];
 }
 
 export interface UseCreateBookingReturn {
@@ -21,17 +29,10 @@ export interface UseCreateBookingReturn {
 	isCreating: boolean;
 	isUploadingAttachment: boolean;
 	uploadProgress: number | null;
+	uploadedAttachmentCount: number;
+	totalAttachmentCount: number;
 	error: string | null;
 	clearError: () => void;
-}
-
-function toISODateTime(date: Date, timeStr: string): string {
-	const parts = timeStr.split(":");
-	const hours = Number(parts[0] ?? 0);
-	const minutes = Number(parts[1] ?? 0);
-	const d = new Date(date);
-	d.setHours(hours, minutes, 0, 0);
-	return d.toISOString();
 }
 
 function inferAttachmentMimeType(file: File): AttachmentMimeType {
@@ -109,49 +110,70 @@ export function useCreateBooking(
 	const [error, setError] = useState<string | null>(null);
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+	const [uploadedAttachmentCount, setUploadedAttachmentCount] = useState(0);
+	const [totalAttachmentCount, setTotalAttachmentCount] = useState(0);
 	const clearError = useCallback(() => setError(null), []);
 	const queryClient = useQueryClient();
 
 	const mutation = useMutation({
 		mutationFn: async (input: CreateBookingInput) => {
-			let attachmentUrl: string | undefined;
+			const attachmentPaths: string[] = [];
+			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
 
-			if (input.attachmentFile) {
-				const mimeType = inferAttachmentMimeType(input.attachmentFile);
-				const [uploadErr, uploadData] =
-					await api.roomBookings.generateUploadUrl({
-						fileName: input.attachmentFile.name,
-						mimeType,
-						fileSize: input.attachmentFile.size,
-					});
+			if ((input.attachmentFiles?.length ?? 0) > maxAttachments) {
+				throw new Error(`Maximum of ${maxAttachments} attachments is allowed.`);
+			}
 
-				if (uploadErr || !uploadData) {
-					throw new Error(
-						uploadErr?.message || "Failed to generate upload URL",
-					);
-				}
-
+			if (input.attachmentFiles && input.attachmentFiles.length > 0) {
+				const totalFiles = input.attachmentFiles.length;
 				setIsUploadingAttachment(true);
 				setUploadProgress(0);
-				await uploadFileWithProgress(
-					uploadData.uploadUrl,
-					input.attachmentFile,
-					(progressPercent) => {
-						setUploadProgress(progressPercent);
-					},
-				);
-				setIsUploadingAttachment(false);
+				setUploadedAttachmentCount(0);
+				setTotalAttachmentCount(totalFiles);
 
-				attachmentUrl = uploadData.path;
+				for (const [index, file] of input.attachmentFiles.entries()) {
+					const mimeType = inferAttachmentMimeType(file);
+					const [uploadErr, uploadData] =
+						await api.roomBookings.generateUploadUrl({
+							fileName: file.name,
+							mimeType,
+							fileSize: file.size,
+						});
+
+					if (uploadErr || !uploadData) {
+						throw new Error(
+							uploadErr?.message || "Failed to generate upload URL",
+						);
+					}
+
+					await uploadFileWithProgress(
+						uploadData.uploadUrl,
+						file,
+						(progressPercent) => {
+							const totalProgress = Math.round(
+								((index + progressPercent / 100) / totalFiles) * 100,
+							);
+							setUploadProgress(totalProgress);
+						},
+					);
+
+					attachmentPaths.push(uploadData.path);
+					setUploadedAttachmentCount(index + 1);
+				}
+
+				setIsUploadingAttachment(false);
+				setUploadedAttachmentCount(totalFiles);
 			}
 
 			const [err, data] = await api.roomBookings.create({
 				title: input.title,
-				startTime: toISODateTime(input.date, input.startTime),
-				endTime: toISODateTime(input.date, input.endTime),
+				meetingType: input.meetingType,
+				meetingTypeOthers: input.meetingTypeOthers,
+				startTime: toPhtIsoDateTime(input.date, input.startTime),
+				endTime: toPhtIsoDateTime(input.date, input.endTime),
 				requestedFor: input.requestedFor,
 				room: input.room,
-				...(attachmentUrl ? { attachmentUrl } : {}),
+				...(attachmentPaths.length > 0 ? { attachmentPaths } : {}),
 			});
 
 			if (err) {
@@ -163,16 +185,23 @@ export function useCreateBooking(
 		onError: (err) => {
 			setIsUploadingAttachment(false);
 			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			setError(err.message);
 			toast.error(err.message);
 		},
 		onSuccess: () => {
 			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			toast.success("Booking created successfully");
 			onSuccess?.();
 		},
 		onSettled: () => {
 			setIsUploadingAttachment(false);
+			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			queryClient.invalidateQueries({
 				queryKey: orpc.roomBookings.getList.key(),
 			});
@@ -183,6 +212,8 @@ export function useCreateBooking(
 		async (input: CreateBookingInput): Promise<{ success: boolean }> => {
 			setError(null);
 			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(input.attachmentFiles?.length ?? 0);
 			try {
 				await mutation.mutateAsync(input);
 				return { success: true };
@@ -198,6 +229,8 @@ export function useCreateBooking(
 		isCreating: mutation.isPending,
 		isUploadingAttachment,
 		uploadProgress,
+		uploadedAttachmentCount,
+		totalAttachmentCount,
 		error,
 		clearError,
 	};
