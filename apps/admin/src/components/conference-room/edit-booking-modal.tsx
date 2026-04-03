@@ -2,6 +2,7 @@
 
 import {
 	type ConferenceRoom,
+	FILE_UPLOAD_PRESETS,
 	isPastDateTime,
 	parseTimeToMinutes,
 } from "@repo/shared";
@@ -62,11 +63,46 @@ export function EditBookingModal({
 		string[]
 	>([]);
 
-	const { updateBooking, isUpdating, error, clearError } = useUpdateBooking(
-		() => {
-			onClose();
-		},
-	);
+	const {
+		updateBooking,
+		isUpdating,
+		isUploadingAttachment,
+		uploadProgress,
+		uploadedAttachmentCount,
+		totalAttachmentCount,
+		error,
+		clearError,
+	} = useUpdateBooking(() => {
+		onClose();
+	});
+
+	const clearAttachmentLimitErrorsIfResolved = (nextRemovedPaths: string[]) => {
+		if (!booking) {
+			return;
+		}
+
+		const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+		const keptExistingCount = booking.attachments.filter(
+			(attachment) => !nextRemovedPaths.includes(attachment.path),
+		).length;
+		const totalAttachments = keptExistingCount + values.attachments.length;
+
+		if (totalAttachments <= maxAttachments) {
+			setFieldErrors((prev) => {
+				if (!prev.attachments) {
+					return prev;
+				}
+
+				const next = { ...prev };
+				delete next.attachments;
+				return next;
+			});
+
+			setFileError((prev) =>
+				prev?.toLowerCase().includes("maximum") ? null : prev,
+			);
+		}
+	};
 
 	// Populate form when modal opens with booking data
 	useEffect(() => {
@@ -118,6 +154,18 @@ export function EditBookingModal({
 			errors.requestedFor = "Requested for is required.";
 		}
 
+		if (booking) {
+			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+			const keptExistingCount = booking.attachments.filter(
+				(attachment) => !removedAttachmentPaths.includes(attachment.path),
+			).length;
+			const totalAttachments = keptExistingCount + values.attachments.length;
+
+			if (totalAttachments > maxAttachments) {
+				errors.attachments = `Maximum of ${maxAttachments} attachments is allowed.`;
+			}
+		}
+
 		const startMinutes = parseTimeToMinutes(values.startTime);
 		const endMinutes = parseTimeToMinutes(values.endTime);
 		if (
@@ -163,14 +211,6 @@ export function EditBookingModal({
 				room: resolveConferenceRoom(value),
 			}));
 		} else {
-			if (field === "attachments") {
-				setRemovedAttachmentPaths((prev) =>
-					prev.filter((path) =>
-						booking?.attachments.some((attachment) => attachment.path === path),
-					),
-				);
-			}
-
 			if (field === "meetingType" && value !== "others") {
 				setValues((prev) => ({
 					...prev,
@@ -180,6 +220,10 @@ export function EditBookingModal({
 				return;
 			}
 			setValues((prev) => ({ ...prev, [field]: value }));
+
+			if (field === "attachments") {
+				clearAttachmentLimitErrorsIfResolved(removedAttachmentPaths);
+			}
 		}
 
 		setFieldErrors((prev) => {
@@ -238,7 +282,8 @@ export function EditBookingModal({
 
 	if (!isOpen || !booking) return null;
 
-	const isSubmitDisabled = isUpdating || Boolean(fileError);
+	const isSubmitDisabled =
+		isUpdating || isUploadingAttachment || Boolean(fileError);
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -254,7 +299,7 @@ export function EditBookingModal({
 					<button
 						onClick={onClose}
 						className="p-1 hover:bg-gray-100 rounded-md transition-colors"
-						disabled={isUpdating}
+						disabled={isUpdating || isUploadingAttachment}
 					>
 						<X className="w-5 h-5 text-gray-500" />
 					</button>
@@ -272,15 +317,21 @@ export function EditBookingModal({
 						existingAttachments={booking.attachments}
 						removedExistingAttachmentPaths={removedAttachmentPaths}
 						onToggleExistingAttachmentRemoval={(path) => {
-							setRemovedAttachmentPaths((prev) =>
-								prev.includes(path)
+							setRemovedAttachmentPaths((prev) => {
+								const next = prev.includes(path)
 									? prev.filter((value) => value !== path)
-									: [...prev, path],
-							);
+									: [...prev, path];
+								clearAttachmentLimitErrorsIfResolved(next);
+								return next;
+							});
 						}}
 						error={error}
 						fileError={fileError}
 						onFileError={setFileError}
+						isUploadingAttachment={isUploadingAttachment}
+						uploadProgress={uploadProgress}
+						uploadedAttachmentCount={uploadedAttachmentCount}
+						totalAttachmentCount={totalAttachmentCount}
 					/>
 
 					{/* Buttons */}
@@ -288,7 +339,7 @@ export function EditBookingModal({
 						<button
 							type="button"
 							onClick={onClose}
-							disabled={isUpdating}
+							disabled={isUpdating || isUploadingAttachment}
 							className="px-6 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
 						>
 							Cancel
@@ -299,7 +350,11 @@ export function EditBookingModal({
 							className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-70"
 						>
 							{isUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
-							{isUpdating ? "Saving..." : "Save Changes"}
+							{isUploadingAttachment
+								? `Uploading attachment(s)${uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}`
+								: isUpdating
+									? "Saving..."
+									: "Save Changes"}
 						</button>
 					</div>
 				</form>

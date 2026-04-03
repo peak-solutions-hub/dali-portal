@@ -19,6 +19,7 @@ const ConferenceRoomEnum = z.enum(
 );
 
 const MeetingTypeEnum = z.enum(MEETING_TYPE_VALUES as [string, ...string[]]);
+const DateTimeWithOffsetSchema = z.string().datetime({ offset: true });
 
 // Allowed MIME types for booking attachments (request letters)
 const ALLOWED_ATTACHMENT_MIME_TYPES = [
@@ -121,14 +122,14 @@ export const CreateRoomBookingSchema = z
 		title: z.string().min(1).max(255),
 		meetingType: MeetingTypeEnum,
 		meetingTypeOthers: z.string().min(1).max(255).optional(),
-		startTime: z.iso.datetime(),
-		endTime: z.iso.datetime(),
+		startTime: DateTimeWithOffsetSchema,
+		endTime: DateTimeWithOffsetSchema,
 		requestedFor: z.string().min(1).max(255),
 		room: ConferenceRoomEnum,
 		/** Storage paths of pre-uploaded attachments (optional). */
 		attachmentPaths: z
 			.array(z.string().min(1))
-			.max(FILE_COUNT_LIMITS.MD)
+			.max(FILE_COUNT_LIMITS.SM)
 			.optional(),
 	})
 	.superRefine((value, context) => {
@@ -156,13 +157,13 @@ export const UpdateRoomBookingSchema = z
 		title: z.string().min(1).max(255).optional(),
 		meetingType: MeetingTypeEnum.optional(),
 		meetingTypeOthers: z.string().min(1).max(255).nullable().optional(),
-		startTime: z.iso.datetime().optional(),
-		endTime: z.iso.datetime().optional(),
+		startTime: DateTimeWithOffsetSchema.optional(),
+		endTime: DateTimeWithOffsetSchema.optional(),
 		requestedFor: z.string().min(1).max(255).optional(),
 		room: ConferenceRoomEnum.optional(),
 		attachmentPaths: z
 			.array(z.string().min(1))
-			.max(FILE_COUNT_LIMITS.MD)
+			.max(FILE_COUNT_LIMITS.SM)
 			.optional(),
 	})
 	.superRefine((value, context) => {
