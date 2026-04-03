@@ -8,6 +8,7 @@ import {
 	BUSINESS_HOUR_END_MINUTES,
 	BUSINESS_HOUR_START_MINUTES,
 	type CreateRoomBookingInput,
+	FILE_COUNT_LIMITS,
 	type GenerateBookingUploadUrlInput,
 	type GenerateBookingUploadUrlResponse,
 	type GetRoomBookingByIdInput,
@@ -31,6 +32,14 @@ const PHT_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
 	minute: "2-digit",
 	hour12: false,
 });
+
+function normalizeBookingAttachmentPath(path: string): string {
+	const trimmed = path.trim().replace(/^\/+/, "");
+	const bucketPrefix = `${BOOKING_ATTACHMENTS_BUCKET}/`;
+	return trimmed.startsWith(bucketPrefix)
+		? trimmed.slice(bucketPrefix.length)
+		: trimmed;
+}
 
 /**
  * Maps a Prisma RoomBooking record (with optional user relation) to the
@@ -64,10 +73,13 @@ function toResponse(
 		endTime: record.endTime.toISOString(),
 		requestedFor: record.requestedFor,
 		room: record.room as RoomBookingResponse["room"],
-		attachments: record.attachments.map((attachment) => ({
-			path: attachment.path,
-			url: signedUrlByPath.get(attachment.path) ?? null,
-		})),
+		attachments: record.attachments.map((attachment) => {
+			const normalizedPath = normalizeBookingAttachmentPath(attachment.path);
+			return {
+				path: normalizedPath,
+				url: signedUrlByPath.get(normalizedPath) ?? null,
+			};
+		}),
 		status: record.status as RoomBookingResponse["status"],
 		createdAt: record.createdAt.toISOString(),
 		user: record.user ?? null,
@@ -88,6 +100,16 @@ export class RoomBookingService {
 		private readonly db: DbService,
 		private readonly storage: SupabaseStorageService,
 	) {}
+
+	private normalizeAttachmentPath(path: string): string {
+		return normalizeBookingAttachmentPath(path);
+	}
+
+	private normalizeAttachmentPaths(paths: string[]): string[] {
+		return [
+			...new Set(paths.map((path) => this.normalizeAttachmentPath(path))),
+		];
+	}
 
 	// ---------------------------------------------------------------------------
 	// Helpers
@@ -169,9 +191,11 @@ export class RoomBookingService {
 			return new Map();
 		}
 
+		const normalizedPaths = this.normalizeAttachmentPaths(paths);
+
 		const signedAttachments = await this.storage.getSignedUrls(
 			BOOKING_ATTACHMENTS_BUCKET,
-			paths,
+			normalizedPaths,
 		);
 
 		return new Map(
@@ -326,7 +350,13 @@ export class RoomBookingService {
 			input.meetingType as MeetingType,
 			input.meetingTypeOthers,
 		);
-		const attachmentPaths = [...new Set(input.attachmentPaths ?? [])];
+		const attachmentPaths = this.normalizeAttachmentPaths(
+			input.attachmentPaths ?? [],
+		);
+
+		if (attachmentPaths.length > FILE_COUNT_LIMITS.SM) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
 
 		// Scenario 3 — Validate time range
 		this.validateTimeRange(startTime, endTime);
@@ -481,13 +511,17 @@ export class RoomBookingService {
 				: (booking.meetingTypeOthers ?? undefined),
 		);
 
-		const currentAttachmentPaths = booking.attachments.map(
-			(attachment) => attachment.path,
+		const currentAttachmentPaths = booking.attachments.map((attachment) =>
+			this.normalizeAttachmentPath(attachment.path),
 		);
 		const nextAttachmentPaths =
 			input.attachmentPaths !== undefined
-				? [...new Set(input.attachmentPaths)]
+				? this.normalizeAttachmentPaths(input.attachmentPaths)
 				: currentAttachmentPaths;
+
+		if (nextAttachmentPaths.length > FILE_COUNT_LIMITS.SM) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
 
 		if (timesChanged) {
 			// Scenario 3 — Validate new time range

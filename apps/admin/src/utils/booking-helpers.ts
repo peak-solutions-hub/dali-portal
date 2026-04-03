@@ -119,9 +119,9 @@ export function toPhtIsoDateTime(date: Date, timeStr: string): string {
 	const day = `${date.getDate()}`.padStart(2, "0");
 	const hour = `${hours}`.padStart(2, "0");
 	const minute = `${minutes}`.padStart(2, "0");
-	const phtDateTime = `${year}-${month}-${day}T${hour}:${minute}:00+08:00`;
 
-	return new Date(phtDateTime).toISOString();
+	// Keep explicit PHT offset in payload to avoid double conversion ambiguity.
+	return `${year}-${month}-${day}T${hour}:${minute}:00+08:00`;
 }
 
 // ---------------------------------------------------------------------------

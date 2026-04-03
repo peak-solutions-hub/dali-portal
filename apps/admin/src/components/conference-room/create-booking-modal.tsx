@@ -59,6 +59,8 @@ export function CreateBookingModal({
 		isCreating,
 		isUploadingAttachment,
 		uploadProgress,
+		uploadedAttachmentCount,
+		totalAttachmentCount,
 		error,
 		clearError,
 	} = useCreateBooking(() => {
@@ -325,6 +327,8 @@ export function CreateBookingModal({
 						onFileError={setFileError}
 						isUploadingAttachment={isUploadingAttachment}
 						uploadProgress={uploadProgress}
+						uploadedAttachmentCount={uploadedAttachmentCount}
+						totalAttachmentCount={totalAttachmentCount}
 					/>
 
 					{/* Buttons */}
@@ -344,7 +348,7 @@ export function CreateBookingModal({
 						>
 							{isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
 							{isUploadingAttachment
-								? `Uploading attachment${uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}`
+								? `Uploading attachment(s)${uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}`
 								: isCreating
 									? "Submitting..."
 									: "Submit Request"}

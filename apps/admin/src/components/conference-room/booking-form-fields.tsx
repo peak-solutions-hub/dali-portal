@@ -74,6 +74,8 @@ interface BookingFormFieldsProps {
 	onFileError: (msg: string | null) => void;
 	isUploadingAttachment?: boolean;
 	uploadProgress?: number | null;
+	uploadedAttachmentCount?: number;
+	totalAttachmentCount?: number;
 }
 
 export function BookingFormFields({
@@ -90,9 +92,19 @@ export function BookingFormFields({
 	onFileError,
 	isUploadingAttachment = false,
 	uploadProgress = null,
+	uploadedAttachmentCount = 0,
+	totalAttachmentCount = 0,
 }: BookingFormFieldsProps) {
 	const { maxFileSize, maxFiles, allowedMimeTypes } =
 		FILE_UPLOAD_PRESETS.ATTACHMENTS;
+	const existingCount =
+		existingAttachments?.filter(
+			(attachment) =>
+				!(removedExistingAttachmentPaths ?? []).includes(attachment.path),
+		).length ?? 0;
+	const remainingAttachmentSlots = Math.max(maxFiles - existingCount, 0);
+	const uploadMaxFiles = Math.max(remainingAttachmentSlots, 1);
+	const hasReachedAttachmentLimit = remainingAttachmentSlots === 0;
 	const formErrorRef = useRef<HTMLDivElement | null>(null);
 	const roomErrorRef = useRef<HTMLDivElement | null>(null);
 	const dateErrorRef = useRef<HTMLDivElement | null>(null);
@@ -104,19 +116,13 @@ export function BookingFormFields({
 	const requestedForErrorRef = useRef<HTMLDivElement | null>(null);
 	const fileErrorRef = useRef<HTMLDivElement | null>(null);
 
-	const {
-		files,
-		setFiles,
-		getRootProps,
-		getInputProps,
-		isDragActive,
-		hasFileErrors,
-	} = useSupabaseUpload({
-		path: "room-bookings",
-		maxFiles,
-		maxFileSize,
-		allowedMimeTypes: [...allowedMimeTypes],
-	});
+	const { files, setFiles, getRootProps, getInputProps, isDragActive } =
+		useSupabaseUpload({
+			path: "room-bookings",
+			maxFiles: uploadMaxFiles,
+			maxFileSize,
+			allowedMimeTypes: [...allowedMimeTypes],
+		});
 
 	const selectedRoomLabel =
 		CONFERENCE_ROOM_OPTIONS.find((opt) => opt.value === values.room)?.label ??
@@ -128,21 +134,42 @@ export function BookingFormFields({
 		);
 
 	useEffect(() => {
+		if (hasReachedAttachmentLimit) {
+			if (files.length > 0) {
+				setFiles([]);
+			}
+			if (values.attachments.length > 0) {
+				onChange("attachments", []);
+			}
+			onFileError(
+				`Maximum of ${maxFiles} attachments reached. Remove at least one existing attachment to add new files.`,
+			);
+			return;
+		}
+
 		const validFiles = files.filter((file) => file.errors.length === 0);
 		const firstInvalidFile = files.find((file) => file.errors.length > 0);
+		const acceptedFiles = validFiles.slice(0, remainingAttachmentSlots);
+		const exceedsRemainingSlots = validFiles.length > remainingAttachmentSlots;
 
-		if (validFiles.length > 0) {
+		if (exceedsRemainingSlots) {
+			setFiles(acceptedFiles);
+			onFileError(`Maximum of ${maxFiles} attachments is allowed.`);
+			return;
+		}
+
+		if (acceptedFiles.length > 0) {
 			if (
-				values.attachments.length !== validFiles.length ||
+				values.attachments.length !== acceptedFiles.length ||
 				values.attachments.some(
 					(existing, index) =>
-						existing.name !== validFiles[index]?.name ||
-						existing.size !== validFiles[index]?.size,
+						existing.name !== acceptedFiles[index]?.name ||
+						existing.size !== acceptedFiles[index]?.size,
 				)
 			) {
 				onChange(
 					"attachments",
-					validFiles.map((file) => file as File),
+					acceptedFiles.map((file) => file as File),
 				);
 			}
 			onFileError(null);
@@ -151,15 +178,23 @@ export function BookingFormFields({
 
 		if (firstInvalidFile) {
 			onFileError(firstInvalidFile.errors[0]?.message || "Invalid file");
+			return;
 		}
 
-		if (!hasFileErrors) {
-			if (values.attachments.length > 0) {
-				onChange("attachments", []);
-			}
-			onFileError(null);
+		if (values.attachments.length > 0) {
+			onChange("attachments", []);
 		}
-	}, [files, hasFileErrors, onChange, onFileError, values.attachments]);
+		onFileError(null);
+	}, [
+		files,
+		hasReachedAttachmentLimit,
+		maxFiles,
+		onChange,
+		onFileError,
+		remainingAttachmentSlots,
+		setFiles,
+		values.attachments,
+	]);
 
 	useEffect(() => {
 		let target: HTMLElement | null = null;
@@ -197,10 +232,8 @@ export function BookingFormFields({
 		});
 	}, [error, fieldErrors, fileError, selectedRoomConflictNote]);
 
-	const handleRemoveFile = (name: string, size: number) => {
-		const nextFiles = files.filter(
-			(file) => !(file.name === name && file.size === size),
-		);
+	const handleRemoveFile = (indexToRemove: number) => {
+		const nextFiles = files.filter((_, index) => index !== indexToRemove);
 		setFiles(nextFiles);
 		onChange(
 			"attachments",
@@ -583,12 +616,23 @@ export function BookingFormFields({
 				)}
 
 				<div
-					{...getRootProps({
-						className:
-							"relative border-2 border-dashed rounded-2xl p-6 transition-all text-center bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer",
-					})}
+					{...(hasReachedAttachmentLimit
+						? {}
+						: getRootProps({
+								className:
+									"relative border-2 border-dashed rounded-2xl p-6 transition-all text-center bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer",
+							}))}
+					className={cn(
+						"relative border-2 border-dashed rounded-2xl p-6 transition-all text-center",
+						hasReachedAttachmentLimit
+							? "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
+							: "bg-gray-50/50 border-gray-300 hover:bg-red-50/10 hover:border-[#a60202]/30 cursor-pointer",
+					)}
 				>
-					<input {...getInputProps()} aria-label="Upload booking attachment" />
+					<input
+						{...getInputProps({ disabled: hasReachedAttachmentLimit })}
+						aria-label="Upload booking attachment"
+					/>
 					<div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
 						<div className="p-3 bg-white rounded-full shadow-sm border border-gray-100 mb-1">
 							<Paperclip className="h-6 w-6 text-[#a60202]" />
@@ -597,16 +641,31 @@ export function BookingFormFields({
 							Click to upload or drag and drop
 						</p>
 						<p className="text-xs text-gray-500">
-							PDF, DOC, DOCX, JPG, JPEG, PNG • Max {maxFiles} files •{" "}
+							PDF, DOC, DOCX, JPG, JPEG, PNG • Max {maxFiles} files total •{" "}
 							{formatBytes(maxFileSize)}
 						</p>
+						{!hasReachedAttachmentLimit && existingAttachments && (
+							<p className="text-xs text-gray-500">
+								You can add up to {remainingAttachmentSlots} more file
+								{remainingAttachmentSlots === 1 ? "" : "s"}.
+							</p>
+						)}
+						{hasReachedAttachmentLimit && (
+							<p className="text-xs text-amber-700">
+								Maximum attachments reached. Remove at least one existing file
+								to add another.
+							</p>
+						)}
 					</div>
 				</div>
 
 				{isUploadingAttachment && (
 					<div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
 						<p className="text-sm font-medium text-blue-800">
-							Uploading attachment
+							Uploading attachment(s)
+							{totalAttachmentCount > 0
+								? ` ${Math.min(uploadedAttachmentCount, totalAttachmentCount)}/${totalAttachmentCount}`
+								: ""}
 							{uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}
 						</p>
 						<div className="mt-2 h-2 w-full rounded-full bg-blue-100">
@@ -672,7 +731,7 @@ export function BookingFormFields({
 										type="button"
 										onClick={(e) => {
 											e.stopPropagation();
-											handleRemoveFile(file.name, file.size);
+											handleRemoveFile(index);
 										}}
 										className="shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
 										aria-label={`Remove ${file.name}`}
@@ -685,6 +744,9 @@ export function BookingFormFields({
 					</div>
 				)}
 
+				{fieldErrors?.attachments && (
+					<p className="text-sm text-red-600 mt-2">{fieldErrors.attachments}</p>
+				)}
 				{fileError && <p className="text-sm text-red-600 mt-2">{fileError}</p>}
 			</div>
 		</div>

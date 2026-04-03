@@ -1,8 +1,9 @@
 "use client";
 
-import type {
+import {
 	AttachmentMimeType,
 	ConferenceRoom,
+	FILE_UPLOAD_PRESETS,
 	MeetingType,
 	RoomBookingListResponse,
 	RoomBookingResponse,
@@ -25,6 +26,17 @@ export interface UpdateBookingInput {
 	room?: ConferenceRoom;
 	attachmentFiles?: File[];
 	attachmentPaths?: string[];
+}
+
+interface UseUpdateBookingReturn {
+	updateBooking: (input: UpdateBookingInput) => Promise<{ success: boolean }>;
+	isUpdating: boolean;
+	isUploadingAttachment: boolean;
+	uploadProgress: number | null;
+	uploadedAttachmentCount: number;
+	totalAttachmentCount: number;
+	error: string | null;
+	clearError: () => void;
 }
 
 function inferAttachmentMimeType(file: File): AttachmentMimeType {
@@ -56,17 +68,75 @@ function inferAttachmentMimeType(file: File): AttachmentMimeType {
 	);
 }
 
-export function useUpdateBooking(onSuccess?: () => void) {
+function uploadFileWithProgress(
+	uploadUrl: string,
+	file: File,
+	onProgress: (progressPercent: number) => void,
+): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const xhr = new XMLHttpRequest();
+		xhr.open("PUT", uploadUrl);
+		xhr.setRequestHeader(
+			"Content-Type",
+			file.type || "application/octet-stream",
+		);
+
+		xhr.upload.onprogress = (event) => {
+			if (!event.lengthComputable) {
+				return;
+			}
+
+			const progress = Math.round((event.loaded / event.total) * 100);
+			onProgress(progress);
+		};
+
+		xhr.onload = () => {
+			if (xhr.status >= 200 && xhr.status < 300) {
+				onProgress(100);
+				resolve();
+				return;
+			}
+
+			reject(new Error(`Failed to upload attachment (${xhr.status})`));
+		};
+
+		xhr.onerror = () => {
+			reject(new Error("Failed to upload attachment. Please try again."));
+		};
+
+		xhr.send(file);
+	});
+}
+
+export function useUpdateBooking(
+	onSuccess?: () => void,
+): UseUpdateBookingReturn {
 	const [error, setError] = useState<string | null>(null);
+	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+	const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+	const [uploadedAttachmentCount, setUploadedAttachmentCount] = useState(0);
+	const [totalAttachmentCount, setTotalAttachmentCount] = useState(0);
 	const clearError = useCallback(() => setError(null), []);
 	const queryClient = useQueryClient();
 
 	const mutation = useMutation({
 		mutationFn: async (input: UpdateBookingInput) => {
 			const attachmentPaths = [...new Set(input.attachmentPaths ?? [])];
+			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+			const incomingFilesCount = input.attachmentFiles?.length ?? 0;
+
+			if (attachmentPaths.length + incomingFilesCount > maxAttachments) {
+				throw new Error(`Maximum of ${maxAttachments} attachments is allowed.`);
+			}
 
 			if (input.attachmentFiles && input.attachmentFiles.length > 0) {
-				for (const file of input.attachmentFiles) {
+				const totalFiles = input.attachmentFiles.length;
+				setIsUploadingAttachment(true);
+				setUploadProgress(0);
+				setUploadedAttachmentCount(0);
+				setTotalAttachmentCount(totalFiles);
+
+				for (const [index, file] of input.attachmentFiles.entries()) {
 					const mimeType = inferAttachmentMimeType(file);
 					const [uploadErr, uploadData] =
 						await api.roomBookings.generateUploadUrl({
@@ -81,22 +151,23 @@ export function useUpdateBooking(onSuccess?: () => void) {
 						);
 					}
 
-					const uploadResponse = await fetch(uploadData.uploadUrl, {
-						method: "PUT",
-						headers: {
-							"Content-Type": file.type || "application/octet-stream",
+					await uploadFileWithProgress(
+						uploadData.uploadUrl,
+						file,
+						(progressPercent) => {
+							const totalProgress = Math.round(
+								((index + progressPercent / 100) / totalFiles) * 100,
+							);
+							setUploadProgress(totalProgress);
 						},
-						body: file,
-					});
-
-					if (!uploadResponse.ok) {
-						throw new Error(
-							`Failed to upload attachment (${uploadResponse.status})`,
-						);
-					}
+					);
 
 					attachmentPaths.push(uploadData.path);
+					setUploadedAttachmentCount(index + 1);
 				}
+
+				setIsUploadingAttachment(false);
+				setUploadedAttachmentCount(totalFiles);
 			}
 
 			const [err, data] = await api.roomBookings.update({
@@ -195,6 +266,10 @@ export function useUpdateBooking(onSuccess?: () => void) {
 			return { previousQueries };
 		},
 		onError: (err, updatedBooking, context) => {
+			setIsUploadingAttachment(false);
+			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			setError(err.message);
 			toast.error(err.message);
 			if (context?.previousQueries) {
@@ -204,10 +279,17 @@ export function useUpdateBooking(onSuccess?: () => void) {
 			}
 		},
 		onSuccess: () => {
+			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			toast.success("Booking updated successfully");
 			onSuccess?.();
 		},
 		onSettled: () => {
+			setIsUploadingAttachment(false);
+			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			queryClient.invalidateQueries({
 				queryKey: orpc.roomBookings.getList.key(),
 			});
@@ -217,6 +299,9 @@ export function useUpdateBooking(onSuccess?: () => void) {
 	const updateBooking = useCallback(
 		async (input: UpdateBookingInput): Promise<{ success: boolean }> => {
 			setError(null);
+			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(input.attachmentFiles?.length ?? 0);
 			try {
 				await mutation.mutateAsync(input);
 				return { success: true };
@@ -227,5 +312,14 @@ export function useUpdateBooking(onSuccess?: () => void) {
 		[mutation],
 	);
 
-	return { updateBooking, isUpdating: mutation.isPending, error, clearError };
+	return {
+		updateBooking,
+		isUpdating: mutation.isPending,
+		isUploadingAttachment,
+		uploadProgress,
+		uploadedAttachmentCount,
+		totalAttachmentCount,
+		error,
+		clearError,
+	};
 }

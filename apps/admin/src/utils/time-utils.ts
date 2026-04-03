@@ -9,8 +9,8 @@ export interface TimeSlot {
 export function generateTimeSlots(intervalMinutes: number = 15): TimeSlot[] {
 	const slots: TimeSlot[] = [];
 
-	// Restrict to 7 AM to 5 PM
-	for (let hour = 7; hour < 17; hour++) {
+	// Restrict to 8 AM to 5 PM
+	for (let hour = 8; hour < 17; hour++) {
 		for (let minute = 0; minute < 60; minute += intervalMinutes) {
 			const period = hour < 12 ? "AM" : "PM";
 			let displayHour = hour % 12;

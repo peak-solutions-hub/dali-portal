@@ -3,6 +3,7 @@
 import {
 	type AttachmentMimeType,
 	type ConferenceRoom,
+	FILE_UPLOAD_PRESETS,
 	type MeetingType,
 } from "@repo/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +29,8 @@ export interface UseCreateBookingReturn {
 	isCreating: boolean;
 	isUploadingAttachment: boolean;
 	uploadProgress: number | null;
+	uploadedAttachmentCount: number;
+	totalAttachmentCount: number;
 	error: string | null;
 	clearError: () => void;
 }
@@ -107,17 +110,26 @@ export function useCreateBooking(
 	const [error, setError] = useState<string | null>(null);
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+	const [uploadedAttachmentCount, setUploadedAttachmentCount] = useState(0);
+	const [totalAttachmentCount, setTotalAttachmentCount] = useState(0);
 	const clearError = useCallback(() => setError(null), []);
 	const queryClient = useQueryClient();
 
 	const mutation = useMutation({
 		mutationFn: async (input: CreateBookingInput) => {
 			const attachmentPaths: string[] = [];
+			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+
+			if ((input.attachmentFiles?.length ?? 0) > maxAttachments) {
+				throw new Error(`Maximum of ${maxAttachments} attachments is allowed.`);
+			}
 
 			if (input.attachmentFiles && input.attachmentFiles.length > 0) {
 				const totalFiles = input.attachmentFiles.length;
 				setIsUploadingAttachment(true);
 				setUploadProgress(0);
+				setUploadedAttachmentCount(0);
+				setTotalAttachmentCount(totalFiles);
 
 				for (const [index, file] of input.attachmentFiles.entries()) {
 					const mimeType = inferAttachmentMimeType(file);
@@ -146,9 +158,11 @@ export function useCreateBooking(
 					);
 
 					attachmentPaths.push(uploadData.path);
+					setUploadedAttachmentCount(index + 1);
 				}
 
 				setIsUploadingAttachment(false);
+				setUploadedAttachmentCount(totalFiles);
 			}
 
 			const [err, data] = await api.roomBookings.create({
@@ -171,16 +185,23 @@ export function useCreateBooking(
 		onError: (err) => {
 			setIsUploadingAttachment(false);
 			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			setError(err.message);
 			toast.error(err.message);
 		},
 		onSuccess: () => {
 			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			toast.success("Booking created successfully");
 			onSuccess?.();
 		},
 		onSettled: () => {
 			setIsUploadingAttachment(false);
+			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(0);
 			queryClient.invalidateQueries({
 				queryKey: orpc.roomBookings.getList.key(),
 			});
@@ -191,6 +212,8 @@ export function useCreateBooking(
 		async (input: CreateBookingInput): Promise<{ success: boolean }> => {
 			setError(null);
 			setUploadProgress(null);
+			setUploadedAttachmentCount(0);
+			setTotalAttachmentCount(input.attachmentFiles?.length ?? 0);
 			try {
 				await mutation.mutateAsync(input);
 				return { success: true };
@@ -206,6 +229,8 @@ export function useCreateBooking(
 		isCreating: mutation.isPending,
 		isUploadingAttachment,
 		uploadProgress,
+		uploadedAttachmentCount,
+		totalAttachmentCount,
 		error,
 		clearError,
 	};
