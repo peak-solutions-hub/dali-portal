@@ -31,9 +31,13 @@ ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
 
+ENV BUILD_STANDALONE="true"
+
 COPY --from=installer /app/ .
 COPY --from=pruner /app/out/full/ .
-RUN pnpm turbo build --filter=portal
+RUN pnpm --filter=@repo/shared build
+RUN pnpm --filter=portal build
+RUN test -f /app/apps/portal/.next/standalone/apps/portal/server.js
 
 # Production image
 FROM node:22-alpine AS runner

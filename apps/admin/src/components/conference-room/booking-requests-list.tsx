@@ -1,6 +1,10 @@
 "use client";
 
-import { CONFERENCE_ROOM_LABELS, isAdminBookingRole } from "@repo/shared";
+import {
+	CONFERENCE_ROOM_LABELS,
+	formatFullDate,
+	isAdminBookingRole,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Table,
@@ -30,7 +34,6 @@ import {
 	mapApiBookings,
 	resolveConferenceRoom,
 } from "@/utils/booking-helpers";
-import { formatFullDate } from "@/utils/date-utils";
 import { BookingStatusBadge } from "./booking-status-badge";
 import { DeleteBookingDialog } from "./delete-booking-dialog";
 import type { EditBookingData } from "./edit-booking-modal";

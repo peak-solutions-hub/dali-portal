@@ -12,6 +12,7 @@ import {
 	type SessionWithAgenda,
 	SortDirectionEnum,
 } from "../schemas/session.schema";
+import { formatDateInPHT, parseDateInput } from "./date-utils";
 
 // =============================================================================
 // DATE & TIME FORMATTING
@@ -23,11 +24,12 @@ import {
  */
 export function formatSessionDate(date: Date | string): string {
 	if (!date) return "N/A";
-	const dateObj = typeof date === "string" ? new Date(date) : date;
+
+	const dateObj = parseDateInput(date);
 	if (Number.isNaN(dateObj.getTime())) return "N/A";
+
 	try {
-		return dateObj.toLocaleDateString("en-US", {
-			timeZone: "Asia/Manila",
+		return formatDateInPHT(dateObj, {
 			weekday: "long",
 			year: "numeric",
 			month: "long",
@@ -44,7 +46,7 @@ export function formatSessionDate(date: Date | string): string {
  */
 export function formatSessionTime(date: Date | string): string {
 	if (!date) return "N/A";
-	const dateObj = typeof date === "string" ? new Date(date) : date;
+	const dateObj = parseDateInput(date);
 	if (Number.isNaN(dateObj.getTime())) return "N/A";
 	try {
 		const timeStr = dateObj.toLocaleTimeString("en-US", {
@@ -57,19 +59,6 @@ export function formatSessionTime(date: Date | string): string {
 	} catch {
 		return "N/A";
 	}
-}
-
-// =============================================================================
-// DATE UTILITIES
-// =============================================================================
-
-/** Check if two dates fall on the same calendar day. */
-export function isSameDay(date1: Date, date2: Date): boolean {
-	return (
-		date1.getFullYear() === date2.getFullYear() &&
-		date1.getMonth() === date2.getMonth() &&
-		date1.getDate() === date2.getDate()
-	);
 }
 
 // =============================================================================
@@ -122,7 +111,7 @@ export const sessionSearchParamsSchema = z.object({
 		.default("")
 		.transform((val) => {
 			if (!val) return undefined;
-			const date = new Date(val);
+			const date = parseDateInput(val);
 			return Number.isNaN(date.getTime()) ? undefined : date;
 		}),
 	dateTo: z
@@ -131,7 +120,7 @@ export const sessionSearchParamsSchema = z.object({
 		.default("")
 		.transform((val) => {
 			if (!val) return undefined;
-			const date = new Date(val);
+			const date = parseDateInput(val);
 			return Number.isNaN(date.getTime()) ? undefined : date;
 		}),
 	sort: SortDirectionEnum.optional().default("desc"),
@@ -200,7 +189,7 @@ export type SessionWithAgendaAPIResponse = Omit<
 export function transformSessionDates(session: SessionAPIResponse): Session {
 	return {
 		...session,
-		scheduleDate: new Date(session.scheduleDate),
+		scheduleDate: parseDateInput(session.scheduleDate),
 	};
 }
 
@@ -210,7 +199,7 @@ export function transformSessionWithAgendaDates(
 ): SessionWithAgenda {
 	return {
 		...session,
-		scheduleDate: new Date(session.scheduleDate),
+		scheduleDate: parseDateInput(session.scheduleDate),
 	};
 }
 

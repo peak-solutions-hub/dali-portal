@@ -1,4 +1,5 @@
 import { Controller } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { AppError, contract } from "@repo/shared";
 import { Roles } from "@/app/auth/decorators/roles.decorator";
@@ -12,6 +13,7 @@ export class LegislativeDocumentsController {
 	) {}
 
 	// Public endpoint - citizens can view legislative documents
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.legislativeDocuments.list)
 	list() {
 		return implement(contract.legislativeDocuments.list).handler(
@@ -22,6 +24,7 @@ export class LegislativeDocumentsController {
 	}
 
 	// Public endpoint - citizens can view statistics
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.legislativeDocuments.statistics)
 	statistics() {
 		return implement(contract.legislativeDocuments.statistics).handler(
@@ -32,6 +35,7 @@ export class LegislativeDocumentsController {
 	}
 
 	// Public endpoint - citizens can view latest documents
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.legislativeDocuments.latest)
 	latest() {
 		return implement(contract.legislativeDocuments.latest).handler(
@@ -44,6 +48,7 @@ export class LegislativeDocumentsController {
 	}
 
 	// Public endpoint - citizens can view document details
+	@SkipThrottle({ short: true, default: true })
 	@Implement(contract.legislativeDocuments.getById)
 	getById() {
 		return implement(contract.legislativeDocuments.getById).handler(

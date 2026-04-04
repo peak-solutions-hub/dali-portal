@@ -27,9 +27,13 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
+ENV BUILD_STANDALONE="true"
+
 COPY --from=installer /app/ .
 COPY --from=pruner /app/out/full/ .
-RUN pnpm turbo build --filter=admin
+RUN pnpm --filter=@repo/shared build
+RUN pnpm --filter=admin build
+RUN test -f /app/apps/admin/.next/standalone/apps/admin/server.js
 
 # Production image
 FROM node:22-alpine AS runner

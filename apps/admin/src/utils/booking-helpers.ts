@@ -1,5 +1,9 @@
-import { CONFERENCE_ROOM_LABELS, type ConferenceRoom } from "@repo/shared";
-import { isSameDay } from "@/utils/date-utils";
+import {
+	CONFERENCE_ROOM_LABELS,
+	type ConferenceRoom,
+	isSameDay,
+} from "@repo/shared";
+
 import type { TimeSlot } from "@/utils/time-utils";
 
 const ROOM_KEYS = Object.keys(CONFERENCE_ROOM_LABELS) as ConferenceRoom[];

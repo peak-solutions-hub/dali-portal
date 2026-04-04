@@ -1,9 +1,12 @@
 "use client";
 
 import { isDefinedError } from "@orpc/client";
-import type {
+import {
+	formatDateInPHT,
+	formatIsoDateInPHT,
+	parseDateInput,
 	SessionManagementDocument,
-	SessionManagementSession as SessionUI,
+	type SessionManagementSession as SessionUI,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Plus } from "@repo/ui/lib/lucide-react";
@@ -34,16 +37,27 @@ function toSessionUI(session: {
 	status: string;
 	agendaFilePath?: string | null;
 }): SessionUI {
-	const d = new Date(session.scheduleDate);
+	const scheduleDate = parseDateInput(session.scheduleDate);
+	if (Number.isNaN(scheduleDate.getTime())) {
+		return {
+			id: session.id,
+			sessionNumber: session.sessionNumber,
+			date: "",
+			time: "",
+			type: session.type as "regular" | "special",
+			status: session.status as "draft" | "scheduled" | "completed",
+			agendaFilePath: session.agendaFilePath ?? null,
+		};
+	}
+
 	return {
 		id: session.id,
 		sessionNumber: session.sessionNumber,
-		date: d.toISOString().split("T")[0] ?? "",
-		time: d.toLocaleTimeString("en-GB", {
+		date: formatIsoDateInPHT(scheduleDate),
+		time: formatDateInPHT(scheduleDate, {
 			hour: "2-digit",
 			minute: "2-digit",
 			hour12: false,
-			timeZone: "Asia/Manila",
 		}),
 		type: session.type as "regular" | "special",
 		status: session.status as "draft" | "scheduled" | "completed",
