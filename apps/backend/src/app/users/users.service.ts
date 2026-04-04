@@ -23,6 +23,39 @@ import { ConfigService } from "@/lib/config.service";
 export class UsersService {
 	private readonly logger = new Logger(UsersService.name);
 
+	private getAdminRedirectUrl(pathname: string): string {
+		const rawAdminUrl = this.configService.getOrThrow("adminUrl") as string;
+
+		let adminUrl: URL;
+		try {
+			adminUrl = new URL(rawAdminUrl);
+		} catch {
+			this.logger.error("ADMIN_URL is not a valid URL.");
+			throw new AppError(
+				"GENERAL.INTERNAL_SERVER_ERROR",
+				"Authentication link configuration is invalid.",
+			);
+		}
+
+		const hostname = adminUrl.hostname.toLowerCase();
+		const isUnreachableHost =
+			hostname === "0.0.0.0" ||
+			hostname === "127.0.0.1" ||
+			hostname === "localhost";
+
+		if (process.env.NODE_ENV === "production" && isUnreachableHost) {
+			this.logger.error(
+				`ADMIN_URL is using an unreachable production host: ${adminUrl.hostname}`,
+			);
+			throw new AppError(
+				"GENERAL.INTERNAL_SERVER_ERROR",
+				"Authentication link configuration is invalid.",
+			);
+		}
+
+		return new URL(pathname, adminUrl).toString();
+	}
+
 	constructor(
 		private readonly db: DbService,
 		private readonly supabaseAdmin: SupabaseAdminService,
@@ -284,7 +317,7 @@ export class UsersService {
 		// If user exists and is INVITED, Proceed to re-send invite logic (fall through)
 		// If user does not exist, Proceed to create logic
 
-		const redirectTo = `${this.configService.getOrThrow("adminUrl")}/auth/confirm`;
+		const redirectTo = this.getAdminRedirectUrl("/auth/confirm");
 		const supabase = this.supabaseAdmin.getClient();
 
 		// For reinvites (user exists with "invited" status), delete only the old
@@ -403,8 +436,7 @@ export class UsersService {
 		}
 
 		const supabase = this.supabaseAdmin.getClient();
-		const adminUrl = this.configService.get("adminUrl") as string;
-		const redirectTo = `${adminUrl}/auth/callback?next=/set-password`;
+		const redirectTo = this.getAdminRedirectUrl("/auth/confirm");
 
 		const { error } = await supabase.auth.resetPasswordForEmail(email, {
 			redirectTo,
