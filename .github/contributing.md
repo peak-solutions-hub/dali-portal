@@ -373,6 +373,7 @@ This repository ships with local Copilot skills in `.agents/skills`.
 
 | Task | Use this skill first | Optional companion |
 |---|---|---|
+| Discover, search, or install a skill | `find-skills` | `agent-customization` |
 | Build or improve UI | `frontend-design` | `tailwind-design-system`, `ui-ux-pro-max` |
 | Audit accessibility/UI quality | `web-design-guidelines` | `accessibility-compliance` |
 | Next.js app/router/performance work | `next-best-practices` | `vercel-react-best-practices`, `next-cache-components` |
@@ -387,6 +388,7 @@ This repository ships with local Copilot skills in `.agents/skills`.
 
 ### Prompt examples for contributors
 
+- "Use `find-skills` to discover the best skill for this task and suggest install commands."
 - "Use `next-best-practices` to refactor this page to proper server component data fetching."
 - "Use `nestjs-best-practices` to review this module for DI and controller pattern issues."
 - "Use `playwright-best-practices` to stabilize this flaky test suite."

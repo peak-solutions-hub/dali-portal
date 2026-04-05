@@ -42,6 +42,7 @@ This repository includes workspace-local skills under `.agents/skills`.
 
 | Request Type | Primary Skill | Optional Secondary Skill |
 |---|---|---|
+| Skill discovery, skill lookup, or skill installation | `find-skills` | `agent-customization` |
 | Build or style UI pages/components | `frontend-design` | `tailwind-design-system`, `ui-ux-pro-max` |
 | UI/UX or accessibility review | `web-design-guidelines` | `accessibility-compliance` |
 | Next.js architecture/performance | `next-best-practices` | `vercel-react-best-practices`, `next-cache-components` |
@@ -61,6 +62,7 @@ This repository includes workspace-local skills under `.agents/skills`.
 - Enforce server-side authorization and privacy-safe error behavior.
 - Reuse shared packages (`@repo/shared`, `@repo/ui`, `@repo/typescript-config`) instead of duplicating logic.
 - Prefer existing constants in `packages/shared/src/constants` over inline magic numbers.
+- For any request to find, install, or discover skills, start with `.agents/skills/find-skills/SKILL.md`.
   
 ## Always
 
