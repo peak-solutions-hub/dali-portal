@@ -68,9 +68,11 @@ export function useInquiryTickets({
 
 	// Separate query for accurate counts (independent of ticket list).
 	const { data: statusCountsData, isLoading: isLoadingCounts } = useQuery({
-		queryKey: ["inquiry-tickets", "status-counts"],
+		queryKey: ["inquiry-tickets", "status-counts", searchQuery],
 		queryFn: async () => {
-			const [err, result] = await api.inquiries.getStatusCounts();
+			const [err, result] = await api.inquiries.getStatusCounts({
+				search: searchQuery.trim() || undefined,
+			});
 			if (err) throw err;
 			return result;
 		},
@@ -83,22 +85,6 @@ export function useInquiryTickets({
 		if (!currentUserId) return [];
 		return allTickets.filter((ticket) => ticket.assignedTo === currentUserId);
 	}, [allTickets, onlyAssignedToCurrentUser, currentUserId]);
-
-	// Tickets matching the search query only (no status filter) — used to
-	// recompute tab counts when a search is active.
-	const searchFilteredTickets = useMemo(() => {
-		if (!searchQuery) return roleScopedTickets;
-		const q = searchQuery.toLowerCase();
-		return roleScopedTickets.filter(
-			(ticket) =>
-				ticket.referenceNumber.toLowerCase().includes(q) ||
-				(ticket.citizenFirstName &&
-					ticket.citizenFirstName.toLowerCase().includes(q)) ||
-				(ticket.citizenLastName &&
-					ticket.citizenLastName.toLowerCase().includes(q)) ||
-				ticket.subject.toLowerCase().includes(q),
-		);
-	}, [roleScopedTickets, searchQuery]);
 
 	// Client-side filter by status and search query.
 	const filteredTickets = useMemo(() => {
@@ -162,63 +148,21 @@ export function useInquiryTickets({
 		hasPreviousPage: safePage > 1,
 	};
 
-	const assignedToMeCount = currentUserId
-		? searchFilteredTickets.filter((t) => t.assignedTo === currentUserId).length
-		: 0;
-
-	// When a search is active, derive counts from the search-filtered pool so
-	// the tab numbers reflect what the user is actually looking at.
+	// Status/count badges are server-derived so they remain accurate even when
+	// the ticket list query is partial or paginated.
 	const counts = useMemo(() => {
-		if (onlyAssignedToCurrentUser) {
-			return {
-				all: searchFilteredTickets.length,
-				new: searchFilteredTickets.filter((t) => t.status === "new").length,
-				open: searchFilteredTickets.filter((t) => t.status === "open").length,
-				waiting_for_citizen: searchFilteredTickets.filter(
-					(t) => t.status === "waiting_for_citizen",
-				).length,
-				resolved: searchFilteredTickets.filter((t) => t.status === "resolved")
-					.length,
-				rejected: searchFilteredTickets.filter((t) => t.status === "rejected")
-					.length,
-				assigned_to_me: searchFilteredTickets.length,
-			};
-		}
-
-		if (!searchQuery) {
-			return {
-				...(statusCountsData ?? {
-					all: 0,
-					new: 0,
-					open: 0,
-					waiting_for_citizen: 0,
-					resolved: 0,
-					rejected: 0,
-				}),
-				assigned_to_me: assignedToMeCount,
-			};
-		}
-
 		return {
-			all: searchFilteredTickets.length,
-			new: searchFilteredTickets.filter((t) => t.status === "new").length,
-			open: searchFilteredTickets.filter((t) => t.status === "open").length,
-			waiting_for_citizen: searchFilteredTickets.filter(
-				(t) => t.status === "waiting_for_citizen",
-			).length,
-			resolved: searchFilteredTickets.filter((t) => t.status === "resolved")
-				.length,
-			rejected: searchFilteredTickets.filter((t) => t.status === "rejected")
-				.length,
-			assigned_to_me: assignedToMeCount,
+			...(statusCountsData ?? {
+				all: 0,
+				new: 0,
+				open: 0,
+				waiting_for_citizen: 0,
+				resolved: 0,
+				rejected: 0,
+				assigned_to_me: 0,
+			}),
 		};
-	}, [
-		onlyAssignedToCurrentUser,
-		searchQuery,
-		statusCountsData,
-		searchFilteredTickets,
-		assignedToMeCount,
-	]);
+	}, [statusCountsData]);
 
 	const error = ticketsError
 		? ticketsError.message || "Failed to fetch inquiry tickets"

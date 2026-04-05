@@ -149,6 +149,11 @@ export const GetInquiryTicketListSchema = z.object({
 	page: z.coerce.number().int().min(1).default(1),
 });
 
+export const GetInquiryStatusCountsSchema = z.object({
+	category: InquiryTicketCategoryEnum.optional(),
+	search: z.string().trim().optional(),
+});
+
 export const GetInquiryTicketByIdSchema = z.object({
 	id: z.uuid(),
 });
@@ -389,6 +394,9 @@ export type InquiryTicketListResponse = z.infer<
 export type GetInquiryTicketListInput = z.infer<
 	typeof GetInquiryTicketListSchema
 >;
+export type GetInquiryStatusCountsInput = z.infer<
+	typeof GetInquiryStatusCountsSchema
+>;
 export type GetInquiryTicketByIdInput = z.infer<
 	typeof GetInquiryTicketByIdSchema
 >;
@@ -420,6 +428,7 @@ export const InquiryStatusCountsSchema = z.object({
 	waiting_for_citizen: z.number().int().min(0),
 	resolved: z.number().int().min(0),
 	rejected: z.number().int().min(0),
+	assigned_to_me: z.number().int().min(0),
 });
 
 export type InquiryStatusCounts = z.infer<typeof InquiryStatusCountsSchema>;

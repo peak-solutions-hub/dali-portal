@@ -7,6 +7,7 @@ import {
 	ConfirmInquiryAssignmentSchema,
 	CreateInquiryTicketResponseSchema,
 	CreateInquiryTicketSchema,
+	GetInquiryStatusCountsSchema,
 	GetInquiryTicketByIdSchema,
 	GetInquiryTicketListSchema,
 	InquiryMessageResponseSchema,
@@ -147,13 +148,14 @@ export const getInquiryStatusCounts = oc
 		path: "/inquiries/status-counts",
 		summary: "Get inquiry status counts",
 		description:
-			"Get counts of inquiries grouped by status in a single request.",
+			"Get counts of inquiries grouped by status in a single request, with optional search/filter params.",
 		tags: ["Inquiry", "Admin"],
 	})
 	.errors({
 		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
 		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 	})
+	.input(GetInquiryStatusCountsSchema)
 	.output(InquiryStatusCountsSchema);
 
 export const assignInquiryToMe = oc

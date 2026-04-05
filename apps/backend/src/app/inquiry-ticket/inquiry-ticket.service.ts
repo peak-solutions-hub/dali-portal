@@ -5,6 +5,7 @@ import {
 	type CreateInquiryTicketResponse,
 	type CreateSignedUploadUrlsInput,
 	formatCitizenFullName,
+	type GetInquiryStatusCountsInput,
 	type GetInquiryTicketByIdInput,
 	type GetInquiryTicketListInput,
 	INQUIRY_ASSIGNABLE_ROLES,
@@ -27,6 +28,7 @@ import { customAlphabet } from "nanoid";
 import type { CreateEmailOptions } from "resend";
 import { DbService } from "@/app/db/db.service";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
+import type { Prisma } from "@/generated/prisma/client";
 import { ConfigService } from "@/lib/config.service";
 import { ResendService } from "@/lib/resend.service";
 
@@ -59,6 +61,31 @@ export class InquiryTicketService {
 		}
 
 		return {};
+	}
+
+	private buildInquiryFilterWhere(
+		input: Pick<GetInquiryTicketListInput, "status" | "category"> & {
+			search?: string;
+		},
+		actor?: { id?: string; role?: RoleType },
+	): Prisma.InquiryTicketWhereInput {
+		const search = input.search?.trim();
+
+		return {
+			...(input.status ? { status: input.status } : {}),
+			...(input.category ? { category: input.category } : {}),
+			...(search
+				? {
+						OR: [
+							{ referenceNumber: { contains: search, mode: "insensitive" } },
+							{ citizenFirstName: { contains: search, mode: "insensitive" } },
+							{ citizenLastName: { contains: search, mode: "insensitive" } },
+							{ subject: { contains: search, mode: "insensitive" } },
+						],
+					}
+				: {}),
+			...this.buildInquiryAccessWhere(actor),
+		};
 	}
 
 	constructor(
@@ -242,11 +269,7 @@ export class InquiryTicketService {
 		const skip = (page - 1) * limit;
 
 		// Build where clause
-		const where = {
-			...(status && { status }),
-			...(category && { category }),
-			...this.buildInquiryAccessWhere(actor),
-		};
+		const where = this.buildInquiryFilterWhere({ status, category }, actor);
 
 		// Get total count for pagination
 		const totalItems = await this.db.inquiryTicket.count({ where });
@@ -288,13 +311,23 @@ export class InquiryTicketService {
 		};
 	}
 
-	async getStatusCounts(actor: {
-		id: string;
-		role?: RoleType;
-	}): Promise<InquiryStatusCounts> {
-		const where = this.buildInquiryAccessWhere(actor);
+	async getStatusCounts(
+		actor: {
+			id: string;
+			role?: RoleType;
+		},
+		input?: GetInquiryStatusCountsInput,
+	): Promise<InquiryStatusCounts> {
+		const where = this.buildInquiryFilterWhere(
+			{ category: input?.category, search: input?.search },
+			actor,
+		);
+		const assignedToMeWhere = {
+			...where,
+			assignedTo: actor.id,
+		};
 		// Get all counts in parallel for maximum efficiency
-		const [all, newCount, open, waiting, resolved, rejected] =
+		const [all, newCount, open, waiting, resolved, rejected, assignedToMe] =
 			await Promise.all([
 				this.db.inquiryTicket.count({ where }),
 				this.db.inquiryTicket.count({ where: { ...where, status: "new" } }),
@@ -308,6 +341,7 @@ export class InquiryTicketService {
 				this.db.inquiryTicket.count({
 					where: { ...where, status: "rejected" },
 				}),
+				this.db.inquiryTicket.count({ where: assignedToMeWhere }),
 			]);
 
 		return {
@@ -317,6 +351,7 @@ export class InquiryTicketService {
 			waiting_for_citizen: waiting,
 			resolved,
 			rejected,
+			assigned_to_me: assignedToMe,
 		};
 	}
 

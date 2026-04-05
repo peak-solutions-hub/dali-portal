@@ -126,7 +126,7 @@ export class InquiryTicketController {
 	@Implement(contract.inquiries.getStatusCounts)
 	getStatusCounts() {
 		return implement(contract.inquiries.getStatusCounts).handler(
-			async ({ context }) => {
+			async ({ input, context }) => {
 				const { request } = context as ORPCContext;
 				const userId = request.user?.id;
 				const userRole = request.user?.role;
@@ -135,10 +135,13 @@ export class InquiryTicketController {
 					throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
 				}
 
-				return await this.inquiryService.getStatusCounts({
-					id: userId,
-					role: userRole,
-				});
+				return await this.inquiryService.getStatusCounts(
+					{
+						id: userId,
+						role: userRole,
+					},
+					input,
+				);
 			},
 		);
 	}
