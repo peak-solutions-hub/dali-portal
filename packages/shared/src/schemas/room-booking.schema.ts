@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FILE_COUNT_LIMITS, FILE_SIZE_LIMITS } from "../constants";
+import { FILE_COUNT_LIMITS, FILE_SIZE_LIMITS, TEXT_LIMITS } from "../constants";
 import {
 	CONFERENCE_ROOM_VALUES,
 	MEETING_TYPE_VALUES,
@@ -56,6 +56,12 @@ export const RoomBookingSchema = z.object({
 export const RoomBookingAttachmentResponseSchema = z.object({
 	path: z.string(),
 	url: z.string().nullable(),
+	reason: z.string().nullable(),
+});
+
+export const RoomBookingAttachmentInputSchema = z.object({
+	path: z.string().min(1),
+	reason: z.string().trim().max(TEXT_LIMITS.XS).optional().nullable(),
 });
 
 /** Response shape returned to clients — datetimes are serialised as ISO strings. */
@@ -131,6 +137,11 @@ export const CreateRoomBookingSchema = z
 			.array(z.string().min(1))
 			.max(FILE_COUNT_LIMITS.SM)
 			.optional(),
+		/** Optional attachment metadata with per-file reason. */
+		attachments: z
+			.array(RoomBookingAttachmentInputSchema)
+			.max(FILE_COUNT_LIMITS.SM)
+			.optional(),
 	})
 	.superRefine((value, context) => {
 		if (value.meetingType === "others" && !value.meetingTypeOthers?.trim()) {
@@ -149,6 +160,14 @@ export const CreateRoomBookingSchema = z
 					"meetingTypeOthers is only allowed when meetingType is others.",
 			});
 		}
+
+		if (value.attachmentPaths && value.attachments) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["attachments"],
+				message: "Provide either attachmentPaths or attachments, but not both.",
+			});
+		}
 	});
 
 export const UpdateRoomBookingSchema = z
@@ -163,6 +182,10 @@ export const UpdateRoomBookingSchema = z
 		room: ConferenceRoomEnum.optional(),
 		attachmentPaths: z
 			.array(z.string().min(1))
+			.max(FILE_COUNT_LIMITS.SM)
+			.optional(),
+		attachments: z
+			.array(RoomBookingAttachmentInputSchema)
 			.max(FILE_COUNT_LIMITS.SM)
 			.optional(),
 	})
@@ -186,6 +209,14 @@ export const UpdateRoomBookingSchema = z
 				path: ["meetingTypeOthers"],
 				message:
 					"meetingTypeOthers is only allowed when meetingType is others.",
+			});
+		}
+
+		if (value.attachmentPaths && value.attachments) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["attachments"],
+				message: "Provide either attachmentPaths or attachments, but not both.",
 			});
 		}
 	});
@@ -222,6 +253,9 @@ export const GenerateBookingUploadUrlResponseSchema = z.object({
 export type RoomBookingResponse = z.infer<typeof RoomBookingResponseSchema>;
 export type RoomBookingAttachmentResponse = z.infer<
 	typeof RoomBookingAttachmentResponseSchema
+>;
+export type RoomBookingAttachmentInput = z.infer<
+	typeof RoomBookingAttachmentInputSchema
 >;
 export type RoomBookingListResponse = z.infer<
 	typeof RoomBookingListResponseSchema

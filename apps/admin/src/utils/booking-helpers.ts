@@ -106,7 +106,12 @@ export interface CalendarBooking {
 	meetingTypeOthers: string | null;
 	requestedFor: string;
 	status: "pending" | "confirmed" | "rejected";
-	attachments: Array<{ path: string; url: string | null; fileName: string }>;
+	attachments: Array<{
+		path: string;
+		url: string | null;
+		fileName: string;
+		reason: string | null;
+	}>;
 	isPast: boolean;
 }
 
@@ -159,7 +164,11 @@ interface ApiBooking {
 	meetingTypeOthers: string | null;
 	requestedFor: string;
 	status: string;
-	attachments: Array<{ path: string; url: string | null }>;
+	attachments: Array<{
+		path: string;
+		url: string | null;
+		reason: string | null;
+	}>;
 	user?: { id: string; fullName: string } | null;
 }
 
@@ -195,6 +204,7 @@ export function mapApiBookings(bookings: ApiBooking[]): CalendarBooking[] {
 						"",
 					),
 				),
+				reason: attachment.reason,
 			})),
 			isPast: new Date(b.endTime) < new Date(),
 		};

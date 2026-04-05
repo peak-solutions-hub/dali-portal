@@ -21,6 +21,7 @@ ALTER TABLE "room_booking"
 CREATE TABLE "room_booking_attachment" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" UUID NOT NULL,
+  "reason" text,
   "path" TEXT NOT NULL,
   "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
   CONSTRAINT "room_booking_attachments_booking_id_fkey"

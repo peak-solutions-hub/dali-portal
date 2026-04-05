@@ -102,15 +102,21 @@ export function CreateBookingModal({
 			});
 
 			if (overlapping.length > 0) {
-				const first = overlapping[0];
-				if (!first) continue;
-				const moreCount = overlapping.length - 1;
+				const conflictRanges = [
+					...new Set(
+						overlapping
+							.sort((a, b) => {
+								const aStart = parseTimeToMinutes(a.startTime24) ?? 0;
+								const bStart = parseTimeToMinutes(b.startTime24) ?? 0;
+								return aStart - bStart;
+							})
+							.map((booking) => `${booking.startTime} - ${booking.endTime}`),
+					),
+				];
+
 				empty[roomOption.value] = {
 					disabled: true,
-					note:
-						moreCount > 0
-							? `Booked at ${first.startTime} - ${first.endTime} (+${moreCount} more)`
-							: `Booked at ${first.startTime} - ${first.endTime}`,
+					note: `Booked at ${conflictRanges.join(", ")}`,
 				};
 			}
 		}
@@ -272,7 +278,12 @@ export function CreateBookingModal({
 			requestedFor: values.requestedFor.trim(),
 			room: values.room as ConferenceRoom,
 			...(values.attachments.length > 0
-				? { attachmentFiles: values.attachments }
+				? {
+						attachments: values.attachments.map((attachment) => ({
+							file: attachment.file,
+							reason: attachment.reason.trim() || undefined,
+						})),
+					}
 				: {}),
 		});
 	};

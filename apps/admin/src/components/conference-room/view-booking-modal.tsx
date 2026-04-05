@@ -49,6 +49,7 @@ export function ViewBookingModal({
 
 	const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
 	const isPending = booking.status === "pending";
+	const isExpired = booking.isPast && booking.status === "pending";
 	const isRejected = booking.status === "rejected";
 
 	const handleApprove = () => updateStatus(booking.id, "confirmed");
@@ -71,6 +72,7 @@ export function ViewBookingModal({
 							<BookingStatusBadge
 								status={booking.status}
 								roomKey={booking.roomKey}
+								isPast={booking.isPast}
 							/>
 						</div>
 						<p
@@ -156,9 +158,15 @@ export function ViewBookingModal({
 											<span className="text-sm font-medium text-gray-900 truncate">
 												{attachment.fileName}
 											</span>
-											<span className="text-xs text-gray-500">
-												Click to view
-											</span>
+											{attachment.reason ? (
+												<span className="text-xs text-gray-500 truncate">
+													Reason: {attachment.reason}
+												</span>
+											) : (
+												<span className="text-xs text-gray-500">
+													Click to view
+												</span>
+											)}
 										</div>
 										<ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
 									</a>
@@ -196,7 +204,7 @@ export function ViewBookingModal({
 						)}
 					</div>
 
-					{isPending && canApprove && (
+					{isPending && !isExpired && canApprove && (
 						<div className="flex gap-2">
 							<Button
 								variant="outline"

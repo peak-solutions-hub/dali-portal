@@ -24,8 +24,8 @@ export interface UpdateBookingInput {
 	endTime?: string;
 	requestedFor?: string;
 	room?: ConferenceRoom;
-	attachmentFiles?: File[];
-	attachmentPaths?: string[];
+	existingAttachments?: Array<{ path: string; reason?: string }>;
+	newAttachments?: Array<{ file: File; reason?: string }>;
 }
 
 interface UseUpdateBookingReturn {
@@ -121,28 +121,39 @@ export function useUpdateBooking(
 
 	const mutation = useMutation({
 		mutationFn: async (input: UpdateBookingInput) => {
-			const attachmentPaths = [...new Set(input.attachmentPaths ?? [])];
+			const existingAttachments = [
+				...new Map(
+					(input.existingAttachments ?? []).map((attachment) => [
+						attachment.path,
+						{
+							path: attachment.path,
+							reason: attachment.reason?.trim() || undefined,
+						},
+					]),
+				).values(),
+			];
+			const attachments = [...existingAttachments];
 			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
-			const incomingFilesCount = input.attachmentFiles?.length ?? 0;
+			const incomingFilesCount = input.newAttachments?.length ?? 0;
 
-			if (attachmentPaths.length + incomingFilesCount > maxAttachments) {
+			if (attachments.length + incomingFilesCount > maxAttachments) {
 				throw new Error(`Maximum of ${maxAttachments} attachments is allowed.`);
 			}
 
-			if (input.attachmentFiles && input.attachmentFiles.length > 0) {
-				const totalFiles = input.attachmentFiles.length;
+			if (input.newAttachments && input.newAttachments.length > 0) {
+				const totalFiles = input.newAttachments.length;
 				setIsUploadingAttachment(true);
 				setUploadProgress(0);
 				setUploadedAttachmentCount(0);
 				setTotalAttachmentCount(totalFiles);
 
-				for (const [index, file] of input.attachmentFiles.entries()) {
-					const mimeType = inferAttachmentMimeType(file);
+				for (const [index, attachment] of input.newAttachments.entries()) {
+					const mimeType = inferAttachmentMimeType(attachment.file);
 					const [uploadErr, uploadData] =
 						await api.roomBookings.generateUploadUrl({
-							fileName: file.name,
+							fileName: attachment.file.name,
 							mimeType,
-							fileSize: file.size,
+							fileSize: attachment.file.size,
 						});
 
 					if (uploadErr || !uploadData) {
@@ -153,7 +164,7 @@ export function useUpdateBooking(
 
 					await uploadFileWithProgress(
 						uploadData.uploadUrl,
-						file,
+						attachment.file,
 						(progressPercent) => {
 							const totalProgress = Math.round(
 								((index + progressPercent / 100) / totalFiles) * 100,
@@ -162,7 +173,10 @@ export function useUpdateBooking(
 						},
 					);
 
-					attachmentPaths.push(uploadData.path);
+					attachments.push({
+						path: uploadData.path,
+						reason: attachment.reason?.trim() || undefined,
+					});
 					setUploadedAttachmentCount(index + 1);
 				}
 
@@ -191,8 +205,9 @@ export function useUpdateBooking(
 					requestedFor: input.requestedFor,
 				}),
 				...(input.room !== undefined && { room: input.room }),
-				...(input.attachmentPaths !== undefined || attachmentPaths.length > 0
-					? { attachmentPaths }
+				...(input.existingAttachments !== undefined ||
+				input.newAttachments !== undefined
+					? { attachments }
 					: {}),
 			});
 
@@ -250,9 +265,11 @@ export function useUpdateBooking(
 									...(updatedBooking.room !== undefined && {
 										room: updatedBooking.room,
 									}),
-									...(updatedBooking.attachmentPaths !== undefined && {
+									...(updatedBooking.existingAttachments !== undefined && {
 										attachments: booking.attachments.filter((attachment) =>
-											updatedBooking.attachmentPaths?.includes(attachment.path),
+											updatedBooking.existingAttachments?.some(
+												(existing) => existing.path === attachment.path,
+											),
 										),
 									}),
 								};
@@ -301,7 +318,7 @@ export function useUpdateBooking(
 			setError(null);
 			setUploadProgress(null);
 			setUploadedAttachmentCount(0);
-			setTotalAttachmentCount(input.attachmentFiles?.length ?? 0);
+			setTotalAttachmentCount(input.newAttachments?.length ?? 0);
 			try {
 				await mutation.mutateAsync(input);
 				return { success: true };

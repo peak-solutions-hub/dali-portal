@@ -34,7 +34,30 @@ import {
 	Paperclip,
 	X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+
+export interface BookingAttachmentDraft {
+	file: File;
+	reason: string;
+}
+
+function getFileIdentity(file: File): string {
+	return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+function isAttachmentLimitMessage(message: string | null): boolean {
+	if (!message) {
+		return false;
+	}
+
+	const normalized = message.toLowerCase();
+	return (
+		normalized.includes("maximum") ||
+		normalized.includes("attachments reached") ||
+		normalized.includes("upload up to") ||
+		normalized.includes("too many files")
+	);
+}
 
 export interface BookingFormValues {
 	room: string;
@@ -45,7 +68,7 @@ export interface BookingFormValues {
 	meetingTypeOthers: string;
 	title: string;
 	requestedFor: string;
-	attachments: File[];
+	attachments: BookingAttachmentDraft[];
 }
 
 interface BookingFormFieldsProps {
@@ -53,23 +76,19 @@ interface BookingFormFieldsProps {
 	onChange: (field: keyof BookingFormValues, value: unknown) => void;
 	fieldErrors?: Partial<Record<keyof BookingFormValues, string>>;
 	selectedRoomConflictNote?: string | null;
-	/** Optional room availability metadata used to disable and annotate room options. */
 	roomAvailability?: Partial<
 		Record<ConferenceRoom, { disabled: boolean; note?: string }>
 	>;
-	/** Existing attachments persisted on the booking (edit mode). */
 	existingAttachments?: Array<{
 		path: string;
 		url: string | null;
 		fileName: string;
+		reason?: string | null;
 	}>;
-	/** Paths of existing attachments marked for removal (edit mode). */
 	removedExistingAttachmentPaths?: string[];
-	/** Toggle remove marker for a specific existing attachment path (edit mode). */
 	onToggleExistingAttachmentRemoval?: (path: string) => void;
-	/** Form-level error message displayed at the top. */
+	onExistingAttachmentReasonChange?: (path: string, reason: string) => void;
 	error?: string | null;
-	/** File validation error. */
 	fileError: string | null;
 	onFileError: (msg: string | null) => void;
 	isUploadingAttachment?: boolean;
@@ -87,6 +106,7 @@ export function BookingFormFields({
 	existingAttachments,
 	removedExistingAttachmentPaths,
 	onToggleExistingAttachmentRemoval,
+	onExistingAttachmentReasonChange,
 	error,
 	fileError,
 	onFileError,
@@ -105,6 +125,7 @@ export function BookingFormFields({
 	const remainingAttachmentSlots = Math.max(maxFiles - existingCount, 0);
 	const uploadMaxFiles = Math.max(remainingAttachmentSlots, 1);
 	const hasReachedAttachmentLimit = remainingAttachmentSlots === 0;
+
 	const formErrorRef = useRef<HTMLDivElement | null>(null);
 	const roomErrorRef = useRef<HTMLDivElement | null>(null);
 	const dateErrorRef = useRef<HTMLDivElement | null>(null);
@@ -147,6 +168,10 @@ export function BookingFormFields({
 			return;
 		}
 
+		if (fileError && isAttachmentLimitMessage(fileError)) {
+			onFileError(null);
+		}
+
 		const validFiles = files.filter((file) => file.errors.length === 0);
 		const firstInvalidFile = files.find((file) => file.errors.length > 0);
 		const acceptedFiles = validFiles.slice(0, remainingAttachmentSlots);
@@ -159,18 +184,33 @@ export function BookingFormFields({
 		}
 
 		if (acceptedFiles.length > 0) {
+			const reasonByIdentity = new Map(
+				values.attachments.map((attachment) => [
+					getFileIdentity(attachment.file),
+					attachment.reason,
+				]),
+			);
+			const nextAttachments: BookingAttachmentDraft[] = acceptedFiles.map(
+				(file) => ({
+					file: file as File,
+					reason: reasonByIdentity.get(getFileIdentity(file as File)) ?? "",
+				}),
+			);
+
 			if (
-				values.attachments.length !== acceptedFiles.length ||
-				values.attachments.some(
-					(existing, index) =>
-						existing.name !== acceptedFiles[index]?.name ||
-						existing.size !== acceptedFiles[index]?.size,
-				)
+				values.attachments.length !== nextAttachments.length ||
+				values.attachments.some((existing, index) => {
+					const next = nextAttachments[index];
+					return (
+						!next ||
+						existing.file.name !== next.file.name ||
+						existing.file.size !== next.file.size ||
+						existing.file.lastModified !== next.file.lastModified ||
+						existing.reason !== next.reason
+					);
+				})
 			) {
-				onChange(
-					"attachments",
-					acceptedFiles.map((file) => file as File),
-				);
+				onChange("attachments", nextAttachments);
 			}
 			onFileError(null);
 			return;
@@ -186,6 +226,7 @@ export function BookingFormFields({
 		}
 		onFileError(null);
 	}, [
+		fileError,
 		files,
 		hasReachedAttachmentLimit,
 		maxFiles,
@@ -235,13 +276,33 @@ export function BookingFormFields({
 	const handleRemoveFile = (indexToRemove: number) => {
 		const nextFiles = files.filter((_, index) => index !== indexToRemove);
 		setFiles(nextFiles);
-		onChange(
-			"attachments",
-			nextFiles
-				.filter((file) => file.errors.length === 0)
-				.map((file) => file as File),
-		);
+
+		const nextAttachments = nextFiles
+			.filter((file) => file.errors.length === 0)
+			.map((file) => {
+				const existing = values.attachments.find(
+					(attachment) =>
+						getFileIdentity(attachment.file) === getFileIdentity(file as File),
+				);
+
+				return {
+					file: file as File,
+					reason: existing?.reason ?? "",
+				};
+			});
+
+		onChange("attachments", nextAttachments);
 		onFileError(null);
+	};
+
+	const handleAttachmentReasonChange = (file: File, reason: string) => {
+		const targetIdentity = getFileIdentity(file);
+		const next = values.attachments.map((attachment) =>
+			getFileIdentity(attachment.file) === targetIdentity
+				? { ...attachment, reason }
+				: attachment,
+		);
+		onChange("attachments", next);
 	};
 
 	return (
@@ -255,7 +316,6 @@ export function BookingFormFields({
 				</div>
 			)}
 
-			{/* Conference Room */}
 			<div ref={roomErrorRef}>
 				<label
 					htmlFor="room"
@@ -320,7 +380,6 @@ export function BookingFormFields({
 				)}
 			</div>
 
-			{/* Date */}
 			<div ref={dateErrorRef}>
 				<label
 					htmlFor="date"
@@ -365,7 +424,6 @@ export function BookingFormFields({
 				)}
 			</div>
 
-			{/* Start/End Time */}
 			<div className="grid grid-cols-2 gap-4">
 				<div ref={startTimeErrorRef}>
 					<label
@@ -415,7 +473,6 @@ export function BookingFormFields({
 				</div>
 			</div>
 
-			{/* Meeting Type */}
 			<div ref={meetingTypeErrorRef}>
 				<label
 					htmlFor="meetingType"
@@ -423,68 +480,72 @@ export function BookingFormFields({
 				>
 					Meeting Type <span className="text-red-500">*</span>
 				</label>
-				<Select
-					value={values.meetingType}
-					onValueChange={(v) => {
-						if (!v) return;
-						onChange("meetingType", v);
-						if (v !== "others") {
-							onChange("meetingTypeOthers", "");
-						}
-					}}
-				>
-					<SelectTrigger
-						className={cn(
-							"w-full px-4 py-3 bg-white border border-gray-300 rounded-md text-gray-900 shadow-sm focus:ring-2 focus:ring-[#a60202]/20 focus:border-[#a60202] transition-colors",
-							fieldErrors?.meetingType &&
-								"border-red-500 ring-2 ring-red-500/20",
-						)}
+				<div className="rounded-md border border-gray-200 bg-gray-50/60 p-3 space-y-2">
+					<Select
+						value={values.meetingType}
+						onValueChange={(v) => {
+							if (!v) return;
+							onChange("meetingType", v);
+							if (v !== "others") {
+								onChange("meetingTypeOthers", "");
+							}
+						}}
 					>
-						<SelectValue placeholder="Select meeting type" />
-					</SelectTrigger>
-					<SelectContent>
-						{MEETING_TYPE_OPTIONS.map((option) => (
-							<SelectItem key={option.value} value={option.value}>
-								{option.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+						<SelectTrigger
+							className={cn(
+								"w-full px-4 py-3 bg-white border border-gray-300 rounded-md text-gray-900 shadow-sm focus:ring-2 focus:ring-[#a60202]/20 focus:border-[#a60202] transition-colors",
+								fieldErrors?.meetingType &&
+									"border-red-500 ring-2 ring-red-500/20",
+							)}
+						>
+							<SelectValue placeholder="Select meeting type" />
+						</SelectTrigger>
+						<SelectContent>
+							{MEETING_TYPE_OPTIONS.map((option) => (
+								<SelectItem key={option.value} value={option.value}>
+									{option.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+
+					{values.meetingType === "others" && (
+						<div ref={meetingTypeOthersErrorRef} className="space-y-1">
+							<label
+								htmlFor="meetingTypeOthers"
+								className="text-xs font-medium text-gray-600"
+							>
+								Other, please specify <span className="text-red-500">*</span>
+							</label>
+							<input
+								id="meetingTypeOthers"
+								type="text"
+								value={values.meetingTypeOthers}
+								onChange={(e) => onChange("meetingTypeOthers", e.target.value)}
+								maxLength={TEXT_LIMITS.SM}
+								className={cn(
+									"w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-md text-gray-900 focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
+									fieldErrors?.meetingTypeOthers &&
+										"border-red-500 ring-2 ring-red-500/20",
+								)}
+								placeholder="Type custom meeting type..."
+							/>
+							<p className="text-[11px] text-gray-500">
+								Use this when your meeting type is not listed above.
+							</p>
+							{fieldErrors?.meetingTypeOthers && (
+								<p className="text-sm text-red-600">
+									{fieldErrors.meetingTypeOthers}
+								</p>
+							)}
+						</div>
+					)}
+				</div>
 				{fieldErrors?.meetingType && (
 					<p className="text-sm text-red-600 mt-2">{fieldErrors.meetingType}</p>
 				)}
 			</div>
 
-			{values.meetingType === "others" && (
-				<div ref={meetingTypeOthersErrorRef}>
-					<label
-						htmlFor="meetingTypeOthers"
-						className="block text-sm font-semibold text-gray-900 mb-2"
-					>
-						Please specify <span className="text-red-500">*</span>
-					</label>
-					<input
-						id="meetingTypeOthers"
-						type="text"
-						value={values.meetingTypeOthers}
-						onChange={(e) => onChange("meetingTypeOthers", e.target.value)}
-						maxLength={TEXT_LIMITS.SM}
-						className={cn(
-							"w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-md text-gray-900 focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
-							fieldErrors?.meetingTypeOthers &&
-								"border-red-500 ring-2 ring-red-500/20",
-						)}
-						placeholder="Specify meeting type..."
-					/>
-					{fieldErrors?.meetingTypeOthers && (
-						<p className="text-sm text-red-600 mt-2">
-							{fieldErrors.meetingTypeOthers}
-						</p>
-					)}
-				</div>
-			)}
-
-			{/* Title */}
 			<div ref={titleErrorRef}>
 				<label
 					htmlFor="title"
@@ -512,7 +573,6 @@ export function BookingFormFields({
 				)}
 			</div>
 
-			{/* Requested For */}
 			<div ref={requestedForErrorRef}>
 				<label
 					htmlFor="requestedFor"
@@ -540,7 +600,6 @@ export function BookingFormFields({
 				)}
 			</div>
 
-			{/* Attachment */}
 			<div ref={fileErrorRef}>
 				<label
 					htmlFor="booking-attachment"
@@ -563,45 +622,72 @@ export function BookingFormFields({
 								<div
 									key={attachment.path}
 									className={cn(
-										"flex items-center gap-3 p-3 rounded-lg border",
+										"rounded-lg border p-3",
 										isMarked
 											? "border-dashed border-gray-300 bg-gray-50 text-gray-500"
 											: "border-gray-200 bg-white",
 									)}
 								>
-									<div className="p-2 rounded-lg bg-gray-100">
-										<FileText className="h-5 w-5 text-gray-600" />
+									<div className="flex items-start gap-3">
+										<div className="p-2 rounded-lg bg-gray-100">
+											<FileText className="h-5 w-5 text-gray-600" />
+										</div>
+										<div className="flex flex-col min-w-0 flex-1 max-w-full overflow-hidden">
+											<span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
+												{attachment.fileName}
+											</span>
+											<span className="text-xs">
+												{isMarked
+													? "Will be removed on save"
+													: "Saved attachment"}
+											</span>
+										</div>
+										{onToggleExistingAttachmentRemoval && (
+											<button
+												type="button"
+												onClick={() =>
+													onToggleExistingAttachmentRemoval(attachment.path)
+												}
+												className={cn(
+													"p-2 rounded-md transition-colors shrink-0",
+													isMarked
+														? "text-blue-600 hover:bg-blue-50"
+														: "text-gray-400 hover:bg-red-50 hover:text-red-600",
+												)}
+												aria-label={
+													isMarked
+														? "Undo remove attachment"
+														: "Remove attachment"
+												}
+											>
+												<X className="w-4 h-4" />
+											</button>
+										)}
 									</div>
-									<div className="flex flex-col min-w-0 flex-1 max-w-full overflow-hidden">
-										<span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
-											{attachment.fileName}
-										</span>
-										<span className="text-xs">
-											{isMarked
-												? "Will be removed on save"
-												: "Saved attachment"}
-										</span>
-									</div>
-									{onToggleExistingAttachmentRemoval && (
-										<button
-											type="button"
-											onClick={() =>
-												onToggleExistingAttachmentRemoval(attachment.path)
-											}
-											className={cn(
-												"p-2 rounded-md transition-colors shrink-0",
-												isMarked
-													? "text-blue-600 hover:bg-blue-50"
-													: "text-gray-400 hover:bg-red-50 hover:text-red-600",
-											)}
-											aria-label={
-												isMarked
-													? "Undo remove attachment"
-													: "Remove attachment"
-											}
-										>
-											<X className="w-4 h-4" />
-										</button>
+									{onExistingAttachmentReasonChange && (
+										<div className="mt-2">
+											<label
+												htmlFor={`existing-attachment-reason-${attachment.path}`}
+												className="block text-[11px] font-medium text-gray-500 mb-1"
+											>
+												Reason for attachment (optional)
+											</label>
+											<input
+												id={`existing-attachment-reason-${attachment.path}`}
+												type="text"
+												value={attachment.reason ?? ""}
+												onChange={(event) =>
+													onExistingAttachmentReasonChange(
+														attachment.path,
+														event.target.value,
+													)
+												}
+												maxLength={TEXT_LIMITS.XS}
+												disabled={isMarked}
+												className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 disabled:opacity-70"
+												placeholder="Example: Signed request memo from department head"
+											/>
+										</div>
 									)}
 								</div>
 							);
@@ -681,16 +767,22 @@ export function BookingFormFields({
 					<div className="grid gap-3 animate-in fade-in slide-in-from-top-1 mt-3">
 						{files.map((file, index) => {
 							const hasError = file.errors && file.errors.length > 0;
+							const draftAttachment = values.attachments.find(
+								(attachment) =>
+									getFileIdentity(attachment.file) ===
+									getFileIdentity(file as File),
+							);
+
 							return (
 								<div
 									key={`${file.name}-${index}`}
-									className={`flex max-w-full items-center gap-2 overflow-hidden p-3 rounded-xl border shadow-sm group transition-all ${
+									className={`max-w-full overflow-hidden p-3 rounded-xl border shadow-sm group transition-all ${
 										hasError
 											? "bg-red-50 border-red-200 hover:border-red-300"
 											: "bg-white border-gray-200 hover:border-[#a60202]/30"
 									}`}
 								>
-									<div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden max-w-full">
+									<div className="flex min-w-0 items-center gap-3 overflow-hidden max-w-full">
 										<div
 											className={`p-2.5 rounded-lg ${
 												hasError
@@ -726,18 +818,42 @@ export function BookingFormFields({
 												)}
 											</div>
 										</div>
+										<button
+											type="button"
+											onClick={(e) => {
+												e.stopPropagation();
+												handleRemoveFile(index);
+											}}
+											className="shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
+											aria-label={`Remove ${file.name}`}
+										>
+											<X className="h-4 w-4" />
+										</button>
 									</div>
-									<button
-										type="button"
-										onClick={(e) => {
-											e.stopPropagation();
-											handleRemoveFile(index);
-										}}
-										className="shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
-										aria-label={`Remove ${file.name}`}
-									>
-										<X className="h-4 w-4" />
-									</button>
+									{!hasError && (
+										<div className="mt-2 pl-12">
+											<label
+												htmlFor={`attachment-reason-${index}`}
+												className="block text-[11px] font-medium text-gray-500 mb-1"
+											>
+												Reason for attachment (optional)
+											</label>
+											<input
+												id={`attachment-reason-${index}`}
+												type="text"
+												value={draftAttachment?.reason ?? ""}
+												onChange={(event) =>
+													handleAttachmentReasonChange(
+														file as File,
+														event.target.value,
+													)
+												}
+												maxLength={TEXT_LIMITS.XS}
+												className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20"
+												placeholder="Example: Agenda, endorsement, or supporting document"
+											/>
+										</div>
+									)}
 								</div>
 							);
 						})}

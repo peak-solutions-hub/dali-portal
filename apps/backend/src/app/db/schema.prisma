@@ -237,6 +237,7 @@ model RoomBookingAttachment {
   id        String      @id(map: "room_booking_attachments_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   bookingId String      @map("booking_id") @db.Uuid
   path      String
+  reason    String?
   createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   booking   RoomBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade, map: "room_booking_attachments_booking_id_fkey")
 

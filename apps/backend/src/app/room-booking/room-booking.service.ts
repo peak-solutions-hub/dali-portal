@@ -56,7 +56,7 @@ function toResponse(
 		endTime: Date;
 		requestedFor: string;
 		room: string;
-		attachments: Array<{ path: string }>;
+		attachments: Array<{ path: string; reason: string | null }>;
 		status: string;
 		createdAt: Date;
 		user?: { id: string; fullName: string } | null;
@@ -78,6 +78,7 @@ function toResponse(
 			return {
 				path: normalizedPath,
 				url: signedUrlByPath.get(normalizedPath) ?? null,
+				reason: attachment.reason,
 			};
 		}),
 		status: record.status as RoomBookingResponse["status"],
@@ -89,7 +90,7 @@ function toResponse(
 /** Include clause reused across queries. */
 const BOOKING_INCLUDE = {
 	user: { select: { id: true, fullName: true } },
-	attachments: { select: { path: true } },
+	attachments: { select: { path: true, reason: true } },
 } as const;
 
 @Injectable()
@@ -109,6 +110,32 @@ export class RoomBookingService {
 		return [
 			...new Set(paths.map((path) => this.normalizeAttachmentPath(path))),
 		];
+	}
+
+	private normalizeAttachments(
+		attachments?: Array<{ path: string; reason?: string | null }>,
+		legacyPaths?: string[],
+	): Array<{ path: string; reason: string | null }> {
+		const normalizedFromAttachments = (attachments ?? []).map((attachment) => ({
+			path: this.normalizeAttachmentPath(attachment.path),
+			reason: attachment.reason?.trim() ? attachment.reason.trim() : null,
+		}));
+
+		if (normalizedFromAttachments.length > 0) {
+			const dedupedByPath = new Map<
+				string,
+				{ path: string; reason: string | null }
+			>();
+			for (const attachment of normalizedFromAttachments) {
+				dedupedByPath.set(attachment.path, attachment);
+			}
+			return [...dedupedByPath.values()];
+		}
+
+		return this.normalizeAttachmentPaths(legacyPaths ?? []).map((path) => ({
+			path,
+			reason: null,
+		}));
 	}
 
 	// ---------------------------------------------------------------------------
@@ -350,11 +377,12 @@ export class RoomBookingService {
 			input.meetingType as MeetingType,
 			input.meetingTypeOthers,
 		);
-		const attachmentPaths = this.normalizeAttachmentPaths(
-			input.attachmentPaths ?? [],
+		const attachments = this.normalizeAttachments(
+			input.attachments,
+			input.attachmentPaths,
 		);
 
-		if (attachmentPaths.length > FILE_COUNT_LIMITS.SM) {
+		if (attachments.length > FILE_COUNT_LIMITS.SM) {
 			throw new AppError("GENERAL.BAD_REQUEST");
 		}
 
@@ -385,10 +413,13 @@ export class RoomBookingService {
 				endTime,
 				requestedFor: input.requestedFor,
 				room: input.room as never, // Prisma enum cast
-				...(attachmentPaths.length > 0 && {
+				...(attachments.length > 0 && {
 					attachments: {
 						createMany: {
-							data: attachmentPaths.map((path) => ({ path })),
+							data: attachments.map((attachment) => ({
+								path: attachment.path,
+								reason: attachment.reason,
+							})),
 						},
 					},
 				}),
@@ -401,7 +432,9 @@ export class RoomBookingService {
 			`Booking created: ${booking.id} by user ${userId} with status "${status}"`,
 		);
 
-		const signedUrlByPath = await this.getSignedUrlMap(attachmentPaths);
+		const signedUrlByPath = await this.getSignedUrlMap(
+			attachments.map((attachment) => attachment.path),
+		);
 
 		return toResponse(booking, signedUrlByPath);
 	}
@@ -511,15 +544,17 @@ export class RoomBookingService {
 				: (booking.meetingTypeOthers ?? undefined),
 		);
 
-		const currentAttachmentPaths = booking.attachments.map((attachment) =>
-			this.normalizeAttachmentPath(attachment.path),
-		);
-		const nextAttachmentPaths =
-			input.attachmentPaths !== undefined
-				? this.normalizeAttachmentPaths(input.attachmentPaths)
-				: currentAttachmentPaths;
+		const currentAttachments = booking.attachments.map((attachment) => ({
+			path: this.normalizeAttachmentPath(attachment.path),
+			reason: attachment.reason,
+		}));
+		const hasAttachmentUpdate =
+			input.attachments !== undefined || input.attachmentPaths !== undefined;
+		const nextAttachments = hasAttachmentUpdate
+			? this.normalizeAttachments(input.attachments, input.attachmentPaths)
+			: currentAttachments;
 
-		if (nextAttachmentPaths.length > FILE_COUNT_LIMITS.SM) {
+		if (nextAttachments.length > FILE_COUNT_LIMITS.SM) {
 			throw new AppError("GENERAL.BAD_REQUEST");
 		}
 
@@ -555,12 +590,15 @@ export class RoomBookingService {
 					requestedFor: input.requestedFor,
 				}),
 				...(input.room !== undefined && { room: input.room as never }),
-				...(input.attachmentPaths !== undefined && {
+				...(hasAttachmentUpdate && {
 					attachments: {
 						deleteMany: {},
-						...(nextAttachmentPaths.length > 0 && {
+						...(nextAttachments.length > 0 && {
 							createMany: {
-								data: nextAttachmentPaths.map((path) => ({ path })),
+								data: nextAttachments.map((attachment) => ({
+									path: attachment.path,
+									reason: attachment.reason,
+								})),
 							},
 						}),
 					},
@@ -578,10 +616,13 @@ export class RoomBookingService {
 			);
 		}
 
-		if (input.attachmentPaths !== undefined) {
-			const deletedAttachmentPaths = currentAttachmentPaths.filter(
-				(path) => !nextAttachmentPaths.includes(path),
-			);
+		if (hasAttachmentUpdate) {
+			const deletedAttachmentPaths = currentAttachments
+				.map((attachment) => attachment.path)
+				.filter(
+					(path) =>
+						!nextAttachments.some((attachment) => attachment.path === path),
+				);
 
 			if (deletedAttachmentPaths.length > 0) {
 				await Promise.all(
@@ -592,7 +633,9 @@ export class RoomBookingService {
 			}
 		}
 
-		const signedUrlByPath = await this.getSignedUrlMap(nextAttachmentPaths);
+		const signedUrlByPath = await this.getSignedUrlMap(
+			nextAttachments.map((attachment) => attachment.path),
+		);
 
 		return toResponse(updated, signedUrlByPath);
 	}

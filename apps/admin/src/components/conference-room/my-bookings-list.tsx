@@ -12,13 +12,16 @@ import {
 } from "@repo/ui/components/table";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
+	CalendarClock,
 	CalendarX,
 	ExternalLink,
 	Eye,
 	FileText,
 	Loader2,
+	Paperclip,
 	Pencil,
 	Trash2,
+	Users,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMyBookings } from "@/hooks/room-booking";
@@ -197,13 +200,13 @@ export function MyBookingsList() {
 							<TableHeader>
 								<TableRow className="hover:bg-transparent">
 									<TableHead className="h-8 text-xs font-semibold">
-										Details
+										Booking Details
 									</TableHead>
 									<TableHead className="h-8 text-xs font-semibold">
-										Schedule & Room
+										Schedule
 									</TableHead>
 									<TableHead className="h-8 text-xs font-semibold">
-										Attachment
+										Attachments
 									</TableHead>
 									<TableHead className="h-8 text-xs font-semibold">
 										Status
@@ -216,72 +219,128 @@ export function MyBookingsList() {
 							<TableBody>
 								{bookings.map((booking) => {
 									const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
+									const meetingTypeDisplay =
+										booking.meetingType === "others" &&
+										booking.meetingTypeOthers
+											? `Others: ${booking.meetingTypeOthers}`
+											: booking.meetingTypeLabel;
 
 									return (
 										<TableRow
 											key={booking.id}
-											className="hover:bg-gray-50 transition-colors"
+											className="hover:bg-gray-50/70 transition-colors"
 										>
-											<TableCell className="max-w-50 align-top">
-												<div className="flex flex-col gap-0.5">
-													<span
-														className="font-medium text-gray-900 truncate"
-														title={booking.purpose}
-													>
-														{booking.purpose}
-													</span>
-													<span
-														className="text-xs text-gray-500 truncate"
-														title={`For: ${booking.requestedFor}`}
-													>
-														For: {booking.requestedFor}
-													</span>
+											<TableCell className="max-w-72 align-top py-4">
+												<div className="flex flex-col gap-2">
+													<div>
+														<p
+															className="text-sm font-semibold text-gray-900 leading-5 truncate"
+															title={booking.purpose}
+														>
+															{booking.purpose}
+														</p>
+														<p
+															className="text-xs text-gray-500 truncate"
+															title={`Type: ${meetingTypeDisplay}`}
+														>
+															{meetingTypeDisplay}
+														</p>
+													</div>
+													<div className="inline-flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-2 py-1 max-w-full">
+														<Users className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+														<span
+															className="truncate"
+															title={`Requested for: ${booking.requestedFor}`}
+														>
+															Requested for: {booking.requestedFor}
+														</span>
+													</div>
 												</div>
 											</TableCell>
-											<TableCell className="align-top">
-												<div className="flex flex-col items-start gap-1">
+											<TableCell className="align-top py-4">
+												<div className="flex flex-col items-start gap-2">
 													<span
 														className={`inline-flex items-center gap-1.5 text-[11px] leading-none font-medium px-2 py-0.5 rounded-full ${roomColors.label}`}
 													>
 														{CONFERENCE_ROOM_LABELS[booking.roomKey]}
 													</span>
-													<div className="flex flex-col text-xs text-gray-600 mt-0.5">
-														<span className="font-medium">
-															{formatFullDate(booking.date)}
-														</span>
-														<span>
-															{booking.startTime} – {booking.endTime}
-														</span>
+													<div className="inline-flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
+														<CalendarClock className="h-3.5 w-3.5 text-gray-500 mt-0.5" />
+														<div className="flex flex-col text-xs text-gray-700 leading-4">
+															<span className="font-medium">
+																{formatFullDate(booking.date)}
+															</span>
+															<span>
+																{booking.startTime} – {booking.endTime}
+															</span>
+														</div>
 													</div>
 												</div>
 											</TableCell>
-											<TableCell>
+											<TableCell className="align-top py-4">
 												{booking.attachments.length > 0 ? (
-													<a
-														href={booking.attachments[0]?.url ?? undefined}
-														target="_blank"
-														rel="noopener noreferrer"
-														className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
-														title="View attachment"
-													>
-														<FileText className="w-3.5 h-3.5" />
-														{booking.attachments.length === 1
-															? "View"
-															: `View (${booking.attachments.length})`}
-														<ExternalLink className="w-3 h-3" />
-													</a>
+													<div className="flex flex-col items-start gap-1.5">
+														{booking.attachments.map((attachment) => {
+															const attachmentContent = (
+																<span className="flex items-start gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 w-full max-w-64">
+																	<Paperclip className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-500" />
+																	<span className="min-w-0">
+																		<span className="truncate block text-xs font-medium text-gray-700 max-w-52">
+																			{attachment.fileName}
+																		</span>
+																		{attachment.reason ? (
+																			<span
+																				className="text-[10px] text-gray-500 block truncate max-w-52"
+																				title={attachment.reason}
+																			>
+																				Reason: {attachment.reason}
+																			</span>
+																		) : null}
+																	</span>
+																</span>
+															);
+
+															if (!attachment.url) {
+																return (
+																	<span
+																		key={attachment.path}
+																		className="text-xs text-gray-400 w-full max-w-64"
+																		title={attachment.fileName}
+																	>
+																		{attachmentContent}
+																	</span>
+																);
+															}
+
+															return (
+																<a
+																	key={attachment.path}
+																	href={attachment.url}
+																	target="_blank"
+																	rel="noopener noreferrer"
+																	className="text-xs text-blue-700 hover:text-blue-800 w-full max-w-64"
+																	title={attachment.fileName}
+																>
+																	<span className="relative">
+																		{attachmentContent}
+																		<ExternalLink className="w-3 h-3 absolute right-2 top-2 text-blue-600" />
+																	</span>
+																</a>
+															);
+														})}
+													</div>
 												) : (
 													<span className="text-gray-400 text-xs">None</span>
 												)}
 											</TableCell>
-											<TableCell>
+											<TableCell className="py-4">
 												<BookingStatusBadge
 													status={booking.status}
 													roomKey={booking.roomKey}
 													isPast={booking.isPast}
 												/>
 											</TableCell>
-											<TableCell>
+											<TableCell className="py-4">
 												<div className="flex items-center justify-end gap-1.5">
 													<Button
 														variant="ghost"

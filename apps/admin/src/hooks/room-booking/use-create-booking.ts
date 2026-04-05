@@ -21,7 +21,10 @@ export interface CreateBookingInput {
 	endTime: string;
 	requestedFor: string;
 	room: ConferenceRoom;
-	attachmentFiles?: File[];
+	attachments?: Array<{
+		file: File;
+		reason?: string;
+	}>;
 }
 
 export interface UseCreateBookingReturn {
@@ -117,27 +120,27 @@ export function useCreateBooking(
 
 	const mutation = useMutation({
 		mutationFn: async (input: CreateBookingInput) => {
-			const attachmentPaths: string[] = [];
+			const attachments: Array<{ path: string; reason?: string }> = [];
 			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
 
-			if ((input.attachmentFiles?.length ?? 0) > maxAttachments) {
+			if ((input.attachments?.length ?? 0) > maxAttachments) {
 				throw new Error(`Maximum of ${maxAttachments} attachments is allowed.`);
 			}
 
-			if (input.attachmentFiles && input.attachmentFiles.length > 0) {
-				const totalFiles = input.attachmentFiles.length;
+			if (input.attachments && input.attachments.length > 0) {
+				const totalFiles = input.attachments.length;
 				setIsUploadingAttachment(true);
 				setUploadProgress(0);
 				setUploadedAttachmentCount(0);
 				setTotalAttachmentCount(totalFiles);
 
-				for (const [index, file] of input.attachmentFiles.entries()) {
-					const mimeType = inferAttachmentMimeType(file);
+				for (const [index, attachment] of input.attachments.entries()) {
+					const mimeType = inferAttachmentMimeType(attachment.file);
 					const [uploadErr, uploadData] =
 						await api.roomBookings.generateUploadUrl({
-							fileName: file.name,
+							fileName: attachment.file.name,
 							mimeType,
-							fileSize: file.size,
+							fileSize: attachment.file.size,
 						});
 
 					if (uploadErr || !uploadData) {
@@ -148,7 +151,7 @@ export function useCreateBooking(
 
 					await uploadFileWithProgress(
 						uploadData.uploadUrl,
-						file,
+						attachment.file,
 						(progressPercent) => {
 							const totalProgress = Math.round(
 								((index + progressPercent / 100) / totalFiles) * 100,
@@ -157,7 +160,10 @@ export function useCreateBooking(
 						},
 					);
 
-					attachmentPaths.push(uploadData.path);
+					attachments.push({
+						path: uploadData.path,
+						reason: attachment.reason?.trim() || undefined,
+					});
 					setUploadedAttachmentCount(index + 1);
 				}
 
@@ -173,7 +179,7 @@ export function useCreateBooking(
 				endTime: toPhtIsoDateTime(input.date, input.endTime),
 				requestedFor: input.requestedFor,
 				room: input.room,
-				...(attachmentPaths.length > 0 ? { attachmentPaths } : {}),
+				...(attachments.length > 0 ? { attachments } : {}),
 			});
 
 			if (err) {
@@ -213,7 +219,7 @@ export function useCreateBooking(
 			setError(null);
 			setUploadProgress(null);
 			setUploadedAttachmentCount(0);
-			setTotalAttachmentCount(input.attachmentFiles?.length ?? 0);
+			setTotalAttachmentCount(input.attachments?.length ?? 0);
 			try {
 				await mutation.mutateAsync(input);
 				return { success: true };

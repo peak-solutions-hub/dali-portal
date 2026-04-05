@@ -30,7 +30,12 @@ export interface EditBookingData {
 	startTime: string;
 	/** "HH:MM" 24-hour local time */
 	endTime: string;
-	attachments: Array<{ path: string; url: string | null; fileName: string }>;
+	attachments: Array<{
+		path: string;
+		url: string | null;
+		fileName: string;
+		reason: string | null;
+	}>;
 }
 
 interface EditBookingModalProps {
@@ -62,6 +67,9 @@ export function EditBookingModal({
 	const [removedAttachmentPaths, setRemovedAttachmentPaths] = useState<
 		string[]
 	>([]);
+	const [existingAttachmentReasons, setExistingAttachmentReasons] = useState<
+		Record<string, string>
+	>({});
 
 	const {
 		updateBooking,
@@ -98,9 +106,20 @@ export function EditBookingModal({
 				return next;
 			});
 
-			setFileError((prev) =>
-				prev?.toLowerCase().includes("maximum") ? null : prev,
-			);
+			setFileError((prev) => {
+				if (!prev) {
+					return prev;
+				}
+
+				const normalized = prev.toLowerCase();
+				const isLimitError =
+					normalized.includes("maximum") ||
+					normalized.includes("attachments reached") ||
+					normalized.includes("upload up to") ||
+					normalized.includes("too many files");
+
+				return isLimitError ? null : prev;
+			});
 		}
 	};
 
@@ -124,6 +143,14 @@ export function EditBookingModal({
 			attachments: [],
 		});
 		setRemovedAttachmentPaths([]);
+		setExistingAttachmentReasons(
+			Object.fromEntries(
+				booking.attachments.map((attachment) => [
+					attachment.path,
+					attachment.reason ?? "",
+				]),
+			),
+		);
 	}, [isOpen, booking]);
 
 	const validateForm = (): BookingFieldErrors => {
@@ -269,13 +296,22 @@ export function EditBookingModal({
 			endTime: values.endTime,
 			requestedFor: values.requestedFor,
 			room: values.room as ConferenceRoom,
-			attachmentPaths: booking.attachments
+			existingAttachments: booking.attachments
 				.filter(
 					(attachment) => !removedAttachmentPaths.includes(attachment.path),
 				)
-				.map((attachment) => attachment.path),
+				.map((attachment) => ({
+					path: attachment.path,
+					reason:
+						existingAttachmentReasons[attachment.path]?.trim() || undefined,
+				})),
 			...(values.attachments.length > 0
-				? { attachmentFiles: values.attachments }
+				? {
+						newAttachments: values.attachments.map((attachment) => ({
+							file: attachment.file,
+							reason: attachment.reason.trim() || undefined,
+						})),
+					}
 				: {}),
 		});
 	};
@@ -314,7 +350,16 @@ export function EditBookingModal({
 						values={values}
 						onChange={handleChange}
 						fieldErrors={fieldErrors}
-						existingAttachments={booking.attachments}
+						existingAttachments={booking.attachments.map((attachment) => ({
+							...attachment,
+							reason: existingAttachmentReasons[attachment.path] ?? "",
+						}))}
+						onExistingAttachmentReasonChange={(path, reason) => {
+							setExistingAttachmentReasons((prev) => ({
+								...prev,
+								[path]: reason,
+							}));
+						}}
 						removedExistingAttachmentPaths={removedAttachmentPaths}
 						onToggleExistingAttachmentRemoval={(path) => {
 							setRemovedAttachmentPaths((prev) => {

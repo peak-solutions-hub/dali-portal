@@ -144,6 +144,11 @@ export function MonthView({
 										{/* Booking chips */}
 										<div className="space-y-1 mt-1">
 											{visibleBookings.map((booking) => {
+												const meetingTypeDisplay =
+													booking.meetingType === "others" &&
+													booking.meetingTypeOthers
+														? `Others: ${booking.meetingTypeOthers}`
+														: booking.meetingTypeLabel;
 												const isDone =
 													booking.isPast && booking.status === "confirmed";
 												const isExpired =
@@ -169,9 +174,9 @@ export function MonthView({
 															onViewBooking(booking);
 														}}
 														className={`w-full text-left text-[9px] px-1.5 py-0.5 rounded truncate hover:opacity-80 transition-opacity ${containerBg}`}
-														title={booking.purpose}
+														title={`${booking.purpose} • ${meetingTypeDisplay}`}
 													>
-														{booking.purpose}
+														{booking.purpose} • {meetingTypeDisplay}
 													</button>
 												);
 											})}
@@ -221,6 +226,11 @@ export function MonthView({
 														</div>
 														<div className="p-2 space-y-1 max-h-62.5 overflow-y-auto">
 															{dayBookings.map((booking) => {
+																const meetingTypeDisplay =
+																	booking.meetingType === "others" &&
+																	booking.meetingTypeOthers
+																		? `Others: ${booking.meetingTypeOthers}`
+																		: booking.meetingTypeLabel;
 																const isDone =
 																	booking.isPast &&
 																	booking.status === "confirmed";
@@ -249,10 +259,15 @@ export function MonthView({
 																			setExpandedDate(null);
 																			onViewBooking(booking);
 																		}}
-																		className={`w-full text-left text-[11px] px-2 py-1.5 rounded font-medium hover:brightness-95 transition-[filter] truncate ${containerBg}`}
-																		title={booking.purpose}
+																		className={`w-full text-left text-[11px] px-2 py-1.5 rounded font-medium hover:brightness-95 transition-[filter] ${containerBg}`}
+																		title={`${booking.purpose} • ${meetingTypeDisplay}`}
 																	>
-																		{booking.startTime} - {booking.purpose}
+																		<div className="truncate">
+																			{booking.startTime} - {booking.purpose}
+																		</div>
+																		<div className="truncate text-[10px] opacity-90">
+																			{meetingTypeDisplay}
+																		</div>
 																	</button>
 																);
 															})}
