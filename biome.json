@@ -82,7 +82,7 @@
 				"useNamespaceKeyword": "error"
 			}
 		},
-		"includes": ["**", "!eslint.config.mjs"]
+		"includes": ["**", "!eslint.config.mjs", "!.agents/skills/**"]
 	},
 	"javascript": {
 		"formatter": { "quoteStyle": "double" },
