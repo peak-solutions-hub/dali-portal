@@ -30,7 +30,10 @@ export class UsersController {
 
 	// User management routes require IT_ADMIN role
 	@SkipThrottle()
-	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
+	@Roles(
+		...ROLE_PERMISSIONS.USER_MANAGEMENT,
+		...ROLE_PERMISSIONS.INQUIRY_TICKETS,
+	)
 	@Implement(contract.users.list)
 	getUsers() {
 		return implement(contract.users.list).handler(async ({ input }) => {
