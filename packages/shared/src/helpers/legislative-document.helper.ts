@@ -142,7 +142,10 @@ export function getDocumentTypeLabel(type: string): string {
 /**
  * Get the display label for a classification type
  */
-export function getClassificationLabel(classification: string): string {
+export function getClassificationLabel(
+	classification: string | null | undefined,
+): string {
+	if (!classification) return "Uncategorized";
 	return CLASSIFICATION_TYPE_LABELS[classification] || classification;
 }
 

@@ -79,10 +79,12 @@ export function SessionDocumentCard({
 						{/* Details row */}
 						<div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
 							{/* Classification */}
-							<span className="inline-flex items-center gap-1">
-								<Tag className="w-3 h-3" aria-hidden="true" />
-								{getClassificationLabel(document.classification)}
-							</span>
+							{document.classification && (
+								<span className="inline-flex items-center gap-1">
+									<Tag className="w-3 h-3" aria-hidden="true" />
+									{getClassificationLabel(document.classification)}
+								</span>
+							)}
 
 							{/* Date received */}
 							<span className="inline-flex items-center gap-1">
