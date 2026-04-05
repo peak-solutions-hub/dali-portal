@@ -103,6 +103,14 @@ export function InquiryTicketActions({
 
 	if (shouldHideActions) return null;
 
+	const isCurrentAssigneeInStaffList =
+		!!ticket.assignedTo &&
+		staffList.some((user) => user.id === ticket.assignedTo);
+	const hasInactiveCurrentAssignee =
+		!!ticket.assignedTo && !isCurrentAssigneeInStaffList;
+	const inactiveCurrentAssigneeLabel = ticket.user?.fullName
+		? `${ticket.user.fullName} (Inactive)`
+		: "Inactive User";
 	const currentValue = ticket.assignedTo ?? UNASSIGNED_VALUE;
 	const isDisabled =
 		isUpdating ||
@@ -173,6 +181,13 @@ export function InquiryTicketActions({
 								<SelectItem value={UNASSIGNED_VALUE}>
 									<span className="text-muted-foreground">Unassigned</span>
 								</SelectItem>
+								{hasInactiveCurrentAssignee && ticket.assignedTo && (
+									<SelectItem value={ticket.assignedTo}>
+										<span className="text-muted-foreground">
+											{inactiveCurrentAssigneeLabel}
+										</span>
+									</SelectItem>
+								)}
 								{staffList.map((user) => (
 									<SelectItem
 										key={user.id}
