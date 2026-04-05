@@ -1,11 +1,11 @@
 "use client";
 
-import type { RoleType, UserWithRole } from "@repo/shared";
+import type { AssignableUserResponse, RoleType } from "@repo/shared";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api.client";
 
 export interface UseStaffListReturn {
-	users: UserWithRole[];
+	users: AssignableUserResponse[];
 	isLoading: boolean;
 	error: string | null;
 }
@@ -24,21 +24,17 @@ export function useStaffList(
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["staff-list", "active", options.allowedRoles ?? []],
 		queryFn: async () => {
-			const [err, result] = await api.users.list({ status: "active" });
+			const [err, result] = await api.users.listAssignable({
+				roles: options.allowedRoles,
+			});
 			if (err) throw err;
-			const users = (result?.users ?? []).map((user) => ({
-				...user,
-				createdAt: new Date(user.createdAt),
-				role: { ...user.role, createdAt: new Date(user.role.createdAt) },
-			}));
+			const users = result?.users ?? [];
 
 			if (!options.allowedRoles || options.allowedRoles.length === 0) {
 				return users;
 			}
 
-			return users.filter((user) =>
-				options.allowedRoles?.includes(user.role.name),
-			);
+			return users.filter((user) => options.allowedRoles?.includes(user.role));
 		},
 		staleTime: 5 * 60 * 1000, // 5 minutes — staff list changes infrequently
 	});

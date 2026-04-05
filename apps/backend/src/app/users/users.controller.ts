@@ -1,7 +1,13 @@
 import { Controller } from "@nestjs/common";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
-import { ALL_ROLES, AppError, contract, ROLE_PERMISSIONS } from "@repo/shared";
+import {
+	ALL_ROLES,
+	AppError,
+	contract,
+	INQUIRY_ASSIGNERS,
+	ROLE_PERMISSIONS,
+} from "@repo/shared";
 import { Roles } from "@/app/auth/decorators/roles.decorator";
 import type { ORPCContext } from "@/app/types";
 import { UsersService } from "./users.service";
@@ -30,15 +36,23 @@ export class UsersController {
 
 	// User management routes require IT_ADMIN role
 	@SkipThrottle()
-	@Roles(
-		...ROLE_PERMISSIONS.USER_MANAGEMENT,
-		...ROLE_PERMISSIONS.INQUIRY_TICKETS,
-	)
+	@Roles(...ROLE_PERMISSIONS.USER_MANAGEMENT)
 	@Implement(contract.users.list)
 	getUsers() {
 		return implement(contract.users.list).handler(async ({ input }) => {
 			return await this.usersService.getUsers(input);
 		});
+	}
+
+	@SkipThrottle()
+	@Roles(...INQUIRY_ASSIGNERS)
+	@Implement(contract.users.listAssignable)
+	getAssignableUsers() {
+		return implement(contract.users.listAssignable).handler(
+			async ({ input }) => {
+				return await this.usersService.getAssignableUsers(input);
+			},
+		);
 	}
 
 	@Throttle({ default: { limit: 5, ttl: 60000 } })

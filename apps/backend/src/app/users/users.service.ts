@@ -1,18 +1,21 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type {
 	ActivateUserInput,
+	AssignableUserListResponse,
 	CheckEmailStatusInput,
 	CheckEmailStatusResponse,
+	GetAssignableUsersInput,
 	GetUserListInput,
 	InviteUserInput,
 	InviteUserResponse,
 	RequestPasswordResetInput,
 	RequestPasswordResetResponse,
+	RoleType,
 	UpdateUserInput,
 	UserListResponse,
 	UserWithRole,
 } from "@repo/shared";
-import { AppError } from "@repo/shared";
+import { AppError, INQUIRY_ASSIGNABLE_ROLES } from "@repo/shared";
 import { Prisma } from "generated/prisma/client";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
 import { DbService } from "@/app/db/db.service";
@@ -97,6 +100,60 @@ export class UsersService {
 
 		return {
 			users: sortedUsers as UserWithRole[],
+		};
+	}
+
+	async getAssignableUsers(
+		input: GetAssignableUsersInput,
+	): Promise<AssignableUserListResponse> {
+		const requestedRoles = input.roles;
+		let allowedRoles: RoleType[] = [...INQUIRY_ASSIGNABLE_ROLES];
+
+		if (requestedRoles && requestedRoles.length > 0) {
+			allowedRoles = requestedRoles.filter((role) =>
+				INQUIRY_ASSIGNABLE_ROLES.includes(role),
+			);
+		}
+
+		if (allowedRoles.length === 0) {
+			return { users: [] };
+		}
+
+		const users = await this.db.user.findMany({
+			where: {
+				status: "active",
+				role: {
+					name: {
+						in: allowedRoles,
+					},
+				},
+				...(input.search
+					? {
+							fullName: {
+								contains: input.search,
+								mode: "insensitive",
+							},
+						}
+					: {}),
+			},
+			select: {
+				id: true,
+				fullName: true,
+				role: {
+					select: {
+						name: true,
+					},
+				},
+			},
+			orderBy: [{ role: { name: "asc" } }, { fullName: "asc" }],
+		});
+
+		return {
+			users: users.map((user) => ({
+				id: user.id,
+				fullName: user.fullName,
+				role: user.role.name,
+			})),
 		};
 	}
 

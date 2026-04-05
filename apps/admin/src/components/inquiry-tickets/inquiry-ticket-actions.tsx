@@ -1,6 +1,6 @@
 import type {
+	AssignableUserResponse,
 	InquiryTicketWithMessagesResponse,
-	UserWithRole,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -46,7 +46,7 @@ interface InquiryTicketActionsProps {
 	/** Whether the user can review reassignment */
 	canReviewReassignment: boolean;
 	currentUserId?: string;
-	staffList: UserWithRole[];
+	staffList: AssignableUserResponse[];
 	isLoadingStaff: boolean;
 }
 
