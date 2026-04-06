@@ -3,7 +3,6 @@
 import {
 	CONFERENCE_ROOM_OPTIONS,
 	type ConferenceRoom,
-	isPastDateTime,
 	parseTimeToMinutes,
 } from "@repo/shared";
 import { Loader2, X } from "lucide-react";
@@ -14,6 +13,10 @@ import {
 } from "@/hooks/room-booking/use-create-booking";
 import { useRoomBookings } from "@/hooks/room-booking/use-room-bookings";
 import { mapApiBookings } from "@/utils/booking-helpers";
+import {
+	type BookingFieldErrors,
+	validateBookingForm,
+} from "@/utils/booking-validation";
 import { convertTo24HourFormat } from "@/utils/time-utils";
 import {
 	BookingFormFields,
@@ -35,8 +38,6 @@ export function CreateBookingModal({
 	selectedTime,
 	selectedDate,
 }: CreateBookingModalProps) {
-	type BookingFieldErrors = Partial<Record<keyof BookingFormValues, string>>;
-
 	const [values, setValues] = useState<BookingFormValues>({
 		room: "",
 		date: undefined,
@@ -163,82 +164,6 @@ export function CreateBookingModal({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen]);
 
-	const validateForm = (): BookingFieldErrors => {
-		const errors: BookingFieldErrors = {};
-
-		if (!values.room) {
-			errors.room = "Conference room is required.";
-		} else if (selectedRoomConflict?.disabled) {
-			errors.room = selectedRoomConflict.note
-				? `Selected room is occupied for this schedule (${selectedRoomConflict.note}). Please choose another room or timeslot.`
-				: "Selected room is occupied for this schedule. Please choose another room or timeslot.";
-		}
-
-		if (!values.date) {
-			errors.date = "Date is required.";
-		}
-
-		if (!values.startTime) {
-			errors.startTime = "Start time is required.";
-		}
-
-		if (!values.endTime) {
-			errors.endTime = "End time is required.";
-		}
-
-		if (!values.title.trim()) {
-			errors.title = "Title is required.";
-		}
-
-		if (!values.meetingType) {
-			errors.meetingType = "Meeting type is required.";
-		}
-
-		if (values.meetingType === "others" && !values.meetingTypeOthers.trim()) {
-			errors.meetingTypeOthers = "Please specify the meeting type.";
-		}
-
-		if (!values.requestedFor.trim()) {
-			errors.requestedFor = "Requested for is required.";
-		}
-
-		const startMinutes = parseTimeToMinutes(values.startTime);
-		const endMinutes = parseTimeToMinutes(values.endTime);
-		if (
-			startMinutes !== null &&
-			endMinutes !== null &&
-			endMinutes <= startMinutes
-		) {
-			errors.endTime = "End time must be later than start time.";
-		}
-
-		const EIGHT_AM_MINUTES = 8 * 60; // 480
-		const FIVE_PM_MINUTES = 17 * 60; // 1020
-
-		if (
-			startMinutes !== null &&
-			(startMinutes < EIGHT_AM_MINUTES || startMinutes > FIVE_PM_MINUTES)
-		) {
-			errors.startTime = "Start time must be between 8:00 AM and 5:00 PM.";
-		}
-		if (
-			endMinutes !== null &&
-			(endMinutes < EIGHT_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
-		) {
-			errors.endTime = "End time must be between 8:00 AM and 5:00 PM.";
-		}
-
-		if (
-			values.date &&
-			values.startTime &&
-			isPastDateTime(values.date, values.startTime)
-		) {
-			errors.startTime = "Start time cannot be in the past.";
-		}
-
-		return errors;
-	};
-
 	const handleChange = (field: keyof BookingFormValues, value: unknown) => {
 		setValues((prev) => ({ ...prev, [field]: value }));
 		setFieldErrors((prev) => {
@@ -256,7 +181,9 @@ export function CreateBookingModal({
 			return;
 		}
 
-		const errors = validateForm();
+		const errors = validateBookingForm(values, {
+			selectedRoomConflict,
+		});
 		setFieldErrors(errors);
 		if (Object.keys(errors).length > 0) {
 			return;

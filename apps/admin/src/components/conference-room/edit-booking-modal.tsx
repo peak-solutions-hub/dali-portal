@@ -1,18 +1,20 @@
 "use client";
 
-import {
-	type ConferenceRoom,
-	FILE_UPLOAD_PRESETS,
-	isPastDateTime,
-	parseTimeToMinutes,
-} from "@repo/shared";
+import { type ConferenceRoom, FILE_UPLOAD_PRESETS } from "@repo/shared";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
 	type UpdateBookingInput,
 	useUpdateBooking,
 } from "@/hooks/room-booking/use-update-booking";
-import { resolveConferenceRoom } from "@/utils/booking-helpers";
+import {
+	isAttachmentLimitMessage,
+	resolveConferenceRoom,
+} from "@/utils/booking-helpers";
+import {
+	type BookingFieldErrors,
+	validateBookingForm,
+} from "@/utils/booking-validation";
 import {
 	BookingFormFields,
 	type BookingFormValues,
@@ -49,22 +51,6 @@ export function EditBookingModal({
 	onClose,
 	booking,
 }: EditBookingModalProps) {
-	type BookingFieldErrors = Partial<Record<keyof BookingFormValues, string>>;
-
-	const isAttachmentLimitMessage = (message: string | null): boolean => {
-		if (!message) {
-			return false;
-		}
-
-		const normalized = message.toLowerCase();
-		return (
-			normalized.includes("maximum") ||
-			normalized.includes("attachments reached") ||
-			normalized.includes("upload up to") ||
-			normalized.includes("too many files")
-		);
-	};
-
 	const [values, setValues] = useState<BookingFormValues>({
 		room: "",
 		date: undefined,
@@ -158,83 +144,20 @@ export function EditBookingModal({
 				]),
 			),
 		);
-	}, [isOpen, booking]);
+	}, [isOpen, booking, clearError]);
 
 	const validateForm = (): BookingFieldErrors => {
-		const errors: BookingFieldErrors = {};
+		const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+		const keptExistingCount = booking
+			? booking.attachments.filter(
+					(attachment) => !removedAttachmentPaths.includes(attachment.path),
+				).length
+			: 0;
 
-		if (!values.room) {
-			errors.room = "Conference room is required.";
-		}
-		if (!values.date) {
-			errors.date = "Date is required.";
-		}
-		if (!values.startTime) {
-			errors.startTime = "Start time is required.";
-		}
-		if (!values.endTime) {
-			errors.endTime = "End time is required.";
-		}
-		if (!values.title.trim()) {
-			errors.title = "Title is required.";
-		}
-		if (!values.meetingType) {
-			errors.meetingType = "Meeting type is required.";
-		}
-		if (values.meetingType === "others" && !values.meetingTypeOthers.trim()) {
-			errors.meetingTypeOthers = "Please specify the meeting type.";
-		}
-		if (!values.requestedFor.trim()) {
-			errors.requestedFor = "Requested for is required.";
-		}
-
-		if (booking) {
-			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
-			const keptExistingCount = booking.attachments.filter(
-				(attachment) => !removedAttachmentPaths.includes(attachment.path),
-			).length;
-			const totalAttachments = keptExistingCount + values.attachments.length;
-
-			if (totalAttachments > maxAttachments) {
-				errors.attachments = `Maximum of ${maxAttachments} attachments is allowed.`;
-			}
-		}
-
-		const startMinutes = parseTimeToMinutes(values.startTime);
-		const endMinutes = parseTimeToMinutes(values.endTime);
-		if (
-			startMinutes !== null &&
-			endMinutes !== null &&
-			endMinutes <= startMinutes
-		) {
-			errors.endTime = "End time must be later than start time.";
-		}
-
-		const EIGHT_AM_MINUTES = 8 * 60; // 480
-		const FIVE_PM_MINUTES = 17 * 60; // 1020
-
-		if (
-			startMinutes !== null &&
-			(startMinutes < EIGHT_AM_MINUTES || startMinutes > FIVE_PM_MINUTES)
-		) {
-			errors.startTime = "Start time must be between 8:00 AM and 5:00 PM.";
-		}
-		if (
-			endMinutes !== null &&
-			(endMinutes < EIGHT_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
-		) {
-			errors.endTime = "End time must be between 8:00 AM and 5:00 PM.";
-		}
-
-		if (
-			values.date &&
-			values.startTime &&
-			isPastDateTime(values.date, values.startTime)
-		) {
-			errors.startTime = "Start time cannot be in the past.";
-		}
-
-		return errors;
+		return validateBookingForm(values, {
+			maxAttachments,
+			keptExistingAttachmentCount: keptExistingCount,
+		});
 	};
 
 	const handleChange = (field: keyof BookingFormValues, value: unknown) => {

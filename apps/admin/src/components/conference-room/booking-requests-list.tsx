@@ -54,6 +54,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
+	useBookingListModals,
 	usePendingRoomBookings,
 	useUpdateBookingStatus,
 } from "@/hooks/room-booking";
@@ -129,42 +130,39 @@ export function BookingRequestsList() {
 			itemsPerPage: BOOKINGS_PER_PAGE,
 		});
 
-	// Modal states
-	const [viewingBooking, setViewingBooking] = useState<CalendarBooking | null>(
-		null,
-	);
-	const [editingBooking, setEditingBooking] = useState<EditBookingData | null>(
-		null,
-	);
-	const [deletingBooking, setDeletingBooking] = useState<{
-		id: string;
-		title: string;
-	} | null>(null);
+	const {
+		viewingBooking,
+		editingBooking,
+		deletingBooking,
+		openView,
+		closeView,
+		closeEdit,
+		closeDelete,
+		openEditFromView,
+		openDeleteFromView,
+	} = useBookingListModals<CalendarBooking, EditBookingData>();
 
 	const { updateStatus, isUpdating } = useUpdateBookingStatus();
 
+	const toEditBookingData = (booking: CalendarBooking): EditBookingData => ({
+		id: booking.id,
+		title: booking.purpose,
+		meetingType: booking.meetingType,
+		meetingTypeOthers: booking.meetingTypeOthers,
+		requestedFor: booking.requestedFor,
+		room: resolveConferenceRoom(booking.roomKey || booking.room, booking.room),
+		date: booking.date,
+		startTime: booking.startTime24,
+		endTime: booking.endTime24,
+		attachments: booking.attachments,
+	});
+
 	const handleEditFromView = (booking: CalendarBooking) => {
-		setViewingBooking(null);
-		setEditingBooking({
-			id: booking.id,
-			title: booking.purpose,
-			meetingType: booking.meetingType,
-			meetingTypeOthers: booking.meetingTypeOthers,
-			requestedFor: booking.requestedFor,
-			room: resolveConferenceRoom(
-				booking.roomKey || booking.room,
-				booking.room,
-			),
-			date: booking.date,
-			startTime: booking.startTime24,
-			endTime: booking.endTime24,
-			attachments: booking.attachments,
-		});
+		openEditFromView(toEditBookingData(booking));
 	};
 
 	const handleDeleteFromView = (booking: CalendarBooking) => {
-		setViewingBooking(null);
-		setDeletingBooking({ id: booking.id, title: booking.purpose });
+		openDeleteFromView({ id: booking.id, title: booking.purpose });
 	};
 
 	const canEditViewedBooking =
@@ -452,7 +450,7 @@ export function BookingRequestsList() {
 													variant="ghost"
 													size="sm"
 													className="h-8 px-2 text-gray-600 hover:text-gray-900"
-													onClick={() => setViewingBooking(booking)}
+													onClick={() => openView(booking)}
 												>
 													<Eye className="w-4 h-4" />
 												</Button>
@@ -504,7 +502,7 @@ export function BookingRequestsList() {
 			{/* Modals */}
 			<ViewBookingModal
 				isOpen={!!viewingBooking}
-				onClose={() => setViewingBooking(null)}
+				onClose={closeView}
 				booking={viewingBooking}
 				onEdit={handleEditFromView}
 				onDelete={handleDeleteFromView}
@@ -515,13 +513,13 @@ export function BookingRequestsList() {
 
 			<EditBookingModal
 				isOpen={!!editingBooking}
-				onClose={() => setEditingBooking(null)}
+				onClose={closeEdit}
 				booking={editingBooking}
 			/>
 
 			<DeleteBookingDialog
 				isOpen={!!deletingBooking}
-				onClose={() => setDeletingBooking(null)}
+				onClose={closeDelete}
 				booking={deletingBooking}
 			/>
 		</>

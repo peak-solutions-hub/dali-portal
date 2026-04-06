@@ -74,6 +74,8 @@ function toResponse(
 	};
 }
 
+type RoomBookingRecord = Parameters<typeof toResponse>[0];
+
 /** Include clause reused across queries. */
 const BOOKING_INCLUDE = {
 	user: { select: { id: true, fullName: true } },
@@ -190,6 +192,51 @@ export class RoomBookingService {
 		);
 	}
 
+	private buildDateFilter({
+		date,
+		startDate,
+		endDate,
+	}: Pick<GetRoomBookingListInput, "date" | "startDate" | "endDate">):
+		| { gte: Date; lt: Date }
+		| undefined {
+		if (date) {
+			return {
+				gte: new Date(`${date}T00:00:00.000+08:00`),
+				lt: new Date(`${date}T23:59:59.999+08:00`),
+			};
+		}
+
+		if (startDate && endDate) {
+			// Multi-day range: startDate is inclusive, endDate is exclusive.
+			return {
+				gte: new Date(`${startDate}T00:00:00.000+08:00`),
+				lt: new Date(`${endDate}T00:00:00.000+08:00`),
+			};
+		}
+
+		return undefined;
+	}
+
+	private async toSignedResponse(
+		record: RoomBookingRecord,
+	): Promise<RoomBookingResponse> {
+		const attachmentPaths = record.attachments.map(
+			(attachment) => attachment.path,
+		);
+		const signedUrlByPath = await this.getSignedUrlMap(attachmentPaths);
+		return toResponse(record, signedUrlByPath);
+	}
+
+	private async toSignedResponseList(
+		records: RoomBookingRecord[],
+	): Promise<RoomBookingResponse[]> {
+		const attachmentPaths = records.flatMap((record) =>
+			record.attachments.map((attachment) => attachment.path),
+		);
+		const signedUrlByPath = await this.getSignedUrlMap(attachmentPaths);
+		return records.map((record) => toResponse(record, signedUrlByPath));
+	}
+
 	private isAdminRole(role: RoleType): boolean {
 		return isAdminBookingRole(role);
 	}
@@ -239,22 +286,8 @@ export class RoomBookingService {
 			throw new AppError("ROOM_BOOKING.FORBIDDEN");
 		}
 
-		// Build date range filter when a specific day is requested.
-		// Use +08:00 (Philippine Standard Time) so the boundaries align with
-		// local midnight, not UTC midnight — prevents off-by-one on dates
-		// when bookings in the morning are stored as the previous UTC day.
-		let dateFilter: { gte: Date; lt: Date } | undefined;
-		if (date) {
-			const startOfDay = new Date(`${date}T00:00:00.000+08:00`);
-			const endOfDay = new Date(`${date}T23:59:59.999+08:00`);
-			dateFilter = { gte: startOfDay, lt: endOfDay };
-		} else if (startDate && endDate) {
-			// Multi-day range: startDate is inclusive, endDate is exclusive
-			dateFilter = {
-				gte: new Date(`${startDate}T00:00:00.000+08:00`),
-				lt: new Date(`${endDate}T00:00:00.000+08:00`),
-			};
-		}
+		// Use +08:00 (Philippine Standard Time) boundaries to avoid date drift.
+		const dateFilter = this.buildDateFilter({ date, startDate, endDate });
 
 		const where = {
 			...(status && { status: status as never }),
@@ -276,13 +309,7 @@ export class RoomBookingService {
 
 		const totalPages = Math.ceil(totalItems / limit) || 1;
 
-		const attachmentPaths = bookings.flatMap((booking) =>
-			booking.attachments.map((attachment) => attachment.path),
-		);
-		const signedUrlByPath = await this.getSignedUrlMap(attachmentPaths);
-		const signedBookings = bookings.map((booking) =>
-			toResponse(booking, signedUrlByPath),
-		);
+		const signedBookings = await this.toSignedResponseList(bookings);
 
 		return {
 			bookings: signedBookings,
@@ -311,12 +338,7 @@ export class RoomBookingService {
 			throw new AppError("ROOM_BOOKING.NOT_FOUND");
 		}
 
-		const attachmentPaths = booking.attachments.map(
-			(attachment) => attachment.path,
-		);
-		const signedUrlByPath = await this.getSignedUrlMap(attachmentPaths);
-
-		return toResponse(booking, signedUrlByPath);
+		return this.toSignedResponse(booking);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -389,11 +411,7 @@ export class RoomBookingService {
 			`Booking created: ${booking.id} by user ${userId} with status "${status}"`,
 		);
 
-		const signedUrlByPath = await this.getSignedUrlMap(
-			attachments.map((attachment) => attachment.path),
-		);
-
-		return toResponse(booking, signedUrlByPath);
+		return this.toSignedResponse(booking);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -445,11 +463,7 @@ export class RoomBookingService {
 
 		this.logger.log(`Booking ${input.id} status updated to "${input.status}"`);
 
-		const signedUrlByPath = await this.getSignedUrlMap(
-			updated.attachments.map((attachment) => attachment.path),
-		);
-
-		return toResponse(updated, signedUrlByPath);
+		return this.toSignedResponse(updated);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -590,11 +604,7 @@ export class RoomBookingService {
 			}
 		}
 
-		const signedUrlByPath = await this.getSignedUrlMap(
-			nextAttachments.map((attachment) => attachment.path),
-		);
-
-		return toResponse(updated, signedUrlByPath);
+		return this.toSignedResponse(updated);
 	}
 
 	// ---------------------------------------------------------------------------

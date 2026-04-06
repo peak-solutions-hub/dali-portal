@@ -30,7 +30,7 @@ import {
 	Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useMyBookings } from "@/hooks/room-booking";
+import { useBookingListModals, useMyBookings } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
 import {
 	type CalendarBooking,
@@ -119,40 +119,39 @@ export function MyBookingsList() {
 			itemsPerPage: BOOKINGS_PER_PAGE,
 		});
 
-	// Modal states
-	const [viewingBooking, setViewingBooking] = useState<CalendarBooking | null>(
-		null,
-	);
-	const [editingBooking, setEditingBooking] = useState<EditBookingData | null>(
-		null,
-	);
-	const [deletingBooking, setDeletingBooking] = useState<{
-		id: string;
-		title: string;
-	} | null>(null);
+	const {
+		viewingBooking,
+		editingBooking,
+		deletingBooking,
+		openView,
+		closeView,
+		openEdit,
+		closeEdit,
+		openDelete,
+		closeDelete,
+		openEditFromView,
+		openDeleteFromView,
+	} = useBookingListModals<CalendarBooking, EditBookingData>();
+
+	const toEditBookingData = (booking: CalendarBooking): EditBookingData => ({
+		id: booking.id,
+		title: booking.purpose,
+		meetingType: booking.meetingType,
+		meetingTypeOthers: booking.meetingTypeOthers,
+		requestedFor: booking.requestedFor,
+		room: resolveConferenceRoom(booking.roomKey || booking.room, booking.room),
+		date: booking.date,
+		startTime: booking.startTime24,
+		endTime: booking.endTime24,
+		attachments: booking.attachments,
+	});
 
 	const handleEditFromView = (booking: CalendarBooking) => {
-		setViewingBooking(null);
-		setEditingBooking({
-			id: booking.id,
-			title: booking.purpose,
-			meetingType: booking.meetingType,
-			meetingTypeOthers: booking.meetingTypeOthers,
-			requestedFor: booking.requestedFor,
-			room: resolveConferenceRoom(
-				booking.roomKey || booking.room,
-				booking.room,
-			),
-			date: booking.date,
-			startTime: booking.startTime24,
-			endTime: booking.endTime24,
-			attachments: booking.attachments,
-		});
+		openEditFromView(toEditBookingData(booking));
 	};
 
 	const handleDeleteFromView = (booking: CalendarBooking) => {
-		setViewingBooking(null);
-		setDeletingBooking({ id: booking.id, title: booking.purpose });
+		openDeleteFromView({ id: booking.id, title: booking.purpose });
 	};
 
 	if (isLoading) {
@@ -369,7 +368,7 @@ export function MyBookingsList() {
 														variant="ghost"
 														size="sm"
 														className="h-8 px-2 text-gray-600 hover:text-gray-900"
-														onClick={() => setViewingBooking(booking)}
+														onClick={() => openView(booking)}
 														title="View booking"
 													>
 														<Eye className="w-4 h-4" />
@@ -382,21 +381,7 @@ export function MyBookingsList() {
 															size="sm"
 															className="h-8 px-2 text-blue-600 hover:text-blue-700"
 															onClick={() =>
-																setEditingBooking({
-																	id: booking.id,
-																	title: booking.purpose,
-																	meetingType: booking.meetingType,
-																	meetingTypeOthers: booking.meetingTypeOthers,
-																	requestedFor: booking.requestedFor,
-																	room: resolveConferenceRoom(
-																		booking.roomKey || booking.room,
-																		booking.room,
-																	),
-																	date: booking.date,
-																	startTime: booking.startTime24,
-																	endTime: booking.endTime24,
-																	attachments: booking.attachments,
-																})
+																openEdit(toEditBookingData(booking))
 															}
 															title="Edit booking"
 														>
@@ -408,7 +393,7 @@ export function MyBookingsList() {
 														size="sm"
 														className="h-8 px-2 text-red-600 hover:text-red-700"
 														onClick={() =>
-															setDeletingBooking({
+															openDelete({
 																id: booking.id,
 																title: booking.purpose,
 															})
@@ -431,7 +416,7 @@ export function MyBookingsList() {
 			{/* Modals */}
 			<ViewBookingModal
 				isOpen={!!viewingBooking}
-				onClose={() => setViewingBooking(null)}
+				onClose={closeView}
 				booking={viewingBooking}
 				onEdit={handleEditFromView}
 				onDelete={handleDeleteFromView}
@@ -446,13 +431,13 @@ export function MyBookingsList() {
 
 			<EditBookingModal
 				isOpen={!!editingBooking}
-				onClose={() => setEditingBooking(null)}
+				onClose={closeEdit}
 				booking={editingBooking}
 			/>
 
 			<DeleteBookingDialog
 				isOpen={!!deletingBooking}
-				onClose={() => setDeletingBooking(null)}
+				onClose={closeDelete}
 				booking={deletingBooking}
 			/>
 		</>
