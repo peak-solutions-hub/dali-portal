@@ -115,6 +115,63 @@ export interface CalendarBooking {
 	isPast: boolean;
 }
 
+export type BookingDisplayStatus =
+	| CalendarBooking["status"]
+	| "done"
+	| "expired";
+
+export function getBookingDisplayStatus(
+	booking: Pick<CalendarBooking, "status" | "isPast">,
+): BookingDisplayStatus {
+	if (booking.isPast && booking.status === "confirmed") {
+		return "done";
+	}
+
+	if (booking.isPast && booking.status === "pending") {
+		return "expired";
+	}
+
+	return booking.status;
+}
+
+export function getFileIdentity(file: File): string {
+	return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+export function isAttachmentLimitMessage(message: string | null): boolean {
+	if (!message) {
+		return false;
+	}
+
+	const normalized = message.toLowerCase();
+	return (
+		normalized.includes("maximum") ||
+		normalized.includes("attachments reached") ||
+		normalized.includes("upload up to") ||
+		normalized.includes("too many files")
+	);
+}
+
+export function isTooManyFilesOnlyError(file: {
+	errors?: Array<{ code?: string; message?: string }>;
+}): boolean {
+	if (!file.errors || file.errors.length === 0) {
+		return false;
+	}
+
+	return file.errors.every((error) => {
+		const code = error.code?.toLowerCase() ?? "";
+		const message = error.message?.toLowerCase() ?? "";
+
+		return (
+			code === "too-many-files" ||
+			message.includes("too many files") ||
+			message.includes("upload up to") ||
+			message.includes("maximum")
+		);
+	});
+}
+
 export function toPhtIsoDateTime(date: Date, timeStr: string): string {
 	const parts = timeStr.split(":");
 	const hours = Number(parts[0] ?? 0);

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	AttachmentMimeType,
 	ConferenceRoom,
 	FILE_UPLOAD_PRESETS,
 	MeetingType,
@@ -13,6 +12,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api, orpc } from "@/lib/api.client";
 import { toPhtIsoDateTime } from "@/utils/booking-helpers";
+import { uploadBookingAttachments } from "./use-booking-attachment-upload";
 
 export interface UpdateBookingInput {
 	id: string;
@@ -37,75 +37,6 @@ interface UseUpdateBookingReturn {
 	totalAttachmentCount: number;
 	error: string | null;
 	clearError: () => void;
-}
-
-function inferAttachmentMimeType(file: File): AttachmentMimeType {
-	const mimeType = file.type.toLowerCase();
-	if (
-		mimeType === "application/pdf" ||
-		mimeType === "image/jpeg" ||
-		mimeType === "image/jpg" ||
-		mimeType === "image/png" ||
-		mimeType === "application/msword" ||
-		mimeType ===
-			"application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-	) {
-		return mimeType as AttachmentMimeType;
-	}
-
-	const extension = file.name.split(".").pop()?.toLowerCase();
-	if (extension === "pdf") return "application/pdf";
-	if (extension === "jpeg") return "image/jpeg";
-	if (extension === "jpg") return "image/jpg";
-	if (extension === "png") return "image/png";
-	if (extension === "doc") return "application/msword";
-	if (extension === "docx") {
-		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-	}
-
-	throw new Error(
-		"Unsupported attachment type. Please upload PDF, PNG, JPG/JPEG, DOC, or DOCX.",
-	);
-}
-
-function uploadFileWithProgress(
-	uploadUrl: string,
-	file: File,
-	onProgress: (progressPercent: number) => void,
-): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const xhr = new XMLHttpRequest();
-		xhr.open("PUT", uploadUrl);
-		xhr.setRequestHeader(
-			"Content-Type",
-			file.type || "application/octet-stream",
-		);
-
-		xhr.upload.onprogress = (event) => {
-			if (!event.lengthComputable) {
-				return;
-			}
-
-			const progress = Math.round((event.loaded / event.total) * 100);
-			onProgress(progress);
-		};
-
-		xhr.onload = () => {
-			if (xhr.status >= 200 && xhr.status < 300) {
-				onProgress(100);
-				resolve();
-				return;
-			}
-
-			reject(new Error(`Failed to upload attachment (${xhr.status})`));
-		};
-
-		xhr.onerror = () => {
-			reject(new Error("Failed to upload attachment. Please try again."));
-		};
-
-		xhr.send(file);
-	});
 }
 
 export function useUpdateBooking(
@@ -141,47 +72,17 @@ export function useUpdateBooking(
 			}
 
 			if (input.newAttachments && input.newAttachments.length > 0) {
-				const totalFiles = input.newAttachments.length;
 				setIsUploadingAttachment(true);
-				setUploadProgress(0);
-				setUploadedAttachmentCount(0);
-				setTotalAttachmentCount(totalFiles);
-
-				for (const [index, attachment] of input.newAttachments.entries()) {
-					const mimeType = inferAttachmentMimeType(attachment.file);
-					const [uploadErr, uploadData] =
-						await api.roomBookings.generateUploadUrl({
-							fileName: attachment.file.name,
-							mimeType,
-							fileSize: attachment.file.size,
-						});
-
-					if (uploadErr || !uploadData) {
-						throw new Error(
-							uploadErr?.message || "Failed to generate upload URL",
-						);
-					}
-
-					await uploadFileWithProgress(
-						uploadData.uploadUrl,
-						attachment.file,
-						(progressPercent) => {
-							const totalProgress = Math.round(
-								((index + progressPercent / 100) / totalFiles) * 100,
-							);
-							setUploadProgress(totalProgress);
-						},
-					);
-
-					attachments.push({
-						path: uploadData.path,
-						reason: attachment.reason?.trim() || undefined,
-					});
-					setUploadedAttachmentCount(index + 1);
-				}
-
+				const uploadedAttachments = await uploadBookingAttachments(
+					input.newAttachments,
+					(progress) => {
+						setUploadProgress(progress.overallProgress);
+						setUploadedAttachmentCount(progress.uploadedCount);
+						setTotalAttachmentCount(progress.totalCount);
+					},
+				);
+				attachments.push(...uploadedAttachments);
 				setIsUploadingAttachment(false);
-				setUploadedAttachmentCount(totalFiles);
 			}
 
 			const [err, data] = await api.roomBookings.update({

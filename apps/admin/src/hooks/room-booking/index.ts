@@ -1,3 +1,4 @@
+export * from "./use-booking-attachment-upload";
 export * from "./use-create-booking";
 export * from "./use-delete-booking";
 export * from "./use-drag-select";

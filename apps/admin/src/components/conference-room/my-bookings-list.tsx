@@ -14,6 +14,10 @@ import {
 import { usePagination } from "@repo/ui/hooks/use-pagination";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
+	BOOKING_PRIMARY_LINK_CLASS,
+	BOOKING_TABLE_ROW_HOVER_CLASS,
+} from "@repo/ui/lib/conference-room-ui";
+import {
 	CalendarClock,
 	CalendarX,
 	ExternalLink,
@@ -30,6 +34,7 @@ import { useMyBookings } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
 import {
 	type CalendarBooking,
+	getBookingDisplayStatus,
 	mapApiBookings,
 	resolveConferenceRoom,
 } from "@/utils/booking-helpers";
@@ -88,11 +93,10 @@ export function MyBookingsList() {
 
 		if (statusFilter !== "all") {
 			mapped = mapped.filter((b) => {
-				const isDone = b.isPast && b.status === "confirmed";
-				const isExpired = b.isPast && b.status === "pending";
-				if (statusFilter === "done") return isDone;
-				if (statusFilter === "expired") return isExpired;
-				return !isDone && !isExpired && b.status === statusFilter;
+				const displayStatus = getBookingDisplayStatus(b);
+				if (statusFilter === "done") return displayStatus === "done";
+				if (statusFilter === "expired") return displayStatus === "expired";
+				return displayStatus === statusFilter;
 			});
 		}
 
@@ -247,7 +251,7 @@ export function MyBookingsList() {
 									return (
 										<TableRow
 											key={booking.id}
-											className="hover:bg-gray-50/70 transition-colors"
+											className={BOOKING_TABLE_ROW_HOVER_CLASS}
 										>
 											<TableCell className="max-w-60 align-top py-4">
 												<div className="flex flex-col gap-2">
@@ -337,7 +341,7 @@ export function MyBookingsList() {
 																	href={attachment.url}
 																	target="_blank"
 																	rel="noopener noreferrer"
-																	className="text-xs text-blue-700 hover:text-blue-800 w-full max-w-80"
+																	className={BOOKING_PRIMARY_LINK_CLASS}
 																	title={attachment.fileName}
 																>
 																	<span className="relative">

@@ -8,6 +8,8 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@repo/ui/components/tabs";
+import { BRAND_BUTTON_CLASS } from "@repo/ui/lib/legislative-document-ui";
+import { cn } from "@repo/ui/lib/utils";
 import { CalendarDays, ClipboardList, Plus, User } from "lucide-react";
 import { useState } from "react";
 import {
@@ -43,7 +45,7 @@ export default function ConferenceRoomBooking() {
 				</h1>
 				<Button
 					onClick={() => setIsModalOpen(true)}
-					className="mr-6 py-2 bg-[#a60202] hover:bg-[#8a0101] text-white gap-2"
+					className={cn("mr-6 py-2 text-white gap-2", BRAND_BUTTON_CLASS)}
 				>
 					<Plus className="w-4 h-4" />
 					Create Booking

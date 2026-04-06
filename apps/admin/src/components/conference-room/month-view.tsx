@@ -8,9 +8,13 @@ import {
 	PopoverTrigger,
 } from "@repo/ui/components/popover";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
+import { BOOKING_CALENDAR_CHIP_CLASSES } from "@repo/ui/lib/conference-room-ui";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useState } from "react";
-import type { CalendarBooking } from "@/utils/booking-helpers";
+import {
+	type CalendarBooking,
+	getBookingDisplayStatus,
+} from "@/utils/booking-helpers";
 
 interface MonthViewProps {
 	currentDate: Date;
@@ -196,21 +200,18 @@ export function MonthView({
 													booking.meetingTypeOthers
 														? `Others: ${booking.meetingTypeOthers}`
 														: booking.meetingTypeLabel;
-												const isDone =
-													booking.isPast && booking.status === "confirmed";
-												const isExpired =
-													booking.isPast && booking.status === "pending";
-												const isPending =
-													!booking.isPast && booking.status === "pending";
+												const displayStatus = getBookingDisplayStatus(booking);
 
-												const containerBg = isDone
-													? "bg-gray-400 text-white border border-transparent"
-													: isExpired
-														? "bg-red-400 text-white border border-transparent"
-														: isPending
-															? "bg-[#f6bf26] text-white border border-transparent"
-															: CONFERENCE_ROOM_COLORS[booking.roomKey]?.chip ||
-																"bg-gray-200";
+												const containerBg =
+													displayStatus === "done"
+														? BOOKING_CALENDAR_CHIP_CLASSES.done
+														: displayStatus === "expired"
+															? BOOKING_CALENDAR_CHIP_CLASSES.expired
+															: displayStatus === "pending"
+																? BOOKING_CALENDAR_CHIP_CLASSES.pending
+																: CONFERENCE_ROOM_COLORS[booking.roomKey]
+																		?.chip ||
+																	BOOKING_CALENDAR_CHIP_CLASSES.default;
 
 												return (
 													<button
@@ -278,24 +279,20 @@ export function MonthView({
 																	booking.meetingTypeOthers
 																		? `Others: ${booking.meetingTypeOthers}`
 																		: booking.meetingTypeLabel;
-																const isDone =
-																	booking.isPast &&
-																	booking.status === "confirmed";
-																const isExpired =
-																	booking.isPast &&
-																	booking.status === "pending";
-																const isPending =
-																	!booking.isPast &&
-																	booking.status === "pending";
+																const displayStatus =
+																	getBookingDisplayStatus(booking);
 
-																const containerBg = isDone
-																	? "bg-gray-400 text-white border border-transparent"
-																	: isExpired
-																		? "bg-red-400 text-white border border-transparent"
-																		: isPending
-																			? "bg-[#f6bf26] text-white border border-transparent"
-																			: CONFERENCE_ROOM_COLORS[booking.roomKey]
-																					?.chip || "bg-gray-200";
+																const containerBg =
+																	displayStatus === "done"
+																		? BOOKING_CALENDAR_CHIP_CLASSES.done
+																		: displayStatus === "expired"
+																			? BOOKING_CALENDAR_CHIP_CLASSES.expired
+																			: displayStatus === "pending"
+																				? BOOKING_CALENDAR_CHIP_CLASSES.pending
+																				: CONFERENCE_ROOM_COLORS[
+																						booking.roomKey
+																					]?.chip ||
+																					BOOKING_CALENDAR_CHIP_CLASSES.default;
 
 																return (
 																	<button

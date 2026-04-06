@@ -32,6 +32,12 @@ import {
 } from "@repo/ui/components/table";
 import { usePagination } from "@repo/ui/hooks/use-pagination";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
+import {
+	BOOKING_APPROVE_BUTTON_CLASS,
+	BOOKING_PRIMARY_LINK_CLASS,
+	BOOKING_REJECT_BUTTON_CLASS,
+	BOOKING_TABLE_ROW_HOVER_CLASS,
+} from "@repo/ui/lib/conference-room-ui";
 import { cn } from "@repo/ui/lib/utils";
 import {
 	CalendarClock,
@@ -322,7 +328,7 @@ export function BookingRequestsList() {
 								return (
 									<TableRow
 										key={booking.id}
-										className="hover:bg-gray-50/70 transition-colors"
+										className={BOOKING_TABLE_ROW_HOVER_CLASS}
 									>
 										<TableCell className="max-w-60 align-top py-4">
 											<div className="flex flex-col gap-2">
@@ -418,7 +424,7 @@ export function BookingRequestsList() {
 																href={attachment.url}
 																target="_blank"
 																rel="noopener noreferrer"
-																className="text-xs text-blue-700 hover:text-blue-800 w-full max-w-80"
+																className={BOOKING_PRIMARY_LINK_CLASS}
 																title={attachment.fileName}
 															>
 																<span className="relative">
@@ -456,7 +462,7 @@ export function BookingRequestsList() {
 														<>
 															<Button
 																size="sm"
-																className="h-8 px-2.5 bg-green-600 hover:bg-green-700 text-white"
+																className={BOOKING_APPROVE_BUTTON_CLASS}
 																onClick={() =>
 																	updateStatus(booking.id, "confirmed")
 																}
@@ -471,7 +477,7 @@ export function BookingRequestsList() {
 															<Button
 																variant="outline"
 																size="sm"
-																className="h-8 px-2.5 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+																className={BOOKING_REJECT_BUTTON_CLASS}
 																onClick={() =>
 																	updateStatus(booking.id, "rejected")
 																}

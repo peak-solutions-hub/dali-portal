@@ -1,7 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { MeetingType, RoleType } from "@repo/shared";
 import {
-	ADMIN_BOOKING_ROLES,
 	AppError,
 	BOOKING_ATTACHMENTS_BUCKET,
 	BOOKING_UPLOAD_FOLDER,
@@ -13,9 +12,14 @@ import {
 	type GenerateBookingUploadUrlResponse,
 	type GetRoomBookingByIdInput,
 	type GetRoomBookingListInput,
+	getPhtMinutes as getPhtMinutesFromDate,
+	isAdminBookingRole,
+	MAX_ATTACHMENT_SIZE_BYTES,
 	MIME_EXTENSIONS,
 	MIN_DURATION_MINUTES,
-	PH_TIME_ZONE,
+	normalizeBookingAttachmentPath,
+	normalizeBookingAttachments,
+	parsePhtDateTime,
 	type RoomBookingListResponse,
 	type RoomBookingResponse,
 	type UpdateRoomBookingInput,
@@ -23,23 +27,6 @@ import {
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
-
-const HAS_TIMEZONE_SUFFIX = /([zZ]|[+-]\d{2}:\d{2})$/;
-
-const PHT_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
-	timeZone: PH_TIME_ZONE,
-	hour: "2-digit",
-	minute: "2-digit",
-	hour12: false,
-});
-
-function normalizeBookingAttachmentPath(path: string): string {
-	const trimmed = path.trim().replace(/^\/+/, "");
-	const bucketPrefix = `${BOOKING_ATTACHMENTS_BUCKET}/`;
-	return trimmed.startsWith(bucketPrefix)
-		? trimmed.slice(bucketPrefix.length)
-		: trimmed;
-}
 
 /**
  * Maps a Prisma RoomBooking record (with optional user relation) to the
@@ -116,26 +103,7 @@ export class RoomBookingService {
 		attachments?: Array<{ path: string; reason?: string | null }>,
 		legacyPaths?: string[],
 	): Array<{ path: string; reason: string | null }> {
-		const normalizedFromAttachments = (attachments ?? []).map((attachment) => ({
-			path: this.normalizeAttachmentPath(attachment.path),
-			reason: attachment.reason?.trim() ? attachment.reason.trim() : null,
-		}));
-
-		if (normalizedFromAttachments.length > 0) {
-			const dedupedByPath = new Map<
-				string,
-				{ path: string; reason: string | null }
-			>();
-			for (const attachment of normalizedFromAttachments) {
-				dedupedByPath.set(attachment.path, attachment);
-			}
-			return [...dedupedByPath.values()];
-		}
-
-		return this.normalizeAttachmentPaths(legacyPaths ?? []).map((path) => ({
-			path,
-			reason: null,
-		}));
+		return normalizeBookingAttachments(attachments, legacyPaths);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -143,26 +111,15 @@ export class RoomBookingService {
 	// ---------------------------------------------------------------------------
 
 	private parseBookingDateTime(value: string): Date {
-		const normalizedValue = HAS_TIMEZONE_SUFFIX.test(value)
-			? value
-			: `${value}+08:00`;
-		const parsed = new Date(normalizedValue);
-
-		if (Number.isNaN(parsed.getTime())) {
+		try {
+			return parsePhtDateTime(value);
+		} catch {
 			throw new AppError("GENERAL.BAD_REQUEST");
 		}
-
-		return parsed;
 	}
 
 	private getPhtMinutes(date: Date): number {
-		const parts = PHT_TIME_FORMATTER.formatToParts(date);
-		const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
-		const minute = Number(
-			parts.find((part) => part.type === "minute")?.value ?? 0,
-		);
-
-		return hour * 60 + minute;
+		return getPhtMinutesFromDate(date);
 	}
 
 	private validateTimeRange(startTime: Date, endTime: Date): void {
@@ -234,7 +191,7 @@ export class RoomBookingService {
 	}
 
 	private isAdminRole(role: RoleType): boolean {
-		return (ADMIN_BOOKING_ROLES as readonly string[]).includes(role);
+		return isAdminBookingRole(role);
 	}
 
 	private async checkAvailability(
@@ -689,7 +646,7 @@ export class RoomBookingService {
 	async generateUploadUrl(
 		input: GenerateBookingUploadUrlInput,
 	): Promise<GenerateBookingUploadUrlResponse> {
-		const { fileName, mimeType } = input;
+		const { fileName, mimeType, fileSize } = input;
 
 		// Scenario 1 — Validate MIME type is allowed
 		const allowedExtensions = MIME_EXTENSIONS[mimeType];
@@ -700,6 +657,10 @@ export class RoomBookingService {
 		// Anti-rename executable check: file extension must match declared MIME type
 		const ext = `.${fileName.split(".").pop()?.toLowerCase() ?? ""}`;
 		if (!allowedExtensions.includes(ext)) {
+			throw new AppError("ROOM_BOOKING.INVALID_ATTACHMENT");
+		}
+
+		if (fileSize > MAX_ATTACHMENT_SIZE_BYTES) {
 			throw new AppError("ROOM_BOOKING.INVALID_ATTACHMENT");
 		}
 

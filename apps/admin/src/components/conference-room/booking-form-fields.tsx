@@ -24,6 +24,13 @@ import {
 } from "@repo/ui/components/select";
 import { TimePicker } from "@repo/ui/components/time-picker";
 import { useSupabaseUpload } from "@repo/ui/hooks/use-supabase-upload";
+import {
+	BOOKING_FORM_ERROR_BOX,
+	BOOKING_FORM_ERROR_TEXT,
+	BOOKING_FORM_FIELD_ERROR,
+	BOOKING_FORM_INPUT_BASE,
+	BOOKING_FORM_INPUT_FOCUS,
+} from "@repo/ui/lib/conference-room-ui";
 import { cn } from "@repo/ui/lib/utils";
 import {
 	AlertCircle,
@@ -36,48 +43,15 @@ import {
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import {
+	getFileIdentity,
+	isAttachmentLimitMessage,
+	isTooManyFilesOnlyError,
+} from "@/utils/booking-helpers";
 
 export interface BookingAttachmentDraft {
 	file: File;
 	reason: string;
-}
-
-function getFileIdentity(file: File): string {
-	return `${file.name}:${file.size}:${file.lastModified}`;
-}
-
-function isAttachmentLimitMessage(message: string | null): boolean {
-	if (!message) {
-		return false;
-	}
-
-	const normalized = message.toLowerCase();
-	return (
-		normalized.includes("maximum") ||
-		normalized.includes("attachments reached") ||
-		normalized.includes("upload up to") ||
-		normalized.includes("too many files")
-	);
-}
-
-function isTooManyFilesOnlyError(file: {
-	errors?: Array<{ code?: string; message?: string }>;
-}): boolean {
-	if (!file.errors || file.errors.length === 0) {
-		return false;
-	}
-
-	return file.errors.every((error) => {
-		const code = error.code?.toLowerCase() ?? "";
-		const message = error.message?.toLowerCase() ?? "";
-
-		return (
-			code === "too-many-files" ||
-			message.includes("too many files") ||
-			message.includes("upload up to") ||
-			message.includes("maximum")
-		);
-	});
 }
 
 export interface BookingFormValues {
@@ -388,11 +362,8 @@ export function BookingFormFields({
 	return (
 		<div className="space-y-6">
 			{error && (
-				<div
-					ref={formErrorRef}
-					className="rounded-md border border-red-200 bg-red-50 px-4 py-3"
-				>
-					<p className="text-sm text-red-700">{error}</p>
+				<div ref={formErrorRef} className={BOOKING_FORM_ERROR_BOX}>
+					<p className={BOOKING_FORM_ERROR_TEXT}>{error}</p>
 				</div>
 			)}
 
@@ -413,8 +384,9 @@ export function BookingFormFields({
 				>
 					<SelectTrigger
 						className={cn(
-							"w-full px-4 py-3 bg-white border border-gray-300 rounded-md text-gray-900 shadow-sm focus:ring-2 focus:ring-[#a60202]/20 focus:border-[#a60202] transition-colors",
-							fieldErrors?.room && "border-red-500 ring-2 ring-red-500/20",
+							BOOKING_FORM_INPUT_BASE,
+							BOOKING_FORM_INPUT_FOCUS,
+							fieldErrors?.room && BOOKING_FORM_FIELD_ERROR,
 						)}
 					>
 						<SelectValue placeholder="Select a conference room">
@@ -473,9 +445,11 @@ export function BookingFormFields({
 						<Button
 							variant="outline"
 							className={cn(
-								"w-full px-4 py-3 justify-start text-left font-normal border border-gray-300 shadow-sm hover:bg-gray-50 focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
+								"justify-start text-left font-normal hover:bg-gray-50",
+								BOOKING_FORM_INPUT_BASE,
+								BOOKING_FORM_INPUT_FOCUS,
 								!values.date && "text-muted-foreground",
-								fieldErrors?.date && "border-red-500 ring-2 ring-red-500/20",
+								fieldErrors?.date && BOOKING_FORM_FIELD_ERROR,
 							)}
 						>
 							<CalendarIcon className="mr-2 h-4 w-4" />
@@ -523,8 +497,8 @@ export function BookingFormFields({
 						minTime="08:00"
 						maxTime="17:00"
 						className={cn(
-							"bg-white border border-gray-300 shadow-sm focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
-							fieldErrors?.startTime && "border-red-500 ring-2 ring-red-500/20",
+							BOOKING_FORM_INPUT_FOCUS,
+							fieldErrors?.startTime && BOOKING_FORM_FIELD_ERROR,
 						)}
 					/>
 					{fieldErrors?.startTime && (
@@ -546,8 +520,8 @@ export function BookingFormFields({
 						minTime={values.startTime || "08:00"}
 						maxTime="17:00"
 						className={cn(
-							"bg-white border border-gray-300 shadow-sm focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
-							fieldErrors?.endTime && "border-red-500 ring-2 ring-red-500/20",
+							BOOKING_FORM_INPUT_FOCUS,
+							fieldErrors?.endTime && BOOKING_FORM_FIELD_ERROR,
 						)}
 					/>
 					{fieldErrors?.endTime && (
@@ -576,9 +550,9 @@ export function BookingFormFields({
 					>
 						<SelectTrigger
 							className={cn(
-								"w-full px-4 py-3 bg-white border border-gray-300 rounded-md text-gray-900 shadow-sm focus:ring-2 focus:ring-[#a60202]/20 focus:border-[#a60202] transition-colors",
-								fieldErrors?.meetingType &&
-									"border-red-500 ring-2 ring-red-500/20",
+								BOOKING_FORM_INPUT_BASE,
+								BOOKING_FORM_INPUT_FOCUS,
+								fieldErrors?.meetingType && BOOKING_FORM_FIELD_ERROR,
 							)}
 						>
 							<SelectValue placeholder="Select meeting type" />
@@ -607,9 +581,9 @@ export function BookingFormFields({
 								onChange={(e) => onChange("meetingTypeOthers", e.target.value)}
 								maxLength={TEXT_LIMITS.SM}
 								className={cn(
-									"w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-md text-gray-900 focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
-									fieldErrors?.meetingTypeOthers &&
-										"border-red-500 ring-2 ring-red-500/20",
+									BOOKING_FORM_INPUT_BASE,
+									BOOKING_FORM_INPUT_FOCUS,
+									fieldErrors?.meetingTypeOthers && BOOKING_FORM_FIELD_ERROR,
 								)}
 								placeholder="Type custom meeting type..."
 							/>
@@ -643,8 +617,9 @@ export function BookingFormFields({
 					onChange={(e) => onChange("title", e.target.value)}
 					maxLength={TEXT_LIMITS.XS}
 					className={cn(
-						"w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-md text-gray-900 focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
-						fieldErrors?.title && "border-red-500 ring-2 ring-red-500/20",
+						BOOKING_FORM_INPUT_BASE,
+						BOOKING_FORM_INPUT_FOCUS,
+						fieldErrors?.title && BOOKING_FORM_FIELD_ERROR,
 					)}
 					placeholder="Enter booking title..."
 				/>
@@ -670,9 +645,9 @@ export function BookingFormFields({
 					onChange={(e) => onChange("requestedFor", e.target.value)}
 					maxLength={TEXT_LIMITS.XS}
 					className={cn(
-						"w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-md text-gray-900 focus:outline-none focus:border-[#a60202] focus:ring-2 focus:ring-[#a60202]/20 transition-colors",
-						fieldErrors?.requestedFor &&
-							"border-red-500 ring-2 ring-red-500/20",
+						BOOKING_FORM_INPUT_BASE,
+						BOOKING_FORM_INPUT_FOCUS,
+						fieldErrors?.requestedFor && BOOKING_FORM_FIELD_ERROR,
 					)}
 					placeholder="Name of person or group requesting the room..."
 				/>

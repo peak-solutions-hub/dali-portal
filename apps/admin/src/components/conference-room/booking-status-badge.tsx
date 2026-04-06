@@ -1,7 +1,7 @@
 "use client";
 
 import type { ConferenceRoom } from "@repo/shared";
-import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
+import { BOOKING_STATUS_BADGE_CLASSES } from "@repo/ui/lib/conference-room-ui";
 
 interface BookingStatusBadgeProps {
 	status: "pending" | "confirmed" | "rejected";
@@ -19,24 +19,16 @@ export function BookingStatusBadge({
 }: BookingStatusBadgeProps) {
 	const isDone = isPast && status === "confirmed";
 	const isExpired = isPast && status === "pending";
+	const displayStatus = isDone ? "done" : isExpired ? "expired" : status;
 
-	const colorClass = isDone
-		? "bg-gray-100 text-gray-700 font-bold"
-		: isExpired
-			? "bg-red-50 text-red-600 font-bold"
-			: status === "pending"
-				? "bg-yellow-100 text-yellow-700 font-bold"
-				: status === "rejected"
-					? "bg-red-100 text-red-700 font-bold"
-					: "bg-green-100 text-green-700 font-bold";
-
-	const displayStatus = isDone ? "completed" : isExpired ? "expired" : status;
+	const colorClass = BOOKING_STATUS_BADGE_CLASSES[displayStatus];
+	const displayLabel = displayStatus === "done" ? "completed" : displayStatus;
 
 	return (
 		<span
 			className={`text-[10px] px-2 py-0.5 rounded-full capitalize w-max ${colorClass} ${className}`}
 		>
-			{displayStatus}
+			{displayLabel}
 		</span>
 	);
 }
