@@ -34,13 +34,13 @@ import { useBookingListModals, useMyBookings } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
 import {
 	type CalendarBooking,
+	type EditBookingData,
 	getBookingDisplayStatus,
 	mapApiBookings,
-	resolveConferenceRoom,
+	mapBookingToEditBookingData,
 } from "@/utils/booking-helpers";
 import { BookingStatusBadge } from "./booking-status-badge";
 import { DeleteBookingDialog } from "./delete-booking-dialog";
-import type { EditBookingData } from "./edit-booking-modal";
 import { EditBookingModal } from "./edit-booking-modal";
 import { ViewBookingModal } from "./view-booking-modal";
 
@@ -133,21 +133,8 @@ export function MyBookingsList() {
 		openDeleteFromView,
 	} = useBookingListModals<CalendarBooking, EditBookingData>();
 
-	const toEditBookingData = (booking: CalendarBooking): EditBookingData => ({
-		id: booking.id,
-		title: booking.purpose,
-		meetingType: booking.meetingType,
-		meetingTypeOthers: booking.meetingTypeOthers,
-		requestedFor: booking.requestedFor,
-		room: resolveConferenceRoom(booking.roomKey || booking.room, booking.room),
-		date: booking.date,
-		startTime: booking.startTime24,
-		endTime: booking.endTime24,
-		attachments: booking.attachments,
-	});
-
 	const handleEditFromView = (booking: CalendarBooking) => {
-		openEditFromView(toEditBookingData(booking));
+		openEditFromView(mapBookingToEditBookingData(booking));
 	};
 
 	const handleDeleteFromView = (booking: CalendarBooking) => {
@@ -381,7 +368,7 @@ export function MyBookingsList() {
 															size="sm"
 															className="h-8 px-2 text-blue-600 hover:text-blue-700"
 															onClick={() =>
-																openEdit(toEditBookingData(booking))
+																openEdit(mapBookingToEditBookingData(booking))
 															}
 															title="Edit booking"
 														>

@@ -8,6 +8,7 @@ import {
 	useUpdateBooking,
 } from "@/hooks/room-booking/use-update-booking";
 import {
+	type EditBookingData,
 	isAttachmentLimitMessage,
 	resolveConferenceRoom,
 } from "@/utils/booking-helpers";
@@ -19,26 +20,6 @@ import {
 	BookingFormFields,
 	type BookingFormValues,
 } from "./booking-form-fields";
-
-export interface EditBookingData {
-	id: string;
-	title: string;
-	meetingType: string;
-	meetingTypeOthers: string | null;
-	requestedFor: string;
-	room: string;
-	date: Date;
-	/** "HH:MM" 24-hour local time */
-	startTime: string;
-	/** "HH:MM" 24-hour local time */
-	endTime: string;
-	attachments: Array<{
-		path: string;
-		url: string | null;
-		fileName: string;
-		reason: string | null;
-	}>;
-}
 
 interface EditBookingModalProps {
 	isOpen: boolean;

@@ -115,6 +115,43 @@ export interface CalendarBooking {
 	isPast: boolean;
 }
 
+export interface EditBookingData {
+	id: string;
+	title: string;
+	meetingType: MeetingType;
+	meetingTypeOthers: string | null;
+	requestedFor: string;
+	room: string;
+	date: Date;
+	/** "HH:MM" 24-hour local time */
+	startTime: string;
+	/** "HH:MM" 24-hour local time */
+	endTime: string;
+	attachments: Array<{
+		path: string;
+		url: string | null;
+		fileName: string;
+		reason: string | null;
+	}>;
+}
+
+export function mapBookingToEditBookingData(
+	booking: CalendarBooking,
+): EditBookingData {
+	return {
+		id: booking.id,
+		title: booking.purpose,
+		meetingType: booking.meetingType,
+		meetingTypeOthers: booking.meetingTypeOthers,
+		requestedFor: booking.requestedFor,
+		room: resolveConferenceRoom(booking.roomKey || booking.room, booking.room),
+		date: booking.date,
+		startTime: booking.startTime24,
+		endTime: booking.endTime24,
+		attachments: booking.attachments,
+	};
+}
+
 export type BookingDisplayStatus =
 	| CalendarBooking["status"]
 	| "done"
