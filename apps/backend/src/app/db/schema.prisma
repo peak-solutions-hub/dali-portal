@@ -141,26 +141,26 @@ model InquiryMessage {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model InquiryTicket {
-  id                                                String                    @id(map: "inquiry_tickets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  referenceNumber                                   String                    @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
-  assignedTo                                        String?                   @map("assigned_to") @db.Uuid
-  citizenEmail                                      String?                   @map("citizen_email")
-  subject                                           String
-  closureRemarks                                    String?                   @map("closure_remarks")
-  createdAt                                         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  category                                          InquiryCategory
-  status                                            InquiryStatus
-  citizenFirstName                                  String?                   @map("citizen_first_name")
-  citizenLastName                                   String?                   @map("citizen_last_name")
-  citizenContactNumber                              String?                   @map("citizen_contact_number")
-  citizenAddress                                    String?                   @map("citizen_address")
-  assignment_status                                 inquiry_assignment_status @default(confirmed)
-  assignment_requested_by                           String?                   @db.Uuid
-  pending_reassignment_to                           String?                   @db.Uuid
-  inquiryMessages                                   InquiryMessage[]
-  user_inquiry_ticket_assignment_requested_byTouser User?                     @relation("inquiry_ticket_assignment_requested_byTouser", fields: [assignment_requested_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  user_inquiry_ticket_pending_reassignment_toTouser User?                     @relation("inquiry_ticket_pending_reassignment_toTouser", fields: [pending_reassignment_to], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  user                                              User?                     @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
+  id                   String           @id(map: "inquiry_tickets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceNumber      String           @unique(map: "inquiry_tickets_referenced_number_key") @map("reference_number")
+  assignedTo           String?          @map("assigned_to") @db.Uuid
+  assignmentStatus     InquiryAssignmentStatus @default(confirmed) @map("assignment_status")
+  assignmentRequestedBy String?         @map("assignment_requested_by") @db.Uuid
+  pendingReassignmentTo String?         @map("pending_reassignment_to") @db.Uuid
+  citizenEmail         String?          @map("citizen_email")
+  citizenFirstName     String?          @map("citizen_first_name")
+  citizenLastName      String?          @map("citizen_last_name")
+  citizenContactNumber String?          @map("citizen_contact_number")
+  citizenAddress       String?          @map("citizen_address")
+  subject              String
+  closureRemarks       String?          @map("closure_remarks")
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  category             InquiryCategory
+  status               InquiryStatus
+  inquiryMessages      InquiryMessage[]
+  user                 User?            @relation(fields: [assignedTo], references: [id], map: "inquiry_tickets_assigned_to_fkey")
+  assignmentRequester  User?            @relation("InquiryAssignmentRequestedBy", fields: [assignmentRequestedBy], references: [id], map: "inquiry_ticket_assignment_requested_by_fkey")
+  pendingReassignmentUser User?          @relation("InquiryPendingReassignmentTo", fields: [pendingReassignmentTo], references: [id], map: "inquiry_ticket_pending_reassignment_to_fkey")
 
   @@map("inquiry_ticket")
 }
@@ -307,20 +307,20 @@ model SessionAgendaItem {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model User {
-  id                                                          String            @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  roleId                                                      String            @map("role_id") @db.Uuid
-  fullName                                                    String            @map("full_name")
-  email                                                       String
-  createdAt                                                   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  status                                                      UserStatus
-  callerSlip                                                  CallerSlip[]
-  documentAudit                                               DocumentAudit[]
-  documentVersion                                             DocumentVersion[]
-  inquiry_ticket_inquiry_ticket_assignment_requested_byTouser InquiryTicket[]   @relation("inquiry_ticket_assignment_requested_byTouser")
-  inquiry_ticket_inquiry_ticket_pending_reassignment_toTouser InquiryTicket[]   @relation("inquiry_ticket_pending_reassignment_toTouser")
-  inquiryTicket                                               InquiryTicket[]
-  roomBooking                                                 RoomBooking[]
-  role                                                        Role              @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "users_role_id_fkey")
+  id              String            @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roleId          String            @map("role_id") @db.Uuid
+  fullName        String            @map("full_name")
+  email           String
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  status          UserStatus
+  callerSlip      CallerSlip[]
+  documentAudit   DocumentAudit[]
+  documentVersion DocumentVersion[]
+  inquiryTicket   InquiryTicket[]
+  assignmentRequests InquiryTicket[] @relation("InquiryAssignmentRequestedBy")
+  pendingReassignmentRequests InquiryTicket[] @relation("InquiryPendingReassignmentTo")
+  roomBooking     RoomBooking[]
+  role            Role              @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "users_role_id_fkey")
 
   @@map("user")
 }
@@ -453,6 +453,13 @@ enum InquiryStatus {
   @@map("inquiry_status")
 }
 
+enum InquiryAssignmentStatus {
+  pending
+  confirmed
+
+  @@map("inquiry_assignment_status")
+}
+
 enum InquiryMessageSenderType {
   citizen
   staff
@@ -542,9 +549,4 @@ enum RoleType {
   councilor
 
   @@map("role_type")
-}
-
-enum inquiry_assignment_status {
-  pending
-  confirmed
 }

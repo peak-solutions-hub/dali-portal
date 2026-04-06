@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { FILE_COUNT_LIMITS, TEXT_LIMITS } from "../constants";
 import {
+	INQUIRY_ASSIGNMENT_STATUS_VALUES,
 	INQUIRY_CATEGORY_VALUES,
 	INQUIRY_STATUS_VALUES,
 	SENDER_TYPE_VALUES,
@@ -11,6 +12,7 @@ import {
 const InquiryTicketStatusEnum = z.enum(INQUIRY_STATUS_VALUES);
 const InquiryTicketCategoryEnum = z.enum(INQUIRY_CATEGORY_VALUES);
 const InquiryMessageSenderTypeEnum = z.enum(SENDER_TYPE_VALUES);
+const InquiryAssignmentStatusEnum = z.enum(INQUIRY_ASSIGNMENT_STATUS_VALUES);
 
 /**
  * Attachment with pre-generated signed URL for viewing/downloading.
@@ -35,6 +37,9 @@ export const InquiryTicketSchema = z.object({
 	id: z.uuid(),
 	referenceNumber: z.string(),
 	assignedTo: z.uuid().nullable(),
+	assignmentStatus: InquiryAssignmentStatusEnum,
+	assignmentRequestedBy: z.uuid().nullable(),
+	pendingReassignmentTo: z.uuid().nullable(),
 	citizenEmail: z.string().nullable(),
 	citizenFirstName: z.string().nullable(),
 	citizenLastName: z.string().nullable(),
@@ -140,8 +145,15 @@ export const InquiryTicketListResponseSchema = z.object({
 export const GetInquiryTicketListSchema = z.object({
 	status: InquiryTicketStatusEnum.optional(),
 	category: InquiryTicketCategoryEnum.optional(),
+	search: z.string().trim().optional(),
+	assignedToMe: z.coerce.boolean().optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
 	page: z.coerce.number().int().min(1).default(1),
+});
+
+export const GetInquiryStatusCountsSchema = z.object({
+	category: InquiryTicketCategoryEnum.optional(),
+	search: z.string().trim().optional(),
 });
 
 export const GetInquiryTicketByIdSchema = z.object({
@@ -237,6 +249,28 @@ export const UpdateInquiryTicketStatusSchema = z.object({
 });
 
 export const AssignInquiryToMeSchema = z.object({
+	id: z.uuid(),
+});
+
+export const AssignInquiryTicketSchema = z.object({
+	id: z.uuid(),
+	/** Target user ID to assign to, or null to unassign */
+	assignedTo: z.uuid().nullable(),
+});
+
+export const RequestInquiryAssignmentSchema = z.object({
+	id: z.uuid(),
+});
+
+export const ConfirmInquiryAssignmentSchema = z.object({
+	id: z.uuid(),
+});
+
+export const ApproveInquiryReassignmentSchema = z.object({
+	id: z.uuid(),
+});
+
+export const RejectInquiryReassignmentSchema = z.object({
 	id: z.uuid(),
 });
 
@@ -362,6 +396,9 @@ export type InquiryTicketListResponse = z.infer<
 export type GetInquiryTicketListInput = z.infer<
 	typeof GetInquiryTicketListSchema
 >;
+export type GetInquiryStatusCountsInput = z.infer<
+	typeof GetInquiryStatusCountsSchema
+>;
 export type GetInquiryTicketByIdInput = z.infer<
 	typeof GetInquiryTicketByIdSchema
 >;
@@ -375,6 +412,9 @@ export type UpdateInquiryTicketStatusInput = z.infer<
 	typeof UpdateInquiryTicketStatusSchema
 >;
 export type AssignInquiryToMeInput = z.infer<typeof AssignInquiryToMeSchema>;
+export type AssignInquiryTicketInput = z.infer<
+	typeof AssignInquiryTicketSchema
+>;
 export type TrackInquiryTicketInput = z.infer<typeof TrackInquiryTicketSchema>;
 export type TrackInquiryTicketResponse = z.infer<
 	typeof TrackInquiryTicketResponseSchema
@@ -390,6 +430,7 @@ export const InquiryStatusCountsSchema = z.object({
 	waiting_for_citizen: z.number().int().min(0),
 	resolved: z.number().int().min(0),
 	rejected: z.number().int().min(0),
+	assigned_to_me: z.number().int().min(0),
 });
 
 export type InquiryStatusCounts = z.infer<typeof InquiryStatusCountsSchema>;
