@@ -30,7 +30,7 @@ export function BookingStatusBadge({
 					? "bg-red-100 text-red-700 font-bold"
 					: "bg-green-100 text-green-700 font-bold";
 
-	const displayStatus = isDone ? "done" : isExpired ? "expired" : status;
+	const displayStatus = isDone ? "completed" : isExpired ? "expired" : status;
 
 	return (
 		<span

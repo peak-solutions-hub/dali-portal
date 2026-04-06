@@ -2,10 +2,26 @@
 
 import {
 	CONFERENCE_ROOM_LABELS,
+	CONFERENCE_ROOM_OPTIONS,
 	formatFullDate,
 	isAdminBookingRole,
+	MEETING_TYPE_OPTIONS,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { Calendar } from "@repo/ui/components/calendar";
+import { PaginationControl } from "@repo/ui/components/pagination-control";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@repo/ui/components/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/ui/components/select";
 import {
 	Table,
 	TableBody,
@@ -14,9 +30,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
+import { usePagination } from "@repo/ui/hooks/use-pagination";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
+import { cn } from "@repo/ui/lib/utils";
 import {
 	CalendarClock,
+	CalendarIcon,
 	CheckCircle,
 	ExternalLink,
 	Eye,
@@ -24,6 +43,7 @@ import {
 	Loader2,
 	Paperclip,
 	Users,
+	X,
 	XCircle,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -44,18 +64,47 @@ import { EditBookingModal } from "./edit-booking-modal";
 import { ViewBookingModal } from "./view-booking-modal";
 
 export function BookingRequestsList() {
+	const BOOKINGS_PER_PAGE = 10;
+	const today = useMemo(() => {
+		const date = new Date();
+		date.setHours(0, 0, 0, 0);
+		return date;
+	}, []);
+
 	const userProfile = useAuthStore((state) => state.userProfile);
 	const userId = userProfile?.id ?? null;
 	const userRole = userProfile?.role.name;
 	const canApprove = userRole ? isAdminBookingRole(userRole) : false;
 
 	const { data, isLoading } = usePendingRoomBookings(true);
+	const [roomFilter, setRoomFilter] = useState<string>("all");
+	const [meetingTypeFilter, setMeetingTypeFilter] = useState<string>("all");
+	const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
 
 	const bookings = useMemo((): CalendarBooking[] => {
 		if (!data?.bookings) return [];
-		const mapped = mapApiBookings(data.bookings).filter(
+		let mapped = mapApiBookings(data.bookings).filter(
 			(booking) => !(booking.isPast && booking.status === "pending"),
 		);
+
+		if (roomFilter !== "all") {
+			mapped = mapped.filter((booking) => booking.roomKey === roomFilter);
+		}
+
+		if (meetingTypeFilter !== "all") {
+			mapped = mapped.filter(
+				(booking) => booking.meetingType === meetingTypeFilter,
+			);
+		}
+
+		if (dateFilter) {
+			mapped = mapped.filter(
+				(booking) =>
+					booking.date.getFullYear() === dateFilter.getFullYear() &&
+					booking.date.getMonth() === dateFilter.getMonth() &&
+					booking.date.getDate() === dateFilter.getDate(),
+			);
+		}
 
 		mapped.sort((a, b) => {
 			const aIsDone = a.isPast && a.status === "confirmed";
@@ -66,7 +115,13 @@ export function BookingRequestsList() {
 		});
 
 		return mapped;
-	}, [data]);
+	}, [data, roomFilter, meetingTypeFilter, dateFilter]);
+
+	const { currentPage, setCurrentPage, paginatedItems, pagination } =
+		usePagination({
+			items: bookings,
+			itemsPerPage: BOOKINGS_PER_PAGE,
+		});
 
 	// Modal states
 	const [viewingBooking, setViewingBooking] = useState<CalendarBooking | null>(
@@ -142,30 +197,122 @@ export function BookingRequestsList() {
 
 	return (
 		<>
+			<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+				<div className="flex flex-col sm:flex-row gap-2">
+					<Select value={roomFilter} onValueChange={setRoomFilter}>
+						<SelectTrigger className="w-full sm:w-56 h-9">
+							<SelectValue placeholder="Filter by room" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Rooms</SelectItem>
+							{CONFERENCE_ROOM_OPTIONS.map((room) => (
+								<SelectItem key={room.value} value={room.value}>
+									{room.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+
+					<Select
+						value={meetingTypeFilter}
+						onValueChange={setMeetingTypeFilter}
+					>
+						<SelectTrigger className="w-full sm:w-56 h-9">
+							<SelectValue placeholder="Filter by meeting type" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Meeting Types</SelectItem>
+							{MEETING_TYPE_OPTIONS.map((meetingType) => (
+								<SelectItem key={meetingType.value} value={meetingType.value}>
+									{meetingType.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+
+					<div className="flex items-center gap-2">
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button
+									variant="outline"
+									className={cn(
+										"w-full sm:w-56 h-9 justify-start text-left font-normal",
+										!dateFilter && "text-muted-foreground",
+									)}
+								>
+									<CalendarIcon className="mr-2 h-4 w-4" />
+									{dateFilter
+										? dateFilter.toLocaleDateString("en-US", {
+												month: "long",
+												day: "numeric",
+												year: "numeric",
+											})
+										: "Filter by date"}
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-auto p-0" align="start">
+								<Calendar
+									mode="single"
+									selected={dateFilter}
+									onSelect={setDateFilter}
+									disabled={(date) => date < today}
+									initialFocus
+								/>
+							</PopoverContent>
+						</Popover>
+
+						{dateFilter ? (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-9 w-9"
+								onClick={() => setDateFilter(undefined)}
+								title="Clear date filter"
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						) : null}
+					</div>
+				</div>
+
+				{pagination.totalPages > 1 && (
+					<div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
+						<PaginationControl
+							totalItems={bookings.length}
+							itemsPerPage={BOOKINGS_PER_PAGE}
+							currentPage={currentPage}
+							onPageChange={setCurrentPage}
+							showCount
+							className="mx-0"
+						/>
+					</div>
+				)}
+			</div>
+
 			<div className="rounded-xl border border-gray-200 bg-white shadow-sm p-3">
 				<div className="overflow-x-auto">
-					<Table>
+					<Table className="table-fixed min-w-260">
 						<TableHeader>
 							<TableRow className="hover:bg-transparent">
-								<TableHead className="h-8 text-xs font-semibold">
+								<TableHead className="h-8 text-xs font-semibold w-[30%]">
 									Booking Details
 								</TableHead>
-								<TableHead className="h-8 text-xs font-semibold">
+								<TableHead className="h-8 text-xs font-semibold w-[22%]">
 									Schedule
 								</TableHead>
-								<TableHead className="h-8 text-xs font-semibold">
+								<TableHead className="h-8 text-xs font-semibold w-[26%]">
 									Attachments
 								</TableHead>
-								<TableHead className="h-8 text-xs font-semibold">
+								<TableHead className="h-8 text-xs font-semibold w-[12%]">
 									Status
 								</TableHead>
-								<TableHead className="h-8 text-xs font-semibold text-right">
+								<TableHead className="h-8 text-xs font-semibold text-right w-[10%]">
 									Actions
 								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{bookings.map((booking) => {
+							{paginatedItems.map((booking) => {
 								const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
 								const meetingTypeDisplay =
 									booking.meetingType === "others" && booking.meetingTypeOthers
@@ -193,15 +340,20 @@ export function BookingRequestsList() {
 														{meetingTypeDisplay}
 													</p>
 												</div>
-												<div className="inline-flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-2 py-1 max-w-full">
-													<Users className="h-3.5 w-3.5 shrink-0 text-gray-500" />
-													<span
-														className="truncate"
-														title={`For: ${booking.requestedFor} • By: ${booking.bookedByName ?? "—"}`}
+												<div className="inline-flex items-start gap-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-2 py-1 max-w-full">
+													<Users className="h-3.5 w-3.5 shrink-0 text-gray-500 mt-0.5" />
+
+													<div
+														className="flex flex-col truncate"
+														title={`Booked For: ${booking.requestedFor}\nBooked By: ${booking.bookedByName ?? "—"}`}
 													>
-														For: {booking.requestedFor} • By:{" "}
-														{booking.bookedByName ?? "—"}
-													</span>
+														<span className="truncate">
+															Booked For: {booking.requestedFor}
+														</span>
+														<span className="truncate text-gray-500">
+															Booked By: {booking.bookedByName ?? "—"}
+														</span>
+													</div>
 												</div>
 											</div>
 										</TableCell>

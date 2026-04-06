@@ -100,6 +100,21 @@ export function DayView({
 		return "bg-blue-600 text-white";
 	}, [dragStartIndex, dragEndIndex, bookings, timeSlots]);
 
+	const shouldShowTimeIndicator = useMemo(() => {
+		if (timeLinePosition === null) {
+			return false;
+		}
+
+		const currentMinutes = now.getHours() * 60 + now.getMinutes();
+		const businessStartMinutes = 8 * 60;
+		const businessEndMinutes = 17 * 60;
+
+		return (
+			currentMinutes >= businessStartMinutes &&
+			currentMinutes <= businessEndMinutes
+		);
+	}, [timeLinePosition, now]);
+
 	return (
 		<div
 			className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm"
@@ -158,7 +173,7 @@ export function DayView({
 
 				<div className="relative my-12">
 					{/* Real-time Indicator Line */}
-					{timeLinePosition !== null && (
+					{shouldShowTimeIndicator && (
 						<div
 							className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
 							style={{ top: `${timeLinePosition}%` }}

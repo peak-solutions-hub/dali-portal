@@ -410,7 +410,10 @@ export function BookingFormFields({
 							)}
 						</Button>
 					</PopoverTrigger>
-					<PopoverContent className="w-auto p-0" align="start">
+					<PopoverContent
+						className="w-auto max-h-[calc(100dvh-3rem)] overflow-y-auto p-0"
+						align="start"
+					>
 						<Calendar
 							mode="single"
 							selected={values.date}

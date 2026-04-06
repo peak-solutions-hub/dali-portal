@@ -2,6 +2,7 @@
 
 import { CONFERENCE_ROOM_LABELS, formatFullDate } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { PaginationControl } from "@repo/ui/components/pagination-control";
 import {
 	Table,
 	TableBody,
@@ -10,6 +11,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
+import { usePagination } from "@repo/ui/hooks/use-pagination";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
 	CalendarClock,
@@ -23,7 +25,7 @@ import {
 	Trash2,
 	Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMyBookings } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
 import {
@@ -38,14 +40,47 @@ import { EditBookingModal } from "./edit-booking-modal";
 import { ViewBookingModal } from "./view-booking-modal";
 
 export function MyBookingsList() {
+	const BOOKINGS_PER_PAGE = 10;
+
 	const userProfile = useAuthStore((state) => state.userProfile);
 	const userId = userProfile?.id ?? null;
+	const userRole = userProfile?.role.name;
+	const isCouncilor = userRole === "councilor";
 
 	const { data, isLoading } = useMyBookings(userId);
 
 	const [statusFilter, setStatusFilter] = useState<
 		"all" | "pending" | "confirmed" | "done" | "expired"
 	>("all");
+
+	const availableStatusFilters = useMemo(
+		() =>
+			isCouncilor
+				? (["all", "pending", "confirmed", "done", "expired"] as const)
+				: (["all", "confirmed", "done"] as const),
+		[isCouncilor],
+	);
+
+	const statusFilterLabels: Record<
+		"all" | "pending" | "confirmed" | "done" | "expired",
+		string
+	> = {
+		all: "All",
+		pending: "Pending",
+		confirmed: "Approved",
+		done: "Completed",
+		expired: "Expired",
+	};
+
+	useEffect(() => {
+		const isStatusAllowed = availableStatusFilters.some(
+			(availableStatus) => availableStatus === statusFilter,
+		);
+
+		if (!isStatusAllowed) {
+			setStatusFilter(availableStatusFilters[0]);
+		}
+	}, [availableStatusFilters, statusFilter]);
 
 	const bookings = useMemo((): CalendarBooking[] => {
 		if (!data?.bookings) return [];
@@ -73,6 +108,12 @@ export function MyBookingsList() {
 
 		return mapped;
 	}, [data, statusFilter]);
+
+	const { currentPage, setCurrentPage, paginatedItems, pagination } =
+		usePagination({
+			items: bookings,
+			itemsPerPage: BOOKINGS_PER_PAGE,
+		});
 
 	// Modal states
 	const [viewingBooking, setViewingBooking] = useState<CalendarBooking | null>(
@@ -123,63 +164,41 @@ export function MyBookingsList() {
 
 	return (
 		<>
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-				<div className="flex bg-gray-100/80 p-1 rounded-lg w-max shrink-0 border border-gray-200/60 shadow-inner">
-					<button
-						type="button"
-						onClick={() => setStatusFilter("all")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "all"
-								? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						All
-					</button>
-					<button
-						type="button"
-						onClick={() => setStatusFilter("pending")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "pending"
-								? "bg-white text-yellow-700 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						Pending
-					</button>
-					<button
-						type="button"
-						onClick={() => setStatusFilter("confirmed")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "confirmed"
-								? "bg-white text-green-700 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						Confirmed
-					</button>
-					<button
-						type="button"
-						onClick={() => setStatusFilter("done")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "done"
-								? "bg-white text-gray-700 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						Done
-					</button>
-					<button
-						type="button"
-						onClick={() => setStatusFilter("expired")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "expired"
-								? "bg-white text-red-600 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						Expired
-					</button>
+			<div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm mb-4">
+				<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+					<div className="flex bg-gray-100/80 p-1 rounded-lg w-max shrink-0 border border-gray-200/60 shadow-inner">
+						{availableStatusFilters.map((status) => (
+							<button
+								key={status}
+								type="button"
+								onClick={() => setStatusFilter(status)}
+								className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+									statusFilter === status
+										? status === "pending"
+											? "bg-white text-yellow-700 shadow-sm ring-1 ring-gray-200"
+											: status === "confirmed"
+												? "bg-white text-green-700 shadow-sm ring-1 ring-gray-200"
+												: status === "expired"
+													? "bg-white text-red-600 shadow-sm ring-1 ring-gray-200"
+													: "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200"
+										: "text-gray-500 hover:text-gray-700"
+								}`}
+							>
+								{statusFilterLabels[status]}
+							</button>
+						))}
+					</div>
+
+					{pagination.totalPages > 1 && (
+						<PaginationControl
+							totalItems={bookings.length}
+							itemsPerPage={BOOKINGS_PER_PAGE}
+							currentPage={currentPage}
+							onPageChange={setCurrentPage}
+							showCount
+							className="mx-0"
+						/>
+					)}
 				</div>
 			</div>
 
@@ -196,28 +215,28 @@ export function MyBookingsList() {
 			) : (
 				<div className="rounded-xl border border-gray-200 bg-white shadow-sm p-3">
 					<div className="overflow-x-auto">
-						<Table>
+						<Table className="table-fixed min-w-245">
 							<TableHeader>
 								<TableRow className="hover:bg-transparent">
-									<TableHead className="h-8 text-xs font-semibold">
+									<TableHead className="h-8 text-xs font-semibold w-[30%]">
 										Booking Details
 									</TableHead>
-									<TableHead className="h-8 text-xs font-semibold">
+									<TableHead className="h-8 text-xs font-semibold w-[22%]">
 										Schedule
 									</TableHead>
-									<TableHead className="h-8 text-xs font-semibold">
+									<TableHead className="h-8 text-xs font-semibold w-[26%]">
 										Attachments
 									</TableHead>
-									<TableHead className="h-8 text-xs font-semibold">
+									<TableHead className="h-8 text-xs font-semibold w-[12%]">
 										Status
 									</TableHead>
-									<TableHead className="h-8 text-xs font-semibold text-right">
+									<TableHead className="h-8 text-xs font-semibold text-right w-[10%]">
 										Actions
 									</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{bookings.map((booking) => {
+								{paginatedItems.map((booking) => {
 									const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
 									const meetingTypeDisplay =
 										booking.meetingType === "others" &&
@@ -250,9 +269,9 @@ export function MyBookingsList() {
 														<Users className="h-3.5 w-3.5 shrink-0 text-gray-500" />
 														<span
 															className="truncate"
-															title={`Requested for: ${booking.requestedFor}`}
+															title={`Booked For: ${booking.requestedFor}`}
 														>
-															Requested for: {booking.requestedFor}
+															Booked For: {booking.requestedFor}
 														</span>
 													</div>
 												</div>

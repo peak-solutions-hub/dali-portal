@@ -1,6 +1,7 @@
 "use client";
 
 import { isAdminBookingRole } from "@repo/shared";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useMonthBookings, useRoomBookings } from "@/hooks/room-booking";
@@ -31,6 +32,7 @@ export function RoomBookingCalendar({
 	const [currentDate, setCurrentDate] = useState(today);
 	const [selectedDate, setSelectedDate] = useState(today);
 	const [viewMode, setViewMode] = useState<"day" | "month">("day");
+	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 	const [now, setNow] = useState(new Date());
 	const userProfile = useAuthStore((state) => state.userProfile);
 	const userId = userProfile?.id ?? null;
@@ -208,34 +210,55 @@ export function RoomBookingCalendar({
 		(viewingBooking.bookedBy === userId || canApprove);
 
 	return (
-		<div className="flex gap-6 p-3 h-screen max-h-screen overflow-hidden bg-gray-50">
+		<div className="flex-1 h-full min-h-0 flex gap-6 p-3 overflow-hidden bg-gray-50">
 			{viewMode === "day" ? (
 				<>
-					<CalendarSidebar
-						currentDate={currentDate}
-						selectedDate={selectedDate}
-						today={today}
-						bookings={bookingsForSelectedDate}
-						onPrevMonth={handlePrevMonth}
-						onNextMonth={handleNextMonth}
-						onDateClick={handleDateClick}
-						onViewBooking={handleViewBooking}
-					/>
-					<DayView
-						selectedDate={selectedDate}
-						today={today}
-						now={now}
-						canCreateBookings={!isPastSelectedDate}
-						bookings={bookingsForSelectedDate}
-						isLoading={isBookingsLoading}
-						timeLinePosition={timeLinePosition}
-						onPrevDay={() => adjustDay(-1)}
-						onNextDay={() => adjustDay(1)}
-						onToday={handleToday}
-						onSwitchToMonth={() => setViewMode("month")}
-						onSelectTimeRange={handleSelectTimeRange}
-						onViewBooking={handleViewBooking}
-					/>
+					{!isSidebarCollapsed && (
+						<CalendarSidebar
+							currentDate={currentDate}
+							selectedDate={selectedDate}
+							today={today}
+							bookings={bookingsForSelectedDate}
+							onPrevMonth={handlePrevMonth}
+							onNextMonth={handleNextMonth}
+							onDateClick={handleDateClick}
+							onViewBooking={handleViewBooking}
+						/>
+					)}
+					<div className="relative flex-1 min-h-0">
+						<button
+							type="button"
+							onClick={() => setIsSidebarCollapsed((previous) => !previous)}
+							className="absolute left-0 top-4 z-30 -translate-x-1/2 rounded-full border border-gray-200 bg-white p-1.5 shadow-sm hover:bg-gray-50"
+							title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+							aria-label={
+								isSidebarCollapsed
+									? "Expand calendar sidebar"
+									: "Collapse calendar sidebar"
+							}
+						>
+							{isSidebarCollapsed ? (
+								<ChevronRight className="w-4 h-4 text-gray-600" />
+							) : (
+								<ChevronLeft className="w-4 h-4 text-gray-600" />
+							)}
+						</button>
+						<DayView
+							selectedDate={selectedDate}
+							today={today}
+							now={now}
+							canCreateBookings={!isPastSelectedDate}
+							bookings={bookingsForSelectedDate}
+							isLoading={isBookingsLoading}
+							timeLinePosition={timeLinePosition}
+							onPrevDay={() => adjustDay(-1)}
+							onNextDay={() => adjustDay(1)}
+							onToday={handleToday}
+							onSwitchToMonth={() => setViewMode("month")}
+							onSelectTimeRange={handleSelectTimeRange}
+							onViewBooking={handleViewBooking}
+						/>
+					</div>
 				</>
 			) : (
 				<MonthView

@@ -115,12 +115,21 @@ export function ViewBookingModal({
 						</div>
 					</div>
 
-					{/* Requested For */}
+					{/* Booking Participants */}
 					<div>
 						<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-							Requested For
+							Booked For
 						</p>
 						<p className="text-sm text-gray-900">{booking.requestedFor}</p>
+					</div>
+
+					<div>
+						<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+							Booked By
+						</p>
+						<p className="text-sm text-gray-900">
+							{booking.bookedByName ?? "—"}
+						</p>
 					</div>
 
 					<div>
