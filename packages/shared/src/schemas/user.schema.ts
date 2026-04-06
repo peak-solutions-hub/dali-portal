@@ -27,11 +27,25 @@ export const UserWithRoleSchema = UserSchema.extend({
 	}),
 });
 
+export const AssignableUserSchema = z.object({
+	id: z.uuid(),
+	fullName: z
+		.string()
+		.min(5, "Name must be at least 5 characters")
+		.max(TEXT_LIMITS.XS, `Name must not exceed ${TEXT_LIMITS.XS} characters`),
+	role: RoleTypeSchema,
+});
+
 // Input schemas for operations
 export const GetUserListSchema = z.object({
 	roleType: RoleTypeSchema.optional(),
 	status: z.enum(USER_STATUS_VALUES).optional(),
 	search: z.string().optional(),
+});
+
+export const GetAssignableUsersSchema = z.object({
+	search: z.string().optional(),
+	roles: z.array(RoleTypeSchema).optional(),
 });
 
 export const GetUserByIdSchema = z.object({
@@ -88,6 +102,10 @@ export const UserListResponseSchema = z.object({
 	users: z.array(UserWithRoleSchema),
 });
 
+export const AssignableUserListResponseSchema = z.object({
+	users: z.array(AssignableUserSchema),
+});
+
 export const InviteUserResponseSchema = z.object({
 	success: z.boolean(),
 	message: z.string(),
@@ -97,13 +115,18 @@ export const InviteUserResponseSchema = z.object({
 // Types
 export type User = z.infer<typeof UserSchema>;
 export type UserWithRole = z.infer<typeof UserWithRoleSchema>;
+export type AssignableUserResponse = z.infer<typeof AssignableUserSchema>;
 export type GetUserListInput = z.infer<typeof GetUserListSchema>;
+export type GetAssignableUsersInput = z.infer<typeof GetAssignableUsersSchema>;
 export type GetUserByIdInput = z.infer<typeof GetUserByIdSchema>;
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 export type DeleteUserInput = z.infer<typeof DeleteUserSchema>;
 export type ActivateUserInput = z.infer<typeof ActivateUserSchema>;
 export type InviteUserInput = z.infer<typeof InviteUserSchema>;
 export type UserListResponse = z.infer<typeof UserListResponseSchema>;
+export type AssignableUserListResponse = z.infer<
+	typeof AssignableUserListResponseSchema
+>;
 export type InviteUserResponse = z.infer<typeof InviteUserResponseSchema>;
 export type CheckEmailStatusInput = z.infer<typeof CheckEmailStatusSchema>;
 export type CheckEmailStatusResponse = z.infer<
