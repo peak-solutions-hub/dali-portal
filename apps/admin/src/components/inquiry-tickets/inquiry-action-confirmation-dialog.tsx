@@ -49,7 +49,7 @@ const ACTION_CONFIG = {
 	assign_to: {
 		title: "Assign Ticket",
 		description:
-			"This will assign the inquiry ticket to the selected staff member and mark it as 'Open'.",
+			"This will assign the inquiry ticket to the selected staff member.",
 		icon: UserPlus,
 		iconColor: "text-blue-600",
 		confirmButtonText: "Assign",
@@ -121,7 +121,8 @@ const ACTION_CONFIG = {
 	},
 	confirm_assignment: {
 		title: "Confirm Assignment",
-		description: "Confirm that you will take ownership of this inquiry.",
+		description:
+			"Confirm that you will take ownership of this inquiry and mark it as 'Open'.",
 		icon: UserCheck,
 		iconColor: "text-green-600",
 		confirmButtonText: "Confirm",
@@ -170,7 +171,7 @@ export function InquiryActionConfirmationDialog({
 
 	const description =
 		actionType === "assign_to" && targetName
-			? `This will assign the inquiry ticket to ${targetName} and mark it as 'Open'.`
+			? `This will assign the inquiry ticket to ${targetName}.`
 			: actionType === "reassign_to" && targetName
 				? `This will request reassignment to ${targetName}. The current assignee must approve before it takes effect.`
 				: reviewDescription;
@@ -239,19 +240,15 @@ export function InquiryActionConfirmationDialog({
 					</div>
 				)}
 
-				{!config.requiresRemarks && actionType !== "reassign_to" && (
+				{isReview && (
 					<div className="flex items-start gap-2 p-3 bg-muted/50 rounded-md border">
 						<AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
 						<p className="text-sm text-muted-foreground">
-							{isReview ? (
-								<>
-									Approve: Transfer this inquiry to the requested assignee.
-									<br />
-									Reject: Keep this inquiry assigned to you.
-								</>
-							) : (
-								description
-							)}
+							<>
+								Approve: Transfer this inquiry to the requested assignee.
+								<br />
+								Reject: Keep this inquiry assigned to you.
+							</>
 						</p>
 					</div>
 				)}

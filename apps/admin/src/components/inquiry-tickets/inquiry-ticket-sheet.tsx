@@ -307,10 +307,13 @@ export function InquiryTicketSheet({
 		isAssigneeEligible &&
 		!ticket?.assignedTo &&
 		!ticket?.assignmentRequestedBy;
-	const canConfirmAssignment =
-		!!isAssignedToCurrent && isAssignmentPending && !isClosed;
 	const hasPendingReassignment =
 		!!isAssignedToCurrent && !!ticket?.pendingReassignmentTo;
+	const canConfirmAssignment =
+		!!isAssignedToCurrent &&
+		isAssignmentPending &&
+		!hasPendingReassignment &&
+		!isClosed;
 	const canReviewReassignment = hasPendingReassignment && !isClosed;
 	const assignmentRequesterName = ticket?.assignmentRequestedBy
 		? (staffList.find((user) => user.id === ticket.assignmentRequestedBy)
@@ -345,6 +348,7 @@ export function InquiryTicketSheet({
 			const isReassigningConfirmed =
 				!!ticket?.assignedTo &&
 				ticket.assignedTo !== userId &&
+				ticket.assignedTo !== userProfile?.id &&
 				ticket.assignmentStatus === "confirmed";
 			setConfirmationDialog({
 				isOpen: true,

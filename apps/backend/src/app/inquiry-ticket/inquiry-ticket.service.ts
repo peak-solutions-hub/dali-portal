@@ -501,6 +501,14 @@ export class InquiryTicketService {
 	): Promise<InquiryTicketResponse> {
 		const ticket = await this.db.inquiryTicket.findFirst({
 			where: { id },
+			include: {
+				user: {
+					select: {
+						id: true,
+						fullName: true,
+					},
+				},
+			},
 		});
 
 		if (!ticket) {
@@ -511,6 +519,17 @@ export class InquiryTicketService {
 			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
 		}
 
+		// No-op guard: re-selecting the current assignee should never mutate
+		// assignment flow state (including pending reassignment requests).
+		if (assignedTo === ticket.assignedTo) {
+			return {
+				...ticket,
+				createdAt: ticket.createdAt.toISOString(),
+			};
+		}
+
+		let targetAssignmentStatus: "pending" | "confirmed" = "pending";
+
 		// Validate target user exists and is active before assigning
 		if (assignedTo !== null) {
 			const targetUser = await this.db.user.findFirst({
@@ -519,18 +538,31 @@ export class InquiryTicketService {
 					status: "active",
 					role: { name: { in: INQUIRY_ASSIGNABLE_ROLES } },
 				},
+				select: {
+					role: {
+						select: {
+							name: true,
+						},
+					},
+				},
 			});
 
 			if (!targetUser) {
 				throw new AppError("GENERAL.BAD_REQUEST");
 			}
+
+			targetAssignmentStatus = this.isAssigner(targetUser.role.name)
+				? "confirmed"
+				: "pending";
 		}
 
-		// Reassignment flow: if current assignment is confirmed, require approval
+		// Reassignment flow: if someone else currently owns a confirmed assignment,
+		// require their approval before transferring ownership.
 		if (
 			assignedTo !== null &&
 			ticket.assignedTo &&
 			ticket.assignedTo !== assignedTo &&
+			ticket.assignedTo !== assigner.id &&
 			ticket.assignmentStatus === "confirmed"
 		) {
 			const updated = await this.db.inquiryTicket.update({
@@ -559,11 +591,12 @@ export class InquiryTicketService {
 			where: { id },
 			data: {
 				assignedTo,
-				assignmentStatus: assignedTo ? "pending" : "confirmed",
+				assignmentStatus: assignedTo ? targetAssignmentStatus : "confirmed",
 				assignmentRequestedBy: null,
 				pendingReassignmentTo: null,
-				// Auto-transition from 'new' to 'open' when assigned to someone
+				// Auto-transition from 'new' to 'open' only when assignment is confirmed
 				...(assignedTo !== null &&
+					targetAssignmentStatus === "confirmed" &&
 					ticket.status === "new" && { status: "open" }),
 			},
 			include: {
@@ -656,6 +689,7 @@ export class InquiryTicketService {
 				assignmentStatus: "confirmed",
 				pendingReassignmentTo: null,
 				assignmentRequestedBy: null,
+				...(ticket.status === "new" && { status: "open" }),
 			},
 			include: {
 				user: {
@@ -693,14 +727,38 @@ export class InquiryTicketService {
 			throw new AppError("GENERAL.BAD_REQUEST");
 		}
 
+		const nextAssignee = await this.db.user.findFirst({
+			where: {
+				id: ticket.pendingReassignmentTo,
+				status: "active",
+				role: { name: { in: INQUIRY_ASSIGNABLE_ROLES } },
+			},
+			select: {
+				role: {
+					select: {
+						name: true,
+					},
+				},
+			},
+		});
+
+		if (!nextAssignee) {
+			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		const nextAssignmentStatus = this.isAssigner(nextAssignee.role.name)
+			? "confirmed"
+			: "pending";
+
 		const updated = await this.db.inquiryTicket.update({
 			where: { id: ticketId },
 			data: {
 				assignedTo: ticket.pendingReassignmentTo,
-				assignmentStatus: "pending",
+				assignmentStatus: nextAssignmentStatus,
 				pendingReassignmentTo: null,
 				assignmentRequestedBy: null,
-				...(ticket.status === "new" && { status: "open" }),
+				...(nextAssignmentStatus === "confirmed" &&
+					ticket.status === "new" && { status: "open" }),
 			},
 			include: {
 				user: {
@@ -777,7 +835,7 @@ export class InquiryTicketService {
 			where: { id: ticketId },
 			data: {
 				assignedTo: userId,
-				assignmentStatus: "pending",
+				assignmentStatus: "confirmed",
 				pendingReassignmentTo: null,
 				assignmentRequestedBy: null,
 				// Auto-transition from 'new' to 'open' when assigned
