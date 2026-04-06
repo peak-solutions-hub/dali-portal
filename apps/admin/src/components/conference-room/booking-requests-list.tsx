@@ -294,13 +294,13 @@ export function BookingRequestsList() {
 					<Table className="table-fixed min-w-260">
 						<TableHeader>
 							<TableRow className="hover:bg-transparent">
-								<TableHead className="h-8 text-xs font-semibold w-[30%]">
+								<TableHead className="h-8 text-xs font-semibold w-[24%]">
 									Booking Details
 								</TableHead>
 								<TableHead className="h-8 text-xs font-semibold w-[22%]">
 									Schedule
 								</TableHead>
-								<TableHead className="h-8 text-xs font-semibold w-[26%]">
+								<TableHead className="h-8 text-xs font-semibold w-[32%]">
 									Attachments
 								</TableHead>
 								<TableHead className="h-8 text-xs font-semibold w-[12%]">
@@ -324,7 +324,7 @@ export function BookingRequestsList() {
 										key={booking.id}
 										className="hover:bg-gray-50/70 transition-colors"
 									>
-										<TableCell className="max-w-72 align-top py-4">
+										<TableCell className="max-w-60 align-top py-4">
 											<div className="flex flex-col gap-2">
 												<div>
 													<p
@@ -382,15 +382,15 @@ export function BookingRequestsList() {
 												<div className="flex flex-col items-start gap-1.5">
 													{booking.attachments.map((attachment) => {
 														const attachmentContent = (
-															<span className="flex items-start gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 w-full max-w-64">
+															<span className="flex items-start gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 w-full max-w-80">
 																<Paperclip className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-500" />
 																<span className="min-w-0">
-																	<span className="truncate block text-xs font-medium text-gray-700 max-w-52">
+																	<span className="truncate block text-xs font-medium text-gray-700 max-w-72">
 																		{attachment.fileName}
 																	</span>
 																	{attachment.reason ? (
 																		<span
-																			className="text-[10px] text-gray-500 block truncate max-w-52"
+																			className="text-[10px] text-gray-500 block truncate max-w-72"
 																			title={attachment.reason}
 																		>
 																			Reason: {attachment.reason}
@@ -404,7 +404,7 @@ export function BookingRequestsList() {
 															return (
 																<span
 																	key={attachment.path}
-																	className="text-xs text-gray-400 w-full max-w-64"
+																	className="text-xs text-gray-400 w-full max-w-80"
 																	title={attachment.fileName}
 																>
 																	{attachmentContent}
@@ -418,7 +418,7 @@ export function BookingRequestsList() {
 																href={attachment.url}
 																target="_blank"
 																rel="noopener noreferrer"
-																className="text-xs text-blue-700 hover:text-blue-800 w-full max-w-64"
+																className="text-xs text-blue-700 hover:text-blue-800 w-full max-w-80"
 																title={attachment.fileName}
 															>
 																<span className="relative">

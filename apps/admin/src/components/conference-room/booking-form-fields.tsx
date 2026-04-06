@@ -35,6 +35,7 @@ import {
 	X,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 
 export interface BookingAttachmentDraft {
 	file: File;
@@ -57,6 +58,26 @@ function isAttachmentLimitMessage(message: string | null): boolean {
 		normalized.includes("upload up to") ||
 		normalized.includes("too many files")
 	);
+}
+
+function isTooManyFilesOnlyError(file: {
+	errors?: Array<{ code?: string; message?: string }>;
+}): boolean {
+	if (!file.errors || file.errors.length === 0) {
+		return false;
+	}
+
+	return file.errors.every((error) => {
+		const code = error.code?.toLowerCase() ?? "";
+		const message = error.message?.toLowerCase() ?? "";
+
+		return (
+			code === "too-many-files" ||
+			message.includes("too many files") ||
+			message.includes("upload up to") ||
+			message.includes("maximum")
+		);
+	});
 }
 
 export interface BookingFormValues {
@@ -136,6 +157,7 @@ export function BookingFormFields({
 	const titleErrorRef = useRef<HTMLDivElement | null>(null);
 	const requestedForErrorRef = useRef<HTMLDivElement | null>(null);
 	const fileErrorRef = useRef<HTMLDivElement | null>(null);
+	const lastAttachmentToastRef = useRef<string | null>(null);
 
 	const { files, setFiles, getRootProps, getInputProps, isDragActive } =
 		useSupabaseUpload({
@@ -165,7 +187,17 @@ export function BookingFormFields({
 			onFileError(
 				`Maximum of ${maxFiles} attachments reached. Remove at least one existing attachment to add new files.`,
 			);
+			if (lastAttachmentToastRef.current !== "max-reached") {
+				toast.error(
+					`Maximum of ${maxFiles} attachments reached. Remove one existing attachment before adding a new file.`,
+				);
+				lastAttachmentToastRef.current = "max-reached";
+			}
 			return;
+		}
+
+		if (lastAttachmentToastRef.current === "max-reached") {
+			lastAttachmentToastRef.current = null;
 		}
 
 		if (fileError && isAttachmentLimitMessage(fileError)) {
@@ -173,24 +205,70 @@ export function BookingFormFields({
 		}
 
 		const validFiles = files.filter((file) => file.errors.length === 0);
-		const firstInvalidFile = files.find((file) => file.errors.length > 0);
-		const acceptedFiles = validFiles.slice(0, remainingAttachmentSlots);
-		const exceedsRemainingSlots = validFiles.length > remainingAttachmentSlots;
+		const recoverableFiles = files.filter((file) =>
+			isTooManyFilesOnlyError(file),
+		);
+		const firstInvalidFile = files.find(
+			(file) => file.errors.length > 0 && !isTooManyFilesOnlyError(file),
+		);
+		const uniqueCandidateFiles = [...validFiles, ...recoverableFiles].filter(
+			(file, index, allFiles) =>
+				allFiles.findIndex(
+					(candidate) =>
+						getFileIdentity(candidate as File) ===
+						getFileIdentity(file as File),
+				) === index,
+		);
+		const hasDuplicateFiles =
+			uniqueCandidateFiles.length < validFiles.length + recoverableFiles.length;
+		const candidateFiles = uniqueCandidateFiles.slice(
+			0,
+			remainingAttachmentSlots,
+		);
+		const exceedsRemainingSlots =
+			uniqueCandidateFiles.length > remainingAttachmentSlots;
+
+		if (hasDuplicateFiles) {
+			onFileError(
+				"Duplicate files were ignored. Please attach each file only once.",
+			);
+			if (lastAttachmentToastRef.current !== "duplicate") {
+				toast.error(
+					"Duplicate files were ignored. Please upload unique files only.",
+				);
+				lastAttachmentToastRef.current = "duplicate";
+			}
+		}
 
 		if (exceedsRemainingSlots) {
-			setFiles(acceptedFiles);
+			setFiles(candidateFiles);
 			onFileError(`Maximum of ${maxFiles} attachments is allowed.`);
+			if (lastAttachmentToastRef.current !== "max") {
+				toast.error(`You can only upload up to ${maxFiles} files in total.`);
+				lastAttachmentToastRef.current = "max";
+			}
 			return;
 		}
 
-		if (acceptedFiles.length > 0) {
+		if (candidateFiles.length > 0) {
+			if (
+				files.length !== candidateFiles.length ||
+				files.some(
+					(existing, index) =>
+						getFileIdentity(existing as File) !==
+						getFileIdentity(candidateFiles[index] as File),
+				)
+			) {
+				setFiles(candidateFiles);
+			}
+
 			const reasonByIdentity = new Map(
 				values.attachments.map((attachment) => [
 					getFileIdentity(attachment.file),
 					attachment.reason,
 				]),
 			);
-			const nextAttachments: BookingAttachmentDraft[] = acceptedFiles.map(
+			const nextAttachments: BookingAttachmentDraft[] = candidateFiles.map(
 				(file) => ({
 					file: file as File,
 					reason: reasonByIdentity.get(getFileIdentity(file as File)) ?? "",
@@ -213,6 +291,7 @@ export function BookingFormFields({
 				onChange("attachments", nextAttachments);
 			}
 			onFileError(null);
+			lastAttachmentToastRef.current = null;
 			return;
 		}
 
@@ -225,6 +304,7 @@ export function BookingFormFields({
 			onChange("attachments", []);
 		}
 		onFileError(null);
+		lastAttachmentToastRef.current = null;
 	}, [
 		fileError,
 		files,

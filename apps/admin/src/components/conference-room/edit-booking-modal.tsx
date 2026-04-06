@@ -51,6 +51,20 @@ export function EditBookingModal({
 }: EditBookingModalProps) {
 	type BookingFieldErrors = Partial<Record<keyof BookingFormValues, string>>;
 
+	const isAttachmentLimitMessage = (message: string | null): boolean => {
+		if (!message) {
+			return false;
+		}
+
+		const normalized = message.toLowerCase();
+		return (
+			normalized.includes("maximum") ||
+			normalized.includes("attachments reached") ||
+			normalized.includes("upload up to") ||
+			normalized.includes("too many files")
+		);
+	};
+
 	const [values, setValues] = useState<BookingFormValues>({
 		room: "",
 		date: undefined,
@@ -111,14 +125,7 @@ export function EditBookingModal({
 					return prev;
 				}
 
-				const normalized = prev.toLowerCase();
-				const isLimitError =
-					normalized.includes("maximum") ||
-					normalized.includes("attachments reached") ||
-					normalized.includes("upload up to") ||
-					normalized.includes("too many files");
-
-				return isLimitError ? null : prev;
+				return isAttachmentLimitMessage(prev) ? null : prev;
 			});
 		}
 	};
@@ -265,7 +272,21 @@ export function EditBookingModal({
 		e.preventDefault();
 
 		if (fileError) {
-			return;
+			if (!booking || !isAttachmentLimitMessage(fileError)) {
+				return;
+			}
+
+			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+			const keptExistingCount = booking.attachments.filter(
+				(attachment) => !removedAttachmentPaths.includes(attachment.path),
+			).length;
+			const totalAttachments = keptExistingCount + values.attachments.length;
+
+			if (totalAttachments > maxAttachments) {
+				return;
+			}
+
+			setFileError(null);
 		}
 
 		const errors = validateForm();
@@ -318,8 +339,7 @@ export function EditBookingModal({
 
 	if (!isOpen || !booking) return null;
 
-	const isSubmitDisabled =
-		isUpdating || isUploadingAttachment || Boolean(fileError);
+	const isSubmitDisabled = isUpdating || isUploadingAttachment;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -359,6 +379,7 @@ export function EditBookingModal({
 								...prev,
 								[path]: reason,
 							}));
+							clearAttachmentLimitErrorsIfResolved(removedAttachmentPaths);
 						}}
 						removedExistingAttachmentPaths={removedAttachmentPaths}
 						onToggleExistingAttachmentRemoval={(path) => {
