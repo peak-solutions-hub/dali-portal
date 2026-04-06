@@ -64,7 +64,10 @@ export class InquiryTicketService {
 	}
 
 	private buildInquiryFilterWhere(
-		input: Pick<GetInquiryTicketListInput, "status" | "category"> & {
+		input: Pick<
+			GetInquiryTicketListInput,
+			"status" | "category" | "assignedToMe"
+		> & {
 			search?: string;
 		},
 		actor?: { id?: string; role?: RoleType },
@@ -84,6 +87,7 @@ export class InquiryTicketService {
 						],
 					}
 				: {}),
+			...(input.assignedToMe && actor?.id ? { assignedTo: actor.id } : {}),
 			...this.buildInquiryAccessWhere(actor),
 		};
 	}
@@ -264,12 +268,15 @@ export class InquiryTicketService {
 		input: GetInquiryTicketListInput,
 		actor: { id: string; role?: RoleType },
 	): Promise<InquiryTicketListResponse> {
-		const { status, category, limit, page } = input;
+		const { status, category, search, assignedToMe, limit, page } = input;
 
 		const skip = (page - 1) * limit;
 
 		// Build where clause
-		const where = this.buildInquiryFilterWhere({ status, category }, actor);
+		const where = this.buildInquiryFilterWhere(
+			{ status, category, search, assignedToMe },
+			actor,
+		);
 
 		// Get total count for pagination
 		const totalItems = await this.db.inquiryTicket.count({ where });

@@ -145,6 +145,8 @@ export const InquiryTicketListResponseSchema = z.object({
 export const GetInquiryTicketListSchema = z.object({
 	status: InquiryTicketStatusEnum.optional(),
 	category: InquiryTicketCategoryEnum.optional(),
+	search: z.string().trim().optional(),
+	assignedToMe: z.coerce.boolean().optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
 	page: z.coerce.number().int().min(1).default(1),
 });
