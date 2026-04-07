@@ -1,3 +1,8 @@
+import {
+	BUSINESS_HOUR_END_MINUTES,
+	BUSINESS_HOUR_START_MINUTES,
+} from "@repo/shared";
+
 export interface TimeSlot {
 	time: string;
 	hour: number;
@@ -8,9 +13,11 @@ export interface TimeSlot {
 
 export function generateTimeSlots(intervalMinutes: number = 15): TimeSlot[] {
 	const slots: TimeSlot[] = [];
+	const startHour = Math.floor(BUSINESS_HOUR_START_MINUTES / 60);
+	const endHour = Math.floor(BUSINESS_HOUR_END_MINUTES / 60);
 
 	// Restrict to 8 AM to 5 PM
-	for (let hour = 8; hour < 17; hour++) {
+	for (let hour = startHour; hour < endHour; hour++) {
 		for (let minute = 0; minute < 60; minute += intervalMinutes) {
 			const period = hour < 12 ? "AM" : "PM";
 			let displayHour = hour % 12;

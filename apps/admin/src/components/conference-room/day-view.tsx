@@ -1,6 +1,11 @@
 "use client";
 
-import { formatDayName, formatFullDate } from "@repo/shared";
+import {
+	BUSINESS_HOUR_END_MINUTES,
+	BUSINESS_HOUR_START_MINUTES,
+	formatDayName,
+	formatFullDate,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
@@ -106,12 +111,10 @@ export function DayView({
 		}
 
 		const currentMinutes = now.getHours() * 60 + now.getMinutes();
-		const businessStartMinutes = 8 * 60;
-		const businessEndMinutes = 17 * 60;
 
 		return (
-			currentMinutes >= businessStartMinutes &&
-			currentMinutes <= businessEndMinutes
+			currentMinutes >= BUSINESS_HOUR_START_MINUTES &&
+			currentMinutes <= BUSINESS_HOUR_END_MINUTES
 		);
 	}, [timeLinePosition, now]);
 

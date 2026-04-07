@@ -1,4 +1,6 @@
 import {
+	BUSINESS_HOUR_END_MINUTES,
+	BUSINESS_HOUR_START_MINUTES,
 	CONFERENCE_ROOM_LABELS,
 	type ConferenceRoom,
 	isSameDay,
@@ -321,14 +323,11 @@ export function getTimeLinePosition(
 	if (!isSameDay(selectedDate, today)) return null;
 	const totalMinutes = now.getHours() * 60 + now.getMinutes();
 
-	const START_MINUTES = 480; // 8:00 AM
-	const END_MINUTES = 1020; // 5:00 PM
+	if (totalMinutes < BUSINESS_HOUR_START_MINUTES) return 0;
+	if (totalMinutes > BUSINESS_HOUR_END_MINUTES) return 100;
 
-	if (totalMinutes < START_MINUTES) return 0;
-	if (totalMinutes > END_MINUTES) return 100;
-
-	const rangeMinutes = END_MINUTES - START_MINUTES;
-	const currentInRange = totalMinutes - START_MINUTES;
+	const rangeMinutes = BUSINESS_HOUR_END_MINUTES - BUSINESS_HOUR_START_MINUTES;
+	const currentInRange = totalMinutes - BUSINESS_HOUR_START_MINUTES;
 
 	return (currentInRange / rangeMinutes) * 100;
 }

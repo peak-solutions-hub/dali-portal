@@ -48,7 +48,12 @@ export const RoomBookingSchema = z.object({
 	endTime: z.date(),
 	requestedFor: z.string(),
 	room: ConferenceRoomEnum,
-	attachmentPaths: z.string().array(),
+	attachments: z
+		.object({
+			path: z.string(),
+			reason: z.string().nullable(),
+		})
+		.array(),
 	status: RoomBookingStatusEnum,
 	createdAt: z.date(),
 });

@@ -39,12 +39,6 @@ SELECT "id", "attachment_url"
 FROM "room_booking"
 WHERE "attachment_url" IS NOT NULL;
 
--- 5) Backfill existing booking times by +8h to align with intended PHT schedule
-UPDATE "room_booking"
-SET
-  "start_time" = "start_time" + INTERVAL '8 hours',
-  "end_time" = "end_time" + INTERVAL '8 hours';
-
--- 6) Remove legacy single-attachment column
+-- 5) Remove legacy single-attachment column
 ALTER TABLE "room_booking"
   DROP COLUMN "attachment_url";

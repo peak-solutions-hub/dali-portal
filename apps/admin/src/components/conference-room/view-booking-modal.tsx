@@ -151,35 +151,57 @@ export function ViewBookingModal({
 								Attachments
 							</p>
 							<div className="space-y-2">
-								{booking.attachments.map((attachment) => (
-									<a
-										key={attachment.path}
-										href={attachment.url ?? undefined}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
-										title={`View ${attachment.fileName}`}
-									>
-										<div className="p-2 rounded-lg bg-gray-100">
-											<FileText className="h-5 w-5 text-gray-600" />
-										</div>
-										<div className="flex flex-col min-w-0 flex-1">
-											<span className="text-sm font-medium text-gray-900 truncate">
-												{attachment.fileName}
-											</span>
-											{attachment.reason ? (
-												<span className="text-xs text-gray-500 truncate">
-													Reason: {attachment.reason}
+								{booking.attachments.map((attachment) => {
+									const content = (
+										<>
+											<div className="p-2 rounded-lg bg-gray-100">
+												<FileText className="h-5 w-5 text-gray-600" />
+											</div>
+											<div className="flex flex-col min-w-0 flex-1">
+												<span className="text-sm font-medium text-gray-900 truncate">
+													{attachment.fileName}
 												</span>
-											) : (
-												<span className="text-xs text-gray-500">
-													Click to view
-												</span>
-											)}
-										</div>
-										<ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
-									</a>
-								))}
+												{attachment.reason ? (
+													<span className="text-xs text-gray-500 truncate">
+														Reason: {attachment.reason}
+													</span>
+												) : (
+													<span className="text-xs text-gray-500">
+														{attachment.url ? "Click to view" : "Unavailable"}
+													</span>
+												)}
+											</div>
+											{attachment.url ? (
+												<ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
+											) : null}
+										</>
+									);
+
+									if (!attachment.url) {
+										return (
+											<div
+												key={attachment.path}
+												className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 opacity-80"
+												aria-disabled="true"
+											>
+												{content}
+											</div>
+										);
+									}
+
+									return (
+										<a
+											key={attachment.path}
+											href={attachment.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+											title={`View ${attachment.fileName}`}
+										>
+											{content}
+										</a>
+									);
+								})}
 							</div>
 						</div>
 					)}
