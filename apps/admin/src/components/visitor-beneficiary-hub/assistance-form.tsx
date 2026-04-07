@@ -1,5 +1,14 @@
 import { Button } from "@repo/ui/components/button";
 import { DialogFooter } from "@repo/ui/components/dialog";
+import {
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@repo/ui/components/form";
 import { Input } from "@repo/ui/components/input";
 import {
 	Select,
@@ -8,8 +17,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
+import { Phone } from "@repo/ui/lib/lucide-react";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import type { MainFormState } from "./beneficiary-form-config";
 import { DatePickerField } from "./date-picker-field";
 
@@ -38,6 +49,12 @@ export function AssistanceForm({
 	onSubmit,
 	onCancel,
 }: AssistanceFormProps) {
+	const contactForm = useForm<{ contactNumber: string }>({
+		mode: "onChange",
+		reValidateMode: "onChange",
+		defaultValues: { contactNumber: formState.contactNumber },
+	});
+
 	const REQUIRED_FIELDS: Array<keyof MainFormState> = [
 		"purpose",
 		"assistanceDate",
@@ -108,206 +125,238 @@ export function AssistanceForm({
 		onSubmit(event);
 	};
 
+	useEffect(() => {
+		contactForm.setValue("contactNumber", formState.contactNumber);
+	}, [contactForm, formState.contactNumber]);
+
+	const validatePhMobileInput = (value: string) => {
+		if (!value.trim()) {
+			return "Contact number is required.";
+		}
+
+		const normalized = value.replace(/[\s-]/g, "");
+		const isValidPartial =
+			/^0\d{0,10}$/.test(normalized) || /^\+\d{0,12}$/.test(normalized);
+
+		return (
+			isValidPartial ||
+			"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX)."
+		);
+	};
+
 	return (
-		<form onSubmit={handleFormSubmit} className="space-y-4">
-			{errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+		<Form {...contactForm}>
+			<form onSubmit={handleFormSubmit} className="space-y-4">
+				{errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
 
-			<div>
-				<label className="text-sm font-medium text-gray-700">
-					Assistance Type <span className="text-red-500">*</span>
-				</label>
-				<Select
-					value={formState.purpose}
-					onValueChange={(value) => updateField("purpose", value)}
-				>
-					<SelectTrigger
-						className={hasFieldError("purpose") ? "border-red-500" : undefined}
+				<div>
+					<label className="text-sm font-medium text-gray-700">
+						Assistance Type <span className="text-red-500">*</span>
+					</label>
+					<Select
+						value={formState.purpose}
+						onValueChange={(value) => updateField("purpose", value)}
 					>
-						<SelectValue placeholder="Select assistance type" />
-					</SelectTrigger>
-					<SelectContent>
-						{ASSISTANCE_TYPES.map((type) => (
-							<SelectItem key={type} value={type}>
-								{type}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				{getRequiredFieldMessage("purpose")}
-			</div>
-
-			<div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-				<p className="text-xs uppercase text-gray-500">NO. (Auto-assigned)</p>
-				<Input value={formState.seq} readOnly className="mt-2 bg-white" />
-			</div>
-
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<DatePickerField
-					label="Date *"
-					date={formState.assistanceDate}
-					onSelect={(date) => updateField("assistanceDate", date)}
-					error={hasFieldError("assistanceDate")}
-				/>
-				<div>
-					<label className="text-sm font-medium text-gray-700">
-						Name of Patient <span className="text-red-500">*</span>
-					</label>
-					<Input
-						className={
-							hasFieldError("firstName") ? "border-red-500" : undefined
-						}
-						value={formState.firstName}
-						onChange={(event) => updateField("firstName", event.target.value)}
-						placeholder="Enter patient name"
-						required
-					/>
-					{getRequiredFieldMessage("firstName")}
-				</div>
-				<div>
-					<label className="text-sm font-medium text-gray-700">
-						Name of Claimant <span className="text-red-500">*</span>
-					</label>
-					<Input
-						className={
-							hasFieldError("familyName") ? "border-red-500" : undefined
-						}
-						value={formState.familyName}
-						onChange={(event) => updateField("familyName", event.target.value)}
-						placeholder="Enter claimant name"
-						required
-					/>
-					{getRequiredFieldMessage("familyName")}
-				</div>
-				<div>
-					<label className="text-sm font-medium text-gray-700">
-						Address <span className="text-red-500">*</span>
-					</label>
-					<Input
-						className={
-							hasFieldError("streetBarangay") ? "border-red-500" : undefined
-						}
-						value={formState.streetBarangay}
-						onChange={(event) =>
-							updateField("streetBarangay", event.target.value)
-						}
-						placeholder="Enter address"
-						required
-					/>
-					{getRequiredFieldMessage("streetBarangay")}
-				</div>
-				<div>
-					<label className="text-sm font-medium text-gray-700">
-						Contact No. <span className="text-red-500">*</span>
-					</label>
-					<div
-						className={`flex items-center overflow-hidden rounded-md border bg-transparent shadow-xs ${
-							hasFieldError("contactNumber") ? "border-red-500" : "border-input"
-						}`}
-					>
-						<span className="border-r bg-muted px-3 py-2 text-sm text-muted-foreground">
-							+63
-						</span>
-						<Input
-							className="border-0 shadow-none focus-visible:ring-0"
-							type="tel"
-							value={formState.contactNumber}
-							onChange={(event) =>
-								updateField(
-									"contactNumber",
-									event.target.value.replace(/\D/g, "").slice(0, 10),
-								)
+						<SelectTrigger
+							className={
+								hasFieldError("purpose") ? "border-red-500" : undefined
 							}
-							placeholder="9XXXXXXXXX"
-							inputMode="numeric"
-							pattern="9[0-9]{9}"
-							maxLength={10}
-							autoComplete="tel-national"
-							title="Enter a valid Philippine mobile number (e.g., 9XXXXXXXXX)."
+						>
+							<SelectValue placeholder="Select assistance type" />
+						</SelectTrigger>
+						<SelectContent>
+							{ASSISTANCE_TYPES.map((type) => (
+								<SelectItem key={type} value={type}>
+									{type}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					{getRequiredFieldMessage("purpose")}
+				</div>
+
+				<div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+					<p className="text-xs uppercase text-gray-500">NO. (Auto-assigned)</p>
+					<Input value={formState.seq} readOnly className="mt-2 bg-white" />
+				</div>
+
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<DatePickerField
+						label="Date *"
+						date={formState.assistanceDate}
+						onSelect={(date) => updateField("assistanceDate", date)}
+						error={hasFieldError("assistanceDate")}
+					/>
+					<div>
+						<label className="text-sm font-medium text-gray-700">
+							Name of Patient <span className="text-red-500">*</span>
+						</label>
+						<Input
+							className={
+								hasFieldError("firstName") ? "border-red-500" : undefined
+							}
+							value={formState.firstName}
+							onChange={(event) => updateField("firstName", event.target.value)}
+							placeholder="Enter patient name"
 							required
 						/>
+						{getRequiredFieldMessage("firstName")}
 					</div>
-					{getRequiredFieldMessage("contactNumber")}
-				</div>
-				<div>
-					<label className="text-sm font-medium text-gray-700">
-						Assistance Needed <span className="text-red-500">*</span>
-					</label>
-					<Input
-						className={
-							hasFieldError("laboratoryType") ? "border-red-500" : undefined
-						}
-						value={formState.laboratoryType}
-						onChange={(event) =>
-							updateField("laboratoryType", event.target.value)
-						}
-						placeholder="Enter assistance needed"
-						required
+					<div>
+						<label className="text-sm font-medium text-gray-700">
+							Name of Claimant <span className="text-red-500">*</span>
+						</label>
+						<Input
+							className={
+								hasFieldError("familyName") ? "border-red-500" : undefined
+							}
+							value={formState.familyName}
+							onChange={(event) =>
+								updateField("familyName", event.target.value)
+							}
+							placeholder="Enter claimant name"
+							required
+						/>
+						{getRequiredFieldMessage("familyName")}
+					</div>
+					<div>
+						<label className="text-sm font-medium text-gray-700">
+							Address <span className="text-red-500">*</span>
+						</label>
+						<Input
+							className={
+								hasFieldError("streetBarangay") ? "border-red-500" : undefined
+							}
+							value={formState.streetBarangay}
+							onChange={(event) =>
+								updateField("streetBarangay", event.target.value)
+							}
+							placeholder="Enter address"
+							required
+						/>
+						{getRequiredFieldMessage("streetBarangay")}
+					</div>
+					<FormField
+						control={contactForm.control}
+						name="contactNumber"
+						rules={{ validate: validatePhMobileInput }}
+						render={({ field, fieldState }) => (
+							<FormItem>
+								<FormLabel className="text-gray-700 font-medium">
+									Contact No. <span className="text-red-500">*</span>
+								</FormLabel>
+								<FormControl>
+									<div className="relative group">
+										<Phone className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
+										<Input
+											{...field}
+											type="tel"
+											aria-invalid={
+												fieldState.invalid || hasFieldError("contactNumber")
+											}
+											className={`pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all ${
+												hasFieldError("contactNumber") ? "border-red-500" : ""
+											}`}
+											value={field.value ?? ""}
+											onChange={(event) => {
+												field.onChange(event.target.value);
+												updateField("contactNumber", event.target.value);
+											}}
+											placeholder="e.g. 09XX XXX XXXX"
+											title="Enter a valid Philippine mobile number (e.g., 09XXXXXXXXX or +639XXXXXXXXX)."
+											required
+										/>
+									</div>
+								</FormControl>
+								<FormDescription className="text-xs text-gray-500 mt-1.5 ml-1">
+									Philippine mobile number (e.g. 09XX or +639XX).
+								</FormDescription>
+								<FormMessage className="text-xs mt-1" />
+								{getRequiredFieldMessage("contactNumber")}
+							</FormItem>
+						)}
 					/>
-					{getRequiredFieldMessage("laboratoryType")}
-				</div>
-				<div>
-					<label className="text-sm font-medium text-gray-700">
-						Amount Needed <span className="text-red-500">*</span>
-					</label>
-					<Input
-						className={
-							hasFieldError("hospitalName") ? "border-red-500" : undefined
-						}
-						value={formState.hospitalName}
-						onChange={(event) =>
-							updateField("hospitalName", event.target.value)
-						}
-						placeholder="Enter amount needed"
-						required
+					<div>
+						<label className="text-sm font-medium text-gray-700">
+							Assistance Needed <span className="text-red-500">*</span>
+						</label>
+						<Input
+							className={
+								hasFieldError("laboratoryType") ? "border-red-500" : undefined
+							}
+							value={formState.laboratoryType}
+							onChange={(event) =>
+								updateField("laboratoryType", event.target.value)
+							}
+							placeholder="Enter assistance needed"
+							required
+						/>
+						{getRequiredFieldMessage("laboratoryType")}
+					</div>
+					<div>
+						<label className="text-sm font-medium text-gray-700">
+							Amount Needed <span className="text-red-500">*</span>
+						</label>
+						<Input
+							className={
+								hasFieldError("hospitalName") ? "border-red-500" : undefined
+							}
+							value={formState.hospitalName}
+							onChange={(event) =>
+								updateField("hospitalName", event.target.value)
+							}
+							placeholder="Enter amount needed"
+							required
+						/>
+						{getRequiredFieldMessage("hospitalName")}
+					</div>
+					<div>
+						<label className="text-sm font-medium text-gray-700">
+							Approved Amount <span className="text-red-500">*</span>
+						</label>
+						<Input
+							className={
+								hasFieldError("medicineName") ? "border-red-500" : undefined
+							}
+							value={formState.medicineName}
+							onChange={(event) =>
+								updateField("medicineName", event.target.value)
+							}
+							placeholder="Enter approved amount"
+							required
+						/>
+						{getRequiredFieldMessage("medicineName")}
+					</div>
+					<div>
+						<label className="text-sm font-medium text-gray-700">
+							Referred By <span className="text-red-500">*</span>
+						</label>
+						<Input
+							className={
+								hasFieldError("givenName") ? "border-red-500" : undefined
+							}
+							value={formState.givenName}
+							onChange={(event) => updateField("givenName", event.target.value)}
+							placeholder="Enter referrer name"
+							required
+						/>
+						{getRequiredFieldMessage("givenName")}
+					</div>
+					<DatePickerField
+						label="Endorsement Date *"
+						date={formState.endorsementDate}
+						onSelect={(date) => updateField("endorsementDate", date)}
+						error={hasFieldError("endorsementDate")}
 					/>
-					{getRequiredFieldMessage("hospitalName")}
 				</div>
-				<div>
-					<label className="text-sm font-medium text-gray-700">
-						Approved Amount <span className="text-red-500">*</span>
-					</label>
-					<Input
-						className={
-							hasFieldError("medicineName") ? "border-red-500" : undefined
-						}
-						value={formState.medicineName}
-						onChange={(event) =>
-							updateField("medicineName", event.target.value)
-						}
-						placeholder="Enter approved amount"
-						required
-					/>
-					{getRequiredFieldMessage("medicineName")}
-				</div>
-				<div>
-					<label className="text-sm font-medium text-gray-700">
-						Referred By <span className="text-red-500">*</span>
-					</label>
-					<Input
-						className={
-							hasFieldError("givenName") ? "border-red-500" : undefined
-						}
-						value={formState.givenName}
-						onChange={(event) => updateField("givenName", event.target.value)}
-						placeholder="Enter referrer name"
-						required
-					/>
-					{getRequiredFieldMessage("givenName")}
-				</div>
-				<DatePickerField
-					label="Endorsement Date *"
-					date={formState.endorsementDate}
-					onSelect={(date) => updateField("endorsementDate", date)}
-					error={hasFieldError("endorsementDate")}
-				/>
-			</div>
 
-			<DialogFooter>
-				<Button type="button" variant="ghost" onClick={onCancel}>
-					Cancel
-				</Button>
-				<Button type="submit">Submit</Button>
-			</DialogFooter>
-		</form>
+				<DialogFooter>
+					<Button type="button" variant="ghost" onClick={onCancel}>
+						Cancel
+					</Button>
+					<Button type="submit">Submit</Button>
+				</DialogFooter>
+			</form>
+		</Form>
 	);
 }
