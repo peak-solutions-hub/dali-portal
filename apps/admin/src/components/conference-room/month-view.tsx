@@ -1,6 +1,6 @@
 "use client";
 
-import { dayNames, getCalendarDays, isSameDay, monthNames } from "@repo/shared";
+import { dayNames, isSameDay, monthNames } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Popover,
@@ -8,9 +8,13 @@ import {
 	PopoverTrigger,
 } from "@repo/ui/components/popover";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
+import { BOOKING_CALENDAR_CHIP_CLASSES } from "@repo/ui/lib/conference-room-ui";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useState } from "react";
-import type { CalendarBooking } from "@/utils/booking-helpers";
+import {
+	type CalendarBooking,
+	getBookingDisplayStatus,
+} from "@/utils/booking-helpers";
 
 interface MonthViewProps {
 	currentDate: Date;
@@ -39,7 +43,45 @@ export function MonthView({
 	onDateNumberClick,
 	onViewBooking,
 }: MonthViewProps) {
-	const days = getCalendarDays(currentDate);
+	const currentYear = currentDate.getFullYear();
+	const currentMonth = currentDate.getMonth();
+	const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+	const startingDayOfWeek = firstDayOfMonth.getDay();
+	const daysInCurrentMonth = new Date(
+		currentYear,
+		currentMonth + 1,
+		0,
+	).getDate();
+	const daysInPreviousMonth = new Date(currentYear, currentMonth, 0).getDate();
+	const weekCount = Math.ceil((startingDayOfWeek + daysInCurrentMonth) / 7);
+	const totalCells = weekCount * 7;
+
+	const daySlots = Array.from({ length: totalCells }, (_, index) => {
+		if (index < startingDayOfWeek) {
+			const day = daysInPreviousMonth - startingDayOfWeek + index + 1;
+			return {
+				day,
+				isCurrentMonth: false,
+				date: new Date(currentYear, currentMonth - 1, day),
+			};
+		}
+
+		const currentMonthDay = index - startingDayOfWeek + 1;
+		if (currentMonthDay <= daysInCurrentMonth) {
+			return {
+				day: currentMonthDay,
+				isCurrentMonth: true,
+				date: new Date(currentYear, currentMonth, currentMonthDay),
+			};
+		}
+
+		const nextMonthDay = currentMonthDay - daysInCurrentMonth;
+		return {
+			day: nextMonthDay,
+			isCurrentMonth: false,
+			date: new Date(currentYear, currentMonth + 1, nextMonthDay),
+		};
+	});
 	const [expandedDate, setExpandedDate] = useState<Date | null>(null);
 
 	const handlePopoverClose = (e: React.MouseEvent) => {
@@ -48,7 +90,7 @@ export function MonthView({
 	};
 
 	return (
-		<div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col shadow-sm">
+		<div className="flex-1 h-full bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col shadow-sm">
 			{/* Header */}
 			<div className="shrink-0 flex items-center justify-between p-6 border-b border-gray-100 bg-white">
 				<div className="flex items-center gap-4">
@@ -77,7 +119,7 @@ export function MonthView({
 				</div>
 			</div>
 
-			<div className="flex-1 flex flex-col">
+			<div className="flex-1 flex flex-col rounded-b-xl min-h-0">
 				{/* Day name headers */}
 				<div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50">
 					{dayNames.map((dayName) => {
@@ -94,17 +136,18 @@ export function MonthView({
 				</div>
 
 				{/* Grid */}
-				<div className="flex-1 grid grid-cols-7 auto-rows-fr bg-gray-200 gap-px">
-					{days.map((day, index) => {
-						const dateAtSlot = day
-							? new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-							: null;
-						const isCurrentToday = dateAtSlot
-							? isSameDay(dateAtSlot, today)
-							: false;
+				<div
+					className="flex-1 min-h-0 h-full grid grid-cols-7 bg-gray-200 gap-px"
+					style={{ gridTemplateRows: `repeat(${weekCount}, minmax(0, 1fr))` }}
+				>
+					{daySlots.map((slot, index) => {
+						const dateAtSlot = slot.date;
+						const day = slot.day;
+						const isCurrentMonthDay = slot.isCurrentMonth;
+						const isCurrentToday = isSameDay(dateAtSlot, today);
 
 						// Filter bookings for this specific day
-						const dayBookings = dateAtSlot
+						const dayBookings = isCurrentMonthDay
 							? bookings.filter((b) => isSameDay(b.date, dateAtSlot))
 							: [];
 						const maxVisible = 2;
@@ -120,21 +163,29 @@ export function MonthView({
 							<div
 								key={index}
 								onClick={() => {
-									if (day) onDateClick(day);
+									if (isCurrentMonthDay) onDateClick(day);
 								}}
-								className={`bg-white p-2 min-h-30 flex flex-col transition-colors relative 
-									${day ? "hover:bg-gray-50 cursor-pointer" : "bg-gray-50/50"}`}
+								className={`p-2 min-h-36 flex flex-col overflow-hidden transition-colors relative 
+									${isCurrentMonthDay ? "bg-white hover:bg-gray-50 cursor-pointer" : "bg-gray-50/80"}`}
 							>
-								{day && dateAtSlot && (
+								{dateAtSlot && (
 									<>
-										<div className="flex justify-center mb-1">
+										<div className="flex justify-center mb-1 shrink-0">
 											<button
 												type="button"
 												className={`text-xs font-bold w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors 
-													${isCurrentToday ? "bg-blue-600 text-white shadow-md shadow-blue-100 hover:bg-blue-700" : "text-gray-700 hover:text-blue-600"}`}
+													${
+														isCurrentToday
+															? "bg-blue-600 text-white shadow-md shadow-blue-100 hover:bg-blue-700"
+															: isCurrentMonthDay
+																? "text-gray-700 hover:text-blue-600"
+																: "text-gray-400 hover:text-gray-500"
+													}`}
 												onClick={(e) => {
 													e.stopPropagation();
-													onDateNumberClick(day);
+													if (isCurrentMonthDay) {
+														onDateNumberClick(day);
+													}
 												}}
 											>
 												{day}
@@ -142,23 +193,25 @@ export function MonthView({
 										</div>
 
 										{/* Booking chips */}
-										<div className="space-y-1 mt-1">
+										<div className="space-y-1 mt-1 overflow-hidden">
 											{visibleBookings.map((booking) => {
-												const isDone =
-													booking.isPast && booking.status === "confirmed";
-												const isExpired =
-													booking.isPast && booking.status === "pending";
-												const isPending =
-													!booking.isPast && booking.status === "pending";
+												const meetingTypeDisplay =
+													booking.meetingType === "others" &&
+													booking.meetingTypeOthers
+														? `Others: ${booking.meetingTypeOthers}`
+														: booking.meetingTypeLabel;
+												const displayStatus = getBookingDisplayStatus(booking);
 
-												const containerBg = isDone
-													? "bg-gray-400 text-white border border-transparent"
-													: isExpired
-														? "bg-red-400 text-white border border-transparent"
-														: isPending
-															? "bg-[#f6bf26] text-white border border-transparent"
-															: CONFERENCE_ROOM_COLORS[booking.roomKey]?.chip ||
-																"bg-gray-200";
+												const containerBg =
+													displayStatus === "done"
+														? BOOKING_CALENDAR_CHIP_CLASSES.done
+														: displayStatus === "expired"
+															? BOOKING_CALENDAR_CHIP_CLASSES.expired
+															: displayStatus === "pending"
+																? BOOKING_CALENDAR_CHIP_CLASSES.pending
+																: CONFERENCE_ROOM_COLORS[booking.roomKey]
+																		?.chip ||
+																	BOOKING_CALENDAR_CHIP_CLASSES.default;
 
 												return (
 													<button
@@ -169,13 +222,13 @@ export function MonthView({
 															onViewBooking(booking);
 														}}
 														className={`w-full text-left text-[9px] px-1.5 py-0.5 rounded truncate hover:opacity-80 transition-opacity ${containerBg}`}
-														title={booking.purpose}
+														title={`${booking.purpose} • ${meetingTypeDisplay}`}
 													>
-														{booking.purpose}
+														{booking.purpose} • {meetingTypeDisplay}
 													</button>
 												);
 											})}
-											{overflowCount > 0 && (
+											{isCurrentMonthDay && overflowCount > 0 && (
 												<Popover
 													open={isExpanded}
 													onOpenChange={(isOpen) => {
@@ -219,26 +272,27 @@ export function MonthView({
 																<X className="w-4 h-4" />
 															</button>
 														</div>
-														<div className="p-2 space-y-1 max-h-62.5 overflow-y-auto">
+														<div className="p-2 space-y-1">
 															{dayBookings.map((booking) => {
-																const isDone =
-																	booking.isPast &&
-																	booking.status === "confirmed";
-																const isExpired =
-																	booking.isPast &&
-																	booking.status === "pending";
-																const isPending =
-																	!booking.isPast &&
-																	booking.status === "pending";
+																const meetingTypeDisplay =
+																	booking.meetingType === "others" &&
+																	booking.meetingTypeOthers
+																		? `Others: ${booking.meetingTypeOthers}`
+																		: booking.meetingTypeLabel;
+																const displayStatus =
+																	getBookingDisplayStatus(booking);
 
-																const containerBg = isDone
-																	? "bg-gray-400 text-white border border-transparent"
-																	: isExpired
-																		? "bg-red-400 text-white border border-transparent"
-																		: isPending
-																			? "bg-[#f6bf26] text-white border border-transparent"
-																			: CONFERENCE_ROOM_COLORS[booking.roomKey]
-																					?.chip || "bg-gray-200";
+																const containerBg =
+																	displayStatus === "done"
+																		? BOOKING_CALENDAR_CHIP_CLASSES.done
+																		: displayStatus === "expired"
+																			? BOOKING_CALENDAR_CHIP_CLASSES.expired
+																			: displayStatus === "pending"
+																				? BOOKING_CALENDAR_CHIP_CLASSES.pending
+																				: CONFERENCE_ROOM_COLORS[
+																						booking.roomKey
+																					]?.chip ||
+																					BOOKING_CALENDAR_CHIP_CLASSES.default;
 
 																return (
 																	<button
@@ -249,10 +303,15 @@ export function MonthView({
 																			setExpandedDate(null);
 																			onViewBooking(booking);
 																		}}
-																		className={`w-full text-left text-[11px] px-2 py-1.5 rounded font-medium hover:brightness-95 transition-[filter] truncate ${containerBg}`}
-																		title={booking.purpose}
+																		className={`w-full text-left text-[11px] px-2 py-1.5 rounded font-medium hover:brightness-95 transition-[filter] ${containerBg}`}
+																		title={`${booking.purpose} • ${meetingTypeDisplay}`}
 																	>
-																		{booking.startTime} - {booking.purpose}
+																		<div className="truncate">
+																			{booking.startTime} - {booking.purpose}
+																		</div>
+																		<div className="truncate text-[10px] opacity-90">
+																			{meetingTypeDisplay}
+																		</div>
 																	</button>
 																);
 															})}

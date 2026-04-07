@@ -2,9 +2,11 @@ import { oc } from "@orpc/contract";
 import { ERRORS } from "../constants";
 import {
 	ActivateUserSchema,
+	AssignableUserListResponseSchema,
 	CheckEmailStatusResponseSchema,
 	CheckEmailStatusSchema,
 	DeleteUserSchema,
+	GetAssignableUsersSchema,
 	GetUserByIdSchema,
 	GetUserListSchema,
 	InviteUserResponseSchema,
@@ -42,6 +44,22 @@ export const getUserListContract = oc
 	})
 	.input(GetUserListSchema)
 	.output(UserListResponseSchema)
+	.errors({
+		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+	});
+
+export const getAssignableUsersContract = oc
+	.route({
+		method: "GET",
+		path: "/users/assignable",
+		summary: "List assignable users for inquiry assignment",
+		description:
+			"Retrieve active assignable users with minimal profile fields for inquiry assignment dropdowns",
+		tags: ["Users", "Inquiry", "Admin"],
+	})
+	.input(GetAssignableUsersSchema)
+	.output(AssignableUserListResponseSchema)
 	.errors({
 		INSUFFICIENT_PERMISSIONS: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
 		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
@@ -162,6 +180,7 @@ export const requestPasswordResetContract = oc
 export const userContract = {
 	me: getCurrentUserContract,
 	list: getUserListContract,
+	listAssignable: getAssignableUsersContract,
 	deactivate: deactivateUserContract,
 	activate: activateUserContract,
 	getById: getUserByIdContract,

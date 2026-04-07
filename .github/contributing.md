@@ -13,6 +13,7 @@
 - [File Naming](#file-naming)
 - [Testing](#testing)
 - [MCP Servers (AI Tooling)](#mcp-servers-ai-tooling)
+- [Copilot Skills Workflow](#copilot-skills-workflow)
 - [Backend Development](#backend-development)
 - [Frontend Development](#frontend-development)
 - [Additional Guidelines](#additional-guidelines)
@@ -348,6 +349,50 @@ This project uses Model Context Protocol (MCP) servers to enhance AI-assisted de
 - When working with database schema, ask to inspect the Supabase schema
 - When building UI from designs, provide the Figma URL for accurate implementation
  - When adding or updating Shadcn components, `cd packages/ui` first and run the Shadcn CLI (or ask the `shadcn` MCP server to generate component code). Ensure new components are exported from `packages/ui`.
+
+---
+
+## Copilot Skills Workflow
+
+This repository ships with local Copilot skills in `.agents/skills`.
+
+### Where skills are defined
+
+- Skill catalog: `.agents/skills/`
+- Skill contract and instructions: `<skill-name>/SKILL.md`
+
+### How contributors should use skills
+
+1. Pick one primary skill that best matches your task.
+2. Read that skill's `SKILL.md` before implementation.
+3. Use a second skill only if you need complementary guidance.
+4. Keep changes consistent with this guide and `.github/copilot-instructions.md`.
+5. If the task requires external systems (Jira, Supabase, Figma, docs lookup), apply MCP rules first.
+
+### Skill selection quick guide
+
+| Task | Use this skill first | Optional companion |
+|---|---|---|
+| Discover, search, or install a skill | `find-skills` | `agent-customization` |
+| Build or improve UI | `frontend-design` | `tailwind-design-system`, `ui-ux-pro-max` |
+| Audit accessibility/UI quality | `web-design-guidelines` | `accessibility-compliance` |
+| Next.js app/router/performance work | `next-best-practices` | `vercel-react-best-practices`, `next-cache-components` |
+| NestJS module/controller/service work | `nestjs-best-practices` | `supabase-postgres-best-practices` |
+| Postgres query/schema tuning | `supabase-postgres-best-practices` | `nestjs-best-practices` |
+| E2E tests and flaky test fixes | `playwright-best-practices` | `accessibility-compliance` |
+| SEO audit work | `seo-audit` | `programmatic-seo` |
+| Programmatic SEO pages | `programmatic-seo` | `seo-audit` |
+| Monorepo/workspace optimization | `monorepo-management` | `next-best-practices` |
+| Shadcn component tasks | `shadcn` | `tailwind-design-system` |
+| AI skill/instruction maintenance | `agent-customization` | `skill-creator` |
+
+### Prompt examples for contributors
+
+- "Use `find-skills` to discover the best skill for this task and suggest install commands."
+- "Use `next-best-practices` to refactor this page to proper server component data fetching."
+- "Use `nestjs-best-practices` to review this module for DI and controller pattern issues."
+- "Use `playwright-best-practices` to stabilize this flaky test suite."
+- "Use `frontend-design` plus `accessibility-compliance` to redesign this form with WCAG AA."
 
 ---
 

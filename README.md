@@ -35,6 +35,7 @@ The DALI Portal is a secure web-based platform designed to modernize the public-
 - [🚀 Running the App](#-running-the-app)
   - [Development](#development)
   - [Access the Apps](#access-the-apps)
+- [🤖 AI Skills Workflow](#-ai-skills-workflow)
   
 ## ✅ Prerequisites
 
@@ -136,6 +137,16 @@ pnpm --filter backend dev
 | Portal | http://localhost:3000 | Public portal
 | Admin | http://localhost:3001 | Internal management system |
 | Backend | http://localhost:8080 | API server |
+
+## 🤖 AI Skills Workflow
+
+This repository includes local Copilot skills in `.agents/skills` to help standardize implementation quality.
+
+- Contributor workflow and usage examples: `.github/contributing.md#copilot-skills-workflow`
+- Copilot behavior rules and skill routing: `.github/copilot-instructions.md`
+- Skill definitions: `.agents/skills/<skill-name>/SKILL.md`
+
+When asking Copilot for implementation help, name the skill you want to apply in your prompt.
 
 ---
 
