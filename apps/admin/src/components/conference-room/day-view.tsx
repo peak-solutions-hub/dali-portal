@@ -1,6 +1,11 @@
 "use client";
 
-import { formatDayName, formatFullDate } from "@repo/shared";
+import {
+	BUSINESS_HOUR_END_MINUTES,
+	BUSINESS_HOUR_START_MINUTES,
+	formatDayName,
+	formatFullDate,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
@@ -100,6 +105,19 @@ export function DayView({
 		return "bg-blue-600 text-white";
 	}, [dragStartIndex, dragEndIndex, bookings, timeSlots]);
 
+	const shouldShowTimeIndicator = useMemo(() => {
+		if (timeLinePosition === null) {
+			return false;
+		}
+
+		const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+		return (
+			currentMinutes >= BUSINESS_HOUR_START_MINUTES &&
+			currentMinutes <= BUSINESS_HOUR_END_MINUTES
+		);
+	}, [timeLinePosition, now]);
+
 	return (
 		<div
 			className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm"
@@ -158,7 +176,7 @@ export function DayView({
 
 				<div className="relative my-12">
 					{/* Real-time Indicator Line */}
-					{timeLinePosition !== null && (
+					{shouldShowTimeIndicator && (
 						<div
 							className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
 							style={{ top: `${timeLinePosition}%` }}

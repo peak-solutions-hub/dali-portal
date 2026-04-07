@@ -49,22 +49,13 @@ export function ViewBookingModal({
 
 	const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
 	const isPending = booking.status === "pending";
+	const isExpired = booking.isPast && booking.status === "pending";
 	const isRejected = booking.status === "rejected";
 
 	const handleApprove = () => updateStatus(booking.id, "confirmed");
 	const handleReject = () => updateStatus(booking.id, "rejected");
 
-	const urlPath = (
-		(booking.attachmentUrl ?? "").split("?")[0] ?? ""
-	).toLowerCase();
-	const isPdf = urlPath.endsWith(".pdf");
-	const isImage = /\.(jpe?g|png|gif|webp)$/.test(urlPath);
-	const attachmentFileName = booking.attachmentUrl
-		? decodeURIComponent(
-				(booking.attachmentUrl.split("?")[0] ?? "").split("/").pop() ??
-					"attachment",
-			)
-		: null;
+	const hasAttachments = booking.attachments.length > 0;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -81,6 +72,7 @@ export function ViewBookingModal({
 							<BookingStatusBadge
 								status={booking.status}
 								roomKey={booking.roomKey}
+								isPast={booking.isPast}
 							/>
 						</div>
 						<p
@@ -123,41 +115,94 @@ export function ViewBookingModal({
 						</div>
 					</div>
 
-					{/* Requested For */}
+					{/* Booking Participants */}
 					<div>
 						<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-							Requested For
+							Booked For
 						</p>
 						<p className="text-sm text-gray-900">{booking.requestedFor}</p>
 					</div>
 
+					<div>
+						<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+							Booked By
+						</p>
+						<p className="text-sm text-gray-900">
+							{booking.bookedByName ?? "—"}
+						</p>
+					</div>
+
+					<div>
+						<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+							Meeting Type
+						</p>
+						<p className="text-sm text-gray-900">
+							{booking.meetingTypeLabel}
+							{booking.meetingType === "others" && booking.meetingTypeOthers
+								? ` (${booking.meetingTypeOthers})`
+								: ""}
+						</p>
+					</div>
+
 					{/* Attachment — file card */}
-					{booking.attachmentUrl && attachmentFileName && (
+					{hasAttachments && (
 						<div>
 							<p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-								Attachment
+								Attachments
 							</p>
-							<a
-								href={booking.attachmentUrl}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
-								title={`View ${attachmentFileName}`}
-							>
-								<div className="p-2 rounded-lg bg-gray-100">
-									<FileText className="h-5 w-5 text-gray-600" />
-								</div>
-								<div className="flex flex-col min-w-0 flex-1">
-									<span className="text-sm font-medium text-gray-900 truncate">
-										{attachmentFileName}
-									</span>
-									<span className="text-xs text-gray-500">
-										{isPdf ? "PDF Document" : isImage ? "Image" : "File"} —
-										Click to view
-									</span>
-								</div>
-								<ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
-							</a>
+							<div className="space-y-2">
+								{booking.attachments.map((attachment) => {
+									const content = (
+										<>
+											<div className="p-2 rounded-lg bg-gray-100">
+												<FileText className="h-5 w-5 text-gray-600" />
+											</div>
+											<div className="flex flex-col min-w-0 flex-1">
+												<span className="text-sm font-medium text-gray-900 truncate">
+													{attachment.fileName}
+												</span>
+												{attachment.reason ? (
+													<span className="text-xs text-gray-500 truncate">
+														Reason: {attachment.reason}
+													</span>
+												) : (
+													<span className="text-xs text-gray-500">
+														{attachment.url ? "Click to view" : "Unavailable"}
+													</span>
+												)}
+											</div>
+											{attachment.url ? (
+												<ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
+											) : null}
+										</>
+									);
+
+									if (!attachment.url) {
+										return (
+											<div
+												key={attachment.path}
+												className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 opacity-80"
+												aria-disabled="true"
+											>
+												{content}
+											</div>
+										);
+									}
+
+									return (
+										<a
+											key={attachment.path}
+											href={attachment.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+											title={`View ${attachment.fileName}`}
+										>
+											{content}
+										</a>
+									);
+								})}
+							</div>
 						</div>
 					)}
 				</div>
@@ -190,7 +235,7 @@ export function ViewBookingModal({
 						)}
 					</div>
 
-					{isPending && canApprove && (
+					{isPending && !isExpired && canApprove && (
 						<div className="flex gap-2">
 							<Button
 								variant="outline"
