@@ -5,6 +5,6 @@ export * from "./inquiry";
 export * from "./invitation";
 export * from "./legislative-document";
 export * from "./role";
-export * from "./room";
+export * from "./room-booking";
 export * from "./session";
 export * from "./user";

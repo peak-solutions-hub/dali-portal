@@ -1,31 +1,25 @@
 "use client";
 
-import {
-	type ConferenceRoom,
-	isPastDateTime,
-	parseTimeToMinutes,
-} from "@repo/shared";
+import { type ConferenceRoom, FILE_UPLOAD_PRESETS } from "@repo/shared";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useUpdateBooking } from "@/hooks/room-booking/use-update-booking";
-import { resolveConferenceRoom } from "@/utils/booking-helpers";
+import {
+	type UpdateBookingInput,
+	useUpdateBooking,
+} from "@/hooks/room-booking/use-update-booking";
+import {
+	type EditBookingData,
+	isAttachmentLimitMessage,
+	resolveConferenceRoom,
+} from "@/utils/booking-helpers";
+import {
+	type BookingFieldErrors,
+	validateBookingForm,
+} from "@/utils/booking-validation";
 import {
 	BookingFormFields,
 	type BookingFormValues,
 } from "./booking-form-fields";
-
-export interface EditBookingData {
-	id: string;
-	title: string;
-	requestedFor: string;
-	room: string;
-	date: Date;
-	/** "HH:MM" 24-hour local time */
-	startTime: string;
-	/** "HH:MM" 24-hour local time */
-	endTime: string;
-	attachmentUrl: string | null;
-}
 
 interface EditBookingModalProps {
 	isOpen: boolean;
@@ -38,27 +32,70 @@ export function EditBookingModal({
 	onClose,
 	booking,
 }: EditBookingModalProps) {
-	type BookingFieldErrors = Partial<Record<keyof BookingFormValues, string>>;
-
 	const [values, setValues] = useState<BookingFormValues>({
 		room: "",
 		date: undefined,
 		startTime: "",
 		endTime: "",
+		meetingType: "",
+		meetingTypeOthers: "",
 		title: "",
 		requestedFor: "",
-		attachment: null,
+		attachments: [],
 	});
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
-	const [removeExistingAttachment, setRemoveExistingAttachment] =
-		useState(false);
+	const [removedAttachmentPaths, setRemovedAttachmentPaths] = useState<
+		string[]
+	>([]);
+	const [existingAttachmentReasons, setExistingAttachmentReasons] = useState<
+		Record<string, string>
+	>({});
 
-	const { updateBooking, isUpdating, error, clearError } = useUpdateBooking(
-		() => {
-			onClose();
-		},
-	);
+	const {
+		updateBooking,
+		isUpdating,
+		isUploadingAttachment,
+		uploadProgress,
+		uploadedAttachmentCount,
+		totalAttachmentCount,
+		error,
+		clearError,
+	} = useUpdateBooking(() => {
+		onClose();
+	});
+
+	const clearAttachmentLimitErrorsIfResolved = (nextRemovedPaths: string[]) => {
+		if (!booking) {
+			return;
+		}
+
+		const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+		const keptExistingCount = booking.attachments.filter(
+			(attachment) => !nextRemovedPaths.includes(attachment.path),
+		).length;
+		const totalAttachments = keptExistingCount + values.attachments.length;
+
+		if (totalAttachments <= maxAttachments) {
+			setFieldErrors((prev) => {
+				if (!prev.attachments) {
+					return prev;
+				}
+
+				const next = { ...prev };
+				delete next.attachments;
+				return next;
+			});
+
+			setFileError((prev) => {
+				if (!prev) {
+					return prev;
+				}
+
+				return isAttachmentLimitMessage(prev) ? null : prev;
+			});
+		}
+	};
 
 	// Populate form when modal opens with booking data
 	useEffect(() => {
@@ -73,71 +110,35 @@ export function EditBookingModal({
 			date: booking.date,
 			startTime: booking.startTime,
 			endTime: booking.endTime,
+			meetingType: booking.meetingType,
+			meetingTypeOthers: booking.meetingTypeOthers ?? "",
 			title: booking.title,
 			requestedFor: booking.requestedFor,
-			attachment: null,
-			removeExistingAttachment: false,
+			attachments: [],
 		});
-		setRemoveExistingAttachment(false);
-	}, [isOpen, booking]);
+		setRemovedAttachmentPaths([]);
+		setExistingAttachmentReasons(
+			Object.fromEntries(
+				booking.attachments.map((attachment) => [
+					attachment.path,
+					attachment.reason ?? "",
+				]),
+			),
+		);
+	}, [isOpen, booking, clearError]);
 
 	const validateForm = (): BookingFieldErrors => {
-		const errors: BookingFieldErrors = {};
+		const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+		const keptExistingCount = booking
+			? booking.attachments.filter(
+					(attachment) => !removedAttachmentPaths.includes(attachment.path),
+				).length
+			: 0;
 
-		if (!values.room) {
-			errors.room = "Conference room is required.";
-		}
-		if (!values.date) {
-			errors.date = "Date is required.";
-		}
-		if (!values.startTime) {
-			errors.startTime = "Start time is required.";
-		}
-		if (!values.endTime) {
-			errors.endTime = "End time is required.";
-		}
-		if (!values.title.trim()) {
-			errors.title = "Title is required.";
-		}
-		if (!values.requestedFor.trim()) {
-			errors.requestedFor = "Requested for is required.";
-		}
-
-		const startMinutes = parseTimeToMinutes(values.startTime);
-		const endMinutes = parseTimeToMinutes(values.endTime);
-		if (
-			startMinutes !== null &&
-			endMinutes !== null &&
-			endMinutes <= startMinutes
-		) {
-			errors.endTime = "End time must be later than start time.";
-		}
-
-		const SEVEN_AM_MINUTES = 7 * 60; // 420
-		const FIVE_PM_MINUTES = 17 * 60; // 1020
-
-		if (
-			startMinutes !== null &&
-			(startMinutes < SEVEN_AM_MINUTES || startMinutes > FIVE_PM_MINUTES)
-		) {
-			errors.startTime = "Start time must be between 7:00 AM and 5:00 PM.";
-		}
-		if (
-			endMinutes !== null &&
-			(endMinutes < SEVEN_AM_MINUTES || endMinutes > FIVE_PM_MINUTES)
-		) {
-			errors.endTime = "End time must be between 7:00 AM and 5:00 PM.";
-		}
-
-		if (
-			values.date &&
-			values.startTime &&
-			isPastDateTime(values.date, values.startTime)
-		) {
-			errors.startTime = "Start time cannot be in the past.";
-		}
-
-		return errors;
+		return validateBookingForm(values, {
+			maxAttachments,
+			keptExistingAttachmentCount: keptExistingCount,
+		});
 	};
 
 	const handleChange = (field: keyof BookingFormValues, value: unknown) => {
@@ -148,10 +149,19 @@ export function EditBookingModal({
 				room: resolveConferenceRoom(value),
 			}));
 		} else {
-			if (field === "attachment" && value) {
-				setRemoveExistingAttachment(false);
+			if (field === "meetingType" && value !== "others") {
+				setValues((prev) => ({
+					...prev,
+					meetingType: String(value),
+					meetingTypeOthers: "",
+				}));
+				return;
 			}
 			setValues((prev) => ({ ...prev, [field]: value }));
+
+			if (field === "attachments") {
+				clearAttachmentLimitErrorsIfResolved(removedAttachmentPaths);
+			}
 		}
 
 		setFieldErrors((prev) => {
@@ -166,7 +176,21 @@ export function EditBookingModal({
 		e.preventDefault();
 
 		if (fileError) {
-			return;
+			if (!booking || !isAttachmentLimitMessage(fileError)) {
+				return;
+			}
+
+			const maxAttachments = FILE_UPLOAD_PRESETS.ATTACHMENTS.maxFiles;
+			const keptExistingCount = booking.attachments.filter(
+				(attachment) => !removedAttachmentPaths.includes(attachment.path),
+			).length;
+			const totalAttachments = keptExistingCount + values.attachments.length;
+
+			if (totalAttachments > maxAttachments) {
+				return;
+			}
+
+			setFileError(null);
 		}
 
 		const errors = validateForm();
@@ -187,21 +211,39 @@ export function EditBookingModal({
 		await updateBooking({
 			id: booking.id,
 			title: values.title,
+			meetingType: values.meetingType as UpdateBookingInput["meetingType"],
+			meetingTypeOthers:
+				values.meetingType === "others"
+					? values.meetingTypeOthers.trim() || null
+					: null,
 			date: values.date,
 			startTime: values.startTime,
 			endTime: values.endTime,
 			requestedFor: values.requestedFor,
 			room: values.room as ConferenceRoom,
-			...(removeExistingAttachment && !values.attachment
-				? { attachmentUrl: null }
+			existingAttachments: booking.attachments
+				.filter(
+					(attachment) => !removedAttachmentPaths.includes(attachment.path),
+				)
+				.map((attachment) => ({
+					path: attachment.path,
+					reason:
+						existingAttachmentReasons[attachment.path]?.trim() || undefined,
+				})),
+			...(values.attachments.length > 0
+				? {
+						newAttachments: values.attachments.map((attachment) => ({
+							file: attachment.file,
+							reason: attachment.reason.trim() || undefined,
+						})),
+					}
 				: {}),
-			...(values.attachment ? { attachmentFile: values.attachment } : {}),
 		});
 	};
 
 	if (!isOpen || !booking) return null;
 
-	const isSubmitDisabled = isUpdating || Boolean(fileError);
+	const isSubmitDisabled = isUpdating || isUploadingAttachment;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -217,7 +259,7 @@ export function EditBookingModal({
 					<button
 						onClick={onClose}
 						className="p-1 hover:bg-gray-100 rounded-md transition-colors"
-						disabled={isUpdating}
+						disabled={isUpdating || isUploadingAttachment}
 					>
 						<X className="w-5 h-5 text-gray-500" />
 					</button>
@@ -232,12 +274,34 @@ export function EditBookingModal({
 						values={values}
 						onChange={handleChange}
 						fieldErrors={fieldErrors}
-						existingAttachmentUrl={booking.attachmentUrl}
-						removeExistingAttachment={removeExistingAttachment}
-						onRemoveExistingAttachmentChange={setRemoveExistingAttachment}
+						existingAttachments={booking.attachments.map((attachment) => ({
+							...attachment,
+							reason: existingAttachmentReasons[attachment.path] ?? "",
+						}))}
+						onExistingAttachmentReasonChange={(path, reason) => {
+							setExistingAttachmentReasons((prev) => ({
+								...prev,
+								[path]: reason,
+							}));
+							clearAttachmentLimitErrorsIfResolved(removedAttachmentPaths);
+						}}
+						removedExistingAttachmentPaths={removedAttachmentPaths}
+						onToggleExistingAttachmentRemoval={(path) => {
+							setRemovedAttachmentPaths((prev) => {
+								const next = prev.includes(path)
+									? prev.filter((value) => value !== path)
+									: [...prev, path];
+								clearAttachmentLimitErrorsIfResolved(next);
+								return next;
+							});
+						}}
 						error={error}
 						fileError={fileError}
 						onFileError={setFileError}
+						isUploadingAttachment={isUploadingAttachment}
+						uploadProgress={uploadProgress}
+						uploadedAttachmentCount={uploadedAttachmentCount}
+						totalAttachmentCount={totalAttachmentCount}
 					/>
 
 					{/* Buttons */}
@@ -245,7 +309,7 @@ export function EditBookingModal({
 						<button
 							type="button"
 							onClick={onClose}
-							disabled={isUpdating}
+							disabled={isUpdating || isUploadingAttachment}
 							className="px-6 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
 						>
 							Cancel
@@ -256,7 +320,11 @@ export function EditBookingModal({
 							className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-70"
 						>
 							{isUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
-							{isUpdating ? "Saving..." : "Save Changes"}
+							{isUploadingAttachment
+								? `Uploading attachment(s)${uploadProgress !== null ? ` (${uploadProgress}%)` : "..."}`
+								: isUpdating
+									? "Saving..."
+									: "Save Changes"}
 						</button>
 					</div>
 				</form>

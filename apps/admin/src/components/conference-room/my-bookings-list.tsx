@@ -2,6 +2,7 @@
 
 import { CONFERENCE_ROOM_LABELS, formatFullDate } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { PaginationControl } from "@repo/ui/components/pagination-control";
 import {
 	Table,
 	TableBody,
@@ -10,33 +11,46 @@ import {
 	TableHeader,
 	TableRow,
 } from "@repo/ui/components/table";
+import { usePagination } from "@repo/ui/hooks/use-pagination";
 import { CONFERENCE_ROOM_COLORS } from "@repo/ui/lib/conference-room-colors";
 import {
+	BOOKING_PRIMARY_LINK_CLASS,
+	BOOKING_TABLE_ROW_HOVER_CLASS,
+} from "@repo/ui/lib/conference-room-ui";
+import {
+	CalendarClock,
 	CalendarX,
 	ExternalLink,
 	Eye,
 	FileText,
 	Loader2,
+	Paperclip,
 	Pencil,
 	Trash2,
+	Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useMyBookings } from "@/hooks/room-booking";
+import { useEffect, useMemo, useState } from "react";
+import { useBookingListModals, useMyBookings } from "@/hooks/room-booking";
 import { useAuthStore } from "@/stores/auth-store";
 import {
 	type CalendarBooking,
+	type EditBookingData,
+	getBookingDisplayStatus,
 	mapApiBookings,
-	resolveConferenceRoom,
+	mapBookingToEditBookingData,
 } from "@/utils/booking-helpers";
 import { BookingStatusBadge } from "./booking-status-badge";
 import { DeleteBookingDialog } from "./delete-booking-dialog";
-import type { EditBookingData } from "./edit-booking-modal";
 import { EditBookingModal } from "./edit-booking-modal";
 import { ViewBookingModal } from "./view-booking-modal";
 
 export function MyBookingsList() {
+	const BOOKINGS_PER_PAGE = 10;
+
 	const userProfile = useAuthStore((state) => state.userProfile);
 	const userId = userProfile?.id ?? null;
+	const userRole = userProfile?.role.name;
+	const isCouncilor = userRole === "councilor";
 
 	const { data, isLoading } = useMyBookings(userId);
 
@@ -44,17 +58,45 @@ export function MyBookingsList() {
 		"all" | "pending" | "confirmed" | "done" | "expired"
 	>("all");
 
+	const availableStatusFilters = useMemo(
+		() =>
+			isCouncilor
+				? (["all", "pending", "confirmed", "done", "expired"] as const)
+				: (["all", "confirmed", "done"] as const),
+		[isCouncilor],
+	);
+
+	const statusFilterLabels: Record<
+		"all" | "pending" | "confirmed" | "done" | "expired",
+		string
+	> = {
+		all: "All",
+		pending: "Pending",
+		confirmed: "Approved",
+		done: "Completed",
+		expired: "Expired",
+	};
+
+	useEffect(() => {
+		const isStatusAllowed = availableStatusFilters.some(
+			(availableStatus) => availableStatus === statusFilter,
+		);
+
+		if (!isStatusAllowed) {
+			setStatusFilter(availableStatusFilters[0]);
+		}
+	}, [availableStatusFilters, statusFilter]);
+
 	const bookings = useMemo((): CalendarBooking[] => {
 		if (!data?.bookings) return [];
 		let mapped = mapApiBookings(data.bookings);
 
 		if (statusFilter !== "all") {
 			mapped = mapped.filter((b) => {
-				const isDone = b.isPast && b.status === "confirmed";
-				const isExpired = b.isPast && b.status === "pending";
-				if (statusFilter === "done") return isDone;
-				if (statusFilter === "expired") return isExpired;
-				return !isDone && !isExpired && b.status === statusFilter;
+				const displayStatus = getBookingDisplayStatus(b);
+				if (statusFilter === "done") return displayStatus === "done";
+				if (statusFilter === "expired") return displayStatus === "expired";
+				return displayStatus === statusFilter;
 			});
 		}
 
@@ -71,38 +113,32 @@ export function MyBookingsList() {
 		return mapped;
 	}, [data, statusFilter]);
 
-	// Modal states
-	const [viewingBooking, setViewingBooking] = useState<CalendarBooking | null>(
-		null,
-	);
-	const [editingBooking, setEditingBooking] = useState<EditBookingData | null>(
-		null,
-	);
-	const [deletingBooking, setDeletingBooking] = useState<{
-		id: string;
-		title: string;
-	} | null>(null);
+	const { currentPage, setCurrentPage, paginatedItems, pagination } =
+		usePagination({
+			items: bookings,
+			itemsPerPage: BOOKINGS_PER_PAGE,
+		});
+
+	const {
+		viewingBooking,
+		editingBooking,
+		deletingBooking,
+		openView,
+		closeView,
+		openEdit,
+		closeEdit,
+		openDelete,
+		closeDelete,
+		openEditFromView,
+		openDeleteFromView,
+	} = useBookingListModals<CalendarBooking, EditBookingData>();
 
 	const handleEditFromView = (booking: CalendarBooking) => {
-		setViewingBooking(null);
-		setEditingBooking({
-			id: booking.id,
-			title: booking.purpose,
-			requestedFor: booking.requestedFor,
-			room: resolveConferenceRoom(
-				booking.roomKey || booking.room,
-				booking.room,
-			),
-			date: booking.date,
-			startTime: booking.startTime24,
-			endTime: booking.endTime24,
-			attachmentUrl: booking.attachmentUrl,
-		});
+		openEditFromView(mapBookingToEditBookingData(booking));
 	};
 
 	const handleDeleteFromView = (booking: CalendarBooking) => {
-		setViewingBooking(null);
-		setDeletingBooking({ id: booking.id, title: booking.purpose });
+		openDeleteFromView({ id: booking.id, title: booking.purpose });
 	};
 
 	if (isLoading) {
@@ -118,63 +154,41 @@ export function MyBookingsList() {
 
 	return (
 		<>
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-				<div className="flex bg-gray-100/80 p-1 rounded-lg w-max shrink-0 border border-gray-200/60 shadow-inner">
-					<button
-						type="button"
-						onClick={() => setStatusFilter("all")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "all"
-								? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						All
-					</button>
-					<button
-						type="button"
-						onClick={() => setStatusFilter("pending")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "pending"
-								? "bg-white text-yellow-700 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						Pending
-					</button>
-					<button
-						type="button"
-						onClick={() => setStatusFilter("confirmed")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "confirmed"
-								? "bg-white text-green-700 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						Confirmed
-					</button>
-					<button
-						type="button"
-						onClick={() => setStatusFilter("done")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "done"
-								? "bg-white text-gray-700 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						Done
-					</button>
-					<button
-						type="button"
-						onClick={() => setStatusFilter("expired")}
-						className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-							statusFilter === "expired"
-								? "bg-white text-red-600 shadow-sm ring-1 ring-gray-200"
-								: "text-gray-500 hover:text-gray-700"
-						}`}
-					>
-						Expired
-					</button>
+			<div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm mb-4">
+				<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+					<div className="flex bg-gray-100/80 p-1 rounded-lg w-max shrink-0 border border-gray-200/60 shadow-inner">
+						{availableStatusFilters.map((status) => (
+							<button
+								key={status}
+								type="button"
+								onClick={() => setStatusFilter(status)}
+								className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+									statusFilter === status
+										? status === "pending"
+											? "bg-white text-yellow-700 shadow-sm ring-1 ring-gray-200"
+											: status === "confirmed"
+												? "bg-white text-green-700 shadow-sm ring-1 ring-gray-200"
+												: status === "expired"
+													? "bg-white text-red-600 shadow-sm ring-1 ring-gray-200"
+													: "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200"
+										: "text-gray-500 hover:text-gray-700"
+								}`}
+							>
+								{statusFilterLabels[status]}
+							</button>
+						))}
+					</div>
+
+					{pagination.totalPages > 1 && (
+						<PaginationControl
+							totalItems={bookings.length}
+							itemsPerPage={BOOKINGS_PER_PAGE}
+							currentPage={currentPage}
+							onPageChange={setCurrentPage}
+							showCount
+							className="mx-0"
+						/>
+					)}
 				</div>
 			</div>
 
@@ -191,99 +205,157 @@ export function MyBookingsList() {
 			) : (
 				<div className="rounded-xl border border-gray-200 bg-white shadow-sm p-3">
 					<div className="overflow-x-auto">
-						<Table>
+						<Table className="table-fixed min-w-245">
 							<TableHeader>
 								<TableRow className="hover:bg-transparent">
-									<TableHead className="h-8 text-xs font-semibold">
-										Details
+									<TableHead className="h-8 text-xs font-semibold w-[22%]">
+										Booking Details
 									</TableHead>
-									<TableHead className="h-8 text-xs font-semibold">
-										Schedule & Room
+									<TableHead className="h-8 text-xs font-semibold w-[22%]">
+										Schedule
 									</TableHead>
-									<TableHead className="h-8 text-xs font-semibold">
-										Attachment
+									<TableHead className="h-8 text-xs font-semibold w-[30%]">
+										Attachments
 									</TableHead>
-									<TableHead className="h-8 text-xs font-semibold">
+									<TableHead className="h-8 text-xs font-semibold w-[12%]">
 										Status
 									</TableHead>
-									<TableHead className="h-8 text-xs font-semibold text-right">
+									<TableHead className="h-8 text-xs font-semibold text-right w-[10%]">
 										Actions
 									</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{bookings.map((booking) => {
+								{paginatedItems.map((booking) => {
 									const roomColors = CONFERENCE_ROOM_COLORS[booking.roomKey];
+									const meetingTypeDisplay =
+										booking.meetingType === "others" &&
+										booking.meetingTypeOthers
+											? `Others: ${booking.meetingTypeOthers}`
+											: booking.meetingTypeLabel;
 
 									return (
 										<TableRow
 											key={booking.id}
-											className="hover:bg-gray-50 transition-colors"
+											className={BOOKING_TABLE_ROW_HOVER_CLASS}
 										>
-											<TableCell className="max-w-50 align-top">
-												<div className="flex flex-col gap-0.5">
-													<span
-														className="font-medium text-gray-900 truncate"
-														title={booking.purpose}
-													>
-														{booking.purpose}
-													</span>
-													<span
-														className="text-xs text-gray-500 truncate"
-														title={`For: ${booking.requestedFor}`}
-													>
-														For: {booking.requestedFor}
-													</span>
+											<TableCell className="max-w-60 align-top py-4">
+												<div className="flex flex-col gap-2">
+													<div>
+														<p
+															className="text-sm font-semibold text-gray-900 leading-5 truncate"
+															title={booking.purpose}
+														>
+															{booking.purpose}
+														</p>
+														<p
+															className="text-xs text-gray-500 truncate"
+															title={`Type: ${meetingTypeDisplay}`}
+														>
+															{meetingTypeDisplay}
+														</p>
+													</div>
+													<div className="inline-flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-2 py-1 max-w-full">
+														<Users className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+														<span
+															className="truncate"
+															title={`Booked For: ${booking.requestedFor}`}
+														>
+															Booked For: {booking.requestedFor}
+														</span>
+													</div>
 												</div>
 											</TableCell>
-											<TableCell className="align-top">
-												<div className="flex flex-col items-start gap-1">
+											<TableCell className="align-top py-4">
+												<div className="flex flex-col items-start gap-2">
 													<span
 														className={`inline-flex items-center gap-1.5 text-[11px] leading-none font-medium px-2 py-0.5 rounded-full ${roomColors.label}`}
 													>
 														{CONFERENCE_ROOM_LABELS[booking.roomKey]}
 													</span>
-													<div className="flex flex-col text-xs text-gray-600 mt-0.5">
-														<span className="font-medium">
-															{formatFullDate(booking.date)}
-														</span>
-														<span>
-															{booking.startTime} – {booking.endTime}
-														</span>
+													<div className="inline-flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
+														<CalendarClock className="h-3.5 w-3.5 text-gray-500 mt-0.5" />
+														<div className="flex flex-col text-xs text-gray-700 leading-4">
+															<span className="font-medium">
+																{formatFullDate(booking.date)}
+															</span>
+															<span>
+																{booking.startTime} – {booking.endTime}
+															</span>
+														</div>
 													</div>
 												</div>
 											</TableCell>
-											<TableCell>
-												{booking.attachmentUrl ? (
-													<a
-														href={booking.attachmentUrl}
-														target="_blank"
-														rel="noopener noreferrer"
-														className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
-														title="View attachment"
-													>
-														<FileText className="w-3.5 h-3.5" />
-														View
-														<ExternalLink className="w-3 h-3" />
-													</a>
+											<TableCell className="align-top py-4">
+												{booking.attachments.length > 0 ? (
+													<div className="flex flex-col items-start gap-1.5">
+														{booking.attachments.map((attachment) => {
+															const attachmentContent = (
+																<span className="flex items-start gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 w-full max-w-80">
+																	<Paperclip className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-500" />
+																	<span className="min-w-0">
+																		<span className="truncate block text-xs font-medium text-gray-700 max-w-72">
+																			{attachment.fileName}
+																		</span>
+																		{attachment.reason ? (
+																			<span
+																				className="text-[10px] text-gray-500 block truncate max-w-72"
+																				title={attachment.reason}
+																			>
+																				Reason: {attachment.reason}
+																			</span>
+																		) : null}
+																	</span>
+																</span>
+															);
+
+															if (!attachment.url) {
+																return (
+																	<span
+																		key={attachment.path}
+																		className="text-xs text-gray-400 w-full max-w-80"
+																		title={attachment.fileName}
+																	>
+																		{attachmentContent}
+																	</span>
+																);
+															}
+
+															return (
+																<a
+																	key={attachment.path}
+																	href={attachment.url}
+																	target="_blank"
+																	rel="noopener noreferrer"
+																	className={BOOKING_PRIMARY_LINK_CLASS}
+																	title={attachment.fileName}
+																>
+																	<span className="relative">
+																		{attachmentContent}
+																		<ExternalLink className="w-3 h-3 absolute right-2 top-2 text-blue-600" />
+																	</span>
+																</a>
+															);
+														})}
+													</div>
 												) : (
 													<span className="text-gray-400 text-xs">None</span>
 												)}
 											</TableCell>
-											<TableCell>
+											<TableCell className="py-4">
 												<BookingStatusBadge
 													status={booking.status}
 													roomKey={booking.roomKey}
 													isPast={booking.isPast}
 												/>
 											</TableCell>
-											<TableCell>
+											<TableCell className="py-4">
 												<div className="flex items-center justify-end gap-1.5">
 													<Button
 														variant="ghost"
 														size="sm"
 														className="h-8 px-2 text-gray-600 hover:text-gray-900"
-														onClick={() => setViewingBooking(booking)}
+														onClick={() => openView(booking)}
 														title="View booking"
 													>
 														<Eye className="w-4 h-4" />
@@ -296,19 +368,7 @@ export function MyBookingsList() {
 															size="sm"
 															className="h-8 px-2 text-blue-600 hover:text-blue-700"
 															onClick={() =>
-																setEditingBooking({
-																	id: booking.id,
-																	title: booking.purpose,
-																	requestedFor: booking.requestedFor,
-																	room: resolveConferenceRoom(
-																		booking.roomKey || booking.room,
-																		booking.room,
-																	),
-																	date: booking.date,
-																	startTime: booking.startTime24,
-																	endTime: booking.endTime24,
-																	attachmentUrl: booking.attachmentUrl,
-																})
+																openEdit(mapBookingToEditBookingData(booking))
 															}
 															title="Edit booking"
 														>
@@ -320,7 +380,7 @@ export function MyBookingsList() {
 														size="sm"
 														className="h-8 px-2 text-red-600 hover:text-red-700"
 														onClick={() =>
-															setDeletingBooking({
+															openDelete({
 																id: booking.id,
 																title: booking.purpose,
 															})
@@ -343,7 +403,7 @@ export function MyBookingsList() {
 			{/* Modals */}
 			<ViewBookingModal
 				isOpen={!!viewingBooking}
-				onClose={() => setViewingBooking(null)}
+				onClose={closeView}
 				booking={viewingBooking}
 				onEdit={handleEditFromView}
 				onDelete={handleDeleteFromView}
@@ -358,13 +418,13 @@ export function MyBookingsList() {
 
 			<EditBookingModal
 				isOpen={!!editingBooking}
-				onClose={() => setEditingBooking(null)}
+				onClose={closeEdit}
 				booking={editingBooking}
 			/>
 
 			<DeleteBookingDialog
 				isOpen={!!deletingBooking}
-				onClose={() => setDeletingBooking(null)}
+				onClose={closeDelete}
 				booking={deletingBooking}
 			/>
 		</>

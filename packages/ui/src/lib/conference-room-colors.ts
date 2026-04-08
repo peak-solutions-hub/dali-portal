@@ -1,5 +1,10 @@
 import type { ConferenceRoom } from "@repo/shared";
 
+/**
+ * Room identity colors (room A vs room B). For status/form/action UI tokens,
+ * use conference-room-ui.ts so status styles stay centralized.
+ */
+
 export type ConferenceRoomColorConfig = {
 	bg: string;
 	border: string;

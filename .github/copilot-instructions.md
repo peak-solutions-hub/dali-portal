@@ -25,6 +25,44 @@ These instructions apply to all GitHub Copilot Chat requests in this workspace.
   * **Rule:** IF the request requires external documentation (e.g., "how to use Supabase Auth v2"), use `context7` to search official docs.
 * **Shadcn Server (`shadcn`):**
   * **Rule:** IF the request involves creating, updating, or generating UI components using the shadcn component set or registry (for example, adding shadcn components to the shared UI package), use `shadcn` tools and ensure the developer first works inside `packages/ui`.
+
+## 4. Skill Usage Strategy (.agents/skills)
+
+This repository includes workspace-local skills under `.agents/skills`.
+
+### How to use skills
+
+1. Match the request to the closest domain skill.
+2. Read that skill's `SKILL.md` before implementing.
+3. Apply one primary skill first; add a secondary skill only when needed.
+4. Keep changes minimal and aligned with project architecture rules in this file.
+5. If the request clearly needs another server/tool (Jira, Supabase, Figma, Context7, Shadcn), follow Section 3 rules first.
+
+### Skill routing (quick map)
+
+| Request Type | Primary Skill | Optional Secondary Skill |
+|---|---|---|
+| Skill discovery, skill lookup, or skill installation | `find-skills` | `agent-customization` |
+| Build or style UI pages/components | `frontend-design` | `tailwind-design-system`, `ui-ux-pro-max` |
+| UI/UX or accessibility review | `web-design-guidelines` | `accessibility-compliance` |
+| Next.js architecture/performance | `next-best-practices` | `vercel-react-best-practices`, `next-cache-components` |
+| React component API refactors | `vercel-composition-patterns` | `vercel-react-best-practices` |
+| NestJS backend implementation/review | `nestjs-best-practices` | `supabase-postgres-best-practices` |
+| Database/query/schema optimization | `supabase-postgres-best-practices` | `monorepo-management` |
+| E2E or Playwright test work | `playwright-best-practices` | `accessibility-compliance` |
+| SEO audits | `seo-audit` | `programmatic-seo` |
+| SEO page generation at scale | `programmatic-seo` | `seo-audit` |
+| Monorepo/package/task optimization | `monorepo-management` | `next-best-practices` |
+| Shadcn component work | `shadcn` | `tailwind-design-system` |
+| Copilot instruction/skill tuning | `agent-customization` | `skill-creator` |
+
+### Default expectations when using skills
+
+- Respect Public Portal SSR and Admin CSR boundaries.
+- Enforce server-side authorization and privacy-safe error behavior.
+- Reuse shared packages (`@repo/shared`, `@repo/ui`, `@repo/typescript-config`) instead of duplicating logic.
+- Prefer existing constants in `packages/shared/src/constants` over inline magic numbers.
+- For any request to find, install, or discover skills, start with `.agents/skills/find-skills/SKILL.md`.
   
 ## Always
 
