@@ -225,7 +225,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							// IMPORTANT: Supabase can emit SIGNED_IN more than once.
 							// Only redirect/show login success when user is on auth routes.
 							if (isAuthPage) {
-								const redirectPath = getRedirectPath(result.profile.role.name);
+								const searchParams = new URLSearchParams(
+									window.location.search,
+								);
+								const requestedRedirect = searchParams.get("redirect");
+								const isSafeRedirect =
+									typeof requestedRedirect === "string" &&
+									requestedRedirect.startsWith("/") &&
+									!requestedRedirect.startsWith("//");
+
+								const redirectPath = isSafeRedirect
+									? requestedRedirect
+									: getRedirectPath(result.profile.role.name);
 								if (path !== redirectPath) {
 									router.push(redirectPath);
 								}

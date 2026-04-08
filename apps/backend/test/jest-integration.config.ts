@@ -6,8 +6,9 @@ const config: Config = {
 	testEnvironment: "node",
 	testRegex: ".integration-spec.ts$",
 	setupFilesAfterEnv: ["<rootDir>/setup-integration.ts"],
+	extensionsToTreatAsEsm: [".ts"],
 	transform: {
-		"^.+\\.(t|j)s$": "ts-jest",
+		"^.+\\.(t|j)s$": ["ts-jest", { useESM: true }],
 	},
 	moduleNameMapper: {
 		"^(\\.{1,2}/.*)\\.js$": "$1",

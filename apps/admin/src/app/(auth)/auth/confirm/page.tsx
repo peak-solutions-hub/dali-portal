@@ -159,8 +159,8 @@ export default function AuthConfirmPage() {
 	useEffect(() => {
 		if (status === "error") {
 			const timeout = setTimeout(() => {
-				const errorUrl = new URL("/auth/sign-in", window.location.origin);
-				errorUrl.searchParams.set("error", "invalid_link");
+				const errorUrl = new URL("/login", window.location.origin);
+				errorUrl.searchParams.set("error", "auth_code_error");
 				errorUrl.searchParams.set(
 					"message",
 					errorMessage || "The verification link is invalid or has expired.",
