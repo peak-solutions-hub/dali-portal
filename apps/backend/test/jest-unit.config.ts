@@ -7,7 +7,10 @@ const config: Config = {
 	testRegex: "^((?!integration-spec).)*\\.spec\\.ts$",
 	extensionsToTreatAsEsm: [".ts"],
 	transform: {
-		"^.+\\.(t|j)s$": ["ts-jest", { useESM: true }],
+		"^.+\\.(t|j)s$": [
+			"ts-jest",
+			{ useESM: true, tsconfig: "<rootDir>/../test/tsconfig.jest.json" },
+		],
 	},
 	moduleNameMapper: {
 		"^(\\.{1,2}/.*)\\.js$": "$1",

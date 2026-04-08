@@ -6,7 +6,11 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { Test, type TestingModule } from "@nestjs/testing";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
+import { DbService } from "@/app/db/db.service";
+import { SupabaseAdminService } from "@/app/util/supabase/supabase-admin.service";
+import { ConfigService } from "@/lib/config.service";
 import { UsersService } from "./users.service";
 
 describe("UsersService", () => {
@@ -87,23 +91,39 @@ describe("UsersService", () => {
 	});
 
 	let service: UsersService;
+	let testingModule: TestingModule;
 	let invalidateCacheSpy: ReturnType<typeof jest.spyOn>;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		jest.clearAllMocks();
 		invalidateCacheSpy = jest
 			.spyOn(RolesGuard, "invalidateUserCache")
 			.mockImplementation(() => undefined);
 
-		service = new UsersService(
-			mockDb as never,
-			mockSupabaseAdmin as never,
-			mockConfigService as never,
-		);
+		testingModule = await Test.createTestingModule({
+			providers: [
+				UsersService,
+				{
+					provide: DbService,
+					useValue: mockDb,
+				},
+				{
+					provide: SupabaseAdminService,
+					useValue: mockSupabaseAdmin,
+				},
+				{
+					provide: ConfigService,
+					useValue: mockConfigService,
+				},
+			],
+		}).compile();
+
+		service = testingModule.get<UsersService>(UsersService);
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		invalidateCacheSpy.mockRestore();
+		await testingModule.close();
 	});
 
 	describe("getUsers", () => {

@@ -1,0 +1,11 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"paths": {
+			"@/*": ["./src/*", "./*"],
+			"@repo/shared": ["../../packages/shared/src/index.ts"],
+			"@repo/shared/*": ["../../packages/shared/src/*"]
+		}
+	},
+	"include": ["../src/**/*.ts", "./**/*.ts", "../env.d.ts"]
+}
