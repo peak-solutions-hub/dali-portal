@@ -51,7 +51,7 @@ export const DocumentSortByEnum = z.enum([
  * Base Document schema (from document table)
  */
 export const DocumentSchema = z.object({
-	id: z.uuid(),
+	id: z.string(),
 	codeNumber: z.string(),
 	title: z.string().min(1).max(TEXT_LIMITS.SM),
 	type: DocumentTypeEnum,
@@ -80,7 +80,7 @@ export const DocumentListItemSchema = DocumentResponseSchema.pick({
 	receivedAt: true,
 }).extend({
 	/** callerSlipId of the linked invitation (only for invitation documents) */
-	callerSlipId: z.uuid().nullable().optional(),
+	callerSlipId: z.string().nullable().optional(),
 });
 
 export const DocumentListPaginationSchema = z.object({
@@ -174,7 +174,7 @@ export const CreateDocumentSchema = z
 	});
 
 export const CreateDocumentResponseSchema = z.object({
-	id: z.uuid(),
+	id: z.string(),
 	codeNumber: z.string(),
 	status: StatusTypeEnum,
 });
@@ -203,6 +203,15 @@ export const CreateDocumentUploadUrlResponseSchema = z.object({
 	path: z.string(),
 	signedUrl: z.url(),
 	token: z.string(),
+});
+
+export const DeleteDocumentUploadSchema = z.object({
+	path: z.string().trim().min(1),
+	documentId: z.uuid().optional(),
+});
+
+export const DeleteDocumentUploadResponseSchema = z.object({
+	cleanedUp: z.boolean(),
 });
 
 export const UpdateDocumentSchema = z
@@ -284,5 +293,11 @@ export type CreateDocumentUploadUrlInput = z.infer<
 >;
 export type CreateDocumentUploadUrlResponse = z.infer<
 	typeof CreateDocumentUploadUrlResponseSchema
+>;
+export type DeleteDocumentUploadInput = z.infer<
+	typeof DeleteDocumentUploadSchema
+>;
+export type DeleteDocumentUploadResponse = z.infer<
+	typeof DeleteDocumentUploadResponseSchema
 >;
 export type UpdateDocumentInput = z.infer<typeof UpdateDocumentSchema>;

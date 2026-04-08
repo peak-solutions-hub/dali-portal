@@ -24,7 +24,7 @@ const DOCUMENT_TYPE_DISPLAY_MAP: Record<string, string> = {
 
 type LegislativeDocumentType = "ordinance" | "resolution";
 
-function transformDocument(
+function toDocumentResponse(
 	doc: LegislativeDocumentWithRelations["document"],
 ): Document {
 	return {
@@ -41,7 +41,7 @@ function transformDocument(
 	};
 }
 
-function transformDocumentVersion(
+function toDocumentVersionResponse(
 	version: LegislativeDocumentWithRelations["document"]["documentVersion"][number],
 ): DocumentVersion {
 	return {
@@ -54,7 +54,7 @@ function transformDocumentVersion(
 	};
 }
 
-export function transformLegislativeDocument(
+export function toLegislativeDocumentResponse(
 	doc: LegislativeDocumentWithRelations,
 ): LegislativeDocumentWithDetails {
 	const latestVersion = doc.document.documentVersion[0];
@@ -72,15 +72,15 @@ export function transformLegislativeDocument(
 			doc.sponsorNames && doc.sponsorNames.length > 0 ? doc.sponsorNames : null,
 		authorNames:
 			doc.authorNames && doc.authorNames.length > 0 ? doc.authorNames : null,
-		document: transformDocument(doc.document),
+		document: toDocumentResponse(doc.document),
 		displayTitle: doc.document.title,
 		displayType: DOCUMENT_TYPE_DISPLAY_MAP[doc.type] ?? "Unknown",
 		displayClassification: doc.document.classification ?? undefined,
 		storageBucket: storagePath ? "documents" : undefined,
-		storagePath: storagePath,
+		storagePath,
 		pdfFilename: storagePath?.split("/").pop(),
 		latestVersion: latestVersion
-			? transformDocumentVersion(latestVersion)
+			? toDocumentVersionResponse(latestVersion)
 			: undefined,
 	};
 }
@@ -91,7 +91,7 @@ interface PaginationInput {
 	totalItems: number;
 }
 
-export function transformPagination(input: PaginationInput): PaginationInfo {
+export function toPaginationInfo(input: PaginationInput): PaginationInfo {
 	const { page, limit, totalItems } = input;
 	const totalPages = Math.ceil(totalItems / limit);
 

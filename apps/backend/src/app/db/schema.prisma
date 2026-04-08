@@ -108,6 +108,7 @@ model DocumentVersion {
   document      Document @relation(fields: [documentId], references: [id], map: "document_versions_document_id_fkey")
   user          User     @relation(fields: [uploaderId], references: [id], map: "document_versions_uploader_id_fkey")
 
+  @@unique([documentId, versionNumber], map: "document_versions_document_id_version_number_key")
   @@map("document_version")
 }
 
@@ -197,6 +198,7 @@ model LegislativeDocument {
   authorNames    String[] @map("author_names")
   document       Document @relation(fields: [documentId], references: [id], map: "legislative_documents_document_id_fkey")
 
+  @@unique([officialNumber, seriesYear], map: "legislative_documents_official_number_series_year_key")
   @@map("legislative_document")
 }
 
@@ -277,7 +279,7 @@ model ScholarshipApplication {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Session {
   id                String              @id(map: "sessions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sessionNumber     Decimal             @map("session_number") @db.Decimal
+  sessionNumber     Decimal             @unique(map: "sessions_session_number_key") @map("session_number") @db.Decimal
   scheduleDate      DateTime            @map("schedule_date") @db.Timestamptz(6)
   agendaFilePath    String?             @map("agenda_file_path")
   type              SessionType

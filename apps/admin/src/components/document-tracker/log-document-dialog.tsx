@@ -34,7 +34,7 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { Textarea } from "@repo/ui/components/textarea";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -83,7 +83,7 @@ const formSchema = z
 				`Remarks must be ${TEXT_LIMITS.MD} characters or less`,
 			)
 			.optional(),
-		eventVenue: z.string().trim().min(1, "Event venue is required").optional(),
+		eventVenue: z.string().trim().optional(),
 		eventStartTime: z.string().optional(),
 		eventEndTime: z.string().optional(),
 	})
@@ -107,7 +107,7 @@ const formSchema = z
 		}
 
 		if (input.type === "invitation") {
-			if (!input.eventVenue) {
+			if (!(input.eventVenue?.trim() ?? "")) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
 					path: ["eventVenue"],
@@ -153,6 +153,21 @@ const DEFAULT_VALUES: LogDocumentFormValues = {
 	eventEndTime: "",
 };
 
+const getUnknownErrorMessage = (error: unknown, fallback: string): string => {
+	if (error instanceof Error && error.message.trim()) {
+		return error.message;
+	}
+
+	if (typeof error === "object" && error !== null && "message" in error) {
+		const maybeMessage = (error as { message?: unknown }).message;
+		if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+			return maybeMessage;
+		}
+	}
+
+	return fallback;
+};
+
 export function LogDocumentDialog({
 	open,
 	onOpenChange,
@@ -161,6 +176,7 @@ export function LogDocumentDialog({
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [fileError, setFileError] = useState<string | null>(null);
+	const submitLockRef = useRef(false);
 
 	const {
 		register,
@@ -190,6 +206,8 @@ export function LogDocumentDialog({
 			reset(DEFAULT_VALUES);
 			setSelectedFile(null);
 			setFileError(null);
+			setIsSubmitting(false);
+			submitLockRef.current = false;
 		}
 	}, [open, reset]);
 
@@ -224,11 +242,33 @@ export function LogDocumentDialog({
 		setSelectedFile(file);
 	};
 
-	const closeAndReset = () => {
+	const closeAndReset = (allowWhileSubmitting = false) => {
+		if (isSubmitting && !allowWhileSubmitting) {
+			return;
+		}
+
 		reset(DEFAULT_VALUES);
 		setSelectedFile(null);
 		setFileError(null);
+		setIsSubmitting(false);
+		submitLockRef.current = false;
 		onOpenChange(false);
+	};
+
+	const handleDialogOpenChange = (nextOpen: boolean) => {
+		if (isSubmitting) {
+			return;
+		}
+
+		onOpenChange(nextOpen);
+	};
+
+	const handleInvalidSubmit = () => {
+		toast.error("Please complete the required fields before submitting.");
+
+		if (!selectedFile) {
+			setFileError("Please upload a PDF file");
+		}
 	};
 
 	const onSubmit = async (values: LogDocumentFormValues) => {
@@ -237,8 +277,15 @@ export function LogDocumentDialog({
 			return;
 		}
 
+		if (submitLockRef.current) {
+			return;
+		}
+
+		submitLockRef.current = true;
+
 		setIsSubmitting(true);
 		setFileError(null);
+		let uploadedPath: string | null = null;
 
 		try {
 			const [uploadErr, uploadData] = await api.documents.createUploadUrl({
@@ -262,6 +309,8 @@ export function LogDocumentDialog({
 			if (!uploadResponse.ok) {
 				throw new Error("Failed to upload PDF file");
 			}
+
+			uploadedPath = uploadData.path;
 
 			const [createErr, createData] = await api.documents.create({
 				source: values.source,
@@ -288,22 +337,34 @@ export function LogDocumentDialog({
 			}
 
 			toast.success(`Document logged: ${createData.codeNumber}`);
-			await onCreated?.();
-			closeAndReset();
+			closeAndReset(true);
+			void onCreated?.();
 		} catch (error) {
-			const message =
-				typeof error === "object" && error !== null && "message" in error
-					? String(error.message)
-					: "Failed to log document";
+			if (uploadedPath) {
+				const [cleanupError, cleanupResult] = await api.documents.deleteUpload({
+					path: uploadedPath,
+				});
 
+				if (cleanupError || !cleanupResult?.cleanedUp) {
+					console.warn(
+						"Document upload cleanup failed after document creation error",
+						{ cleanupError, uploadedPath },
+					);
+				}
+			}
+
+			const message = getUnknownErrorMessage(error, "Failed to log document");
+
+			setFileError(message);
 			toast.error(message);
 		} finally {
+			submitLockRef.current = false;
 			setIsSubmitting(false);
 		}
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleDialogOpenChange}>
 			<DialogContent className="sm:max-w-2xl">
 				<DialogHeader>
 					<DialogTitle>Log Document</DialogTitle>
@@ -312,7 +373,10 @@ export function LogDocumentDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+				<form
+					onSubmit={handleSubmit(onSubmit, handleInvalidSubmit)}
+					className="space-y-4"
+				>
 					<div className="grid gap-4 sm:grid-cols-2">
 						<div className="space-y-2">
 							<Label htmlFor="source">Source</Label>
@@ -555,7 +619,7 @@ export function LogDocumentDialog({
 						<Button
 							type="button"
 							variant="outline"
-							onClick={closeAndReset}
+							onClick={() => closeAndReset()}
 							disabled={isSubmitting}
 						>
 							Cancel

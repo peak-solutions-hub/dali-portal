@@ -6,6 +6,8 @@ import type {
 	StatusTypeEnumType,
 } from "@repo/shared";
 
+const PHT_UTC_OFFSET = "+08:00";
+
 function humanize(value: string): string {
 	return value
 		.split("_")
@@ -58,4 +60,14 @@ export function getDocumentStatusBadgeClass(
 		default:
 			return "bg-gray-100 text-gray-700 border-gray-200";
 	}
+}
+
+/** Converts a date-only string to the start-of-day instant in Philippine Time. */
+export function toDocumentFilterStartDate(date: string): Date {
+	return new Date(`${date}T00:00:00.000${PHT_UTC_OFFSET}`);
+}
+
+/** Converts a date-only string to the end-of-day instant in Philippine Time. */
+export function toDocumentFilterEndDate(date: string): Date {
+	return new Date(`${date}T23:59:59.999${PHT_UTC_OFFSET}`);
 }

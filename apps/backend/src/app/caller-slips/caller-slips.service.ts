@@ -11,13 +11,18 @@ import {
 	type RecordDecisionResponse,
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
+import { TransactionService } from "@/app/db/transaction.service";
+import { Prisma } from "@/generated/prisma/client";
 import type { DecisionType as PrismaDecisionType } from "@/generated/prisma/enums";
 
 @Injectable()
 export class CallerSlipsService {
 	private readonly logger = new Logger(CallerSlipsService.name);
 
-	constructor(private readonly db: DbService) {}
+	constructor(
+		private readonly db: DbService,
+		private readonly transactionService: TransactionService,
+	) {}
 
 	async getList(
 		input: GetCallerSlipListInput,
@@ -144,70 +149,89 @@ export class CallerSlipsService {
 			throw new AppError("CALLER_SLIP.EMPTY_BATCH");
 		}
 
-		// Verify all documents exist, are invitation type, and are not yet assigned to a caller slip
-		const documents = await this.db.document.findMany({
-			where: {
-				id: { in: invitationDocumentIds },
-			},
-			include: {
-				invitation: {
-					select: { id: true, callerSlipId: true },
-				},
-			},
-		});
+		const slip = await this.transactionService.run(
+			"callerSlips.generate",
+			async (tx) => {
+				const documents = await tx.document.findMany({
+					where: {
+						id: { in: invitationDocumentIds },
+					},
+					include: {
+						invitation: {
+							select: { id: true, callerSlipId: true },
+						},
+					},
+				});
 
-		if (documents.length !== invitationDocumentIds.length) {
-			throw new AppError(
-				"GENERAL.NOT_FOUND",
-				"One or more documents not found",
-			);
-		}
-
-		for (const doc of documents) {
-			if (doc.type !== "invitation") {
-				throw new AppError(
-					"CALLER_SLIP.INVITATION_NOT_INVITATION_TYPE",
-					`Document ${doc.codeNumber} is not an invitation`,
-				);
-			}
-
-			// Check if this document already has an invitation assigned to a caller slip
-			const assignedInvitation = doc.invitation.find(
-				(inv) => inv.callerSlipId !== null,
-			);
-			if (assignedInvitation) {
-				throw new AppError(
-					"CALLER_SLIP.INVITATION_ALREADY_ASSIGNED",
-					`Document ${doc.codeNumber} is already assigned to a caller slip`,
-				);
-			}
-		}
-
-		// Create caller slip and link existing invitations (or create new ones) in a transaction
-		const slip = await this.db.$transaction(async (tx) => {
-			const newSlip = await tx.callerSlip.create({
-				data: {
-					name,
-					status: "pending",
-					generatedBy: userId,
-				},
-			});
-
-			// For each document, find its existing invitation and link it to the slip,
-			// or create a new invitation if none exists
-			for (const doc of documents) {
-				const existingInvitation = doc.invitation[0];
-				if (existingInvitation) {
-					// Link existing invitation to the caller slip
-					await tx.invitation.update({
-						where: { id: existingInvitation.id },
-						data: { callerSlipId: newSlip.id },
-					});
+				if (documents.length !== invitationDocumentIds.length) {
+					throw new AppError(
+						"GENERAL.NOT_FOUND",
+						"One or more documents not found",
+					);
 				}
-			}
 
-			return newSlip;
-		});
+				for (const doc of documents) {
+					if (doc.type !== "invitation") {
+						throw new AppError(
+							"CALLER_SLIP.INVITATION_NOT_INVITATION_TYPE",
+							`Document ${doc.codeNumber} is not an invitation`,
+						);
+					}
+
+					const existingInvitation = doc.invitation[0];
+
+					if (!existingInvitation) {
+						throw new AppError(
+							"GENERAL.NOT_FOUND",
+							`Invitation record not found for document ${doc.codeNumber}`,
+						);
+					}
+
+					if (existingInvitation.callerSlipId !== null) {
+						throw new AppError(
+							"CALLER_SLIP.INVITATION_ALREADY_ASSIGNED",
+							`Document ${doc.codeNumber} is already assigned to a caller slip`,
+						);
+					}
+				}
+
+				const newSlip = await tx.callerSlip.create({
+					data: {
+						name,
+						status: "pending",
+						generatedBy: userId,
+					},
+				});
+
+				for (const doc of documents) {
+					const existingInvitation = doc.invitation[0]!;
+					const linkResult = await tx.invitation.updateMany({
+						where: {
+							id: existingInvitation.id,
+							callerSlipId: null,
+						},
+						data: {
+							callerSlipId: newSlip.id,
+						},
+					});
+
+					if (linkResult.count !== 1) {
+						throw new AppError(
+							"CALLER_SLIP.INVITATION_ALREADY_ASSIGNED",
+							`Document ${doc.codeNumber} is already assigned to a caller slip`,
+						);
+					}
+				}
+
+				return newSlip;
+			},
+			{
+				isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+				retries: 3,
+				timeout: 10_000,
+				maxWait: 5_000,
+			},
+		);
 
 		this.logger.log(
 			`Caller slip "${slip.name}" generated with ${invitationDocumentIds.length} invitations by user ${userId}`,

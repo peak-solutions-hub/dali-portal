@@ -4,6 +4,10 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { orpc } from "@/lib/api.client";
 import { useDocumentStore } from "@/stores/document-store";
+import {
+	toDocumentFilterEndDate,
+	toDocumentFilterStartDate,
+} from "@/utils/document-helpers";
 
 export function useDocuments() {
 	const {
@@ -25,10 +29,8 @@ export function useDocuments() {
 			search: search || undefined,
 			status: statusFilter === "all" ? undefined : statusFilter,
 			type: typeFilter === "all" ? undefined : typeFilter,
-			dateFrom: dateFrom
-				? new Date(`${dateFrom}T00:00:00.000+08:00`)
-				: undefined,
-			dateTo: dateTo ? new Date(`${dateTo}T23:59:59.999+08:00`) : undefined,
+			dateFrom: dateFrom ? toDocumentFilterStartDate(dateFrom) : undefined,
+			dateTo: dateTo ? toDocumentFilterEndDate(dateTo) : undefined,
 			page,
 			limit,
 			sortBy,

@@ -48,6 +48,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 	// Regular routes render with sidebar/header (only after auth is ready)
 	return (
 		<div className="flex h-screen overflow-hidden bg-[#f9fafb]">
+			<a
+				href="#main-content"
+				className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none"
+			>
+				Skip to content
+			</a>
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<LayoutContent>{children}</LayoutContent>

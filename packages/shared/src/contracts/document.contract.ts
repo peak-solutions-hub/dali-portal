@@ -6,6 +6,8 @@ import {
 	CreateDocumentUploadUrlResponseSchema,
 	CreateDocumentUploadUrlSchema,
 	CreateDocumentVersionSchema,
+	DeleteDocumentUploadResponseSchema,
+	DeleteDocumentUploadSchema,
 	DocumentDetailSchema,
 	DocumentListResponseSchema,
 	DocumentResponseSchema,
@@ -14,6 +16,10 @@ import {
 	UpdateDocumentSchema,
 	UpdateDocumentStatusSchema,
 } from "../schemas/document.schema";
+import {
+	PublishLegislativeDocumentResponseSchema,
+	PublishLegislativeDocumentSchema,
+} from "../schemas/legislative-document.schema";
 
 export const getDocumentList = oc
 	.route({
@@ -120,6 +126,23 @@ export const createDocumentUploadUrl = oc
 	.input(CreateDocumentUploadUrlSchema)
 	.output(CreateDocumentUploadUrlResponseSchema);
 
+export const deleteDocumentUpload = oc
+	.route({
+		method: "POST",
+		path: "/admin/documents/upload-cleanup",
+		summary: "Cleanup a previously uploaded document file",
+		description:
+			"Admin endpoint to clean up uploaded files when document finalization fails.",
+		tags: ["Documents", "Admin"],
+	})
+	.errors({
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		FORBIDDEN: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+	})
+	.input(DeleteDocumentUploadSchema)
+	.output(DeleteDocumentUploadResponseSchema);
+
 export const updateDocument = oc
 	.route({
 		method: "PATCH",
@@ -140,12 +163,33 @@ export const updateDocument = oc
 	.input(UpdateDocumentSchema)
 	.output(DocumentResponseSchema);
 
+export const publishDocument = oc
+	.route({
+		method: "POST",
+		path: "/admin/documents/{documentId}/publish",
+		summary: "Publish a calendared legislative document to archive",
+		description:
+			"Admin endpoint to publish a calendared legislative document and create/update archive metadata.",
+		tags: ["Documents", "Admin"],
+	})
+	.errors({
+		BAD_REQUEST: ERRORS.GENERAL.BAD_REQUEST,
+		CONFLICT: ERRORS.GENERAL.CONFLICT,
+		NOT_FOUND: ERRORS.DOCUMENT.NOT_FOUND,
+		FORBIDDEN: ERRORS.GENERAL.FORBIDDEN,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+	})
+	.input(PublishLegislativeDocumentSchema)
+	.output(PublishLegislativeDocumentResponseSchema);
+
 export const documentContract = {
 	getList: getDocumentList,
 	getById: getDocumentById,
 	create: createDocument,
 	updateStatus: updateDocumentStatus,
 	update: updateDocument,
+	publish: publishDocument,
 	createVersion: createDocumentVersion,
 	createUploadUrl: createDocumentUploadUrl,
+	deleteUpload: deleteDocumentUpload,
 };

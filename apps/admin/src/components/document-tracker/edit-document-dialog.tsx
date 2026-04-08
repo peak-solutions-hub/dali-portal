@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isDefinedError } from "@orpc/client";
 import {
 	CLASSIFICATION_TYPE_VALUES,
 	type ClassificationType,
@@ -40,7 +41,7 @@ import {
 	TooltipTrigger,
 } from "@repo/ui/components/tooltip";
 import { Lock } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -144,9 +145,12 @@ export function EditDocumentDialog({
 			classification: effectiveClassification,
 		},
 	});
+	const submitLockRef = useRef(false);
 
 	const selectedType = watch("type") as DocumentType;
 	const selectedPurpose = watch("purpose") as PurposeType;
+	const titleValue = watch("title") ?? "";
+	const remarksValue = watch("remarks") ?? "";
 
 	const allowedPurposes = useMemo(
 		() => getAllowedPurposes(selectedType),
@@ -222,28 +226,44 @@ export function EditDocumentDialog({
 			return;
 		}
 
+		if (submitLockRef.current) {
+			return;
+		}
+
+		submitLockRef.current = true;
+
 		try {
 			const [updateError] = await api.documents.update(payload);
 
 			if (updateError) {
-				throw updateError;
+				const message = isDefinedError(updateError)
+					? updateError.message
+					: "Failed to update document";
+
+				toast.error(message);
+				return;
 			}
 
 			toast.success("Document updated successfully");
-			await onUpdated?.();
 			onOpenChange(false);
-		} catch (error) {
-			const message =
-				typeof error === "object" && error !== null && "message" in error
-					? String(error.message)
-					: "Failed to update document";
-
-			toast.error(message);
+			void onUpdated?.();
+		} catch {
+			toast.error("Failed to update document");
+		} finally {
+			submitLockRef.current = false;
 		}
 	};
 
+	const handleDialogOpenChange = (nextOpen: boolean) => {
+		if (isSubmitting) {
+			return;
+		}
+
+		onOpenChange(nextOpen);
+	};
+
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleDialogOpenChange}>
 			<DialogContent className="sm:max-w-2xl">
 				<DialogHeader>
 					<DialogTitle>Edit Document</DialogTitle>
@@ -261,9 +281,18 @@ export function EditDocumentDialog({
 							{...register("title")}
 							maxLength={TEXT_LIMITS.SM}
 						/>
-						{errors.title ? (
-							<p className="text-xs text-destructive">{errors.title.message}</p>
-						) : null}
+						<div className="flex justify-between">
+							{errors.title ? (
+								<p className="text-xs text-destructive">
+									{errors.title.message}
+								</p>
+							) : (
+								<span />
+							)}
+							<p className="text-xs text-muted-foreground text-right">
+								{titleValue.length}/{TEXT_LIMITS.SM}
+							</p>
+						</div>
 					</div>
 
 					<TooltipProvider delayDuration={200}>
@@ -417,19 +446,31 @@ export function EditDocumentDialog({
 
 					<div className="space-y-2">
 						<Label htmlFor="editRemarks">Remarks</Label>
-						<Textarea id="editRemarks" rows={3} {...register("remarks")} />
-						{errors.remarks ? (
-							<p className="text-xs text-destructive">
-								{errors.remarks.message}
+						<Textarea
+							id="editRemarks"
+							rows={3}
+							{...register("remarks")}
+							maxLength={TEXT_LIMITS.MD}
+						/>
+						<div className="flex justify-between">
+							{errors.remarks ? (
+								<p className="text-xs text-destructive">
+									{errors.remarks.message}
+								</p>
+							) : (
+								<span />
+							)}
+							<p className="text-xs text-muted-foreground text-right">
+								{remarksValue.length}/{TEXT_LIMITS.MD}
 							</p>
-						) : null}
+						</div>
 					</div>
 
 					<DialogFooter>
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => onOpenChange(false)}
+							onClick={() => handleDialogOpenChange(false)}
 							disabled={isSubmitting}
 						>
 							Cancel

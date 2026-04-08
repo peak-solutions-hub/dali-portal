@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isDefinedError } from "@orpc/client";
 import {
 	CLASSIFICATION_TYPE_VALUES,
 	type ClassificationType,
@@ -25,7 +26,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -74,7 +75,7 @@ export function PublishToArchiveDialog({
 		setValue,
 		watch,
 		reset,
-		formState: { errors, isSubmitting },
+		formState: { errors },
 	} = useForm<PublishFormInput, unknown, PublishFormValues>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
@@ -84,6 +85,8 @@ export function PublishToArchiveDialog({
 			category: defaultCategory ?? KEEP_CURRENT_CATEGORY,
 		},
 	});
+	const [isPublishing, setIsPublishing] = useState(false);
+	const publishLockRef = useRef(false);
 
 	useEffect(() => {
 		if (!open) {
@@ -98,9 +101,24 @@ export function PublishToArchiveDialog({
 
 	const categoryValue = watch("category") ?? KEEP_CURRENT_CATEGORY;
 
+	const handleDialogOpenChange = (nextOpen: boolean) => {
+		if (isPublishing) {
+			return;
+		}
+
+		onOpenChange(nextOpen);
+	};
+
 	const onSubmit = async (values: PublishFormValues) => {
+		if (publishLockRef.current) {
+			return;
+		}
+
+		publishLockRef.current = true;
+		setIsPublishing(true);
+
 		try {
-			const [publishError] = await api.legislativeDocuments.publish({
+			const [publishError] = await api.documents.publish({
 				documentId,
 				officialNumber: values.officialNumber,
 				seriesYear: values.seriesYear,
@@ -112,24 +130,27 @@ export function PublishToArchiveDialog({
 			});
 
 			if (publishError) {
-				throw publishError;
+				const message = isDefinedError(publishError)
+					? publishError.message
+					: "Failed to publish document";
+
+				toast.error(message);
+				return;
 			}
 
 			toast.success("Document published to archive");
-			await onPublished?.();
 			onOpenChange(false);
-		} catch (error) {
-			const message =
-				typeof error === "object" && error !== null && "message" in error
-					? String(error.message)
-					: "Failed to publish document";
-
-			toast.error(message);
+			void onPublished?.();
+		} catch {
+			toast.error("Failed to publish document");
+		} finally {
+			publishLockRef.current = false;
+			setIsPublishing(false);
 		}
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleDialogOpenChange}>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Publish to Archive</DialogTitle>
@@ -218,13 +239,13 @@ export function PublishToArchiveDialog({
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => onOpenChange(false)}
-							disabled={isSubmitting}
+							onClick={() => handleDialogOpenChange(false)}
+							disabled={isPublishing}
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={isSubmitting}>
-							{isSubmitting ? "Publishing..." : "Publish"}
+						<Button type="submit" disabled={isPublishing}>
+							{isPublishing ? "Publishing..." : "Publish"}
 						</Button>
 					</DialogFooter>
 				</form>

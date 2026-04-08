@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/generated/prisma/client";
+import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { ConfigService } from "@/lib/config.service";
 
 /**
@@ -14,6 +14,11 @@ const POOL_DEFAULTS = {
 	max: 10, // Max concurrent connections to hold in the pool
 	idleTimeoutMillis: 30_000,
 	connectionTimeoutMillis: 5_000,
+} as const;
+
+const TRANSACTION_DEFAULTS = {
+	maxWait: 5_000,
+	timeout: 10_000,
 } as const;
 
 @Injectable()
@@ -42,9 +47,16 @@ export class DbService extends PrismaClient {
 			},
 		);
 
-		super({ adapter });
+		super({
+			adapter,
+			transactionOptions: {
+				maxWait: TRANSACTION_DEFAULTS.maxWait,
+				timeout: TRANSACTION_DEFAULTS.timeout,
+				isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+			},
+		});
 		this.logger.log(
-			`Database pool configured: max=${POOL_DEFAULTS.max}`,
+			`Database pool configured: max=${POOL_DEFAULTS.max}, txMaxWait=${TRANSACTION_DEFAULTS.maxWait}, txTimeout=${TRANSACTION_DEFAULTS.timeout}`,
 			"DbService",
 		);
 	}

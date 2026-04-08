@@ -1,7 +1,9 @@
 "use client";
 
+import { isDefinedError } from "@orpc/client";
 import {
 	type ClassificationType,
+	canRoleTransition,
 	getNextStatuses,
 	type PurposeType,
 	type RoleType,
@@ -42,7 +44,7 @@ import {
 } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DocumentStatusBadge } from "@/components/document-tracker/document-status-badge";
 import { DocumentStatusStepper } from "@/components/document-tracker/document-status-stepper";
@@ -60,39 +62,6 @@ import {
 	formatDocumentStatus,
 } from "@/utils/document-helpers";
 
-const TRANSITION_ROLE_MAP: Record<string, RoleType[]> = {
-	"received->for_initial": ["admin_staff", "head_admin", "vice_mayor"],
-	"for_initial->for_signature": ["head_admin", "vice_mayor"],
-	"for_signature->approved": ["vice_mayor"],
-	"approved->released": ["admin_staff", "head_admin"],
-	"approved->calendared": ["legislative_staff", "head_admin"],
-	"calendared->published": ["legislative_staff", "head_admin"],
-	"returned->received": ["admin_staff", "head_admin", "vice_mayor"],
-};
-
-function canRoleTransition(
-	currentStatus: StatusType,
-	nextStatus: StatusType,
-	role: RoleType | null,
-): boolean {
-	if (!role) {
-		return false;
-	}
-
-	if (nextStatus === "returned") {
-		return role === "head_admin" || role === "vice_mayor";
-	}
-
-	const key = `${currentStatus}->${nextStatus}`;
-	const allowedRoles = TRANSITION_ROLE_MAP[key];
-
-	if (!allowedRoles) {
-		return true;
-	}
-
-	return allowedRoles.includes(role);
-}
-
 function getTransitionLabel(nextStatus: StatusType): string {
 	switch (nextStatus) {
 		case "for_initial":
@@ -105,8 +74,6 @@ function getTransitionLabel(nextStatus: StatusType): string {
 			return "Release Document";
 		case "calendared":
 			return "Mark as Calendared";
-		case "published":
-			return "Mark as Published";
 		case "returned":
 			return "Return / Revert";
 		case "received":
@@ -132,7 +99,6 @@ function getTransitionButtonClasses(nextStatus: StatusType): string {
 			return "bg-blue-600 hover:bg-blue-700 text-white";
 		case "released":
 		case "calendared":
-		case "published":
 			return "bg-blue-600 hover:bg-blue-700 text-white";
 		case "returned":
 			return "bg-red-600 hover:bg-red-700 text-white";
@@ -158,8 +124,16 @@ export default function DocumentDetailPage() {
 	const [pendingStatus, setPendingStatus] = useState<StatusType | null>(null);
 	const [transitionRemarks, setTransitionRemarks] = useState("");
 	const [showMoreDetails, setShowMoreDetails] = useState(false);
+	const statusMutationLockRef = useRef(false);
 
 	const { data, isLoading, error, refetch } = useDocumentDetail(documentId);
+
+	useEffect(() => {
+		if (!isStatusDialogOpen) {
+			setPendingStatus(null);
+			setTransitionRemarks("");
+		}
+	}, [isStatusDialogOpen]);
 
 	useEffect(() => {
 		const latestVersion = data?.versions?.[0];
@@ -185,13 +159,21 @@ export default function DocumentDetailPage() {
 			return [];
 		}
 
+		if (!userRole) {
+			return [];
+		}
+
 		return getNextStatuses(
 			data.purpose as PurposeType,
 			data.status as StatusType,
 		)
 			.filter((nextStatus) => nextStatus !== "published")
 			.filter((nextStatus) =>
-				canRoleTransition(data.status as StatusType, nextStatus, userRole),
+				canRoleTransition(
+					data.status as StatusType,
+					nextStatus,
+					userRole as RoleType,
+				),
 			);
 	}, [data, userRole]);
 
@@ -214,44 +196,56 @@ export default function DocumentDetailPage() {
 
 	const isDestructiveTransition = pendingStatus === "returned";
 
+	const closeStatusDialog = () => {
+		if (isUpdatingStatus) {
+			return;
+		}
+
+		setIsStatusDialogOpen(false);
+	};
+
 	const handleOpenStatusTransition = (nextStatus: StatusType) => {
+		if (isUpdatingStatus || statusMutationLockRef.current) {
+			return;
+		}
+
 		setPendingStatus(nextStatus);
 		setTransitionRemarks("");
 		setIsStatusDialogOpen(true);
 	};
 
 	const handleStatusTransition = async () => {
-		if (!data || !pendingStatus) {
+		if (!data || !pendingStatus || statusMutationLockRef.current) {
 			return;
 		}
 
+		statusMutationLockRef.current = true;
 		setIsUpdatingStatus(true);
+		const statusToApply = pendingStatus;
 
 		try {
 			const [updateError] = await api.documents.updateStatus({
 				id: data.id,
-				status: pendingStatus,
+				status: statusToApply,
 				remarks: transitionRemarks.trim() || undefined,
 			});
 
 			if (updateError) {
-				throw updateError;
-			}
-
-			toast.success(`Status updated to ${formatDocumentStatus(pendingStatus)}`);
-			setIsStatusDialogOpen(false);
-			setPendingStatus(null);
-			await refetch();
-		} catch (transitionError) {
-			const message =
-				typeof transitionError === "object" &&
-				transitionError !== null &&
-				"message" in transitionError
-					? String(transitionError.message)
+				const message = isDefinedError(updateError)
+					? updateError.message
 					: "Failed to update status";
 
-			toast.error(message);
+				toast.error(message);
+				return;
+			}
+
+			toast.success(`Status updated to ${formatDocumentStatus(statusToApply)}`);
+			setIsStatusDialogOpen(false);
+			void refetch();
+		} catch {
+			toast.error("Failed to update status");
 		} finally {
+			statusMutationLockRef.current = false;
 			setIsUpdatingStatus(false);
 		}
 	};
@@ -310,19 +304,22 @@ export default function DocumentDetailPage() {
 								Archive
 							</Button>
 						)}
-						{data.status === "approved" && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() =>
-									handleOpenStatusTransition("released" as StatusType)
-								}
-								title="Release"
-							>
-								<Send className="mr-1 h-3.5 w-3.5" />
-								Release
-							</Button>
-						)}
+						{data.status === "approved" &&
+							data.purpose === "for_action" &&
+							(userRole === "admin_staff" || userRole === "head_admin") && (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() =>
+										handleOpenStatusTransition("released" as StatusType)
+									}
+									disabled={isUpdatingStatus}
+									title="Release"
+								>
+									<Send className="mr-1 h-3.5 w-3.5" />
+									Release
+								</Button>
+							)}
 						<Button
 							variant="outline"
 							size="sm"
@@ -635,22 +632,21 @@ export default function DocumentDetailPage() {
 			<Dialog
 				open={isStatusDialogOpen}
 				onOpenChange={(open) => {
-					setIsStatusDialogOpen(open);
-
-					if (!open) {
-						setPendingStatus(null);
-						setTransitionRemarks("");
+					if (isUpdatingStatus) {
+						return;
 					}
+
+					setIsStatusDialogOpen(open);
 				}}
 			>
 				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Confirm Status Change</DialogTitle>
-						<DialogDescription>
-							{pendingStatus
-								? `Are you sure you want to mark this document as ${formatDocumentStatus(pendingStatus)}?`
-								: "Select a status transition."}
-						</DialogDescription>
+						{pendingStatus ? (
+							<DialogDescription>
+								{`Are you sure you want to mark this document as ${formatDocumentStatus(pendingStatus)}?`}
+							</DialogDescription>
+						) : null}
 						{isDestructiveTransition ? (
 							<p className="text-xs text-destructive">
 								This will return the document for revisions.
@@ -682,11 +678,7 @@ export default function DocumentDetailPage() {
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => {
-								setIsStatusDialogOpen(false);
-								setPendingStatus(null);
-								setTransitionRemarks("");
-							}}
+							onClick={closeStatusDialog}
 							disabled={isUpdatingStatus}
 						>
 							Cancel

@@ -1,9 +1,7 @@
 import { Controller } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
-import { AppError, contract } from "@repo/shared";
-import { Roles } from "@/app/auth/decorators/roles.decorator";
-import type { ORPCContext } from "@/app/types";
+import { contract } from "@repo/shared";
 import { LegislativeDocumentsService } from "./legislative-documents.service";
 
 @Controller()
@@ -56,26 +54,5 @@ export class LegislativeDocumentsController {
 				return await this.legislativeDocumentsService.findOne(input.id);
 			},
 		);
-	}
-
-	@Roles("head_admin", "legislative_staff")
-	@Implement(contract.legislativeDocuments.publish)
-	publish() {
-		return implement(contract.legislativeDocuments.publish).handler(
-			async ({ input, context }) => {
-				const user = this.getAuthenticatedUser(context as ORPCContext);
-				return await this.legislativeDocumentsService.publish(input, user.id);
-			},
-		);
-	}
-
-	private getAuthenticatedUser(context: ORPCContext) {
-		const user = context.request.user;
-
-		if (!user) {
-			throw new AppError("AUTH.AUTHENTICATION_REQUIRED");
-		}
-
-		return user;
 	}
 }

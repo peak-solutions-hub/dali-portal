@@ -6,14 +6,16 @@ import {
 	type CreateDocumentUploadUrlInput,
 	type CreateDocumentUploadUrlResponse,
 	type CreateDocumentVersionInput,
+	canRoleTransition,
+	type DeleteDocumentUploadInput,
+	type DeleteDocumentUploadResponse,
 	DOCUMENT_TYPE_VALUES,
-	type DocumentDetail,
-	type DocumentListResponse,
-	type DocumentResponse,
 	type DocumentType,
 	type GetDocumentListInput,
 	isPurposeAllowed,
 	isTransitionAllowed,
+	type PublishLegislativeDocumentInput,
+	type PublishLegislativeDocumentResponse,
 	type PurposeType,
 	type RoleType,
 	SOURCE_TYPE_VALUES,
@@ -22,6 +24,7 @@ import {
 	type UpdateDocumentStatusInput,
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
+import { TransactionService } from "@/app/db/transaction.service";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
 import { Prisma } from "@/generated/prisma/client";
 import type {
@@ -31,6 +34,11 @@ import type {
 	SourceType as PrismaSourceType,
 	StatusType as PrismaStatusType,
 } from "@/generated/prisma/enums";
+import type {
+	DocumentDetailQueryResult,
+	DocumentEntity,
+	DocumentListQueryResult,
+} from "./types";
 
 const DOCUMENT_BUCKET = "documents";
 
@@ -54,24 +62,15 @@ const TAB_TYPE_MAP: Record<
 	invitations: ["invitation"],
 } as const;
 
-const TRANSITION_ROLE_MAP: Record<string, RoleType[]> = {
-	"received->for_initial": ["admin_staff", "head_admin", "vice_mayor"],
-	"for_initial->for_signature": ["head_admin", "vice_mayor"],
-	"for_signature->approved": ["vice_mayor"],
-	"approved->released": ["admin_staff", "head_admin"],
-	"approved->calendared": ["legislative_staff", "head_admin"],
-	"calendared->published": ["legislative_staff", "head_admin"],
-	"returned->received": ["admin_staff", "head_admin", "vice_mayor"],
-};
-
 @Injectable()
 export class DocumentsService {
 	constructor(
 		private readonly db: DbService,
 		private readonly storageService: SupabaseStorageService,
+		private readonly transactionService: TransactionService,
 	) {}
 
-	async getList(input: GetDocumentListInput): Promise<DocumentListResponse> {
+	async getList(input: GetDocumentListInput): Promise<DocumentListQueryResult> {
 		const where = this.buildDocumentWhereClause(input);
 
 		const orderBy: Prisma.DocumentOrderByWithRelationInput = {
@@ -97,10 +96,7 @@ export class DocumentsService {
 		]);
 
 		return {
-			items: documents.map((document) => ({
-				...this.toDocumentResponse(document),
-				callerSlipId: document.invitation[0]?.callerSlipId ?? null,
-			})),
+			items: documents,
 			pagination: {
 				total,
 				page: input.page,
@@ -110,7 +106,7 @@ export class DocumentsService {
 		};
 	}
 
-	async getById(id: string): Promise<DocumentDetail> {
+	async getById(id: string): Promise<DocumentDetailQueryResult> {
 		const document = await this.db.document.findUnique({
 			where: { id },
 			include: {
@@ -134,7 +130,9 @@ export class DocumentsService {
 			throw new AppError("DOCUMENT.NOT_FOUND");
 		}
 
-		const versions = await Promise.all(
+		const signedUrls = new Map<string, string>();
+
+		await Promise.all(
 			document.documentVersion.map(async (version) => {
 				const signed = await this.storageService.getSignedUrlOrThrow(
 					DOCUMENT_BUCKET,
@@ -145,39 +143,13 @@ export class DocumentsService {
 					throw new AppError("STORAGE.SIGNED_URL_FAILED");
 				}
 
-				return {
-					id: version.id,
-					documentId: version.documentId,
-					uploaderId: version.uploaderId,
-					versionNumber: Number(version.versionNumber),
-					filePath: version.filePath,
-					signedUrl: signed.signedUrl,
-					createdAt: version.createdAt.toISOString(),
-				};
+				signedUrls.set(version.filePath, signed.signedUrl);
 			}),
 		);
 
-		const baseAuditTrail = document.documentAudit.map((audit) => ({
-			id: audit.id,
-			actorId: audit.actorId,
-			actorName: audit.user.fullName,
-			documentId: audit.documentId,
-			versionNumber: Number(audit.versionNumber),
-			filePath: audit.filePath,
-			remarks: audit.remarks ?? null,
-			createdAt: audit.createdAt.toISOString(),
-		}));
-
-		const auditTrail = this.enrichAuditTrail(
-			baseAuditTrail,
-			document.status as StatusType,
-			document.purpose as PurposeType,
-		);
-
 		return {
-			...this.toDocumentResponse(document),
-			versions,
-			auditTrail,
+			document,
+			signedUrls,
 		};
 	}
 
@@ -197,59 +169,61 @@ export class DocumentsService {
 		const codeNumber = await this.generateCodeNumber();
 
 		try {
-			const document = await this.db.$transaction(async (tx) => {
-				const created = await tx.document.create({
-					data: {
-						codeNumber,
-						title: input.title,
-						type: input.type as PrismaDocumentType,
-						purpose: input.purpose as PrismaPurposeType,
-						source: input.source as PrismaSourceType,
-						status: "received",
-						classification: isInvitation
-							? undefined
-							: (input.classification as PrismaClassificationType),
-						remarks: input.remarks ?? null,
-					},
-				});
-
-				await tx.documentVersion.create({
-					data: {
-						documentId: created.id,
-						uploaderId: actorId,
-						versionNumber: new Prisma.Decimal(1),
-						filePath: input.filePath,
-					},
-				});
-
-				await tx.documentAudit.create({
-					data: {
-						actorId,
-						documentId: created.id,
-						versionNumber: new Prisma.Decimal(1),
-						filePath: input.filePath,
-					},
-				});
-
-				// Create invitation record for invitation-type documents
-				if (
-					isInvitation &&
-					input.eventVenue &&
-					input.eventStartTime &&
-					input.eventEndTime
-				) {
-					await tx.invitation.create({
+			const document = await this.transactionService.run(
+				"documents.create",
+				async (tx) => {
+					const created = await tx.document.create({
 						data: {
-							documentId: created.id,
-							eventVenue: input.eventVenue,
-							eventStartTime: new Date(input.eventStartTime),
-							eventEndTime: new Date(input.eventEndTime),
+							codeNumber,
+							title: input.title,
+							type: input.type as PrismaDocumentType,
+							purpose: input.purpose as PrismaPurposeType,
+							source: input.source as PrismaSourceType,
+							status: "received",
+							classification: isInvitation
+								? undefined
+								: (input.classification as PrismaClassificationType),
+							remarks: input.remarks ?? null,
 						},
 					});
-				}
 
-				return created;
-			});
+					await tx.documentVersion.create({
+						data: {
+							documentId: created.id,
+							uploaderId: actorId,
+							versionNumber: new Prisma.Decimal(1),
+							filePath: input.filePath,
+						},
+					});
+
+					await tx.documentAudit.create({
+						data: {
+							actorId,
+							documentId: created.id,
+							versionNumber: new Prisma.Decimal(1),
+							filePath: input.filePath,
+						},
+					});
+
+					if (
+						isInvitation &&
+						input.eventVenue &&
+						input.eventStartTime &&
+						input.eventEndTime
+					) {
+						await tx.invitation.create({
+							data: {
+								documentId: created.id,
+								eventVenue: input.eventVenue,
+								eventStartTime: new Date(input.eventStartTime),
+								eventEndTime: new Date(input.eventEndTime),
+							},
+						});
+					}
+
+					return created;
+				},
+			);
 
 			return {
 				id: document.id,
@@ -272,7 +246,14 @@ export class DocumentsService {
 		input: UpdateDocumentStatusInput,
 		actorId: string,
 		actorRole: RoleType,
-	): Promise<DocumentResponse> {
+	): Promise<DocumentEntity> {
+		if (input.status === "published") {
+			throw new AppError(
+				"GENERAL.BAD_REQUEST",
+				"Use the publish endpoint to archive calendared legislative documents.",
+			);
+		}
+
 		const document = await this.db.document.findUnique({
 			where: { id: input.id },
 			include: {
@@ -297,85 +278,249 @@ export class DocumentsService {
 			throw new AppError("DOCUMENT.INVALID_TRANSITION");
 		}
 
-		this.assertRoleCanTransition(
-			document.status as StatusType,
-			input.status as StatusType,
-			actorRole,
-		);
+		if (
+			!canRoleTransition(
+				document.status as StatusType,
+				input.status as StatusType,
+				actorRole,
+			)
+		) {
+			throw new AppError("GENERAL.FORBIDDEN");
+		}
 
 		const latestVersion = document.documentVersion[0];
 
-		const updated = await this.db.$transaction(async (tx) => {
-			const updatedDocument = await tx.document.update({
-				where: { id: input.id },
-				data: { status: input.status as PrismaStatusType },
-			});
+		if (!latestVersion) {
+			throw new AppError(
+				"GENERAL.BAD_REQUEST",
+				"Cannot transition a document without at least one file version.",
+			);
+		}
 
-			await tx.documentAudit.create({
-				data: {
-					actorId,
-					documentId: updatedDocument.id,
-					versionNumber: latestVersion?.versionNumber ?? new Prisma.Decimal(0),
-					filePath: latestVersion?.filePath ?? "",
-					remarks: input.remarks ?? null,
-				},
-			});
+		const updated = await this.transactionService.run(
+			"documents.updateStatus",
+			async (tx) => {
+				const updatedDocument = await tx.document.update({
+					where: { id: input.id },
+					data: { status: input.status as PrismaStatusType },
+				});
 
-			return updatedDocument;
-		});
+				await tx.documentAudit.create({
+					data: {
+						actorId,
+						documentId: updatedDocument.id,
+						versionNumber: latestVersion.versionNumber,
+						filePath: latestVersion.filePath,
+						remarks: input.remarks ?? null,
+					},
+				});
 
-		return this.toDocumentResponse(updated);
+				return updatedDocument;
+			},
+		);
+
+		return updated;
+	}
+
+	publish(
+		input: PublishLegislativeDocumentInput,
+		actorId: string,
+	): Promise<PublishLegislativeDocumentResponse> {
+		return this.transactionService.run(
+			"documents.publish",
+			async (tx) => {
+				const document = await tx.document.findUnique({
+					where: { id: input.documentId },
+					include: {
+						documentVersion: {
+							orderBy: { versionNumber: "desc" },
+							take: 1,
+						},
+					},
+				});
+
+				if (!document) {
+					throw new AppError("DOCUMENT.NOT_FOUND");
+				}
+
+				if (
+					document.purpose !== "for_agenda" ||
+					document.status !== "calendared"
+				) {
+					throw new AppError(
+						"GENERAL.BAD_REQUEST",
+						"Document must be calendared before publishing to archive.",
+					);
+				}
+
+				const legislativeType = this.toLegislativeType(document.type);
+
+				if (!legislativeType) {
+					throw new AppError(
+						"GENERAL.BAD_REQUEST",
+						"Only proposed ordinances and proposed resolutions can be published to archive.",
+					);
+				}
+
+				const latestVersion = document.documentVersion[0];
+
+				if (!latestVersion) {
+					throw new AppError(
+						"GENERAL.BAD_REQUEST",
+						"Document has no uploaded version to publish.",
+					);
+				}
+
+				const duplicateOfficialNumber = await tx.legislativeDocument.findFirst({
+					where: {
+						officialNumber: input.officialNumber,
+						seriesYear: new Prisma.Decimal(input.seriesYear),
+						NOT: {
+							documentId: input.documentId,
+						},
+					},
+				});
+
+				if (duplicateOfficialNumber) {
+					throw new AppError(
+						"GENERAL.CONFLICT",
+						"A legislative document with this official number already exists.",
+					);
+				}
+
+				const updateResult = await tx.document.updateMany({
+					where: {
+						id: input.documentId,
+						purpose: "for_agenda",
+						status: "calendared",
+					},
+					data: {
+						status: "published",
+						...(input.category
+							? { classification: input.category as PrismaClassificationType }
+							: {}),
+					},
+				});
+
+				if (updateResult.count !== 1) {
+					throw new AppError(
+						"GENERAL.CONFLICT",
+						"Document state changed. Please refresh and retry publishing.",
+					);
+				}
+
+				const existingLegislativeDocument =
+					await tx.legislativeDocument.findFirst({
+						where: {
+							documentId: input.documentId,
+						},
+					});
+
+				const legislativeDocument = existingLegislativeDocument
+					? await tx.legislativeDocument.update({
+							where: { id: existingLegislativeDocument.id },
+							data: {
+								officialNumber: input.officialNumber,
+								seriesYear: new Prisma.Decimal(input.seriesYear),
+								type: legislativeType,
+								dateEnacted: input.dateEnacted,
+							},
+						})
+					: await tx.legislativeDocument.create({
+							data: {
+								documentId: input.documentId,
+								officialNumber: input.officialNumber,
+								seriesYear: new Prisma.Decimal(input.seriesYear),
+								type: legislativeType,
+								dateEnacted: input.dateEnacted,
+								sponsorNames: [],
+								authorNames: [],
+							},
+						});
+
+				await tx.documentAudit.create({
+					data: {
+						actorId,
+						documentId: input.documentId,
+						versionNumber: latestVersion.versionNumber,
+						filePath: latestVersion.filePath,
+						remarks: `Published to archive as ${input.officialNumber}`,
+					},
+				});
+
+				return {
+					legislativeDocumentId: Number(legislativeDocument.id),
+					documentId: input.documentId,
+					status: "published",
+				};
+			},
+			{
+				isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+				retries: 3,
+				timeout: 12_000,
+				maxWait: 5_000,
+			},
+		);
 	}
 
 	async createVersion(
 		input: CreateDocumentVersionInput,
 		actorId: string,
-	): Promise<DocumentDetail> {
-		const document = await this.db.document.findUnique({
-			where: { id: input.id },
-			include: {
-				documentVersion: {
-					orderBy: { versionNumber: "desc" },
-					take: 1,
-				},
-			},
-		});
-
-		if (!document) {
-			throw new AppError("DOCUMENT.NOT_FOUND");
-		}
-
-		const latestVersion = document.documentVersion[0];
-		const nextVersion = latestVersion
-			? Number(latestVersion.versionNumber) + 1
-			: 1;
-
-		await this.db.$transaction(async (tx) => {
-			await tx.documentVersion.create({
-				data: {
-					documentId: input.id,
-					uploaderId: actorId,
-					versionNumber: new Prisma.Decimal(nextVersion),
-					filePath: input.filePath,
-				},
-			});
-
-			if (input.resetStatus) {
-				await tx.document.update({
+	): Promise<DocumentDetailQueryResult> {
+		await this.transactionService.run(
+			"documents.createVersion",
+			async (tx) => {
+				const document = await tx.document.findUnique({
 					where: { id: input.id },
-					data: { status: "received" },
+					include: {
+						documentVersion: {
+							orderBy: { versionNumber: "desc" },
+							take: 1,
+						},
+					},
 				});
-			}
 
-			await tx.documentAudit.create({
-				data: {
-					actorId,
-					documentId: input.id,
-					versionNumber: new Prisma.Decimal(nextVersion),
-					filePath: input.filePath,
-				},
-			});
-		});
+				if (!document) {
+					throw new AppError("DOCUMENT.NOT_FOUND");
+				}
+
+				const latestVersion = document.documentVersion[0];
+				const nextVersion = latestVersion
+					? Number(latestVersion.versionNumber) + 1
+					: 1;
+
+				await tx.documentVersion.create({
+					data: {
+						documentId: input.id,
+						uploaderId: actorId,
+						versionNumber: new Prisma.Decimal(nextVersion),
+						filePath: input.filePath,
+					},
+				});
+
+				if (input.resetStatus) {
+					await tx.document.update({
+						where: { id: input.id },
+						data: { status: "received" },
+					});
+				}
+
+				await tx.documentAudit.create({
+					data: {
+						actorId,
+						documentId: input.id,
+						versionNumber: new Prisma.Decimal(nextVersion),
+						filePath: input.filePath,
+					},
+				});
+			},
+			{
+				isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+				retries: 3,
+				timeout: 10_000,
+				maxWait: 5_000,
+			},
+		);
 
 		return await this.getById(input.id);
 	}
@@ -383,7 +528,7 @@ export class DocumentsService {
 	async update(
 		input: UpdateDocumentInput,
 		actorId: string,
-	): Promise<DocumentResponse> {
+	): Promise<DocumentEntity> {
 		const document = await this.db.document.findUnique({
 			where: { id: input.id },
 			include: {
@@ -463,7 +608,7 @@ export class DocumentsService {
 		}
 
 		if (Object.keys(data).length === 0) {
-			return this.toDocumentResponse(document);
+			return document;
 		}
 
 		const latestVersion = document.documentVersion[0];
@@ -498,70 +643,72 @@ export class DocumentsService {
 			changeMessages.push("Classification updated");
 		}
 
-		const updated = await this.db.$transaction(async (tx) => {
-			const updatedDocument = await tx.document.update({
-				where: { id: input.id },
-				data,
-			});
+		const updated = await this.transactionService.run(
+			"documents.update",
+			async (tx) => {
+				const updatedDocument = await tx.document.update({
+					where: { id: input.id },
+					data,
+				});
 
-			await tx.documentAudit.create({
-				data: {
-					actorId,
-					documentId: updatedDocument.id,
-					versionNumber: latestVersion.versionNumber,
-					filePath: latestVersion.filePath,
-				},
-			});
+				await tx.documentAudit.create({
+					data: {
+						actorId,
+						documentId: updatedDocument.id,
+						versionNumber: latestVersion.versionNumber,
+						filePath: latestVersion.filePath,
+					},
+				});
 
-			// Upsert invitation record when document is invitation type
-			if (nextType === "invitation") {
-				const invitationData: Record<string, unknown> = {};
+				if (nextType === "invitation") {
+					const invitationData: Record<string, unknown> = {};
 
-				if (input.eventVenue !== undefined) {
-					invitationData.eventVenue = input.eventVenue;
-				}
-				if (input.eventStartTime !== undefined) {
-					invitationData.eventStartTime = input.eventStartTime
-						? new Date(input.eventStartTime)
-						: undefined;
-				}
-				if (input.eventEndTime !== undefined) {
-					invitationData.eventEndTime = input.eventEndTime
-						? new Date(input.eventEndTime)
-						: undefined;
-				}
+					if (input.eventVenue !== undefined) {
+						invitationData.eventVenue = input.eventVenue;
+					}
+					if (input.eventStartTime !== undefined) {
+						invitationData.eventStartTime = input.eventStartTime
+							? new Date(input.eventStartTime)
+							: undefined;
+					}
+					if (input.eventEndTime !== undefined) {
+						invitationData.eventEndTime = input.eventEndTime
+							? new Date(input.eventEndTime)
+							: undefined;
+					}
 
-				if (Object.keys(invitationData).length > 0) {
-					const existingInvitation = await tx.invitation.findFirst({
-						where: { documentId: input.id },
-					});
-
-					if (existingInvitation) {
-						await tx.invitation.update({
-							where: { id: existingInvitation.id },
-							data: invitationData,
+					if (Object.keys(invitationData).length > 0) {
+						const existingInvitation = await tx.invitation.findFirst({
+							where: { documentId: input.id },
 						});
-					} else if (
-						input.eventVenue &&
-						input.eventStartTime &&
-						input.eventEndTime
-					) {
-						await tx.invitation.create({
-							data: {
-								documentId: input.id,
-								eventVenue: input.eventVenue,
-								eventStartTime: new Date(input.eventStartTime),
-								eventEndTime: new Date(input.eventEndTime),
-							},
-						});
+
+						if (existingInvitation) {
+							await tx.invitation.update({
+								where: { id: existingInvitation.id },
+								data: invitationData,
+							});
+						} else if (
+							input.eventVenue &&
+							input.eventStartTime &&
+							input.eventEndTime
+						) {
+							await tx.invitation.create({
+								data: {
+									documentId: input.id,
+									eventVenue: input.eventVenue,
+									eventStartTime: new Date(input.eventStartTime),
+									eventEndTime: new Date(input.eventEndTime),
+								},
+							});
+						}
 					}
 				}
-			}
 
-			return updatedDocument;
-		});
+				return updatedDocument;
+			},
+		);
 
-		return this.toDocumentResponse(updated);
+		return updated;
 	}
 
 	async createUploadUrl(
@@ -582,6 +729,37 @@ export class DocumentsService {
 			path: upload.path,
 			signedUrl: upload.signedUrl,
 			token: upload.token,
+		};
+	}
+
+	async deleteUpload(
+		input: DeleteDocumentUploadInput,
+	): Promise<DeleteDocumentUploadResponse> {
+		const normalizedPath = input.path.trim().replace(/^\/+/, "");
+
+		if (input.documentId) {
+			const expectedPrefix = `${DOCUMENT_BUCKET}/${input.documentId}/`;
+
+			if (!normalizedPath.startsWith(expectedPrefix)) {
+				throw new AppError(
+					"GENERAL.BAD_REQUEST",
+					"Invalid upload path for this document.",
+				);
+			}
+		} else if (!normalizedPath.startsWith(`${DOCUMENT_BUCKET}/drafts/`)) {
+			throw new AppError(
+				"GENERAL.BAD_REQUEST",
+				"Only draft upload paths can be cleaned without document context.",
+			);
+		}
+
+		const cleanedUp = await this.storageService.deleteFile(
+			DOCUMENT_BUCKET,
+			normalizedPath,
+		);
+
+		return {
+			cleanedUp,
 		};
 	}
 
@@ -650,121 +828,18 @@ export class DocumentsService {
 		return tabTypes.filter((type) => selectedType.includes(type));
 	}
 
-	private toDocumentResponse(
-		document: Pick<
-			Prisma.DocumentGetPayload<object>,
-			| "id"
-			| "codeNumber"
-			| "title"
-			| "type"
-			| "purpose"
-			| "source"
-			| "status"
-			| "classification"
-			| "remarks"
-			| "receivedAt"
-		>,
-	): DocumentResponse {
-		return {
-			id: document.id,
-			codeNumber: document.codeNumber,
-			title: document.title,
-			type: document.type,
-			purpose: document.purpose,
-			source: document.source,
-			status: document.status,
-			classification: document.classification,
-			remarks: document.remarks,
-			receivedAt: document.receivedAt.toISOString(),
-		};
-	}
-
-	private assertRoleCanTransition(
-		currentStatus: StatusType,
-		nextStatus: StatusType,
-		role: RoleType,
-	): void {
-		if (nextStatus === "returned") {
-			if (role === "head_admin" || role === "vice_mayor") {
-				return;
-			}
-			throw new AppError("GENERAL.FORBIDDEN");
+	private toLegislativeType(
+		documentType: string,
+	): "ordinance" | "resolution" | null {
+		if (documentType === "proposed_ordinance") {
+			return "ordinance";
 		}
 
-		const key = `${currentStatus}->${nextStatus}`;
-		const allowedRoles = TRANSITION_ROLE_MAP[key];
-
-		if (!allowedRoles) {
-			return;
+		if (documentType === "proposed_resolution") {
+			return "resolution";
 		}
 
-		if (!allowedRoles.includes(role)) {
-			throw new AppError("GENERAL.FORBIDDEN");
-		}
-	}
-
-	private enrichAuditTrail(
-		audits: Array<{
-			id: string;
-			actorId: string;
-			actorName: string;
-			documentId: string;
-			versionNumber: number;
-			filePath: string;
-			remarks: string | null;
-			createdAt: string;
-		}>,
-		currentStatus: StatusType,
-		currentPurpose: PurposeType,
-	): Array<{
-		id: string;
-		actorId: string;
-		actorName: string;
-		documentId: string;
-		versionNumber: number;
-		filePath: string;
-		remarks: string | null;
-		createdAt: string;
-		action: string;
-	}> {
-		return audits.map((audit, index) => {
-			const nextOlderAudit = audits[index + 1];
-			const isOldestAudit = index === audits.length - 1;
-			const isLatestAudit = index === 0;
-			const versionIncreased =
-				nextOlderAudit !== undefined &&
-				audit.versionNumber > nextOlderAudit.versionNumber;
-
-			let action = "Document details updated";
-
-			if (isOldestAudit) {
-				action = "Document received";
-			} else if (versionIncreased) {
-				action = `Version ${audit.versionNumber} uploaded`;
-
-				if (isLatestAudit && currentStatus === "received") {
-					action = `${action}. Status reset to Received`;
-				}
-			} else if (isLatestAudit) {
-				if (currentStatus === "published" && currentPurpose === "for_agenda") {
-					action = "Published to archive";
-				} else if (currentStatus !== "received") {
-					action = `Status changed to ${this.formatStatusLabel(currentStatus)}`;
-				}
-			}
-
-			return {
-				...audit,
-				action,
-			};
-		});
-	}
-
-	private formatStatusLabel(status: StatusType): string {
-		return status
-			.split("_")
-			.map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-			.join(" ");
+		return null;
 	}
 
 	private async generateCodeNumber(): Promise<string> {

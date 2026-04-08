@@ -110,6 +110,14 @@ export function DocumentDataTable() {
 		setSearch(debouncedSearch.trim());
 	}, [debouncedSearch, setSearch]);
 
+	// Immediately clear the search filter when input is emptied (bypass debounce)
+	const handleSearchChange = (value: string) => {
+		setSearchInput(value);
+		if (value.trim() === "") {
+			setSearch("");
+		}
+	};
+
 	const { data, isLoading, error, refetch, isPlaceholderData } = useDocuments();
 
 	const items = data?.items ?? [];
@@ -213,7 +221,7 @@ export function DocumentDataTable() {
 					<Input
 						placeholder="Search documents..."
 						value={searchInput}
-						onChange={(event) => setSearchInput(event.target.value)}
+						onChange={(event) => handleSearchChange(event.target.value)}
 						className="w-70"
 					/>
 

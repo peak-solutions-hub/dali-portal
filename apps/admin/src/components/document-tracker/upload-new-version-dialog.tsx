@@ -13,9 +13,24 @@ import {
 } from "@repo/ui/components/dialog";
 import { Input } from "@repo/ui/components/input";
 import { Label } from "@repo/ui/components/label";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api.client";
+
+const getUnknownErrorMessage = (error: unknown, fallback: string): string => {
+	if (error instanceof Error && error.message.trim()) {
+		return error.message;
+	}
+
+	if (typeof error === "object" && error !== null && "message" in error) {
+		const maybeMessage = (error as { message?: unknown }).message;
+		if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+			return maybeMessage;
+		}
+	}
+
+	return fallback;
+};
 
 interface UploadNewVersionDialogProps {
 	documentId: string;
@@ -34,6 +49,7 @@ export function UploadNewVersionDialog({
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [resetStatus, setResetStatus] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const submitLockRef = useRef(false);
 
 	useEffect(() => {
 		if (!open) {
@@ -67,7 +83,19 @@ export function UploadNewVersionDialog({
 	};
 
 	const closeDialog = () => {
+		if (isSubmitting) {
+			return;
+		}
+
 		onOpenChange(false);
+	};
+
+	const handleDialogOpenChange = (nextOpen: boolean) => {
+		if (isSubmitting) {
+			return;
+		}
+
+		onOpenChange(nextOpen);
 	};
 
 	const handleSubmit = async () => {
@@ -76,8 +104,15 @@ export function UploadNewVersionDialog({
 			return;
 		}
 
+		if (submitLockRef.current) {
+			return;
+		}
+
+		submitLockRef.current = true;
+
 		setIsSubmitting(true);
 		setFileError(null);
+		let uploadedPath: string | null = null;
 
 		try {
 			const [uploadErr, uploadData] = await api.documents.createUploadUrl({
@@ -103,6 +138,8 @@ export function UploadNewVersionDialog({
 				throw new Error("Failed to upload PDF file");
 			}
 
+			uploadedPath = uploadData.path;
+
 			const [createVersionError] = await api.documents.createVersion({
 				id: documentId,
 				filePath: uploadData.path,
@@ -114,22 +151,38 @@ export function UploadNewVersionDialog({
 			}
 
 			toast.success("New version uploaded successfully");
-			await onUploaded?.();
 			closeDialog();
+			void onUploaded?.();
 		} catch (error) {
-			const message =
-				typeof error === "object" && error !== null && "message" in error
-					? String(error.message)
-					: "Failed to upload new version";
+			if (uploadedPath) {
+				const [cleanupError, cleanupResult] = await api.documents.deleteUpload({
+					path: uploadedPath,
+					documentId,
+				});
 
+				if (cleanupError || !cleanupResult?.cleanedUp) {
+					console.warn(
+						"Document upload cleanup failed after version finalization error",
+						{ cleanupError, uploadedPath },
+					);
+				}
+			}
+
+			const message = getUnknownErrorMessage(
+				error,
+				"Failed to upload new version",
+			);
+
+			setFileError(message);
 			toast.error(message);
 		} finally {
+			submitLockRef.current = false;
 			setIsSubmitting(false);
 		}
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleDialogOpenChange}>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Upload New Version</DialogTitle>
