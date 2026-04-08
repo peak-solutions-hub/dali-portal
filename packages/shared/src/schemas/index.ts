@@ -1,5 +1,7 @@
 export * from "./auth.schema";
+export * from "./caller-slip.schema";
 export * from "./document.schema";
+export * from "./document-audit.schema";
 export * from "./document-version.schema";
 export * from "./inquiry-ticket.schema";
 export * from "./legislative-document.schema";

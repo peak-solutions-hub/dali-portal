@@ -287,7 +287,10 @@ export const CLASSIFICATION_LABELS: Record<string, string> = {
 };
 
 /** Returns a human-readable label for a classification key, falling back to a title-cased version of the key. */
-export function getClassificationLabel(classification: string): string {
+export function getClassificationLabel(
+	classification: string | null | undefined,
+): string {
+	if (!classification) return "Uncategorized";
 	return (
 		CLASSIFICATION_LABELS[classification] ??
 		classification.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())

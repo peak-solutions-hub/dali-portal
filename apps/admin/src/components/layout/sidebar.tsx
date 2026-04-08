@@ -2,13 +2,136 @@
 
 import { ROLE_DISPLAY_NAMES } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { ChevronRight, LogOut } from "@repo/ui/lib/lucide-react";
+import { ChevronDown, ChevronRight, LogOut } from "@repo/ui/lib/lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
-import { getFilteredNavItems } from "@/config/nav-items";
+import { useMemo, useState } from "react";
+import { getFilteredNavItems, type NavigationItem } from "@/config/nav-items";
 import { useAuth } from "@/contexts/auth-context";
+
+function NavItem({
+	item,
+	pathname,
+	userRole,
+}: {
+	item: NavigationItem;
+	pathname: string;
+	userRole: string | undefined;
+}) {
+	const isActive =
+		pathname === item.href || pathname.startsWith(`${item.href}/`);
+	const hasChildren = item.children && item.children.length > 0;
+	const isChildActive = hasChildren
+		? item.children?.some(
+				(child) =>
+					child.allowedRoles.includes(userRole as never) &&
+					(pathname === child.href || pathname.startsWith(`${child.href}/`)),
+			)
+		: false;
+	const [isExpanded, setIsExpanded] = useState(isActive || isChildActive);
+
+	if (hasChildren) {
+		const visibleChildren = item.children?.filter((child) =>
+			child.allowedRoles.includes(userRole as never),
+		);
+
+		return (
+			<div>
+				<div className="flex items-center">
+					<Link
+						href={item.href}
+						className={cn(
+							"group flex flex-1 items-center gap-3 px-3 py-2 text-[14px] font-medium rounded-md transition-all duration-200",
+							isActive && !isChildActive
+								? "bg-[#dc2626] text-white shadow-sm"
+								: "text-[#0a0a0a] hover:bg-gray-100 hover:text-[#dc2626]",
+						)}
+					>
+						<item.icon
+							className={cn(
+								"size-4.5 shrink-0",
+								isActive && !isChildActive
+									? "text-white"
+									: "text-[#4a5565] group-hover:text-[#dc2626]",
+							)}
+						/>
+						<span className="truncate">{item.name}</span>
+					</Link>
+					{visibleChildren && visibleChildren.length > 0 && (
+						<button
+							type="button"
+							onClick={() => setIsExpanded(!isExpanded)}
+							className="p-1.5 rounded-md hover:bg-gray-100 text-[#4a5565]"
+							aria-label={isExpanded ? "Collapse" : "Expand"}
+						>
+							{isExpanded ? (
+								<ChevronDown className="size-3.5" />
+							) : (
+								<ChevronRight className="size-3.5" />
+							)}
+						</button>
+					)}
+				</div>
+				{isExpanded && visibleChildren && visibleChildren.length > 0 && (
+					<div className="ml-4 mt-0.5 space-y-0.5 border-l border-gray-200 pl-2">
+						{visibleChildren.map((child) => {
+							const childActive =
+								pathname === child.href ||
+								pathname.startsWith(`${child.href}/`);
+							return (
+								<Link
+									key={child.href}
+									href={child.href}
+									className={cn(
+										"group flex items-center gap-2.5 px-3 py-1.5 text-[13px] font-medium rounded-md transition-all duration-200",
+										childActive
+											? "bg-[#dc2626] text-white shadow-sm"
+											: "text-[#0a0a0a] hover:bg-gray-100 hover:text-[#dc2626]",
+									)}
+								>
+									<child.icon
+										className={cn(
+											"size-4 shrink-0",
+											childActive
+												? "text-white"
+												: "text-[#4a5565] group-hover:text-[#dc2626]",
+										)}
+									/>
+									<span className="truncate">{child.name}</span>
+									{childActive && (
+										<ChevronRight className="ml-auto size-3.5 text-white/70" />
+									)}
+								</Link>
+							);
+						})}
+					</div>
+				)}
+			</div>
+		);
+	}
+
+	return (
+		<Link
+			href={item.href}
+			className={cn(
+				"group flex items-center gap-3 px-3 py-2 text-[14px] font-medium rounded-md transition-all duration-200",
+				isActive
+					? "bg-[#dc2626] text-white shadow-sm"
+					: "text-[#0a0a0a] hover:bg-gray-100 hover:text-[#dc2626]",
+			)}
+		>
+			<item.icon
+				className={cn(
+					"size-4.5 shrink-0",
+					isActive ? "text-white" : "text-[#4a5565] group-hover:text-[#dc2626]",
+				)}
+			/>
+			<span className="truncate">{item.name}</span>
+			{isActive && <ChevronRight className="ml-auto size-4 text-white/70" />}
+		</Link>
+	);
+}
 
 export function Sidebar() {
 	const pathname = usePathname();
@@ -62,34 +185,14 @@ export function Sidebar() {
 
 			{/* Navigation */}
 			<nav className="flex-1 px-4 space-y-1 overflow-y-auto pt-2">
-				{filteredNavItems.map((item) => {
-					const isActive = pathname.startsWith(item.href);
-					return (
-						<Link
-							key={item.href}
-							href={item.href}
-							className={cn(
-								"group flex items-center gap-3 px-3 py-2 text-[14px] font-medium rounded-md transition-all duration-200",
-								isActive
-									? "bg-[#dc2626] text-white shadow-sm"
-									: "text-[#0a0a0a] hover:bg-gray-100 hover:text-[#dc2626]",
-							)}
-						>
-							<item.icon
-								className={cn(
-									"size-4.5 shrink-0",
-									isActive
-										? "text-white"
-										: "text-[#4a5565] group-hover:text-[#dc2626]",
-								)}
-							/>
-							<span className="truncate">{item.name}</span>
-							{isActive && (
-								<ChevronRight className="ml-auto size-4 text-white/70" />
-							)}
-						</Link>
-					);
-				})}
+				{filteredNavItems.map((item) => (
+					<NavItem
+						key={item.href}
+						item={item}
+						pathname={pathname}
+						userRole={userProfile?.role?.name}
+					/>
+				))}
 			</nav>
 
 			{/* Logout Button */}

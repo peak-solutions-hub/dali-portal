@@ -71,6 +71,68 @@ export const ERRORS = {
 			message: "Failed to create inquiry ticket. Please try again later.",
 		},
 	},
+	DOCUMENT: {
+		NOT_FOUND: {
+			status: 404,
+			message: "Document not found.",
+		},
+		INVALID_TRANSITION: {
+			status: 400,
+			message: "Invalid status transition.",
+		},
+		DUPLICATE_CODE: {
+			status: 409,
+			message: "A document with this tracking number already exists.",
+		},
+		VERSION_CONFLICT: {
+			status: 409,
+			message: "Document status has changed. Please refresh.",
+		},
+		EDIT_LOCKED: {
+			status: 403,
+			message:
+				"This field cannot be changed once the document has entered the approval workflow.",
+		},
+		DELETE_TERMINAL_STATUS: {
+			status: 409,
+			message: "Published or released documents cannot be deleted.",
+		},
+		LINKED_TO_SESSION_AGENDA: {
+			status: 409,
+			message:
+				"This document cannot be deleted because it is linked to a session agenda. Remove the agenda link first.",
+		},
+		INVITATION_ON_COMPLETED_SLIP: {
+			status: 409,
+			message:
+				"This invitation is part of a completed Caller's Slip and cannot be removed from it.",
+		},
+	},
+	CALLER_SLIP: {
+		NOT_FOUND: {
+			status: 404,
+			message: "Caller's Slip not found.",
+		},
+		ALREADY_COMPLETED: {
+			status: 409,
+			message:
+				"This Caller's Slip has already been completed and cannot be modified.",
+		},
+		INVITATION_ALREADY_ASSIGNED: {
+			status: 409,
+			message:
+				"One or more selected invitations are already assigned to a Caller's Slip.",
+		},
+		INVITATION_NOT_INVITATION_TYPE: {
+			status: 400,
+			message: "One or more selected documents are not of type invitation.",
+		},
+		EMPTY_BATCH: {
+			status: 400,
+			message:
+				"At least one invitation must be selected to generate a Caller's Slip.",
+		},
+	},
 	STORAGE: {
 		SIGNED_URL_FAILED: {
 			status: 500,

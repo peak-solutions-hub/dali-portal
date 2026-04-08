@@ -75,7 +75,7 @@ export const AgendaDocumentSchema = z.object({
 	codeNumber: z.string(),
 	title: z.string(),
 	summary: z.string().optional(),
-	classification: z.string().optional(),
+	classification: z.string().nullable().optional(),
 	orderIndex: z.number().optional(),
 	/** DB row ID of the SessionAgendaItem that links this document.
 	 *  Populated on load so scheduled-session remove can call the
@@ -194,7 +194,7 @@ export const SessionManagementDocumentSchema = z.object({
 	title: z.string(),
 	type: z.string(),
 	number: z.string(),
-	classification: z.string(),
+	classification: z.string().nullable(),
 	status: z.string(),
 	purpose: z.string(),
 	receivedAt: z.string(),

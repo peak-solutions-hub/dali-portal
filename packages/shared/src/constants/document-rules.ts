@@ -11,7 +11,7 @@
  * - Shared: To ensure UI and API agree on allowed actions
  */
 
-import { DocumentType, PurposeType, StatusType } from "../enums";
+import { DocumentType, PurposeType, RoleType, StatusType } from "../enums";
 
 // =============================================================================
 // DOCUMENT TYPE → PURPOSE TYPE MAPPING
@@ -176,6 +176,28 @@ export const STATUS_FLOW_MAP: Record<
 } as const;
 
 /**
+ * Defines which roles are allowed for specific status transitions.
+ * If no mapping exists for a transition, it is considered role-agnostic.
+ */
+export const DOCUMENT_TRANSITION_ROLE_MAP: Record<string, readonly RoleType[]> =
+	{
+		"received->for_initial": [
+			RoleType.ADMIN_STAFF,
+			RoleType.HEAD_ADMIN,
+			RoleType.VICE_MAYOR,
+		],
+		"for_initial->for_signature": [RoleType.HEAD_ADMIN, RoleType.VICE_MAYOR],
+		"for_signature->approved": [RoleType.VICE_MAYOR],
+		"approved->released": [RoleType.ADMIN_STAFF, RoleType.HEAD_ADMIN],
+		"approved->calendared": [RoleType.LEGISLATIVE_STAFF, RoleType.HEAD_ADMIN],
+		"returned->received": [
+			RoleType.ADMIN_STAFF,
+			RoleType.HEAD_ADMIN,
+			RoleType.VICE_MAYOR,
+		],
+	} as const;
+
+/**
  * Get the valid next statuses for a document given its purpose and current status.
  * Returns an empty array if no transitions are valid (terminal state).
  */
@@ -199,6 +221,29 @@ export function isTransitionAllowed(
 ): boolean {
 	const allowed = getNextStatuses(purpose, currentStatus);
 	return allowed.includes(nextStatus);
+}
+
+/**
+ * Check if a role is allowed to perform a status transition.
+ * Special case: only head admin and vice mayor can return documents.
+ */
+export function canRoleTransition(
+	currentStatus: StatusType,
+	nextStatus: StatusType,
+	role: RoleType,
+): boolean {
+	if (nextStatus === StatusType.RETURNED) {
+		return role === RoleType.HEAD_ADMIN || role === RoleType.VICE_MAYOR;
+	}
+
+	const key = `${currentStatus}->${nextStatus}`;
+	const allowedRoles = DOCUMENT_TRANSITION_ROLE_MAP[key];
+
+	if (!allowedRoles) {
+		return true;
+	}
+
+	return allowedRoles.includes(role);
 }
 
 /**

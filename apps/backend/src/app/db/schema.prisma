@@ -29,12 +29,12 @@ model AssistanceRecord {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model CallerSlip {
-  id          String       @id(map: "caller_slips_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String           @id(map: "caller_slips_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
-  status      String
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  generatedBy String       @map("generated_by") @db.Uuid
-  user        User         @relation(fields: [generatedBy], references: [id], map: "caller_slips_generated_by_fkey")
+  status      CallerSlipStatus @default(pending)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  generatedBy String           @map("generated_by") @db.Uuid
+  user        User             @relation(fields: [generatedBy], references: [id], map: "caller_slips_generated_by_fkey")
   invitation  Invitation[]
 
   @@map("caller_slip")
@@ -70,7 +70,7 @@ model Document {
   purpose             PurposeType
   source              SourceType
   status              StatusType
-  classification      ClassificationType
+  classification      ClassificationType?
   documentAudit       DocumentAudit[]
   documentVersion     DocumentVersion[]
   invitation          Invitation[]
@@ -88,8 +88,8 @@ model DocumentAudit {
   documentId    String   @map("document_id") @db.Uuid
   versionNumber Decimal  @map("version_number") @db.Decimal
   filePath      String   @map("file_path")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   remarks       String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   user          User     @relation(fields: [actorId], references: [id], map: "document_audits_actor_id_fkey")
   document      Document @relation(fields: [documentId], references: [id], map: "document_audits_document_id_fkey")
 
@@ -108,6 +108,7 @@ model DocumentVersion {
   document      Document @relation(fields: [documentId], references: [id], map: "document_versions_document_id_fkey")
   user          User     @relation(fields: [uploaderId], references: [id], map: "document_versions_uploader_id_fkey")
 
+  @@unique([documentId, versionNumber], map: "document_versions_document_id_version_number_key")
   @@map("document_version")
 }
 
@@ -197,6 +198,7 @@ model LegislativeDocument {
   authorNames    String[] @map("author_names")
   document       Document @relation(fields: [documentId], references: [id], map: "legislative_documents_document_id_fkey")
 
+  @@unique([officialNumber, seriesYear], map: "legislative_documents_official_number_series_year_key")
   @@map("legislative_document")
 }
 
@@ -277,7 +279,7 @@ model ScholarshipApplication {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Session {
   id                String              @id(map: "sessions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sessionNumber     Decimal             @map("session_number") @db.Decimal
+  sessionNumber     Decimal             @unique(map: "sessions_session_number_key") @map("session_number") @db.Decimal
   scheduleDate      DateTime            @map("schedule_date") @db.Timestamptz(6)
   agendaFilePath    String?             @map("agenda_file_path")
   type              SessionType
@@ -480,6 +482,13 @@ enum ConferenceRoom {
   room_b
 
   @@map("conference_room")
+}
+
+enum CallerSlipStatus {
+  pending
+  completed
+
+  @@map("caller_slip_status")
 }
 
 enum RoomBookingStatus {

@@ -43,6 +43,14 @@ This repository includes workspace-local skills under `.agents/skills`.
 | Request Type | Primary Skill | Optional Secondary Skill |
 |---|---|---|
 | Skill discovery, skill lookup, or skill installation | `find-skills` | `agent-customization` |
+| End-to-end resource implementation (schema/contract/backend/frontend) | `dali-resource-implementation` | `nestjs-best-practices`, `next-best-practices` |
+| Upload flow implementation/review | `dali-upload-flows` | `dali-error-handling-flow` |
+| Pagination, filtering, and sorting work | `dali-pagination-and-filtering` | `dali-state-management-patterns` |
+| Backend-to-frontend error flow work | `dali-error-handling-flow` | `nestjs-best-practices` |
+| Date/time and timezone handling | `dali-date-time-governance` | `supabase-postgres-best-practices` |
+| Admin and portal state management decisions | `dali-state-management-patterns` | `next-best-practices` |
+| UI workflow optimization and click minimization | `dali-ui-ux-workflows` | `accessibility-compliance` |
+| UI audit via browser click workflows | `dali-ui-audit-chrome-devtools` | `web-design-guidelines` |
 | Build or style UI pages/components | `frontend-design` | `tailwind-design-system`, `ui-ux-pro-max` |
 | UI/UX or accessibility review | `web-design-guidelines` | `accessibility-compliance` |
 | Next.js architecture/performance | `next-best-practices` | `vercel-react-best-practices`, `next-cache-components` |
