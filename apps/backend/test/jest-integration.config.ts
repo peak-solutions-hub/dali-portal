@@ -5,6 +5,8 @@ const config: Config = {
 	rootDir: ".",
 	testEnvironment: "node",
 	testRegex: ".integration-spec.ts$",
+	testTimeout: 30_000,
+	maxWorkers: 1,
 	setupFilesAfterEnv: ["<rootDir>/setup-integration.ts"],
 	extensionsToTreatAsEsm: [".ts"],
 	transform: {
