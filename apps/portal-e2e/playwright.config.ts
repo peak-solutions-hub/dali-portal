@@ -64,9 +64,8 @@ const backendEnv = {
 	ADMIN_URL: process.env.ADMIN_URL ?? "http://127.0.0.1:3001",
 };
 
-const backendServerCommand = process.env.CI
-	? "pnpm --filter backend db:test:prepare && pnpm --filter backend start:prod"
-	: "pnpm --filter backend db:test:prepare && pnpm --filter backend dev";
+const backendServerCommand =
+	"pnpm --filter backend db:test:prepare && pnpm --filter backend dev";
 const portalServerCommand = process.env.CI
 	? "pnpm --filter portal start"
 	: "pnpm --filter portal dev";
