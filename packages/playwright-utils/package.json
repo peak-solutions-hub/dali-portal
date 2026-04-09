@@ -17,6 +17,18 @@
 			"types": "./dist/auth.d.ts",
 			"default": "./dist/auth.js"
 		},
+		"./session": {
+			"types": "./dist/session.d.ts",
+			"default": "./dist/session.js"
+		},
+		"./ui": {
+			"types": "./dist/ui/index.d.ts",
+			"default": "./dist/ui/index.js"
+		},
+		"./ui/auth": {
+			"types": "./dist/ui/auth.d.ts",
+			"default": "./dist/ui/auth.js"
+		},
 		"./locators": {
 			"types": "./dist/locators.d.ts",
 			"default": "./dist/locators.js"

@@ -6,13 +6,19 @@ import {
 	signInAsNonAdmin,
 	skipIfMissingItAdminCredentials,
 	skipIfMissingNonAdminCredentials,
-} from "../helpers/auth-session.js";
+} from "@repo/playwright-utils/session";
 
 function getApiBaseUrl(): string {
-	return process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8080";
+	return process.env.NEXT_PUBLIC_API_URL!;
 }
 
-test.describe("Role Management flows", () => {
+function pendingFlow(title: string, reason: string) {
+	test(title, () => {
+		test.fixme(true, reason);
+	});
+}
+
+test.describe("RM Flows", () => {
 	test("RM-1 IT admin can fetch all roles sorted by name", async ({
 		request,
 	}) => {
@@ -66,38 +72,33 @@ test.describe("Role Management flows", () => {
 		expect(roleNames.has("admin_staff")).toBe(true);
 	});
 
-	test("RM-3 sidebar navigation is filtered by role for IT admin", async ({
+	test("RM-3 sidebar navigation is filtered by role", async ({
 		page,
 		context,
 	}) => {
 		skipIfMissingItAdminCredentials();
-		await signInAsItAdmin(context);
+		skipIfMissingNonAdminCredentials();
 
+		await signInAsItAdmin(context);
 		await page.goto("/dashboard");
 		await expect(
 			page.getByRole("link", { name: "User Management" }),
 		).toBeVisible();
-	});
 
-	test("RM-3 sidebar navigation hides IT-admin-only links for non-IT users", async ({
-		page,
-		context,
-	}) => {
-		skipIfMissingNonAdminCredentials();
+		await context.clearCookies();
 		await signInAsNonAdmin(context);
-
 		await page.goto("/dashboard");
 		await expect(
 			page.getByRole("link", { name: "User Management" }),
 		).toHaveCount(0);
 	});
 
-	test.fixme(
+	pendingFlow(
 		"RM-4 vice_mayor sees Caller Slips + Visitor Hub while admin_staff does not",
 		"Requires role-specific credential pairs for vice_mayor and admin_staff in CI.",
 	);
 
-	test.fixme(
+	pendingFlow(
 		"RM-5 GET /roles returns cached response and invalidates on role update",
 		"Current roles service has no explicit cache layer to assert against.",
 	);
@@ -124,7 +125,7 @@ test.describe("Role Management flows", () => {
 		expect(response.status()).toBe(403);
 	});
 
-	test.fixme(
+	pendingFlow(
 		"RM-8 missing/unrecognized role defaults to dashboard with minimal nav",
 		"Requires controlled auth profile mutation for invalid role state.",
 	);

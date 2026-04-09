@@ -3,6 +3,8 @@ import { expect } from "@playwright/test";
 
 export * from "./auth.js";
 export * from "./locators.js";
+export * from "./session.js";
+export * from "./ui/index.js";
 
 export async function expectPageHealthy(page: Page, path = "/"): Promise<void> {
 	const response = await page.goto(path);
