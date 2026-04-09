@@ -1,62 +1,51 @@
-# User Management Test Coverage (UM-1 to UM-28)
+# User Management Coverage Matrix (UM-1 to UM-28)
 
-## Backend unit + integration
+Status legend:
+- `AUTOMATED` = explicitly asserted in tests.
+- `SOURCE-VERIFIED` = behavior exists in source but no direct automated assertion yet.
+- `GAP` = not yet covered.
 
-- UM-1: Covered by `apps/backend/src/app/users/users.service.spec.ts` and `apps/backend/test/users/users.integration-spec.ts` (sorting/ordering behavior).
-- UM-5, UM-9, UM-12, UM-16, UM-17: Covered by `users.service.spec.ts` invite and reinvite branches.
-- UM-6, UM-11, UM-15, UM-18, UM-28: Covered by `users.service.spec.ts` update behavior and self-demotion guard.
-- UM-7, UM-8, UM-26: Covered by `users.service.spec.ts` and `users.integration-spec.ts` deactivate/activate behavior.
-- UM-19: Covered by `users.service.spec.ts` via deactivated-account reset protection (`AUTH.DEACTIVATED_ACCOUNT`).
-- UM-27: Route-level throttle behavior not yet automated in these two suites.
+## Flow Coverage
 
-## Admin E2E
+- UM-1: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`, `apps/backend/src/app/users/users.service.spec.ts`)
+- UM-2: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-3: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-4: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-5: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-api.spec.ts`, `apps/backend/src/app/users/users.service.spec.ts`)
+- UM-6: `SOURCE-VERIFIED` (`apps/backend/src/app/users/users.service.spec.ts`)
+- UM-7: `SOURCE-VERIFIED` (`apps/backend/src/app/users/users.service.spec.ts`)
+- UM-8: `SOURCE-VERIFIED` (`apps/backend/src/app/users/users.service.spec.ts`)
+- UM-9: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-api.spec.ts`, `apps/backend/src/app/users/users.service.spec.ts`)
+- UM-10: `AUTOMATED` (dataset-gated; `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-11: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`, `apps/backend/src/app/users/users.service.spec.ts`)
+- UM-12: `SOURCE-VERIFIED` (`apps/backend/src/app/users/users.service.spec.ts`)
+- UM-13: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-14: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-15: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts` + update dialog email disabled)
+- UM-16: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-api.spec.ts`)
+- UM-17: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-api.spec.ts`)
+- UM-18: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-api.spec.ts`, `apps/backend/src/app/users/users.service.spec.ts`)
+- UM-19: `AUTOMATED` (`apps/admin-e2e/tests/auth/auth-flows.spec.ts`, `apps/backend/src/app/users/users.service.spec.ts`)
+- UM-20: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-21: `GAP` (no direct E2E assertion under UM module)
+- UM-22: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-23: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`)
+- UM-24: `AUTOMATED` (route protection behavior in E2E; `apps/admin-e2e/tests/user-management/user-management-auth.spec.ts`)
+- UM-25: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-auth.spec.ts`)
+- UM-26: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-api.spec.ts`)
+- UM-27: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-rate-limit.spec.ts`)
+- UM-28: `AUTOMATED` (`apps/admin-e2e/tests/user-management/user-management-api.spec.ts`)
 
-- UM-25: Covered by `apps/admin-e2e/tests/user-management/user-management-auth.spec.ts`.
-- UM-24: Covered by `apps/admin-e2e/tests/user-management/user-management-auth.spec.ts` (credential-gated).
-- UM-1: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`.
-- UM-2: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`.
-- UM-3: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`.
-- UM-4: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`.
-- UM-10: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts` (dataset-gated).
-- UM-11: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts` (no-change update API call check).
-- UM-13: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`.
-- UM-14: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`.
-- UM-15: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts`.
-- UM-20, UM-22, UM-23: Covered by `apps/admin-e2e/tests/user-management/user-management-ui.spec.ts` (invalid invite submission blocked).
-- UM-27: Covered by `apps/admin-e2e/tests/user-management/user-management-rate-limit.spec.ts` (tagged `@rate-limit`).
-- UM-5, UM-9: Covered by `apps/admin-e2e/tests/user-management/user-management-api.spec.ts`.
-- UM-16: Covered by `apps/admin-e2e/tests/user-management/user-management-api.spec.ts`.
-- UM-17: Covered by `apps/admin-e2e/tests/user-management/user-management-api.spec.ts` (credential-gated).
-- UM-18: Covered by `apps/admin-e2e/tests/user-management/user-management-api.spec.ts`.
-- UM-26: Covered by `apps/admin-e2e/tests/user-management/user-management-api.spec.ts`.
-- UM-28: Covered by `apps/admin-e2e/tests/user-management/user-management-api.spec.ts`.
+## Current Error-Code/Status Snapshot (Post-Overhaul)
 
-## Auth E2E (combined with User Management)
+- UM-16 active email invite conflict: `409` + code containing `EMAIL_ALREADY_EXISTS` (`USER.EMAIL_ALREADY_EXISTS` in shared constants).
+- UM-17 deactivated email invite: `400` + code containing `DEACTIVATED_SUGGEST_REACTIVATION` (`USER.DEACTIVATED_SUGGEST_REACTIVATION`).
+- UM-18 self-demotion: `403` + code containing `SELF_DEMOTION` (`USER.SELF_DEMOTION`).
+- UM-26 activate already-active user: `400` + code containing `ALREADY_ACTIVE` (`USER.ALREADY_ACTIVE`).
+- UM-27 invite throttle: `429` + message `Too many requests. Please try again later.`
+- UM-28 missing user update: `404` + code containing `NOT_FOUND` (`USER.NOT_FOUND`).
 
-- AUTH-1: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (it_admin login path).
-- AUTH-2: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (forgot-password success state).
-- AUTH-6: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (auth pages blocked for signed-in users).
-- AUTH-7: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (redirect query honored after sign-in).
-- AUTH-8: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (enumeration-safe success state for unknown email).
-- AUTH-10: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (role-based redirect mapping).
-- AUTH-11: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (invalid credential error behavior).
-- AUTH-12: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (empty email validation).
-- AUTH-13: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (empty password validation).
-- AUTH-14: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (deactivated login, credential-gated).
-- AUTH-16: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (expired/no session on set-password).
-- AUTH-18: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts` (missing auth code redirect path).
-- AUTH-19: Covered by `apps/admin-e2e/tests/user-management/user-management-rate-limit.spec.ts` (tagged `@rate-limit`).
-- AUTH-20: Covered by `apps/admin-e2e/tests/user-management/auth-flows.spec.ts`.
+## Notes
 
-## Remaining UM scenarios to add in next pass
-
-- UM-21: Expired/invalid set-password link flow assertion in E2E.
-
-## Remaining AUTH scenarios to add in next pass
-
-- AUTH-3: Full password-reset link happy path with valid new password and post-reset redirect.
-- AUTH-4: Invited-user set-password happy path with status transition assertion.
-- AUTH-5: Session token refresh continuity assertion without workflow interruption.
-- AUTH-9: Confirm-password mismatch inline validation on active set-password session.
-- AUTH-15: Weak password live-criteria assertion with disabled submit and error toast.
-- AUTH-17: Deactivated user set-password attempt via recovery link flow.
+- This file tracks current behavior in code/tests, not historical expected values from older test plans.
+- AUTH and RM are tracked separately in `AUTH-COVERAGE.md` and `RM-COVERAGE.md`.

@@ -1,6 +1,7 @@
 {
 	"extends": "../tsconfig.json",
 	"compilerOptions": {
+		"types": ["node", "jest"],
 		"paths": {
 			"@/*": ["./src/*", "./*"],
 			"@repo/shared": ["../../packages/shared/src/index.ts"],

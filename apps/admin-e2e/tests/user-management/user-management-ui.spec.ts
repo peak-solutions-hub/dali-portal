@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import {
 	signInAsItAdmin,
 	skipIfMissingItAdminCredentials,
-} from "./helpers/auth-session.js";
+} from "../helpers/auth-session.js";
 
 async function openUserManagement(page: Page) {
 	await page.goto("/user-management");

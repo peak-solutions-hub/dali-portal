@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
 	signInAsNonAdmin,
 	skipIfMissingNonAdminCredentials,
-} from "./helpers/auth-session.js";
+} from "../helpers/auth-session.js";
 
 test.describe("User Management - access control", () => {
 	test("UM-25 unauthenticated access redirects to login with redirect path", async ({

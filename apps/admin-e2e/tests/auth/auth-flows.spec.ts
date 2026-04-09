@@ -4,16 +4,16 @@ import {
 	skipIfMissingDeactivatedCredentials,
 	skipIfMissingItAdminCredentials,
 	skipIfMissingNonAdminCredentials,
-} from "./helpers/auth-session.js";
+} from "../helpers/auth-session.js";
 import {
 	expectForgotPasswordSuccess,
 	loginWithCredentials,
 	openForgotPassword,
 	openLogin,
 	submitForgotPassword,
-} from "./helpers/auth-ui.js";
+} from "../helpers/auth-ui.js";
 
-test.describe("Auth flows aligned with user management", () => {
+test.describe("Auth flows", () => {
 	test("AUTH-20 unauthenticated user hitting protected route is redirected to login with redirect param", async ({
 		page,
 	}) => {
