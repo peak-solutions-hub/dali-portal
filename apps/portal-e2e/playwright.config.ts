@@ -64,11 +64,10 @@ const backendEnv = {
 	ADMIN_URL: process.env.ADMIN_URL ?? "http://127.0.0.1:3001",
 };
 
-const backendServerCommand =
-	"pnpm --filter backend db:test:prepare && pnpm --filter backend dev";
-const portalServerCommand = process.env.CI
-	? "pnpm --filter portal start"
-	: "pnpm --filter portal dev";
+const backendServerCommand = process.env.CI
+	? "pnpm --filter backend db:test:prepare && pnpm --filter backend start"
+	: "pnpm --filter backend db:test:prepare && pnpm --filter backend dev";
+const portalServerCommand = "pnpm --filter portal dev";
 
 export default defineConfig({
 	testDir: "./tests",
@@ -99,13 +98,13 @@ export default defineConfig({
 			env: backendEnv,
 			url: `http://127.0.0.1:${backendPort}`,
 			reuseExistingServer: !process.env.CI,
-			timeout: 120_000,
+			timeout: 180_000,
 		},
 		{
 			command: portalServerCommand,
 			url: "http://127.0.0.1:3000",
 			reuseExistingServer: !process.env.CI,
-			timeout: 120_000,
+			timeout: 180_000,
 		},
 	],
 });
