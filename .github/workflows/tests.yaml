@@ -47,6 +47,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build workspace packages needed by e2e tests
+        run: pnpm --filter @repo/playwright-utils build
+
       - name: Prepare backend test env file
         id: prepare_backend_env
         shell: bash

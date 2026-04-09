@@ -4,6 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"pretest:e2e": "pnpm --filter @repo/playwright-utils build",
 		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
