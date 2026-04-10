@@ -11,7 +11,11 @@ import {
 import { loginWithCredentials } from "@repo/playwright-utils/ui/auth";
 
 function getApiBaseUrl(): string {
-	return process.env.NEXT_PUBLIC_API_URL!;
+	if (process.env.NEXT_PUBLIC_API_URL) {
+		return process.env.NEXT_PUBLIC_API_URL;
+	}
+
+	return `http://127.0.0.1:${process.env.PORT ?? "8080"}`;
 }
 
 function getItAdminToken(): Promise<string> {
