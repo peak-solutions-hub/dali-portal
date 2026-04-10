@@ -38,6 +38,37 @@ jobs:
       - name: Ensure origin/main ref is available for affected filters
         run: git fetch origin main --depth=1
 
+      - name: Detect changed paths for UI E2E suites
+        id: detect_ui_e2e_changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+            git fetch origin "${{ github.base_ref }}" --depth=1
+          else
+            BASE_REF="${{ github.event.before }}"
+          fi
+
+          CHANGED_FILES="$(git diff --name-only "$BASE_REF"...HEAD)"
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          should_run_admin=false
+          should_run_portal=false
+
+          if echo "$CHANGED_FILES" | grep -E '^(apps/backend/|packages/shared/|packages/playwright-utils/|apps/admin/|apps/admin-e2e/|package.json|pnpm-lock.yaml|turbo.json)' >/dev/null; then
+            should_run_admin=true
+          fi
+
+          if echo "$CHANGED_FILES" | grep -E '^(apps/backend/|packages/shared/|packages/playwright-utils/|apps/portal/|apps/portal-e2e/|package.json|pnpm-lock.yaml|turbo.json)' >/dev/null; then
+            should_run_portal=true
+          fi
+
+          echo "run_admin_e2e=$should_run_admin" >> "$GITHUB_OUTPUT"
+          echo "run_portal_e2e=$should_run_portal" >> "$GITHUB_OUTPUT"
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -98,12 +129,20 @@ jobs:
         run: pnpm playwright:install
 
       - name: Run affected admin e2e tests (Playwright)
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-        run: pnpm run test:e2e:admin -- --filter=...[origin/main]
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_admin_e2e == 'true'
+        run: pnpm run test:e2e:admin
 
       - name: Run affected portal e2e tests (Playwright)
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-        run: pnpm run test:e2e:portal -- --filter=...[origin/main]
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_portal_e2e == 'true'
+        run: pnpm run test:e2e:portal
+
+      - name: Note skipped admin UI e2e tests
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_admin_e2e != 'true'
+        run: echo "Skipped admin UI e2e because no admin-impacting changes were detected."
+
+      - name: Note skipped portal UI e2e tests
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_portal_e2e != 'true'
+        run: echo "Skipped portal UI e2e because no portal-impacting changes were detected."
 
       - name: Note skipped UI e2e tests
         if: steps.prepare_backend_env.outputs.has_test_db != 'true'
