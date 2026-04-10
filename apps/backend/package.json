@@ -32,6 +32,7 @@
 		"test": "pnpm run test:unit && pnpm run test:integration",
 		"test:unit": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ./test/jest-unit.config.ts",
 		"test:integration": "pnpm run db:test:prepare && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ./test/jest-integration.config.ts",
+		"test:e2e": "pnpm run db:test:prepare && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ./test/jest-e2e.config.ts",
 		"test:watch": "jest --watch",
 		"test:cov": "jest --coverage",
 		"test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"

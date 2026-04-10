@@ -4,10 +4,10 @@ const config: Config = {
 	moduleFileExtensions: ["js", "json", "ts"],
 	rootDir: ".",
 	testEnvironment: "node",
-	testRegex: ".integration\\.spec.ts$",
+	testRegex: ".e2e.spec.ts$",
 	testTimeout: 30_000,
 	maxWorkers: 1,
-	setupFilesAfterEnv: ["<rootDir>/setup-integration.ts"],
+	setupFilesAfterEnv: ["<rootDir>/setup-e2e.ts"],
 	extensionsToTreatAsEsm: [".ts"],
 	transform: {
 		"^.+\\.(t|j)s$": [
@@ -18,6 +18,7 @@ const config: Config = {
 	moduleNameMapper: {
 		"^(\\.{1,2}/.*)\\.js$": "$1",
 		"^@/generated/(.*)$": "<rootDir>/../generated/$1",
+		"^generated/(.*)$": "<rootDir>/../generated/$1",
 		"^@/(.*)$": "<rootDir>/../src/$1",
 		"^@repo/shared$": "<rootDir>/../../../packages/shared/src/index.ts",
 		"^@repo/shared/(.*)$": "<rootDir>/../../../packages/shared/src/$1",
