@@ -9,8 +9,10 @@ import {
 } from "@repo/playwright-utils/session";
 
 function getApiBaseUrl(): string {
-	if (process.env.NEXT_PUBLIC_API_URL) {
-		return process.env.NEXT_PUBLIC_API_URL;
+	const explicitBaseUrl =
+		process.env.E2E_API_BASE_URL ?? process.env.API_BASE_URL;
+	if (explicitBaseUrl && explicitBaseUrl.trim().length > 0) {
+		return explicitBaseUrl.replace(/\/$/, "");
 	}
 
 	return `http://127.0.0.1:${process.env.PORT ?? "8080"}`;

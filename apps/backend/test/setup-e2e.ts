@@ -13,7 +13,7 @@ import {
 
 loadEnv({ path: ".env.test" });
 
-process.env.NODE_ENV = "test";
+Reflect.set(process.env, "NODE_ENV", "test");
 process.env.SUPABASE_JWT_SECRET ??= "test-supabase-jwt-secret";
 process.env.SUPABASE_URL ??= "http://127.0.0.1:54321";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
@@ -40,6 +40,7 @@ let app: INestApplication;
 
 beforeAll(async () => {
 	assertSafeTestEnvironment();
+	await resetPublicSchema(prisma);
 
 	const moduleRef = await Test.createTestingModule({
 		imports: [AppModule],

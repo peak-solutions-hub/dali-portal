@@ -20,7 +20,7 @@ export function assertSafeTestEnvironment(): void {
 	}
 
 	if (process.env.NODE_ENV !== "test") {
-		process.env.NODE_ENV = "test";
+		Reflect.set(process.env, "NODE_ENV", "test");
 	}
 }
 

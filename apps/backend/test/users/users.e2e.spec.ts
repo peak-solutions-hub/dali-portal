@@ -91,6 +91,66 @@ describe("Users endpoints e2e", () => {
 		expect(response.body.users).toHaveLength(2);
 	});
 
+	it("returns a specific user for IT admin via GET /users/{id}", async () => {
+		const itRole = await createRole(
+			"71000000-0000-4000-8000-000000000010",
+			"it_admin",
+		);
+		const staffRole = await createRole(
+			"71000000-0000-4000-8000-000000000011",
+			"admin_staff",
+		);
+		const itAdmin = await createUser({
+			id: "71000000-0000-4000-8000-000000000108",
+			email: "get.by.id.admin@example.com",
+			fullName: "Get By Id Admin",
+			status: "active",
+			roleId: itRole.id,
+		});
+		const staff = await createUser({
+			id: "71000000-0000-4000-8000-000000000109",
+			email: "target.staff@example.com",
+			fullName: "Target Staff",
+			status: "active",
+			roleId: staffRole.id,
+		});
+
+		const token = createAuthToken(itAdmin.id);
+		const response = await request(getHttpServer())
+			.get(`/users/${staff.id}`)
+			.set("Authorization", `Bearer ${token}`);
+
+		expect(response.status).toBe(200);
+		expect(response.body).toMatchObject({
+			id: staff.id,
+			email: "target.staff@example.com",
+			fullName: "Target Staff",
+			status: "active",
+			role: { name: "admin_staff" },
+		});
+	});
+
+	it("returns 404 for IT admin when requested user does not exist", async () => {
+		const itRole = await createRole(
+			"71000000-0000-4000-8000-000000000012",
+			"it_admin",
+		);
+		const itAdmin = await createUser({
+			id: "71000000-0000-4000-8000-000000000110",
+			email: "not.found.admin@example.com",
+			fullName: "Not Found Admin",
+			status: "active",
+			roleId: itRole.id,
+		});
+
+		const token = createAuthToken(itAdmin.id);
+		const response = await request(getHttpServer())
+			.get("/users/71000000-0000-4000-8000-999999999999")
+			.set("Authorization", `Bearer ${token}`);
+
+		expect(response.status).toBe(404);
+	});
+
 	it("prevents IT admin self-demotion on PATCH /users/{id}", async () => {
 		const itRole = await createRole(
 			"71000000-0000-4000-8000-000000000004",

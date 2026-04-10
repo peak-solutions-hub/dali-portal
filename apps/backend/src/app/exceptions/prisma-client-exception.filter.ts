@@ -2,7 +2,7 @@ import { ArgumentsHost, Catch, HttpStatus, Logger } from "@nestjs/common";
 import { BaseExceptionFilter } from "@nestjs/core";
 import { ERRORS } from "@repo/shared";
 import { Response } from "express";
-import { Prisma } from "generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 /**
  * Prisma error code mappings to HTTP status codes and user-friendly messages.

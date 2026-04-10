@@ -10,8 +10,9 @@ loadEnv({ path: ".env.test" });
 
 const prisma = createTestPrismaClient();
 
-beforeAll(() => {
+beforeAll(async () => {
 	assertSafeTestEnvironment();
+	await resetPublicSchema(prisma);
 });
 
 afterEach(async () => {

@@ -2,6 +2,67 @@ import { type BrowserContext, expect, test } from "@playwright/test";
 import { authenticateViaSupabase } from "./auth.js";
 
 const DEFAULT_APP_ORIGIN = process.env.ADMIN_URL ?? "http://127.0.0.1:3001";
+const SESSION_CACHE_TTL_MS = 60_000;
+
+type SessionCacheEntry = {
+	state: Awaited<ReturnType<typeof authenticateViaSupabase>>;
+	expiresAt: number;
+};
+
+const authSessionCache = new Map<string, SessionCacheEntry>();
+const accessTokenCache = new Map<
+	string,
+	{ token: string; expiresAt: number }
+>();
+
+function getCacheKey(
+	email: string,
+	password: string,
+	appOrigin: string,
+): string {
+	return `${email}::${password}::${appOrigin}`;
+}
+
+function cloneAuthState(
+	state: Awaited<ReturnType<typeof authenticateViaSupabase>>,
+): Awaited<ReturnType<typeof authenticateViaSupabase>> {
+	return {
+		cookies: state.cookies.map((cookie) => ({ ...cookie })),
+		origins: state.origins.map((origin) => ({
+			origin: origin.origin,
+			localStorage: origin.localStorage.map((entry) => ({ ...entry })),
+		})),
+	};
+}
+
+async function getOrCreateAuthState(
+	email: string,
+	password: string,
+	appOrigin: string,
+): Promise<Awaited<ReturnType<typeof authenticateViaSupabase>>> {
+	const now = Date.now();
+	const key = getCacheKey(email, password, appOrigin);
+	const cached = authSessionCache.get(key);
+
+	if (cached && cached.expiresAt > now) {
+		return cloneAuthState(cached.state);
+	}
+
+	const state = await authenticateViaSupabase({
+		supabaseUrl: getRequiredEnv("SUPABASE_URL") as string,
+		supabaseKey: getRequiredEnv("SUPABASE_ANON_KEY") as string,
+		appOrigin,
+		email,
+		password,
+	});
+
+	authSessionCache.set(key, {
+		state,
+		expiresAt: now + SESSION_CACHE_TTL_MS,
+	});
+
+	return cloneAuthState(state);
+}
 
 export function getRequiredEnv(name: string): string | undefined {
 	const value = process.env[name];
@@ -17,13 +78,7 @@ export async function authenticateContextWithCredentials(
 	password: string,
 	appOrigin = DEFAULT_APP_ORIGIN,
 ) {
-	const state = await authenticateViaSupabase({
-		supabaseUrl: getRequiredEnv("SUPABASE_URL") as string,
-		supabaseKey: getRequiredEnv("SUPABASE_ANON_KEY") as string,
-		appOrigin,
-		email,
-		password,
-	});
+	const state = await getOrCreateAuthState(email, password, appOrigin);
 
 	await context.addCookies(state.cookies);
 	for (const originState of state.origins) {
@@ -49,13 +104,14 @@ export async function getAccessTokenForCredentials(
 	password: string,
 	appOrigin = DEFAULT_APP_ORIGIN,
 ): Promise<string> {
-	const state = await authenticateViaSupabase({
-		supabaseUrl: getRequiredEnv("SUPABASE_URL") as string,
-		supabaseKey: getRequiredEnv("SUPABASE_ANON_KEY") as string,
-		appOrigin,
-		email,
-		password,
-	});
+	const key = getCacheKey(email, password, appOrigin);
+	const now = Date.now();
+	const cachedToken = accessTokenCache.get(key);
+	if (cachedToken && cachedToken.expiresAt > now) {
+		return cachedToken.token;
+	}
+
+	const state = await getOrCreateAuthState(email, password, appOrigin);
 
 	const authTokenEntry = state.origins
 		.flatMap((origin) => origin.localStorage)
@@ -75,7 +131,13 @@ export async function getAccessTokenForCredentials(
 		"Missing access_token in storage state",
 	).toBeTruthy();
 
-	return tokenValue.access_token as string;
+	const accessToken = tokenValue.access_token as string;
+	accessTokenCache.set(key, {
+		token: accessToken,
+		expiresAt: now + SESSION_CACHE_TTL_MS,
+	});
+
+	return accessToken;
 }
 
 export function hasItAdminCredentials(): boolean {

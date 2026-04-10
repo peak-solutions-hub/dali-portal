@@ -16,10 +16,10 @@ import type {
 	UserWithRole,
 } from "@repo/shared";
 import { AppError, INQUIRY_ASSIGNABLE_ROLES } from "@repo/shared";
-import { Prisma } from "generated/prisma/client";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
 import { DbService } from "@/app/db/db.service";
 import { SupabaseAdminService } from "@/app/util/supabase/supabase-admin.service";
+import { Prisma } from "@/generated/prisma/client";
 import { ConfigService } from "@/lib/config.service";
 
 @Injectable()

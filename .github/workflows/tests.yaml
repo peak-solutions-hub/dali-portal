@@ -32,6 +32,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Ensure origin/main ref is available for affected filters
+        run: git fetch origin main --depth=1
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -78,27 +83,31 @@ jobs:
           EOF
           echo "has_test_db=true" >> "$GITHUB_OUTPUT"
 
-      - name: Run backend unit tests
-        run: pnpm --filter backend test:unit
+      - name: Run affected unit tests
+        run: pnpm run test:affected:unit
 
-      - name: Run backend integration tests
+      - name: Run affected integration tests
         if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-        run: pnpm --filter backend test:integration
+        run: pnpm run test:affected:integration
 
       - name: Note skipped backend DB tests
         if: steps.prepare_backend_env.outputs.has_test_db != 'true'
-        run: echo "Skipped backend integration because TEST_DATABASE_URL is not available in this workflow context."
+        run: echo "Skipped affected integration because TEST_DATABASE_URL is not available in this workflow context."
 
       - name: Install Playwright browsers
         run: pnpm playwright:install
 
-      - name: Run UI e2e tests (Playwright)
+      - name: Run affected admin e2e tests (Playwright)
         if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-        run: pnpm run test:e2e
+        run: pnpm run test:e2e:admin -- --filter=...[origin/main]
+
+      - name: Run affected portal e2e tests (Playwright)
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true'
+        run: pnpm run test:e2e:portal -- --filter=...[origin/main]
 
       - name: Note skipped UI e2e tests
         if: steps.prepare_backend_env.outputs.has_test_db != 'true'
-        run: echo "Skipped UI e2e because TEST_DATABASE_URL is not available in this workflow context."
+        run: echo "Skipped affected UI e2e because TEST_DATABASE_URL is not available in this workflow context."
 
       - name: Upload Playwright report (portal)
         if: ${{ !cancelled() }}

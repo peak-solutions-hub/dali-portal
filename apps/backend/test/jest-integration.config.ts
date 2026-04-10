@@ -4,7 +4,7 @@ const config: Config = {
 	moduleFileExtensions: ["js", "json", "ts"],
 	rootDir: ".",
 	testEnvironment: "node",
-	testRegex: ".integration\\.spec.ts$",
+	testRegex: ".integration.spec.ts$",
 	testTimeout: 30_000,
 	maxWorkers: 1,
 	setupFilesAfterEnv: ["<rootDir>/setup-integration.ts"],
