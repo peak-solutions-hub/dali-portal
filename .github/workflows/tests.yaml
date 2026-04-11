@@ -1,182 +1,353 @@
 name: Tests
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
+    push:
+        branches:
+            - main
+            - develop
+        paths-ignore:
+            - "**/*.md"
+            - "docs/**"
+    pull_request:
+        branches:
+            - main
+            - develop
+        paths-ignore:
+            - "**/*.md"
+            - "docs/**"
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
-      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-      SUPABASE_URL: https://example.supabase.co
-      SUPABASE_ANON_KEY: test-supabase-anon-key
-      SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
-      SUPABASE_JWT_SECRET: test-supabase-jwt-secret
-      TEST_DATABASE_URL: ${{ vars.TEST_DATABASE_URL }}
-      TURNSTILE_SECRET_KEY: test-turnstile-secret-key
-      RESEND_API_KEY: test-resend-api-key
+    changes:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        outputs:
+            unit_integration: ${{ steps.paths_filter.outputs.unit_integration }}
+            backend_e2e: ${{ steps.paths_filter.outputs.backend_e2e }}
+            admin_e2e: ${{ steps.paths_filter.outputs.admin_e2e }}
+            portal_e2e: ${{ steps.paths_filter.outputs.portal_e2e }}
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
 
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+            - name: Detect changed paths
+              id: paths_filter
+              uses: dorny/paths-filter@v3
+              with:
+                  filters: |
+                      unit_integration:
+                        - 'apps/**'
+                        - 'packages/**'
+                        - 'package.json'
+                        - 'pnpm-lock.yaml'
+                        - 'turbo.json'
+                        - '.github/workflows/tests.yaml'
+                      backend_e2e:
+                        - 'apps/backend/**'
+                        - 'packages/shared/**'
+                        - 'package.json'
+                        - 'pnpm-lock.yaml'
+                        - 'turbo.json'
+                        - '.github/workflows/tests.yaml'
+                      admin_e2e:
+                        - 'apps/backend/**'
+                        - 'packages/shared/**'
+                        - 'packages/playwright-utils/**'
+                        - 'apps/admin/**'
+                        - 'apps/admin-e2e/**'
+                        - 'package.json'
+                        - 'pnpm-lock.yaml'
+                        - 'turbo.json'
+                        - '.github/workflows/tests.yaml'
+                      portal_e2e:
+                        - 'apps/backend/**'
+                        - 'packages/shared/**'
+                        - 'packages/playwright-utils/**'
+                        - 'apps/portal/**'
+                        - 'apps/portal-e2e/**'
+                        - 'package.json'
+                        - 'pnpm-lock.yaml'
+                        - 'turbo.json'
+                        - '.github/workflows/tests.yaml'
 
-      - name: Ensure origin/main ref is available for affected filters
-        run: git fetch origin main --depth=1
+    prepare-backend-db:
+        needs: changes
+        if: |
+            needs.changes.outputs.backend_e2e == 'true' ||
+            needs.changes.outputs.admin_e2e   == 'true' ||
+            needs.changes.outputs.portal_e2e  == 'true'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        outputs:
+            has_test_db: ${{ steps.prepare_backend_env.outputs.has_test_db }}
+        env:
+            SUPABASE_URL: https://example.supabase.co
+            SUPABASE_ANON_KEY: test-supabase-anon-key
+            SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
+            SUPABASE_JWT_SECRET: test-supabase-jwt-secret
+            TEST_DATABASE_URL: ${{ vars.TEST_DATABASE_URL }}
+            TURNSTILE_SECRET_KEY: test-turnstile-secret-key
+            RESEND_API_KEY: test-resend-api-key
+        steps:
+            - uses: actions/checkout@v6
 
-      - name: Detect changed paths for UI E2E suites
-        id: detect_ui_e2e_changes
-        shell: bash
-        run: |
-          set -euo pipefail
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 9.0.0
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_REF="origin/${{ github.base_ref }}"
-            git fetch origin "${{ github.base_ref }}" --depth=1
-          else
-            BASE_REF="${{ github.event.before }}"
-          fi
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: "22"
+                  cache: "pnpm"
 
-          CHANGED_FILES="$(git diff --name-only "$BASE_REF"...HEAD)"
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-          should_run_admin=false
-          should_run_portal=false
-          should_run_backend_e2e=false
+            - name: Prepare backend test env file
+              id: prepare_backend_env
+              shell: bash
+              run: |
+                  if [ -z "${TEST_DATABASE_URL:-}" ]; then
+                    if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      echo "TEST_DATABASE_URL unavailable — skipping DB-backed stages."
+                      echo "has_test_db=false" >> "$GITHUB_OUTPUT"
+                      exit 0
+                    fi
+                    echo "::error::TEST_DATABASE_URL is required on push to main/develop."
+                    exit 1
+                  fi
 
-          if echo "$CHANGED_FILES" | grep -E '^(apps/backend/|packages/shared/|packages/playwright-utils/|apps/admin/|apps/admin-e2e/|package.json|pnpm-lock.yaml|turbo.json)' >/dev/null; then
-            should_run_admin=true
-          fi
+                  # printf avoids the heredoc indentation bug (leading spaces from
+                  # YAML indentation break dotenv-cli key parsing with <<EOF).
+                  printf 'DATABASE_URL="%s"\n'              "${TEST_DATABASE_URL}"         >  apps/backend/.env.test
+                  printf 'NODE_ENV="test"\n'                                               >> apps/backend/.env.test
+                  printf 'PORT="8080"\n'                                                   >> apps/backend/.env.test
+                  printf 'SUPABASE_URL="%s"\n'              "${SUPABASE_URL}"              >> apps/backend/.env.test
+                  printf 'SUPABASE_ANON_KEY="%s"\n'         "${SUPABASE_ANON_KEY}"         >> apps/backend/.env.test
+                  printf 'SUPABASE_SERVICE_ROLE_KEY="%s"\n' "${SUPABASE_SERVICE_ROLE_KEY}" >> apps/backend/.env.test
+                  printf 'SUPABASE_JWT_SECRET="%s"\n'       "${SUPABASE_JWT_SECRET}"       >> apps/backend/.env.test
+                  printf 'TURNSTILE_SECRET_KEY="%s"\n'      "${TURNSTILE_SECRET_KEY}"      >> apps/backend/.env.test
+                  printf 'RESEND_API_KEY="%s"\n'            "${RESEND_API_KEY}"            >> apps/backend/.env.test
 
-          if echo "$CHANGED_FILES" | grep -E '^(apps/backend/|packages/shared/|packages/playwright-utils/|apps/portal/|apps/portal-e2e/|package.json|pnpm-lock.yaml|turbo.json)' >/dev/null; then
-            should_run_portal=true
-          fi
+                  echo "has_test_db=true" >> "$GITHUB_OUTPUT"
 
-          if echo "$CHANGED_FILES" | grep -E '^(apps/backend/|packages/shared/|package.json|pnpm-lock.yaml|turbo.json)' >/dev/null; then
-            should_run_backend_e2e=true
-          fi
+            - name: Generate Prisma test client
+              if: steps.prepare_backend_env.outputs.has_test_db == 'true'
+              run: pnpm --filter backend run db:test:prepare
 
-          echo "run_admin_e2e=$should_run_admin" >> "$GITHUB_OUTPUT"
-          echo "run_portal_e2e=$should_run_portal" >> "$GITHUB_OUTPUT"
-          echo "run_backend_e2e=$should_run_backend_e2e" >> "$GITHUB_OUTPUT"
+            - name: Upload backend-test-env artifact
+              if: steps.prepare_backend_env.outputs.has_test_db == 'true'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: backend-test-env
+                  path: apps/backend/.env.test
+                  retention-days: 1
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.0.0
+    backend-tests:
+        needs: [changes, prepare-backend-db]
+        if: |
+            always() &&
+            needs.changes.result == 'success' &&
+            (
+              needs.changes.outputs.unit_integration == 'true' ||
+              needs.changes.outputs.backend_e2e      == 'true'
+            )
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: "pnpm"
+            - name: Fetch origin/main for turbo affected filter
+              run: git fetch origin main --depth=1
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 9.0.0
 
-      - name: Build workspace packages needed by e2e tests
-        run: pnpm --filter @repo/playwright-utils build
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: "22"
+                  cache: "pnpm"
 
-      - name: Prepare backend test env file
-        id: prepare_backend_env
-        shell: bash
-        run: |
-          if [ -z "$TEST_DATABASE_URL" ]; then
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "TEST_DATABASE_URL is unavailable in this PR context. Skipping backend integration tests."
-              echo "has_test_db=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-            echo "TEST_DATABASE_URL is required for backend integration tests."
-            exit 1
-          fi
+            - name: Run affected unit tests
+              if: needs.changes.outputs.unit_integration == 'true'
+              run: pnpm run test:affected:unit
 
-          cat > apps/backend/.env.test <<EOF
-          DATABASE_URL="$TEST_DATABASE_URL"
-          NODE_ENV="test"
-          PORT="8080"
-          SUPABASE_URL="$SUPABASE_URL"
-          SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
-          SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
-          SUPABASE_JWT_SECRET="$SUPABASE_JWT_SECRET"
-          TURNSTILE_SECRET_KEY="$TURNSTILE_SECRET_KEY"
-          RESEND_API_KEY="$RESEND_API_KEY"
-          EOF
-          echo "has_test_db=true" >> "$GITHUB_OUTPUT"
+            - name: "[skip] Unit tests — no impacting changes"
+              if: needs.changes.outputs.unit_integration != 'true'
+              run: echo "No unit/integration-impacting changes detected."
 
-      - name: Prepare backend test Prisma client once
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-        run: pnpm --filter backend run db:test:prepare
+            - name: Download backend-test-env artifact
+              if: |
+                  needs.prepare-backend-db.result == 'success' &&
+                  needs.prepare-backend-db.outputs.has_test_db == 'true'
+              uses: actions/download-artifact@v4
+              with:
+                  name: backend-test-env
+                  path: apps/backend
 
-      - name: Run affected unit tests
-        run: pnpm run test:affected:unit
+            - name: Run affected integration tests
+              if: |
+                  needs.changes.outputs.unit_integration == 'true' &&
+                  needs.prepare-backend-db.result == 'success' &&
+                  needs.prepare-backend-db.outputs.has_test_db == 'true'
+              run: pnpm run test:affected:integration
 
-      - name: Run affected integration tests
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-        run: pnpm run test:affected:integration
+            - name: Run backend e2e tests
+              if: |
+                  needs.changes.outputs.backend_e2e == 'true' &&
+                  needs.prepare-backend-db.result == 'success' &&
+                  needs.prepare-backend-db.outputs.has_test_db == 'true'
+              run: pnpm run test:backend:e2e
 
-      - name: Run affected backend e2e tests
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_backend_e2e == 'true'
-        run: pnpm run test:backend:e2e:affected
+            - name: "[skip] Backend e2e — no backend-impacting changes"
+              if: |
+                  needs.changes.outputs.backend_e2e != 'true' &&
+                  needs.prepare-backend-db.result == 'success'
+              run: echo "No changes in apps/backend/ or packages/shared/."
 
-      - name: Note skipped backend e2e tests
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_backend_e2e != 'true'
-        run: echo "Skipped backend e2e because no backend-impacting changes were detected."
+            - name: "[skip] DB tests — TEST_DATABASE_URL not available"
+              if: |
+                  needs.prepare-backend-db.result == 'success' &&
+                  needs.prepare-backend-db.outputs.has_test_db != 'true'
+              run: echo "Skipped integration + backend e2e (no TEST_DATABASE_URL in this context)."
 
-      - name: Note skipped backend DB tests
-        if: steps.prepare_backend_env.outputs.has_test_db != 'true'
-        run: echo "Skipped affected integration because TEST_DATABASE_URL is not available in this workflow context."
+    e2e-admin:
+        needs: [changes, prepare-backend-db]
+        if: |
+            always() &&
+            needs.changes.result == 'success' &&
+            needs.prepare-backend-db.result == 'success' &&
+            needs.prepare-backend-db.outputs.has_test_db == 'true' &&
+            needs.changes.outputs.admin_e2e == 'true'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
 
-      - name: Install Playwright browsers
-        run: pnpm playwright:install
+            - name: Fetch origin/main for turbo affected filter
+              run: git fetch origin main --depth=1
 
-      - name: Run affected admin e2e tests (Playwright)
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_admin_e2e == 'true'
-        run: pnpm run test:e2e:admin:affected
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 9.0.0
 
-      - name: Run affected portal e2e tests (Playwright)
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_portal_e2e == 'true'
-        run: pnpm run test:e2e:portal:affected
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: "22"
+                  cache: "pnpm"
 
-      - name: Note skipped admin UI e2e tests
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_admin_e2e != 'true'
-        run: echo "Skipped admin UI e2e because no admin-impacting changes were detected."
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-      - name: Note skipped portal UI e2e tests
-        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_portal_e2e != 'true'
-        run: echo "Skipped portal UI e2e because no portal-impacting changes were detected."
+            - name: Build playwright-utils
+              run: pnpm --filter @repo/playwright-utils build
 
-      - name: Note skipped UI e2e tests
-        if: steps.prepare_backend_env.outputs.has_test_db != 'true'
-        run: echo "Skipped affected UI e2e because TEST_DATABASE_URL is not available in this workflow context."
+            - name: Download backend-test-env artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: backend-test-env
+                  path: apps/backend
 
-      - name: Upload Playwright report (portal)
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-portal
-          path: apps/portal-e2e/playwright-report/
-          retention-days: 14
+            - name: Cache Playwright browsers
+              id: pw_cache
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Upload Playwright report (admin)
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-admin
-          path: apps/admin-e2e/playwright-report/
-          retention-days: 14
+            - name: Install Playwright browsers
+              if: steps.pw_cache.outputs.cache-hit != 'true'
+              run: pnpm playwright:install
+
+            - name: Run affected admin e2e tests
+              run: pnpm run test:e2e:admin:affected
+
+            - name: Upload Playwright report (admin)
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-report-admin
+                  path: apps/admin-e2e/playwright-report/
+                  retention-days: 14
+
+    e2e-portal:
+        needs: [changes, prepare-backend-db]
+        if: |
+            always() &&
+            needs.changes.result == 'success' &&
+            needs.prepare-backend-db.result == 'success' &&
+            needs.prepare-backend-db.outputs.has_test_db == 'true' &&
+            needs.changes.outputs.portal_e2e == 'true'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Fetch origin/main for turbo affected filter
+              run: git fetch origin main --depth=1
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 9.0.0
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: "22"
+                  cache: "pnpm"
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Build playwright-utils
+              run: pnpm --filter @repo/playwright-utils build
+
+            - name: Download backend-test-env artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: backend-test-env
+                  path: apps/backend
+
+            - name: Cache Playwright browsers
+              id: pw_cache
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+            - name: Install Playwright browsers
+              if: steps.pw_cache.outputs.cache-hit != 'true'
+              run: pnpm playwright:install
+
+            - name: Run affected portal e2e tests
+              run: pnpm run test:e2e:portal:affected
+
+            - name: Upload Playwright report (portal)
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-report-portal
+                  path: apps/portal-e2e/playwright-report/
+                  retention-days: 14
