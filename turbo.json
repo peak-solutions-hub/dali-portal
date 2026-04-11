@@ -12,15 +12,12 @@
 			"dependsOn": ["test:unit", "test:integration"]
 		},
 		"test:unit": {
-			"dependsOn": ["^build"],
 			"outputs": ["coverage/**"]
 		},
 		"test:integration": {
-			"dependsOn": ["^build"],
 			"outputs": ["coverage/**"]
 		},
 		"test:e2e": {
-			"dependsOn": ["^build"],
 			"passThroughEnv": [
 				"PLAYWRIGHT_*",
 				"SUPABASE_*",

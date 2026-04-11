@@ -1,3 +1,4 @@
+import { describe, expect, it } from "@jest/globals";
 import buildConfig from "@/config";
 
 describe("config", () => {

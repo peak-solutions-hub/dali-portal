@@ -5,11 +5,21 @@ const config: Config = {
 	rootDir: "../src",
 	testEnvironment: "node",
 	testRegex: "^((?!integration-spec).)*\\.spec\\.ts$",
+	setupFilesAfterEnv: ["<rootDir>/../test/setup-unit.ts"],
+	extensionsToTreatAsEsm: [".ts"],
 	transform: {
-		"^.+\\.(t|j)s$": "ts-jest",
+		"^.+\\.(t|j)s$": [
+			"ts-jest",
+			{ useESM: true, tsconfig: "<rootDir>/../test/tsconfig.jest.json" },
+		],
 	},
 	moduleNameMapper: {
+		"^(\\.{1,2}/.*)\\.js$": "$1",
+		"^@/generated/(.*)$": "<rootDir>/../generated/$1",
+		"^generated/(.*)$": "<rootDir>/../generated/$1",
 		"^@/(.*)$": "<rootDir>/$1",
+		"^@repo/shared$": "<rootDir>/../../../packages/shared/src/index.ts",
+		"^@repo/shared/(.*)$": "<rootDir>/../../../packages/shared/src/$1",
 	},
 };
 

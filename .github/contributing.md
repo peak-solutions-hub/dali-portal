@@ -322,7 +322,7 @@ pnpm --filter admin-e2e test:e2e
 
 - Install Playwright browsers once per machine: `pnpm playwright:install`
 - Ensure `apps/backend/.env.test` is configured for test DB usage
-- `TEST_DB_SAFE=true` and a valid test `DATABASE_URL` are required for E2E runs
+- A valid test `DATABASE_URL` is required for E2E runs
 
 ### Notes
 

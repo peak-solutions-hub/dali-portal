@@ -4,10 +4,16 @@ const config: Config = {
 	moduleFileExtensions: ["js", "json", "ts"],
 	rootDir: ".",
 	testEnvironment: "node",
-	testRegex: ".integration-spec.ts$",
+	testRegex: ".integration.spec.ts$",
+	testTimeout: 30_000,
+	maxWorkers: 1,
 	setupFilesAfterEnv: ["<rootDir>/setup-integration.ts"],
+	extensionsToTreatAsEsm: [".ts"],
 	transform: {
-		"^.+\\.(t|j)s$": "ts-jest",
+		"^.+\\.(t|j)s$": [
+			"ts-jest",
+			{ useESM: true, tsconfig: "<rootDir>/tsconfig.jest.json" },
+		],
 	},
 	moduleNameMapper: {
 		"^(\\.{1,2}/.*)\\.js$": "$1",

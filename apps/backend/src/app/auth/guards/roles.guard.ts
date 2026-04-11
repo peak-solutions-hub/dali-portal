@@ -1,7 +1,13 @@
-import { type ExecutionContext, Injectable, Logger } from "@nestjs/common";
+import {
+	type ExecutionContext,
+	ForbiddenException,
+	Injectable,
+	Logger,
+	UnauthorizedException,
+} from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { AuthGuard } from "@nestjs/passport";
-import { AppError, type RoleType } from "@repo/shared";
+import { ROLE_PERMISSIONS, type RoleType } from "@repo/shared";
 import { ROLES_KEY } from "../decorators/roles.decorator";
 import { JwtStrategy } from "../strategies/jwt.strategy";
 
@@ -39,8 +45,23 @@ export class RolesGuard extends AuthGuard("jwt") {
 			[context.getHandler(), context.getClass()],
 		);
 
+		const request = context.switchToHttp().getRequest<{
+			method?: string;
+			path?: string;
+			url?: string;
+		}>();
+		const requestPath = request.path ?? request.url ?? "";
+		const isRolesListRoute =
+			request.method === "GET" && requestPath.startsWith("/roles");
+		const effectiveRequiredRoles =
+			requiredRoles && requiredRoles.length > 0
+				? requiredRoles
+				: isRolesListRoute
+					? ROLE_PERMISSIONS.ROLES_MANAGEMENT
+					: undefined;
+
 		// If no roles are required, allow access (public route)
-		if (!requiredRoles || requiredRoles.length === 0) {
+		if (!effectiveRequiredRoles || effectiveRequiredRoles.length === 0) {
 			return true;
 		}
 
@@ -50,17 +71,19 @@ export class RolesGuard extends AuthGuard("jwt") {
 			return false;
 		}
 
-		const request = context.switchToHttp().getRequest();
-		const user = request.user as EnrichedUser;
+		const authenticatedRequest = context.switchToHttp().getRequest();
+		const user = authenticatedRequest.user as EnrichedUser;
 
 		// Check if user has one of the required roles
-		const hasRequiredRole = requiredRoles.some((role) => role === user.role);
+		const hasRequiredRole = effectiveRequiredRoles.some(
+			(role) => role === user.role,
+		);
 
 		if (!hasRequiredRole) {
 			this.logger.warn(
 				`Auth blocked: insufficient permissions userId=${user.id} role=${user.role}`,
 			);
-			throw new AppError("AUTH.INSUFFICIENT_PERMISSIONS");
+			throw new ForbiddenException("Access denied. Insufficient permissions.");
 		}
 
 		return true;
@@ -81,7 +104,7 @@ export class RolesGuard extends AuthGuard("jwt") {
 			this.logger.warn(
 				`Auth failed: ${(err as Error)?.message || (info as Error)?.message || "Unauthorized"}`,
 			);
-			throw err || new AppError("AUTH.INVALID_TOKEN");
+			throw err || new UnauthorizedException("Authentication required.");
 		}
 		return user;
 	}

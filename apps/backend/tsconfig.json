@@ -16,6 +16,7 @@
 		"outDir": "./dist",
 		"baseUrl": "./",
 		"incremental": true,
+		"types": ["node", "jest"],
 		"skipDefaultLibCheck": true,
 		"skipLibCheck": true,
 		"strictNullChecks": true,
