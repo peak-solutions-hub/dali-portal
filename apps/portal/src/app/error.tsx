@@ -75,5 +75,5 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-import { OfflineUI } from "@repo/ui/components/offline-ui";
+import { OfflineUI } from "@repo/ui/components/connectivity/offline-ui";
 import { isNetworkError } from "@repo/ui/lib/is-network-error";

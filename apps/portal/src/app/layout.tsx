@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
 import "@repo/ui/globals.css";
-import { OfflineUI } from "@repo/ui/components/offline-ui";
-import { StreamGuard } from "@repo/ui/components/stream-guard";
+import { OfflineUI } from "@repo/ui/components/connectivity/offline-ui";
+import { StreamGuard } from "@repo/ui/components/connectivity/stream-guard";
 import { PublicFooter, PublicHeader } from "@/components/layout/";
 import {
 	BASE_OPEN_GRAPH,

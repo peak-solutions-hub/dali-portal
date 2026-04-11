@@ -7,7 +7,7 @@ import {
 	useEffect,
 	useState,
 } from "react";
-import { useOnlineStatus } from "../hooks/use-online-status";
+import { useOnlineStatus } from "../../hooks/use-online-status";
 import { OfflineUI } from "./offline-ui";
 
 const DEFAULT_OFFLINE_ANNOUNCEMENT =

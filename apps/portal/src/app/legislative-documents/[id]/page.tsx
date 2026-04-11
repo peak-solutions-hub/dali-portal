@@ -1,7 +1,7 @@
 import { getClassificationLabel, transformDocumentDates } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
-import { OnlineStatusBanner } from "@repo/ui/components/online-status-banner";
+import { OfflineAwareSuspense } from "@repo/ui/components/connectivity/offline-aware-suspense";
+import { OnlineStatusBanner } from "@repo/ui/components/connectivity/online-status-banner";
 import { ScrollToTop as ScrollToTopButton } from "@repo/ui/components/scroll-to-top";
 import { ChevronLeft } from "@repo/ui/lib/lucide-react";
 import type { Metadata } from "next";
@@ -12,7 +12,7 @@ import {
 	DocumentSidebar,
 	DocumentViewer,
 } from "@/components/legislative-documents/";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { LoadToTop } from "@/components/load-to-top";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 import {
 	getCachedLegislativeDocumentById,
@@ -86,7 +86,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 
 	return (
 		<div className="min-h-screen bg-gray-50 pb-12">
-			<ScrollToTop />
+			<LoadToTop />
 			<OnlineStatusBanner />
 			<ScrollToTopButton />
 			<OfflineAwareSuspense fallback={<DocumentDetailLoading />}>

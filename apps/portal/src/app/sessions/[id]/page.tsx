@@ -3,8 +3,8 @@ import {
 	formatSessionTime,
 	transformSessionWithAgendaDates,
 } from "@repo/shared";
-import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
-import { OnlineStatusBanner } from "@repo/ui/components/online-status-banner";
+import { OfflineAwareSuspense } from "@repo/ui/components/connectivity/offline-aware-suspense";
+import { OnlineStatusBanner } from "@repo/ui/components/connectivity/online-status-banner";
 import { ScrollToTop as ScrollToTopButton } from "@repo/ui/components/scroll-to-top";
 import {
 	getSessionStatusLabel,
@@ -12,7 +12,7 @@ import {
 } from "@repo/ui/lib/session-ui";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { LoadToTop } from "@/components/load-to-top";
 import { SessionDetailContent } from "@/components/sessions";
 import { createPageMetadata, truncateDescription } from "@/lib/seo-metadata";
 import SessionDetailLoading from "./loading";
@@ -73,7 +73,7 @@ export default async function SessionDetailPage({
 	const sessionResult = await getCachedSessionById(id);
 	return (
 		<div className="min-h-[calc(100svh-4.5rem)] sm:min-h-[calc(100svh-5rem)] bg-[#f9fafb]">
-			<ScrollToTop />
+			<LoadToTop />
 			<OnlineStatusBanner />
 			<ScrollToTopButton />
 			<OfflineAwareSuspense fallback={<SessionDetailLoading />}>

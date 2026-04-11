@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { isNetworkError } from "../lib/is-network-error";
+import { isNetworkError } from "../../lib/is-network-error";
 
 // ---------------------------------------------------------------------------
 // Types
