@@ -81,13 +81,13 @@ jobs:
         permissions:
             contents: read
         outputs:
-            has_test_db: ${{ steps.prepare_backend_env.outputs.has_test_db }}
+            has_test_db: ${{ steps.check_db.outputs.has_test_db }}
         env:
+            TEST_DATABASE_URL: ${{ vars.TEST_DATABASE_URL }}
             SUPABASE_URL: https://example.supabase.co
             SUPABASE_ANON_KEY: test-supabase-anon-key
             SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
             SUPABASE_JWT_SECRET: test-supabase-jwt-secret
-            TEST_DATABASE_URL: ${{ vars.TEST_DATABASE_URL }}
             TURNSTILE_SECRET_KEY: test-turnstile-secret-key
             RESEND_API_KEY: test-resend-api-key
         steps:
@@ -107,8 +107,8 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
-            - name: Prepare backend test env file
-              id: prepare_backend_env
+            - name: Check TEST_DATABASE_URL availability
+              id: check_db
               shell: bash
               run: |
                   if [ -z "${TEST_DATABASE_URL:-}" ]; then
@@ -120,9 +120,12 @@ jobs:
                     echo "::error::TEST_DATABASE_URL is required on push to main/develop."
                     exit 1
                   fi
+                  echo "has_test_db=true" >> "$GITHUB_OUTPUT"
 
-                  # printf avoids the heredoc indentation bug (leading spaces from
-                  # YAML indentation break dotenv-cli key parsing with <<EOF).
+            - name: Write backend .env.test
+              if: steps.check_db.outputs.has_test_db == 'true'
+              shell: bash
+              run: |
                   printf 'DATABASE_URL="%s"\n'              "${TEST_DATABASE_URL}"         >  apps/backend/.env.test
                   printf 'NODE_ENV="test"\n'                                               >> apps/backend/.env.test
                   printf 'PORT="8080"\n'                                                   >> apps/backend/.env.test
@@ -133,19 +136,9 @@ jobs:
                   printf 'TURNSTILE_SECRET_KEY="%s"\n'      "${TURNSTILE_SECRET_KEY}"      >> apps/backend/.env.test
                   printf 'RESEND_API_KEY="%s"\n'            "${RESEND_API_KEY}"            >> apps/backend/.env.test
 
-                  echo "has_test_db=true" >> "$GITHUB_OUTPUT"
-
             - name: Generate Prisma test client
-              if: steps.prepare_backend_env.outputs.has_test_db == 'true'
+              if: steps.check_db.outputs.has_test_db == 'true'
               run: pnpm --filter backend run db:test:prepare
-
-            - name: Upload backend-test-env artifact
-              if: steps.prepare_backend_env.outputs.has_test_db == 'true'
-              uses: actions/upload-artifact@v4
-              with:
-                  name: backend-test-env
-                  path: apps/backend/.env.test
-                  retention-days: 1
 
     backend-tests:
         needs: [changes, prepare-backend-db]
@@ -159,6 +152,14 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: read
+        env:
+            TEST_DATABASE_URL: ${{ vars.TEST_DATABASE_URL }}
+            SUPABASE_URL: https://example.supabase.co
+            SUPABASE_ANON_KEY: test-supabase-anon-key
+            SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
+            SUPABASE_JWT_SECRET: test-supabase-jwt-secret
+            TURNSTILE_SECRET_KEY: test-turnstile-secret-key
+            RESEND_API_KEY: test-resend-api-key
         steps:
             - uses: actions/checkout@v6
               with:
@@ -181,6 +182,22 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Write backend .env.test
+              if: |
+                  needs.prepare-backend-db.result == 'success' &&
+                  needs.prepare-backend-db.outputs.has_test_db == 'true'
+              shell: bash
+              run: |
+                  printf 'DATABASE_URL="%s"\n'              "${TEST_DATABASE_URL}"         >  apps/backend/.env.test
+                  printf 'NODE_ENV="test"\n'                                               >> apps/backend/.env.test
+                  printf 'PORT="8080"\n'                                                   >> apps/backend/.env.test
+                  printf 'SUPABASE_URL="%s"\n'              "${SUPABASE_URL}"              >> apps/backend/.env.test
+                  printf 'SUPABASE_ANON_KEY="%s"\n'         "${SUPABASE_ANON_KEY}"         >> apps/backend/.env.test
+                  printf 'SUPABASE_SERVICE_ROLE_KEY="%s"\n' "${SUPABASE_SERVICE_ROLE_KEY}" >> apps/backend/.env.test
+                  printf 'SUPABASE_JWT_SECRET="%s"\n'       "${SUPABASE_JWT_SECRET}"       >> apps/backend/.env.test
+                  printf 'TURNSTILE_SECRET_KEY="%s"\n'      "${TURNSTILE_SECRET_KEY}"      >> apps/backend/.env.test
+                  printf 'RESEND_API_KEY="%s"\n'            "${RESEND_API_KEY}"            >> apps/backend/.env.test
+
             - name: Run affected unit tests
               if: needs.changes.outputs.unit_integration == 'true'
               run: pnpm run test:affected:unit
@@ -188,15 +205,6 @@ jobs:
             - name: "[skip] Unit tests — no impacting changes"
               if: needs.changes.outputs.unit_integration != 'true'
               run: echo "No unit/integration-impacting changes detected."
-
-            - name: Download backend-test-env artifact
-              if: |
-                  needs.prepare-backend-db.result == 'success' &&
-                  needs.prepare-backend-db.outputs.has_test_db == 'true'
-              uses: actions/download-artifact@v4
-              with:
-                  name: backend-test-env
-                  path: apps/backend
 
             - name: Run affected integration tests
               if: |
@@ -211,12 +219,6 @@ jobs:
                   needs.prepare-backend-db.result == 'success' &&
                   needs.prepare-backend-db.outputs.has_test_db == 'true'
               run: pnpm run test:backend:e2e
-
-            - name: "[skip] Backend e2e — no backend-impacting changes"
-              if: |
-                  needs.changes.outputs.backend_e2e != 'true' &&
-                  needs.prepare-backend-db.result == 'success'
-              run: echo "No changes in apps/backend/ or packages/shared/."
 
             - name: "[skip] DB tests — TEST_DATABASE_URL not available"
               if: |
@@ -235,6 +237,19 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: read
+        env:
+            NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+            TEST_DATABASE_URL: ${{ vars.TEST_DATABASE_URL }}
+            SUPABASE_URL: https://example.supabase.co
+            SUPABASE_ANON_KEY: test-supabase-anon-key
+            SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
+            SUPABASE_JWT_SECRET: test-supabase-jwt-secret
+            TURNSTILE_SECRET_KEY: test-turnstile-secret-key
+            RESEND_API_KEY: test-resend-api-key
         steps:
             - uses: actions/checkout@v6
               with:
@@ -260,11 +275,18 @@ jobs:
             - name: Build playwright-utils
               run: pnpm --filter @repo/playwright-utils build
 
-            - name: Download backend-test-env artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: backend-test-env
-                  path: apps/backend
+            - name: Write backend .env.test
+              shell: bash
+              run: |
+                  printf 'DATABASE_URL="%s"\n'              "${TEST_DATABASE_URL}"         >  apps/backend/.env.test
+                  printf 'NODE_ENV="test"\n'                                               >> apps/backend/.env.test
+                  printf 'PORT="8080"\n'                                                   >> apps/backend/.env.test
+                  printf 'SUPABASE_URL="%s"\n'              "${SUPABASE_URL}"              >> apps/backend/.env.test
+                  printf 'SUPABASE_ANON_KEY="%s"\n'         "${SUPABASE_ANON_KEY}"         >> apps/backend/.env.test
+                  printf 'SUPABASE_SERVICE_ROLE_KEY="%s"\n' "${SUPABASE_SERVICE_ROLE_KEY}" >> apps/backend/.env.test
+                  printf 'SUPABASE_JWT_SECRET="%s"\n'       "${SUPABASE_JWT_SECRET}"       >> apps/backend/.env.test
+                  printf 'TURNSTILE_SECRET_KEY="%s"\n'      "${TURNSTILE_SECRET_KEY}"      >> apps/backend/.env.test
+                  printf 'RESEND_API_KEY="%s"\n'            "${RESEND_API_KEY}"            >> apps/backend/.env.test
 
             - name: Cache Playwright browsers
               id: pw_cache
@@ -299,6 +321,19 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: read
+        env:
+            NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+            TEST_DATABASE_URL: ${{ vars.TEST_DATABASE_URL }}
+            SUPABASE_URL: https://example.supabase.co
+            SUPABASE_ANON_KEY: test-supabase-anon-key
+            SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
+            SUPABASE_JWT_SECRET: test-supabase-jwt-secret
+            TURNSTILE_SECRET_KEY: test-turnstile-secret-key
+            RESEND_API_KEY: test-resend-api-key
         steps:
             - uses: actions/checkout@v6
               with:
@@ -324,11 +359,18 @@ jobs:
             - name: Build playwright-utils
               run: pnpm --filter @repo/playwright-utils build
 
-            - name: Download backend-test-env artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: backend-test-env
-                  path: apps/backend
+            - name: Write backend .env.test
+              shell: bash
+              run: |
+                  printf 'DATABASE_URL="%s"\n'              "${TEST_DATABASE_URL}"         >  apps/backend/.env.test
+                  printf 'NODE_ENV="test"\n'                                               >> apps/backend/.env.test
+                  printf 'PORT="8080"\n'                                                   >> apps/backend/.env.test
+                  printf 'SUPABASE_URL="%s"\n'              "${SUPABASE_URL}"              >> apps/backend/.env.test
+                  printf 'SUPABASE_ANON_KEY="%s"\n'         "${SUPABASE_ANON_KEY}"         >> apps/backend/.env.test
+                  printf 'SUPABASE_SERVICE_ROLE_KEY="%s"\n' "${SUPABASE_SERVICE_ROLE_KEY}" >> apps/backend/.env.test
+                  printf 'SUPABASE_JWT_SECRET="%s"\n'       "${SUPABASE_JWT_SECRET}"       >> apps/backend/.env.test
+                  printf 'TURNSTILE_SECRET_KEY="%s"\n'      "${TURNSTILE_SECRET_KEY}"      >> apps/backend/.env.test
+                  printf 'RESEND_API_KEY="%s"\n'            "${RESEND_API_KEY}"            >> apps/backend/.env.test
 
             - name: Cache Playwright browsers
               id: pw_cache
