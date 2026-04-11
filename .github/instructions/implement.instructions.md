@@ -524,6 +524,7 @@ import { DocumentCard } from './document-card'
 - Before editing, scan for existing patterns in the repo and follow them.
 - Keep edits minimal and scoped to the request.
 - Avoid introducing new libraries unless clearly necessary.
+- If the request is about finding, discovering, or installing skills, use `.agents/skills/find-skills/SKILL.md` first.
 
 ---
 

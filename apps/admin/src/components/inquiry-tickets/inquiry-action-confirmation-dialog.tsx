@@ -12,28 +12,72 @@ import {
 } from "@repo/ui/components/dialog";
 import { Label } from "@repo/ui/components/label";
 import { Textarea } from "@repo/ui/components/textarea";
-import { AlertCircle, CheckCircle, UserPlus, XCircle } from "lucide-react";
+import {
+	AlertCircle,
+	CheckCircle,
+	UserCheck,
+	UserMinus,
+	UserPlus,
+	XCircle,
+} from "lucide-react";
 import { useState } from "react";
 
-export type InquiryActionType = "assign" | "resolve" | "reject";
+export type InquiryActionType =
+	| "assign_to"
+	| "reassign_to"
+	| "unassign"
+	| "resolve"
+	| "reject"
+	| "request_assignment"
+	| "confirm_assignment"
+	| "review_reassignment";
 
 interface InquiryActionConfirmationDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onConfirm: (remarks?: string) => void;
+	onSecondaryConfirm?: () => void;
 	actionType: InquiryActionType;
 	isLoading?: boolean;
+	/** Used by assign_to to show the target staff member's name */
+	targetName?: string;
+	/** Used by review_reassignment to show new assignee */
+	reassignedToName?: string;
 }
 
 const ACTION_CONFIG = {
-	assign: {
-		title: "Assign to Me",
+	assign_to: {
+		title: "Assign Ticket",
 		description:
-			"This will assign the inquiry ticket to you and mark it as 'Open'. You will be responsible for handling this inquiry.",
+			"This will assign the inquiry ticket to the selected staff member.",
 		icon: UserPlus,
 		iconColor: "text-blue-600",
-		confirmButtonText: "Assign to Me",
+		confirmButtonText: "Assign",
 		confirmButtonVariant: "default" as const,
+		requiresRemarks: false,
+		remarksLabel: "",
+		remarksPlaceholder: "",
+	},
+	reassign_to: {
+		title: "Reassign Ticket",
+		description:
+			"This will request reassignment to the selected staff member. The current assignee must approve before it takes effect.",
+		icon: UserPlus,
+		iconColor: "text-blue-600",
+		confirmButtonText: "Request Reassignment",
+		confirmButtonVariant: "default" as const,
+		requiresRemarks: false,
+		remarksLabel: "",
+		remarksPlaceholder: "",
+	},
+	unassign: {
+		title: "Unassign Ticket",
+		description:
+			"This will remove the current assignee from this inquiry ticket.",
+		icon: UserMinus,
+		iconColor: "text-yellow-600",
+		confirmButtonText: "Unassign",
+		confirmButtonVariant: "outline" as const,
 		requiresRemarks: false,
 		remarksLabel: "",
 		remarksPlaceholder: "",
@@ -63,18 +107,74 @@ const ACTION_CONFIG = {
 		remarksLabel: "Rejection Reason",
 		remarksPlaceholder: "Explain why this inquiry is being rejected...",
 	},
+	request_assignment: {
+		title: "Request Assignment",
+		description:
+			"This will notify assigners that you want to handle this inquiry.",
+		icon: UserPlus,
+		iconColor: "text-blue-600",
+		confirmButtonText: "Request Assignment",
+		confirmButtonVariant: "default" as const,
+		requiresRemarks: false,
+		remarksLabel: "",
+		remarksPlaceholder: "",
+	},
+	confirm_assignment: {
+		title: "Confirm Assignment",
+		description:
+			"Confirm that you will take ownership of this inquiry and mark it as 'Open'.",
+		icon: UserCheck,
+		iconColor: "text-green-600",
+		confirmButtonText: "Confirm",
+		confirmButtonVariant: "default" as const,
+		requiresRemarks: false,
+		remarksLabel: "",
+		remarksPlaceholder: "",
+	},
+	review_reassignment: {
+		title: "Reassignment Requested",
+		description:
+			"A reassignment has been requested for this inquiry. Approving will transfer ownership; rejecting will keep it with you.",
+		icon: UserCheck,
+		iconColor: "text-blue-600",
+		confirmButtonText: "Approve",
+		confirmButtonVariant: "default" as const,
+		requiresRemarks: false,
+		remarksLabel: "",
+		remarksPlaceholder: "",
+	},
 } as const;
 
 export function InquiryActionConfirmationDialog({
 	isOpen,
 	onClose,
 	onConfirm,
+	onSecondaryConfirm,
 	actionType,
 	isLoading = false,
+	targetName,
+	reassignedToName,
 }: InquiryActionConfirmationDialogProps) {
 	const [remarks, setRemarks] = useState("");
 	const config = ACTION_CONFIG[actionType];
 	const Icon = config.icon;
+
+	const reviewDescription =
+		actionType === "review_reassignment" && reassignedToName ? (
+			<>
+				This inquiry has been reassigned to <strong>{reassignedToName}</strong>.
+				You can approve the reassignment or reject it to keep ownership.
+			</>
+		) : (
+			config.description
+		);
+
+	const description =
+		actionType === "assign_to" && targetName
+			? `This will assign the inquiry ticket to ${targetName}.`
+			: actionType === "reassign_to" && targetName
+				? `This will request reassignment to ${targetName}. The current assignee must approve before it takes effect.`
+				: reviewDescription;
 
 	const handleConfirm = () => {
 		if (config.requiresRemarks) {
@@ -85,6 +185,11 @@ export function InquiryActionConfirmationDialog({
 		setRemarks("");
 	};
 
+	const handleSecondaryConfirm = () => {
+		setRemarks("");
+		onSecondaryConfirm?.();
+	};
+
 	const handleClose = () => {
 		setRemarks("");
 		onClose();
@@ -92,6 +197,7 @@ export function InquiryActionConfirmationDialog({
 
 	const isConfirmDisabled =
 		isLoading || (config.requiresRemarks && !remarks.trim());
+	const isReview = actionType === "review_reassignment";
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -104,7 +210,7 @@ export function InquiryActionConfirmationDialog({
 						<DialogTitle>{config.title}</DialogTitle>
 					</div>
 					<DialogDescription className="text-left">
-						{config.description}
+						{description}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -134,26 +240,55 @@ export function InquiryActionConfirmationDialog({
 					</div>
 				)}
 
-				{!config.requiresRemarks && (
+				{isReview && (
 					<div className="flex items-start gap-2 p-3 bg-muted/50 rounded-md border">
 						<AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
 						<p className="text-sm text-muted-foreground">
-							Are you sure you want to proceed with this action?
+							<>
+								Approve: Transfer this inquiry to the requested assignee.
+								<br />
+								Reject: Keep this inquiry assigned to you.
+							</>
 						</p>
 					</div>
 				)}
 
 				<DialogFooter>
-					<Button variant="outline" onClick={handleClose} disabled={isLoading}>
-						Cancel
-					</Button>
-					<Button
-						variant={config.confirmButtonVariant}
-						onClick={handleConfirm}
-						disabled={isConfirmDisabled}
-					>
-						{config.confirmButtonText}
-					</Button>
+					{!isReview && (
+						<Button
+							variant="outline"
+							onClick={handleClose}
+							disabled={isLoading}
+						>
+							Cancel
+						</Button>
+					)}
+					{isReview ? (
+						<>
+							<Button
+								variant="outline"
+								onClick={handleSecondaryConfirm}
+								disabled={isLoading}
+							>
+								Reject
+							</Button>
+							<Button
+								variant={config.confirmButtonVariant}
+								onClick={handleConfirm}
+								disabled={isConfirmDisabled}
+							>
+								{config.confirmButtonText}
+							</Button>
+						</>
+					) : (
+						<Button
+							variant={config.confirmButtonVariant}
+							onClick={handleConfirm}
+							disabled={isConfirmDisabled}
+						>
+							{config.confirmButtonText}
+						</Button>
+					)}
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

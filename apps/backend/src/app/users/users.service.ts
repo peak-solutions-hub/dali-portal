@@ -1,18 +1,21 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type {
 	ActivateUserInput,
+	AssignableUserListResponse,
 	CheckEmailStatusInput,
 	CheckEmailStatusResponse,
+	GetAssignableUsersInput,
 	GetUserListInput,
 	InviteUserInput,
 	InviteUserResponse,
 	RequestPasswordResetInput,
 	RequestPasswordResetResponse,
+	RoleType,
 	UpdateUserInput,
 	UserListResponse,
 	UserWithRole,
 } from "@repo/shared";
-import { AppError } from "@repo/shared";
+import { AppError, INQUIRY_ASSIGNABLE_ROLES } from "@repo/shared";
 import { Prisma } from "generated/prisma/client";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
 import { DbService } from "@/app/db/db.service";
@@ -22,6 +25,39 @@ import { ConfigService } from "@/lib/config.service";
 @Injectable()
 export class UsersService {
 	private readonly logger = new Logger(UsersService.name);
+
+	private getAdminRedirectUrl(pathname: string): string {
+		const rawAdminUrl = this.configService.getOrThrow("adminUrl") as string;
+
+		let adminUrl: URL;
+		try {
+			adminUrl = new URL(rawAdminUrl);
+		} catch {
+			this.logger.error("ADMIN_URL is not a valid URL.");
+			throw new AppError(
+				"GENERAL.INTERNAL_SERVER_ERROR",
+				"Authentication link configuration is invalid.",
+			);
+		}
+
+		const hostname = adminUrl.hostname.toLowerCase();
+		const isUnreachableHost =
+			hostname === "0.0.0.0" ||
+			hostname === "127.0.0.1" ||
+			hostname === "localhost";
+
+		if (process.env.NODE_ENV === "production" && isUnreachableHost) {
+			this.logger.error(
+				`ADMIN_URL is using an unreachable production host: ${adminUrl.hostname}`,
+			);
+			throw new AppError(
+				"GENERAL.INTERNAL_SERVER_ERROR",
+				"Authentication link configuration is invalid.",
+			);
+		}
+
+		return new URL(pathname, adminUrl).toString();
+	}
 
 	constructor(
 		private readonly db: DbService,
@@ -97,6 +133,60 @@ export class UsersService {
 
 		return {
 			users: sortedUsers as UserWithRole[],
+		};
+	}
+
+	async getAssignableUsers(
+		input: GetAssignableUsersInput,
+	): Promise<AssignableUserListResponse> {
+		const requestedRoles = input.roles;
+		let allowedRoles: RoleType[] = [...INQUIRY_ASSIGNABLE_ROLES];
+
+		if (requestedRoles && requestedRoles.length > 0) {
+			allowedRoles = requestedRoles.filter((role) =>
+				INQUIRY_ASSIGNABLE_ROLES.includes(role),
+			);
+		}
+
+		if (allowedRoles.length === 0) {
+			return { users: [] };
+		}
+
+		const users = await this.db.user.findMany({
+			where: {
+				status: "active",
+				role: {
+					name: {
+						in: allowedRoles,
+					},
+				},
+				...(input.search
+					? {
+							fullName: {
+								contains: input.search,
+								mode: "insensitive",
+							},
+						}
+					: {}),
+			},
+			select: {
+				id: true,
+				fullName: true,
+				role: {
+					select: {
+						name: true,
+					},
+				},
+			},
+			orderBy: [{ role: { name: "asc" } }, { fullName: "asc" }],
+		});
+
+		return {
+			users: users.map((user) => ({
+				id: user.id,
+				fullName: user.fullName,
+				role: user.role.name,
+			})),
 		};
 	}
 
@@ -284,7 +374,7 @@ export class UsersService {
 		// If user exists and is INVITED, Proceed to re-send invite logic (fall through)
 		// If user does not exist, Proceed to create logic
 
-		const redirectTo = `${this.configService.getOrThrow("adminUrl")}/auth/confirm`;
+		const redirectTo = this.getAdminRedirectUrl("/auth/confirm");
 		const supabase = this.supabaseAdmin.getClient();
 
 		// For reinvites (user exists with "invited" status), delete only the old
@@ -403,8 +493,7 @@ export class UsersService {
 		}
 
 		const supabase = this.supabaseAdmin.getClient();
-		const adminUrl = this.configService.get("adminUrl") as string;
-		const redirectTo = `${adminUrl}/auth/callback?next=/set-password`;
+		const redirectTo = this.getAdminRedirectUrl("/auth/confirm");
 
 		const { error } = await supabase.auth.resetPasswordForEmail(email, {
 			redirectTo,

@@ -20,6 +20,8 @@ export interface UseInquiryTicketsOptions {
 	status: string;
 	page: number;
 	searchQuery?: string;
+	currentUserId?: string;
+	onlyAssignedToCurrentUser?: boolean;
 }
 
 export interface UseInquiryTicketsReturn {
@@ -32,6 +34,7 @@ export interface UseInquiryTicketsReturn {
 		waiting_for_citizen: number;
 		resolved: number;
 		rejected: number;
+		assigned_to_me: number;
 	};
 	isLoading: boolean;
 	isLoadingCounts: boolean;
@@ -43,85 +46,85 @@ export function useInquiryTickets({
 	status,
 	page,
 	searchQuery = "",
+	currentUserId,
+	onlyAssignedToCurrentUser = false,
 }: UseInquiryTicketsOptions): UseInquiryTicketsReturn {
 	const queryClient = useQueryClient();
+	const trimmedSearchQuery = searchQuery.trim();
+	const isAssignedToMeStatus = status === "assigned_to_me";
+	const apiStatus =
+		status === "all" || isAssignedToMeStatus
+			? undefined
+			: (status as InquiryStatus);
 
-	// Single fetch: all tickets at once — no status filter so tab switches
-	// are instant (client-side filter only, no new network request).
+	// Fetch paginated list from server so list stays consistent with counts/search.
 	const {
-		data: allTicketsData,
+		data: listData,
 		isLoading,
 		error: ticketsError,
 	} = useQuery({
-		queryKey: ["inquiry-tickets", "all"],
+		queryKey: [
+			"inquiry-tickets",
+			"list",
+			status,
+			page,
+			trimmedSearchQuery,
+			onlyAssignedToCurrentUser,
+			currentUserId,
+		],
 		queryFn: async () => {
-			const [err, result] = await api.inquiries.getList({ limit: 100 });
-			if (err) throw err;
-			return result?.tickets ?? [];
-		},
-	});
-
-	// Separate query for accurate counts (independent of ticket list).
-	const { data: statusCountsData, isLoading: isLoadingCounts } = useQuery({
-		queryKey: ["inquiry-tickets", "status-counts"],
-		queryFn: async () => {
-			const [err, result] = await api.inquiries.getStatusCounts();
+			const [err, result] = await api.inquiries.getList({
+				status: apiStatus,
+				search: trimmedSearchQuery || undefined,
+				assignedToMe:
+					isAssignedToMeStatus || (onlyAssignedToCurrentUser && !!currentUserId)
+						? true
+						: undefined,
+				limit: ITEMS_PER_PAGE,
+				page,
+			});
 			if (err) throw err;
 			return result;
 		},
 	});
 
-	const allTickets = allTicketsData ?? [];
+	// Separate query for accurate counts (independent of ticket list).
+	const { data: statusCountsData, isLoading: isLoadingCounts } = useQuery({
+		queryKey: ["inquiry-tickets", "status-counts", trimmedSearchQuery],
+		queryFn: async () => {
+			const [err, result] = await api.inquiries.getStatusCounts({
+				search: trimmedSearchQuery || undefined,
+			});
+			if (err) throw err;
+			return result;
+		},
+	});
 
-	// Client-side filter by status and search query.
-	const filteredTickets = useMemo(() => {
-		return allTickets.filter((ticket) => {
-			const matchesStatus =
-				status === "all" || ticket.status === (status as InquiryStatus);
-
-			const matchesSearch =
-				searchQuery === "" ||
-				ticket.referenceNumber
-					.toLowerCase()
-					.includes(searchQuery.toLowerCase()) ||
-				(ticket.citizenFirstName &&
-					ticket.citizenFirstName
-						.toLowerCase()
-						.includes(searchQuery.toLowerCase())) ||
-				(ticket.citizenLastName &&
-					ticket.citizenLastName
-						.toLowerCase()
-						.includes(searchQuery.toLowerCase())) ||
-				ticket.subject.toLowerCase().includes(searchQuery.toLowerCase());
-
-			return matchesStatus && matchesSearch;
-		});
-	}, [allTickets, status, searchQuery]);
-
-	// Client-side pagination over the filtered set.
-	const totalItems = filteredTickets.length;
-	const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
-	const safePage = Math.min(page, totalPages);
-	const start = (safePage - 1) * ITEMS_PER_PAGE;
-	const tickets = filteredTickets.slice(start, start + ITEMS_PER_PAGE);
-
-	const pagination: InquiryTicketsPagination = {
-		currentPage: safePage,
-		totalPages,
-		totalItems,
+	const tickets = listData?.tickets ?? [];
+	const pagination: InquiryTicketsPagination = listData?.pagination ?? {
+		currentPage: page,
+		totalPages: 1,
+		totalItems: 0,
 		itemsPerPage: ITEMS_PER_PAGE,
-		hasNextPage: safePage < totalPages,
-		hasPreviousPage: safePage > 1,
+		hasNextPage: false,
+		hasPreviousPage: false,
 	};
 
-	const counts = statusCountsData ?? {
-		all: 0,
-		new: 0,
-		open: 0,
-		waiting_for_citizen: 0,
-		resolved: 0,
-		rejected: 0,
-	};
+	// Status/count badges are server-derived so they remain accurate even when
+	// the ticket list query is partial or paginated.
+	const counts = useMemo(() => {
+		return {
+			...(statusCountsData ?? {
+				all: 0,
+				new: 0,
+				open: 0,
+				waiting_for_citizen: 0,
+				resolved: 0,
+				rejected: 0,
+				assigned_to_me: 0,
+			}),
+		};
+	}, [statusCountsData]);
 
 	const error = ticketsError
 		? ticketsError.message || "Failed to fetch inquiry tickets"
