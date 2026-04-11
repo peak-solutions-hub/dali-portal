@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeAll } from "@jest/globals";
-import { config as loadEnv } from "dotenv";
 import {
 	assertSafeTestEnvironment,
 	createTestPrismaClient,
 	resetPublicSchema,
 } from "./database";
+import { loadTestEnv } from "./load-test-env";
 
-loadEnv({ path: ".env.test" });
+loadTestEnv();
 
 const prisma = createTestPrismaClient();
 

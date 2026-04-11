@@ -26,7 +26,6 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-key
       SUPABASE_JWT_SECRET: test-supabase-jwt-secret
       TEST_DATABASE_URL: ${{ vars.TEST_DATABASE_URL }}
-      TEST_DB_SAFE: "true"
       TURNSTILE_SECRET_KEY: test-turnstile-secret-key
       RESEND_API_KEY: test-resend-api-key
 
@@ -57,6 +56,7 @@ jobs:
 
           should_run_admin=false
           should_run_portal=false
+          should_run_backend_e2e=false
 
           if echo "$CHANGED_FILES" | grep -E '^(apps/backend/|packages/shared/|packages/playwright-utils/|apps/admin/|apps/admin-e2e/|package.json|pnpm-lock.yaml|turbo.json)' >/dev/null; then
             should_run_admin=true
@@ -66,8 +66,13 @@ jobs:
             should_run_portal=true
           fi
 
+          if echo "$CHANGED_FILES" | grep -E '^(apps/backend/|packages/shared/|package.json|pnpm-lock.yaml|turbo.json)' >/dev/null; then
+            should_run_backend_e2e=true
+          fi
+
           echo "run_admin_e2e=$should_run_admin" >> "$GITHUB_OUTPUT"
           echo "run_portal_e2e=$should_run_portal" >> "$GITHUB_OUTPUT"
+          echo "run_backend_e2e=$should_run_backend_e2e" >> "$GITHUB_OUTPUT"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -103,8 +108,8 @@ jobs:
 
           cat > apps/backend/.env.test <<EOF
           DATABASE_URL="$TEST_DATABASE_URL"
-          TEST_DB_SAFE="true"
           NODE_ENV="test"
+          PORT="8080"
           SUPABASE_URL="$SUPABASE_URL"
           SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
           SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
@@ -114,12 +119,24 @@ jobs:
           EOF
           echo "has_test_db=true" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare backend test Prisma client once
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true'
+        run: pnpm --filter backend run db:test:prepare
+
       - name: Run affected unit tests
         run: pnpm run test:affected:unit
 
       - name: Run affected integration tests
         if: steps.prepare_backend_env.outputs.has_test_db == 'true'
         run: pnpm run test:affected:integration
+
+      - name: Run affected backend e2e tests
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_backend_e2e == 'true'
+        run: pnpm run test:backend:e2e:affected
+
+      - name: Note skipped backend e2e tests
+        if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_backend_e2e != 'true'
+        run: echo "Skipped backend e2e because no backend-impacting changes were detected."
 
       - name: Note skipped backend DB tests
         if: steps.prepare_backend_env.outputs.has_test_db != 'true'
@@ -130,11 +147,11 @@ jobs:
 
       - name: Run affected admin e2e tests (Playwright)
         if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_admin_e2e == 'true'
-        run: pnpm run test:e2e:admin
+        run: pnpm run test:e2e:admin:affected
 
       - name: Run affected portal e2e tests (Playwright)
         if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_portal_e2e == 'true'
-        run: pnpm run test:e2e:portal
+        run: pnpm run test:e2e:portal:affected
 
       - name: Note skipped admin UI e2e tests
         if: steps.prepare_backend_env.outputs.has_test_db == 'true' && steps.detect_ui_e2e_changes.outputs.run_admin_e2e != 'true'

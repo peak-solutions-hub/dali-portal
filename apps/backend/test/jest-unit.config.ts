@@ -5,6 +5,7 @@ const config: Config = {
 	rootDir: "../src",
 	testEnvironment: "node",
 	testRegex: "^((?!integration-spec).)*\\.spec\\.ts$",
+	setupFilesAfterEnv: ["<rootDir>/../test/setup-unit.ts"],
 	extensionsToTreatAsEsm: [".ts"],
 	transform: {
 		"^.+\\.(t|j)s$": [
