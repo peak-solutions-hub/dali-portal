@@ -299,8 +299,8 @@ jobs:
               if: steps.pw_cache.outputs.cache-hit != 'true'
               run: pnpm playwright:install
 
-            - name: Run affected admin e2e tests
-              run: pnpm run test:e2e:admin:affected
+            - name: Run admin e2e tests
+              run: pnpm run test:e2e:admin
 
             - name: Upload Playwright report (admin)
               if: ${{ !cancelled() }}
@@ -383,8 +383,8 @@ jobs:
               if: steps.pw_cache.outputs.cache-hit != 'true'
               run: pnpm playwright:install
 
-            - name: Run affected portal e2e tests
-              run: pnpm run test:e2e:portal:affected
+            - name: Run portal e2e tests
+              run: pnpm run test:e2e:portal
 
             - name: Upload Playwright report (portal)
               if: ${{ !cancelled() }}
