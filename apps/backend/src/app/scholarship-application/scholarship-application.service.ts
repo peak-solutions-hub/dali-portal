@@ -92,7 +92,7 @@ export class ScholarshipApplicationService {
 				fatherGivenName: input.fatherGivenName.trim(),
 				motherMiddleName: input.motherMaidenMiddleName.trim(),
 				motherLastName: input.motherMaidenLastName.trim(),
-				motherGivenName: input.motherMaidenGivenName.trim(),
+				motherGivenName: input.motherGivenName.trim(),
 				guardianContactNumber: input.guardianContactNo.trim(),
 				guardianEmailAddress: input.guardianEmailAddress?.trim() || "",
 			},

@@ -41,7 +41,7 @@ export type MainFormState = {
 	fatherGivenName: string;
 	fatherMiddleName: string;
 	motherMaidenLastName: string;
-	motherMaidenGivenName: string;
+	motherGivenName: string;
 	motherMaidenMiddleName: string;
 	endorsementDate: Date | undefined;
 	guardianName: string;
@@ -92,7 +92,7 @@ export const INITIAL_BENEFICIARY_FORM_STATE: MainFormState = {
 	fatherGivenName: "",
 	fatherMiddleName: "",
 	motherMaidenLastName: "",
-	motherMaidenGivenName: "",
+	motherGivenName: "",
 	motherMaidenMiddleName: "",
 	endorsementDate: undefined,
 	guardianName: "",
@@ -177,7 +177,7 @@ export const SCHOLARSHIP_REQUIRED_FIELDS: Array<keyof MainFormState> = [
 	"fatherGivenName",
 	"fatherMiddleName",
 	"motherMaidenLastName",
-	"motherMaidenGivenName",
+	"motherGivenName",
 	"motherMaidenMiddleName",
 	"guardianName",
 	"guardianContactNo",

@@ -64,7 +64,7 @@ const STEP_FOUR_REQUIRED_FIELDS: Array<keyof MainFormState> = [
 	"fatherGivenName",
 	"fatherMiddleName",
 	"motherMaidenLastName",
-	"motherMaidenGivenName",
+	"motherGivenName",
 	"motherMaidenMiddleName",
 ];
 
@@ -657,23 +657,22 @@ export function ScholarshipForm({
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
-								Mother's Maiden Given Name{" "}
-								<span className="text-red-500">*</span>
+								Mother's Given Name <span className="text-red-500">*</span>
 							</label>
 							<Input
 								className={
-									hasFieldError("motherMaidenGivenName")
+									hasFieldError("motherGivenName")
 										? "border-red-500"
 										: undefined
 								}
-								value={formState.motherMaidenGivenName}
+								value={formState.motherGivenName}
 								onChange={(event) =>
-									updateField("motherMaidenGivenName", event.target.value)
+									updateField("motherGivenName", event.target.value)
 								}
-								placeholder="Enter mother's maiden given name"
+								placeholder="Enter mother's given name"
 								required
 							/>
-							{getRequiredFieldMessage("motherMaidenGivenName")}
+							{getRequiredFieldMessage("motherGivenName")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">

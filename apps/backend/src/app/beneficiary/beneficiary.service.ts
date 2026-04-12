@@ -83,7 +83,7 @@ export class BeneficiaryService {
 				fatherGivenName: latestScholarship.fatherGivenName,
 				fatherMiddleName: latestScholarship.fatherMiddleName,
 				motherMaidenLastName: latestScholarship.motherLastName,
-				motherMaidenGivenName: latestScholarship.motherGivenName,
+				motherGivenName: latestScholarship.motherGivenName,
 				motherMaidenMiddleName: latestScholarship.motherMiddleName,
 				guardianName: "",
 				guardianContactNo: latestScholarship.guardianContactNumber,

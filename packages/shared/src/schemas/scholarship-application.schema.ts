@@ -23,7 +23,7 @@ export const CreateScholarshipApplicationSchema = z.object({
 	fatherGivenName: z.string().min(1),
 	fatherMiddleName: z.string().min(1),
 	motherMaidenLastName: z.string().min(1),
-	motherMaidenGivenName: z.string().min(1),
+	motherGivenName: z.string().min(1),
 	motherMaidenMiddleName: z.string().min(1),
 	guardianName: z.string().optional(),
 	guardianContactNo: z.string().min(1),
