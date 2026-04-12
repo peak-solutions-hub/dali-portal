@@ -27,7 +27,7 @@ import {
 import { TimePicker } from "@repo/ui/components/time-picker";
 import { Calendar, Loader2, Plus } from "@repo/ui/lib/lucide-react";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { api } from "@/lib/api.client";
 
 const PHT_OFFSET_HOURS = 8;
@@ -69,6 +69,11 @@ export function CreateSessionDialog({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const todayInPht = formatIsoDateInPHT(new Date());
+	const sessionTypeSelectId = useId();
+	const sessionDatePickerId = useId();
+	const sessionDateLabelId = useId();
+	const sessionTimePickerId = useId();
+	const sessionTimeLabelId = useId();
 
 	const getSessionValidationError = (
 		selectedDate: Date | undefined,
@@ -220,7 +225,7 @@ export function CreateSessionDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-							<Plus className="h-5 w-5 text-blue-600" />
+							<Plus className="h-5 w-5 text-blue-600" aria-hidden="true" />
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -239,7 +244,7 @@ export function CreateSessionDialog({
 						{/* Session Type */}
 						<div className="space-y-2">
 							<label
-								htmlFor="session-type"
+								htmlFor={sessionTypeSelectId}
 								className="text-sm font-medium text-gray-700"
 							>
 								Session Type
@@ -249,8 +254,8 @@ export function CreateSessionDialog({
 								onValueChange={handleSessionTypeChange}
 							>
 								<SelectTrigger
-									id="session-type"
-									className="cursor-pointer border-gray-400 bg-white text-sm font-medium text-gray-900"
+									id={sessionTypeSelectId}
+									className="cursor-pointer border-gray-400 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 								>
 									<SelectValue />
 								</SelectTrigger>
@@ -271,7 +276,8 @@ export function CreateSessionDialog({
 						{/* Session Date */}
 						<div className="space-y-2">
 							<label
-								htmlFor="session-date"
+								htmlFor={sessionDatePickerId}
+								id={sessionDateLabelId}
 								className="text-sm font-medium text-gray-700"
 							>
 								Session Date <span className="text-red-500">*</span>
@@ -279,10 +285,12 @@ export function CreateSessionDialog({
 							<Popover>
 								<PopoverTrigger asChild>
 									<Button
+										id={sessionDatePickerId}
+										aria-labelledby={sessionDateLabelId}
 										variant="outline"
-										className="w-full justify-start border-gray-400 bg-white text-left text-sm font-medium text-gray-900 cursor-pointer"
+										className="w-full justify-start border-gray-400 bg-white text-left text-sm font-medium text-gray-900 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 									>
-										<Calendar className="mr-2 h-4 w-4" />
+										<Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
 										{sessionDate ? format(sessionDate, "PPP") : "Pick a date"}
 									</Button>
 								</PopoverTrigger>
@@ -311,16 +319,19 @@ export function CreateSessionDialog({
 						{/* Session Time */}
 						<div className="space-y-2">
 							<label
-								htmlFor="session-time"
+								htmlFor={sessionTimePickerId}
+								id={sessionTimeLabelId}
 								className="text-sm font-medium text-gray-700"
 							>
 								Session Time
 							</label>
 							<TimePicker
+								id={sessionTimePickerId}
+								aria-labelledby={sessionTimeLabelId}
 								value={sessionTime}
 								onChange={handleSessionTimeChange}
 								placeholder="Select session time"
-								className="border-gray-400 bg-white text-sm font-medium text-gray-900"
+								className="border-gray-400 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 							/>
 							<p className="text-xs text-gray-500">
 								Default: 10:00 AM (regular sessions)
@@ -355,9 +366,12 @@ export function CreateSessionDialog({
 							className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
 						>
 							{isSubmitting ? (
-								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								<Loader2
+									className="h-4 w-4 mr-2 animate-spin"
+									aria-hidden="true"
+								/>
 							) : (
-								<Plus className="h-4 w-4 mr-2" />
+								<Plus className="h-4 w-4 mr-2" aria-hidden="true" />
 							)}
 							{isSubmitting ? "Creating..." : "Create Session"}
 						</Button>

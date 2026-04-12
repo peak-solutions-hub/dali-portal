@@ -11,6 +11,7 @@ import { Clock } from "lucide-react";
 import * as React from "react";
 
 interface TimePickerProps {
+	id?: string;
 	value?: string; // "HH:mm" format
 	onChange?: (value: string) => void;
 	placeholder?: string;
@@ -18,6 +19,8 @@ interface TimePickerProps {
 	disabled?: boolean;
 	minTime?: string; // "HH:mm" 24-hour format
 	maxTime?: string; // "HH:mm" 24-hour format
+	"aria-label"?: string;
+	"aria-labelledby"?: string;
 }
 
 /** Scrollable column that supports native mouse wheel scrolling */
@@ -54,6 +57,7 @@ function ScrollColumn({
 }
 
 function TimePicker({
+	id,
 	value,
 	onChange,
 	placeholder = "Select time",
@@ -61,6 +65,8 @@ function TimePicker({
 	disabled = false,
 	minTime,
 	maxTime,
+	"aria-label": ariaLabel,
+	"aria-labelledby": ariaLabelledby,
 }: TimePickerProps) {
 	const [open, setOpen] = React.useState(false);
 
@@ -178,6 +184,9 @@ function TimePicker({
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<Button
+					id={id}
+					aria-label={ariaLabel}
+					aria-labelledby={ariaLabelledby}
 					variant="outline"
 					disabled={disabled}
 					className={cn(

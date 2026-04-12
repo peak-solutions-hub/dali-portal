@@ -48,6 +48,7 @@ export function SessionSelectorDropdown({
 	isFetchingNextPage,
 	onLoadMoreSessions,
 }: SessionSelectorDropdownProps) {
+	const currentSessionLabelId = useId();
 	const searchLabelId = useId();
 	const typeFilterLabelId = useId();
 	const statusFilterLabelId = useId();
@@ -95,7 +96,10 @@ export function SessionSelectorDropdown({
 
 	return (
 		<div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-			<label className="block text-sm font-semibold text-gray-800 mb-1.5">
+			<label
+				id={currentSessionLabelId}
+				className="block text-sm font-semibold text-gray-800 mb-1.5"
+			>
 				Current Session
 			</label>
 			<Popover open={showSessionDropdown} onOpenChange={setShowSessionDropdown}>
@@ -106,7 +110,8 @@ export function SessionSelectorDropdown({
 					 */}
 					<Button
 						variant="outline"
-						className="h-auto w-full justify-between border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[#a60202] hover:bg-gray-50 cursor-pointer"
+						aria-labelledby={currentSessionLabelId}
+						className="h-auto w-full justify-between border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[#a60202] hover:bg-gray-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 					>
 						{selectedSession ? (
 							<div className="flex-1 text-left">
@@ -137,6 +142,7 @@ export function SessionSelectorDropdown({
 						)}
 						<ChevronDown
 							className={`h-4 w-4 text-gray-400 shrink-0 ml-2 transition-transform ${showSessionDropdown ? "rotate-180" : ""}`}
+							aria-hidden="true"
 						/>
 					</Button>
 				</PopoverTrigger>
@@ -157,7 +163,10 @@ export function SessionSelectorDropdown({
 									Search Session
 								</label>
 								<div className="relative">
-									<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+									<Search
+										className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none"
+										aria-hidden="true"
+									/>
 									<Input
 										type="text"
 										aria-labelledby={searchLabelId}
@@ -181,7 +190,7 @@ export function SessionSelectorDropdown({
 									<Select value={typeFilter} onValueChange={setTypeFilter}>
 										<SelectTrigger
 											aria-labelledby={typeFilterLabelId}
-											className="h-9 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900"
+											className="h-9 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 										>
 											<SelectValue placeholder="All Types" />
 										</SelectTrigger>
@@ -208,7 +217,7 @@ export function SessionSelectorDropdown({
 									<Select value={statusFilter} onValueChange={setStatusFilter}>
 										<SelectTrigger
 											aria-labelledby={statusFilterLabelId}
-											className="h-9 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900"
+											className="h-9 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 										>
 											<SelectValue placeholder="All Statuses" />
 										</SelectTrigger>
@@ -239,9 +248,9 @@ export function SessionSelectorDropdown({
 											setStatusFilter("all");
 											setSearchQuery("");
 										}}
-										className="inline-flex h-9 items-center gap-1 rounded border border-[#a60202] bg-red-50 px-3 text-xs font-semibold text-[#a60202] transition-colors hover:bg-red-100 cursor-pointer"
+										className="inline-flex h-9 items-center gap-1 rounded border border-[#a60202] bg-red-50 px-3 text-xs font-semibold text-[#a60202] transition-colors hover:bg-red-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 									>
-										<X className="h-3 w-3" />
+										<X className="h-3 w-3" aria-hidden="true" />
 										Clear
 									</button>
 								)}
@@ -328,7 +337,7 @@ export function SessionSelectorDropdown({
 										type="button"
 										onClick={() => onLoadMoreSessions?.()}
 										disabled={isFetchingNextPage}
-										className="w-full mt-1 py-2 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										className="w-full mt-1 py-2 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 									>
 										{isFetchingNextPage
 											? "Loading more sessions..."
@@ -373,8 +382,9 @@ function SessionGroup({
 				{sessions.slice(0, limit).map((session) => (
 					<button
 						key={session.id}
+						type="button"
 						onClick={() => onSelect(session.id)}
-						className={`w-full text-left px-3 py-2 rounded-lg transition-all cursor-pointer ${
+						className={`w-full text-left px-3 py-2 rounded-lg transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2 ${
 							selectedSessionId === session.id
 								? "bg-red-50 border border-[#a60202]"
 								: "hover:bg-gray-50 border border-transparent"
@@ -411,7 +421,7 @@ function SessionGroup({
 					<button
 						type="button"
 						onClick={onShowMore}
-						className="w-full mt-1 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+						className="w-full mt-1 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 					>
 						Show more ({sessions.length - limit} remaining)
 					</button>

@@ -28,7 +28,10 @@ export function ConfirmDiscardDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-1">
 						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
-							<AlertTriangle className="h-5 w-5 text-red-600" />
+							<AlertTriangle
+								className="h-5 w-5 text-red-600"
+								aria-hidden="true"
+							/>
 						</div>
 						<DialogTitle className="text-lg">Discard Changes?</DialogTitle>
 					</div>

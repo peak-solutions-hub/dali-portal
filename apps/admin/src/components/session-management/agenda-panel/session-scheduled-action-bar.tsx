@@ -9,7 +9,7 @@ import {
 	Loader2,
 	Undo2,
 } from "@repo/ui/lib/lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { SessionAgendaPdfUpload } from "./session-agenda-pdf-upload";
 
 interface SessionScheduledActionBarProps {
@@ -33,6 +33,7 @@ export function SessionScheduledActionBar({
 }: SessionScheduledActionBarProps) {
 	// Open by default when a PDF is already uploaded so it's immediately visible
 	const [isPdfOpen, setIsPdfOpen] = useState(!!selectedSession.agendaFilePath);
+	const pdfSectionContentId = useId();
 
 	const hasPdf = !!selectedSession.agendaFilePath;
 
@@ -43,11 +44,16 @@ export function SessionScheduledActionBar({
 				{/* Toggle header */}
 				<button
 					type="button"
+					aria-expanded={isPdfOpen}
+					aria-controls={pdfSectionContentId}
 					onClick={() => setIsPdfOpen((prev) => !prev)}
-					className="w-full flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-blue-100/50 transition-colors"
+					className="w-full flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-blue-100/50 transition-colors focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 				>
 					<div className="flex items-center gap-2">
-						<FileText className="h-4 w-4 text-blue-600 shrink-0" />
+						<FileText
+							className="h-4 w-4 text-blue-600 shrink-0"
+							aria-hidden="true"
+						/>
 						<span className="text-sm font-semibold text-blue-800">
 							Agenda PDF (Public)
 						</span>
@@ -59,12 +65,13 @@ export function SessionScheduledActionBar({
 					</div>
 					<ChevronDown
 						className={`h-4 w-4 text-blue-500 transition-transform duration-200 ${isPdfOpen ? "rotate-180" : ""}`}
+						aria-hidden="true"
 					/>
 				</button>
 
 				{/* Collapsible body — AgendaPdfUpload renders content only, no wrapper */}
 				{isPdfOpen && (
-					<div className="px-3 pb-3">
+					<div id={pdfSectionContentId} className="px-3 pb-3">
 						<SessionAgendaPdfUpload
 							selectedSession={selectedSession}
 							onRemoveAgendaPdf={onRemoveAgendaPdf}
@@ -84,9 +91,9 @@ export function SessionScheduledActionBar({
 					disabled={!!actionInFlight}
 				>
 					{actionInFlight === "unpublishing" ? (
-						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						<Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
 					) : (
-						<Undo2 className="h-4 w-4 mr-2" />
+						<Undo2 className="h-4 w-4 mr-2" aria-hidden="true" />
 					)}
 					{actionInFlight === "unpublishing"
 						? "Unpublishing..."
@@ -98,9 +105,9 @@ export function SessionScheduledActionBar({
 					disabled={!!actionInFlight}
 				>
 					{actionInFlight === "completing" ? (
-						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						<Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
 					) : (
-						<CheckCircle2 className="h-4 w-4 mr-2" />
+						<CheckCircle2 className="h-4 w-4 mr-2" aria-hidden="true" />
 					)}
 					{actionInFlight === "completing"
 						? "Completing..."

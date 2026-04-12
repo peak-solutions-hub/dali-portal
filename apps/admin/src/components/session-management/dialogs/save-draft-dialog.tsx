@@ -62,7 +62,7 @@ export function SaveDraftDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-							<Save className="h-5 w-5 text-amber-600" />
+							<Save className="h-5 w-5 text-amber-600" aria-hidden="true" />
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -79,7 +79,10 @@ export function SaveDraftDialog({
 				<div className="space-y-4">
 					<div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
 						<div className="flex items-start gap-2">
-							<Save className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+							<Save
+								className="h-4 w-4 text-amber-600 mt-0.5 shrink-0"
+								aria-hidden="true"
+							/>
 							<div>
 								<p className="text-sm font-medium text-amber-800 mb-1">
 									Save changes to Session #{sessionNumber}
@@ -99,7 +102,11 @@ export function SaveDraftDialog({
 
 					{/* Error Message */}
 					{error && (
-						<div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+						<div
+							className="p-3 bg-red-50 border border-red-200 rounded-lg"
+							role="alert"
+							aria-live="assertive"
+						>
 							<p className="text-sm text-red-800">{error}</p>
 						</div>
 					)}
@@ -121,9 +128,12 @@ export function SaveDraftDialog({
 						className="bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
 					>
 						{isSubmitting ? (
-							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							<Loader2
+								className="h-4 w-4 mr-2 animate-spin"
+								aria-hidden="true"
+							/>
 						) : (
-							<Save className="h-4 w-4 mr-2" />
+							<Save className="h-4 w-4 mr-2" aria-hidden="true" />
 						)}
 						{isSubmitting ? "Saving..." : "Save Changes"}
 					</Button>

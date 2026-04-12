@@ -48,6 +48,10 @@ export function SessionMinutesPicker({
 }: SessionMinutesPickerProps) {
 	const minutesLabelId = useId();
 	const minutesSelectId = useId();
+	const customMinutesDateLabelId = useId();
+	const customMinutesDateButtonId = useId();
+	const customMinutesTypeLabelId = useId();
+	const customMinutesTypeSelectId = useId();
 
 	const minutesSessions = sessions.filter(
 		(s) => s.id !== selectedSessionId && s.status === "completed",
@@ -101,12 +105,20 @@ export function SessionMinutesPicker({
 			{isCustomMinutesResolved && (
 				<div className="mt-2 flex flex-col gap-2 sm:flex-row sm:gap-3">
 					<div className="flex-1 space-y-1">
-						<label className="text-xs font-medium text-gray-600">Date</label>
+						<label
+							id={customMinutesDateLabelId}
+							htmlFor={customMinutesDateButtonId}
+							className="text-xs font-medium text-gray-600"
+						>
+							Date
+						</label>
 						<Popover>
 							<PopoverTrigger asChild>
 								<Button
+									id={customMinutesDateButtonId}
+									aria-labelledby={customMinutesDateLabelId}
 									variant="outline"
-									className="w-full justify-start text-left font-normal cursor-pointer bg-white"
+									className="w-full justify-start text-left font-normal cursor-pointer bg-white focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 								>
 									<Calendar className="mr-2 h-4 w-4" />
 									{customDate ? format(customDate, "PPP") : "Pick a date"}
@@ -134,7 +146,11 @@ export function SessionMinutesPicker({
 						</Popover>
 					</div>
 					<div className="flex-1 space-y-1">
-						<label className="text-xs font-medium text-gray-600">
+						<label
+							id={customMinutesTypeLabelId}
+							htmlFor={customMinutesTypeSelectId}
+							className="text-xs font-medium text-gray-600"
+						>
 							Session type
 						</label>
 						<Select
@@ -145,7 +161,11 @@ export function SessionMinutesPicker({
 								onCustomMinutesChange(customDate, type);
 							}}
 						>
-							<SelectTrigger className="w-full cursor-pointer bg-white">
+							<SelectTrigger
+								id={customMinutesTypeSelectId}
+								aria-labelledby={customMinutesTypeLabelId}
+								className="w-full cursor-pointer bg-white focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
+							>
 								<SelectValue placeholder="Select type…" />
 							</SelectTrigger>
 							<SelectContent>
