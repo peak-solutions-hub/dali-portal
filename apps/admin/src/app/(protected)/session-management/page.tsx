@@ -169,7 +169,13 @@ function AgendaBuilderPage() {
 				const srcDocs = [...(prev[sourceSectionId] ?? [])].sort(
 					(a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
 				);
-				const [moved] = srcDocs.splice(sourceIndex, 1);
+				const resolvedSourceIndex =
+					sourceIndex >= 0 && srcDocs[sourceIndex]?.id === docId
+						? sourceIndex
+						: srcDocs.findIndex((doc) => doc.id === docId);
+				if (resolvedSourceIndex === -1) return prev;
+
+				const [moved] = srcDocs.splice(resolvedSourceIndex, 1);
 				if (!moved) return prev;
 
 				if (sourceSectionId === destSectionId) {
@@ -178,7 +184,7 @@ function AgendaBuilderPage() {
 					// Remove from source position, insert at dest
 					const remaining = srcDocs;
 					remaining.splice(
-						destIndex > sourceIndex ? destIndex - 1 : destIndex,
+						destIndex > resolvedSourceIndex ? destIndex - 1 : destIndex,
 						0,
 						updated,
 					);

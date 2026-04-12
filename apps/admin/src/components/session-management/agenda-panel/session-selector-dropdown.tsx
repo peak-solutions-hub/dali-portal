@@ -22,7 +22,7 @@ import {
 	getSessionStatusLabel,
 	getSessionTypeLabel,
 } from "@repo/ui/lib/session-ui";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 const SESSIONS_PER_GROUP = 5;
 
@@ -48,6 +48,10 @@ export function SessionSelectorDropdown({
 	isFetchingNextPage,
 	onLoadMoreSessions,
 }: SessionSelectorDropdownProps) {
+	const searchLabelId = useId();
+	const typeFilterLabelId = useId();
+	const statusFilterLabelId = useId();
+
 	const [typeFilter, setTypeFilter] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
 	const [showSessionDropdown, setShowSessionDropdown] = useState(false);
@@ -90,8 +94,8 @@ export function SessionSelectorDropdown({
 		typeFilter !== "all" || statusFilter !== "all" || searchQuery;
 
 	return (
-		<div className="border-b border-gray-200 pb-3">
-			<label className="block text-sm font-medium text-gray-700 mb-1.5">
+		<div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+			<label className="block text-sm font-semibold text-gray-800 mb-1.5">
 				Current Session
 			</label>
 			<Popover open={showSessionDropdown} onOpenChange={setShowSessionDropdown}>
@@ -102,7 +106,7 @@ export function SessionSelectorDropdown({
 					 */}
 					<Button
 						variant="outline"
-						className="w-full justify-between px-4 py-3 h-auto border-2 hover:border-[#a60202] hover:bg-gray-50 transition-all cursor-pointer"
+						className="h-auto w-full justify-between border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[#a60202] hover:bg-gray-50 cursor-pointer"
 					>
 						{selectedSession ? (
 							<div className="flex-1 text-left">
@@ -145,48 +149,97 @@ export function SessionSelectorDropdown({
 					<div className="flex flex-col w-full">
 						{/* Search + filters — slightly tighter than original p-4 */}
 						<div className="p-3 space-y-2.5 border-b border-gray-200">
-							<div className="relative">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-								<Input
-									type="text"
-									placeholder="Search sessions..."
-									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
-									className="pl-9 h-8 text-sm"
-								/>
+							<div className="space-y-1">
+								<label
+									id={searchLabelId}
+									className="text-xs font-semibold tracking-wide text-gray-700"
+								>
+									Search Session
+								</label>
+								<div className="relative">
+									<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+									<Input
+										type="text"
+										aria-labelledby={searchLabelId}
+										placeholder="Search by number, type, or date"
+										value={searchQuery}
+										onChange={(e) => setSearchQuery(e.target.value)}
+										className="h-9 border-gray-300 bg-white pl-9 text-sm font-medium text-gray-900"
+									/>
+								</div>
 							</div>
 
 							{/* Filters + inline Clear */}
-							<div className="flex gap-2">
-								<Select value={typeFilter} onValueChange={setTypeFilter}>
-									<SelectTrigger className="flex-1 h-8 text-xs cursor-pointer">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">All Types</SelectItem>
-										<SelectItem value="regular">Regular</SelectItem>
-										<SelectItem value="special">Special</SelectItem>
-									</SelectContent>
-								</Select>
-								<Select value={statusFilter} onValueChange={setStatusFilter}>
-									<SelectTrigger className="flex-1 h-8 text-xs cursor-pointer">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">All Statuses</SelectItem>
-										<SelectItem value="draft">Draft</SelectItem>
-										<SelectItem value="scheduled">Scheduled</SelectItem>
-										<SelectItem value="completed">Completed</SelectItem>
-									</SelectContent>
-								</Select>
+							<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+								<div className="space-y-1">
+									<label
+										id={typeFilterLabelId}
+										className="text-xs font-semibold tracking-wide text-gray-700"
+									>
+										All Types
+									</label>
+									<Select value={typeFilter} onValueChange={setTypeFilter}>
+										<SelectTrigger
+											aria-labelledby={typeFilterLabelId}
+											className="h-9 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900"
+										>
+											<SelectValue placeholder="All Types" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all" className="cursor-pointer">
+												All Types
+											</SelectItem>
+											<SelectItem value="regular" className="cursor-pointer">
+												Regular
+											</SelectItem>
+											<SelectItem value="special" className="cursor-pointer">
+												Special
+											</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-1">
+									<label
+										id={statusFilterLabelId}
+										className="text-xs font-semibold tracking-wide text-gray-700"
+									>
+										All Statuses
+									</label>
+									<Select value={statusFilter} onValueChange={setStatusFilter}>
+										<SelectTrigger
+											aria-labelledby={statusFilterLabelId}
+											className="h-9 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900"
+										>
+											<SelectValue placeholder="All Statuses" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all" className="cursor-pointer">
+												All Statuses
+											</SelectItem>
+											<SelectItem value="draft" className="cursor-pointer">
+												Draft
+											</SelectItem>
+											<SelectItem value="scheduled" className="cursor-pointer">
+												Scheduled
+											</SelectItem>
+											<SelectItem value="completed" className="cursor-pointer">
+												Completed
+											</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+							</div>
+
+							<div className="flex justify-end">
 								{hasActiveFilters && (
 									<button
+										type="button"
 										onClick={() => {
 											setTypeFilter("all");
 											setStatusFilter("all");
 											setSearchQuery("");
 										}}
-										className="flex items-center gap-1 px-2 rounded text-xs font-medium bg-red-50 text-[#a60202] hover:bg-red-100 transition-colors cursor-pointer shrink-0"
+										className="inline-flex h-9 items-center gap-1 rounded border border-[#a60202] bg-red-50 px-3 text-xs font-semibold text-[#a60202] transition-colors hover:bg-red-100 cursor-pointer"
 									>
 										<X className="h-3 w-3" />
 										Clear

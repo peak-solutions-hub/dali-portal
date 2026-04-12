@@ -3,6 +3,7 @@ import {
 	formatDateInPHT,
 	formatIsoDateInPHT,
 	formatSessionDate,
+	formatSessionTime,
 	parseDateInput,
 	transformDocumentListDates,
 	transformSessionListDates,
@@ -113,8 +114,14 @@ export default async function HomePage() {
 		console.error("Failed to fetch upcoming sessions:", sessionsError.message);
 	}
 
+	const now = new Date();
+
 	const upcomingSessions = sessionsResponse?.sessions
 		? transformSessionListDates(sessionsResponse.sessions)
+				.filter((session) => {
+					const scheduleDate = parseDateInput(session.scheduleDate);
+					return scheduleDate >= now;
+				})
 				.slice(0, 3)
 				.map((s) => {
 					const scheduleDate = parseDateInput(s.scheduleDate);
@@ -126,6 +133,7 @@ export default async function HomePage() {
 						weekday: "long",
 					});
 					const fullDate = formatSessionDate(scheduleDate);
+					const time = formatSessionTime(scheduleDate);
 
 					return {
 						id: s.id,
@@ -136,6 +144,7 @@ export default async function HomePage() {
 						day,
 						weekday,
 						fullDate,
+						time,
 					};
 				})
 		: [];

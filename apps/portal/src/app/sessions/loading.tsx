@@ -24,7 +24,7 @@ export default function LoadingPage({ view }: LoadingPageProps) {
 				</div>
 
 				{/* Desktop: Sticky Group (Filters + Sort + Pagination) */}
-				<div className="hidden lg:block lg:sticky lg:top-0 lg:z-30 lg:pb-4">
+				<div className="hidden lg:block lg:sticky lg:top-20 lg:z-30 lg:pb-4">
 					<div className="flex flex-col gap-4 lg:bg-gray-50 lg:pt-4">
 						<div className="flex items-start justify-between gap-4">
 							{/* Left Group: Sort & Filters */}
@@ -48,7 +48,7 @@ export default function LoadingPage({ view }: LoadingPageProps) {
 				</div>
 
 				{/* Mobile: Sticky Group (Sort + Buttons + Filters) */}
-				<div className="lg:hidden sticky top-0 z-30 bg-gray-50 pb-4 pt-4">
+				<div className="lg:hidden sticky top-18 sm:top-20 z-30 bg-gray-50 pb-4 pt-4">
 					<div className="flex flex-col gap-4">
 						<div className="flex flex-col gap-3">
 							{/* Sort and Toggle Row */}

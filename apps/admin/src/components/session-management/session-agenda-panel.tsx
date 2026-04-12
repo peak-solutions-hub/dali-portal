@@ -233,7 +233,7 @@ export function SessionAgendaPanel({
 	};
 
 	return (
-		<div className="flex h-full w-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5">
+		<div className="flex h-full w-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
 			<SessionSelectorDropdown
 				sessions={sessions}
 				selectedSession={selectedSession}
@@ -246,7 +246,11 @@ export function SessionAgendaPanel({
 			{selectedSession ? (
 				<>
 					{isLoadingSession ? (
-						<div className="flex-1 flex items-center justify-center">
+						<div
+							className="flex-1 flex items-center justify-center"
+							role="status"
+							aria-live="polite"
+						>
 							<div className="flex flex-col items-center gap-3">
 								<Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
 								<p className="text-sm text-gray-500">Loading session data...</p>

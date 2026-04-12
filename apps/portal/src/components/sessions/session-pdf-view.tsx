@@ -48,8 +48,9 @@ export function SessionPdfView({
 
 	if (isLoading) {
 		return (
-			<div className="flex items-center justify-center py-20">
+			<div className="flex flex-col items-center justify-center gap-3 py-20">
 				<Loader2 className="h-8 w-8 animate-spin text-[#a60202]" />
+				<p className="text-sm font-medium text-gray-600">Loading agenda...</p>
 			</div>
 		);
 	}
@@ -58,7 +59,7 @@ export function SessionPdfView({
 		return (
 			<div className="flex flex-col items-center justify-center py-20 space-y-4">
 				<p className="text-sm text-gray-600">
-					Unable to load PDF. Please try again.
+					Unable to load agenda PDF. Please try again.
 				</p>
 				<Button
 					variant="outline"
@@ -86,25 +87,25 @@ export function SessionPdfView({
 					<Button
 						variant="outline"
 						asChild
-						className="border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-6 py-5 w-full"
+						className="border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white px-6 py-5 w-full justify-center"
 					>
 						<a href={signedUrl} target="_blank" rel="noopener noreferrer">
-							<FileText className="h-5 w-5 mr-2" />
-							View PDF Document
+							<FileText className="h-5 w-5 shrink-0" />
+							<span className="text-center">View Agenda PDF</span>
 						</a>
 					</Button>
 
 					<Button
 						onClick={handleDownload}
 						disabled={!agendaFilePath || isDownloading}
-						className="border bg-[#a60202] hover:bg-[#8a0101] cursor-pointer text-white px-6 py-5 w-full"
+						className="border bg-[#a60202] hover:bg-[#8a0101] cursor-pointer text-white px-6 py-5 w-full justify-center"
 					>
 						{isDownloading ? (
-							<Loader2 className="h-4 w-4 animate-spin mr-2" />
+							<Loader2 className="h-4 w-4 animate-spin shrink-0" />
 						) : (
-							<Download className="h-4 w-4 mr-2" />
+							<Download className="h-4 w-4 shrink-0" />
 						)}
-						Download Agenda PDF
+						<span className="text-center">Download Agenda PDF</span>
 					</Button>
 				</div>
 			</div>

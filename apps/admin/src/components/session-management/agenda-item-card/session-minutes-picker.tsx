@@ -16,6 +16,7 @@ import {
 import { Calendar } from "@repo/ui/lib/lucide-react";
 import { getSessionTypeLabel } from "@repo/ui/lib/session-ui";
 import { format } from "date-fns";
+import { useId } from "react";
 import { formatMinutesDate } from "@/utils/session-helpers";
 
 interface SessionMinutesPickerProps {
@@ -45,20 +46,31 @@ export function SessionMinutesPicker({
 	onMinutesSessionSelect,
 	onCustomMinutesChange,
 }: SessionMinutesPickerProps) {
+	const minutesLabelId = useId();
+	const minutesSelectId = useId();
+
 	const minutesSessions = sessions.filter(
 		(s) => s.id !== selectedSessionId && s.status === "completed",
 	);
 
 	return (
 		<div className="space-y-1.5">
-			<label className="text-xs font-medium text-gray-600">
+			<label
+				id={minutesLabelId}
+				htmlFor={minutesSelectId}
+				className="text-sm font-semibold text-gray-900"
+			>
 				Select session minutes to approve
 			</label>
 			<Select
 				value={derivedMinutesSessionId}
 				onValueChange={onMinutesSessionSelect}
 			>
-				<SelectTrigger className="w-full cursor-pointer">
+				<SelectTrigger
+					id={minutesSelectId}
+					aria-labelledby={minutesLabelId}
+					className="min-h-11 w-full cursor-pointer border-gray-400 bg-white text-sm font-medium text-gray-900 shadow-sm hover:border-gray-500 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
+				>
 					<SelectValue placeholder="Choose a session…" />
 				</SelectTrigger>
 				<SelectContent>

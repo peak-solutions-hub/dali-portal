@@ -36,6 +36,15 @@ export const SESSION_MAX_ITEMS_PER_PAGE = 100;
  */
 export const SESSION_MIN_ITEMS_PER_PAGE = 1;
 
+/**
+ * Session number format uses `YYxxx`.
+ * - `YY`: last 2 digits of the schedule year (PHT)
+ * - `xxx`: 3-digit sequence within that year
+ */
+export const SESSION_NUMBER_YEAR_MODULO = 100;
+export const SESSION_NUMBER_SEQUENCE_BASE = 1000;
+export const SESSION_NUMBER_MIN_SEQUENCE = 1;
+
 // =============================================================================
 // STORAGE CONFIGURATION
 // =============================================================================
