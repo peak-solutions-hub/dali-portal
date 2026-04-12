@@ -63,7 +63,10 @@ export function MarkCompleteDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-							<CheckCircle2 className="h-5 w-5 text-green-600" />
+							<CheckCircle2
+								className="h-5 w-5 text-green-600"
+								aria-hidden="true"
+							/>
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -81,7 +84,10 @@ export function MarkCompleteDialog({
 					{/* Session Info Card */}
 					<div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
 						<div className="flex items-center gap-2">
-							<Info className="h-4 w-4 text-green-600 shrink-0" />
+							<Info
+								className="h-4 w-4 text-green-600 shrink-0"
+								aria-hidden="true"
+							/>
 							<div>
 								<p className="text-sm font-semibold text-green-900">
 									Session #{sessionNumber}
@@ -100,15 +106,24 @@ export function MarkCompleteDialog({
 						</p>
 						<ul className="space-y-2 text-sm text-gray-600">
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+								<CheckCircle2
+									className="h-4 w-4 text-green-600 mt-0.5 shrink-0"
+									aria-hidden="true"
+								/>
 								<span>Archived and moved to completed sessions</span>
 							</li>
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+								<CheckCircle2
+									className="h-4 w-4 text-green-600 mt-0.5 shrink-0"
+									aria-hidden="true"
+								/>
 								<span>Available for viewing and reference</span>
 							</li>
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+								<CheckCircle2
+									className="h-4 w-4 text-green-600 mt-0.5 shrink-0"
+									aria-hidden="true"
+								/>
 								<span>Locked from further editing</span>
 							</li>
 						</ul>
@@ -131,9 +146,12 @@ export function MarkCompleteDialog({
 						className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
 					>
 						{isSubmitting ? (
-							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							<Loader2
+								className="h-4 w-4 mr-2 animate-spin"
+								aria-hidden="true"
+							/>
 						) : (
-							<CheckCircle2 className="h-4 w-4 mr-2" />
+							<CheckCircle2 className="h-4 w-4 mr-2" aria-hidden="true" />
 						)}
 						{isSubmitting ? "Completing..." : "Mark Complete"}
 					</Button>

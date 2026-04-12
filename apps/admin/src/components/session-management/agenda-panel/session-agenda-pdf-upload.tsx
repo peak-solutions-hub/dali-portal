@@ -155,6 +155,7 @@ export function SessionAgendaPdfUpload({
 					<Button
 						variant="ghost"
 						size="sm"
+						aria-label="View PDF"
 						className="cursor-pointer text-green-600 hover:text-blue-600 hover:bg-blue-50"
 						onClick={handleViewPdf}
 						disabled={isLoadingViewUrl || isRemovingPdf}
@@ -169,6 +170,7 @@ export function SessionAgendaPdfUpload({
 					<Button
 						variant="ghost"
 						size="sm"
+						aria-label="Remove PDF"
 						className="cursor-pointer text-green-600 hover:text-red-600 hover:bg-red-50"
 						onClick={onRemoveAgendaPdf}
 						disabled={isRemovingPdf || isLoadingViewUrl}
@@ -203,6 +205,7 @@ export function SessionAgendaPdfUpload({
 						<Button
 							variant="ghost"
 							size="sm"
+							aria-label="Remove selected file"
 							className="cursor-pointer text-blue-600 hover:text-red-600 hover:bg-red-50"
 							onClick={reset}
 						>

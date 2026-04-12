@@ -25,6 +25,7 @@ interface Session {
 	day: string;
 	weekday: string;
 	fullDate: string;
+	time: string;
 }
 
 interface RecentUpdatesProps {
@@ -173,7 +174,7 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 											key={session.id}
 											href={`/sessions/${session.id}`}
 											className="block p-4 rounded-lg hover:bg-gray-50 border border-gray-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#a60202] focus:ring-offset-2"
-											aria-label={`View ${session.type} Session #${session.sessionNumber} on ${session.fullDate} at 10:00 AM`}
+											aria-label={`View ${session.type} Session #${session.sessionNumber} on ${session.fullDate} at ${session.time}`}
 										>
 											<div className="flex items-start gap-3">
 												<div className="shrink-0">
@@ -203,7 +204,9 @@ export function RecentUpdates({ documents, sessions }: RecentUpdatesProps) {
 													<p className="text-sm text-gray-600 mb-1">
 														{session.fullDate}
 													</p>
-													<p className="text-sm text-gray-500">10:00 AM</p>
+													<p className="text-sm text-gray-500">
+														{session.time}
+													</p>
 													<p className="text-xs text-[#a60202] mt-2 font-medium">
 														View Session →
 													</p>

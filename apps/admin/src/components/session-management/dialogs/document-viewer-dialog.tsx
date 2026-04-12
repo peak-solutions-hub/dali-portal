@@ -20,6 +20,7 @@ import {
 import {
 	getClassificationLabel,
 	getDocumentTypeBadgeClass,
+	getDocumentTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api.client";
@@ -109,7 +110,7 @@ export function DocumentViewerDialog({
 					{/* Header */}
 					<DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200 shrink-0">
 						<DialogTitle className="flex items-center gap-2 text-lg">
-							<FileText className="h-5 w-5 text-[#a60202]" />
+							<FileText className="h-5 w-5 text-[#a60202]" aria-hidden="true" />
 							Document Details
 						</DialogTitle>
 					</DialogHeader>
@@ -128,8 +129,8 @@ export function DocumentViewerDialog({
 										<span
 											className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${getDocumentTypeBadgeClass(document.type)}`}
 										>
-											<FileText className="w-3 h-3" />
-											{document.type}
+											<FileText className="w-3 h-3" aria-hidden="true" />
+											{getDocumentTypeLabel(document.type)}
 										</span>
 										<span className="text-sm text-[#a60202] font-semibold">
 											{document.number}
@@ -149,7 +150,10 @@ export function DocumentViewerDialog({
 
 								{/* Classification */}
 								<div className="flex items-start gap-2">
-									<Tag className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+									<Tag
+										className="h-4 w-4 text-gray-400 mt-0.5 shrink-0"
+										aria-hidden="true"
+									/>
 									<div>
 										<label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
 											Classification / Committee
@@ -162,7 +166,10 @@ export function DocumentViewerDialog({
 
 								{/* Date Received */}
 								<div className="flex items-start gap-2">
-									<Calendar className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+									<Calendar
+										className="h-4 w-4 text-gray-400 mt-0.5 shrink-0"
+										aria-hidden="true"
+									/>
 									<div>
 										<label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
 											Date Received
@@ -176,7 +183,10 @@ export function DocumentViewerDialog({
 								{/* Authors */}
 								{document.authors.length > 0 && (
 									<div className="flex items-start gap-2">
-										<User className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+										<User
+											className="h-4 w-4 text-gray-400 mt-0.5 shrink-0"
+											aria-hidden="true"
+										/>
 										<div>
 											<label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
 												Authors
@@ -199,7 +209,10 @@ export function DocumentViewerDialog({
 								{/* Sponsors */}
 								{document.sponsors.length > 0 && (
 									<div className="flex items-start gap-2">
-										<Users className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+										<Users
+											className="h-4 w-4 text-gray-400 mt-0.5 shrink-0"
+											aria-hidden="true"
+										/>
 										<div>
 											<label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
 												Sponsors
@@ -228,17 +241,23 @@ export function DocumentViewerDialog({
 													href={fileUrl}
 													target="_blank"
 													rel="noopener noreferrer"
-													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors"
+													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 												>
-													<FileText className="h-3.5 w-3.5" />
+													<FileText
+														className="h-3.5 w-3.5"
+														aria-hidden="true"
+													/>
 													View PDF Document
 												</a>
 												<button
 													type="button"
 													onClick={handleDownload}
-													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer"
+													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 												>
-													<Download className="h-3.5 w-3.5" />
+													<Download
+														className="h-3.5 w-3.5"
+														aria-hidden="true"
+													/>
 													Download PDF
 												</button>
 											</div>
@@ -257,11 +276,18 @@ export function DocumentViewerDialog({
 						<div className="flex-1 min-w-0 bg-gray-100 flex flex-col">
 							{isLoadingFile ? (
 								<div className="flex items-center justify-center h-full gap-2 text-gray-500">
-									<Loader2 className="h-5 w-5 animate-spin" />
+									<Loader2
+										className="h-5 w-5 animate-spin"
+										aria-hidden="true"
+									/>
 									<span className="text-sm">Loading document...</span>
 								</div>
 							) : fileError ? (
-								<div className="flex items-center justify-center h-full">
+								<div
+									className="flex items-center justify-center h-full"
+									role="alert"
+									aria-live="assertive"
+								>
 									<div className="rounded-md bg-amber-50 border border-amber-200 p-4 text-center">
 										<p className="text-sm text-amber-600 font-medium">
 											{fileError}
@@ -293,17 +319,17 @@ export function DocumentViewerDialog({
 											href={fileUrl}
 											target="_blank"
 											rel="noopener noreferrer"
-											className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md bg-[#a60202] text-white hover:bg-[#8a0202] font-medium transition-colors"
+											className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md bg-[#a60202] text-white hover:bg-[#8a0202] font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 										>
-											<FileText className="h-4 w-4" />
+											<FileText className="h-4 w-4" aria-hidden="true" />
 											View PDF Document
 										</a>
 										<button
 											type="button"
 											onClick={handleDownload}
-											className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer"
+											className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 										>
-											<Download className="h-4 w-4" />
+											<Download className="h-4 w-4" aria-hidden="true" />
 											Download PDF
 										</button>
 									</div>

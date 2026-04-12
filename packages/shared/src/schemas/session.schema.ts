@@ -9,6 +9,12 @@ import {
 	SESSION_STATUS_VALUES,
 	SESSION_TYPE_VALUES,
 } from "../enums/session";
+import {
+	ClassificationTypeEnum,
+	DocumentTypeEnum,
+	PurposeTypeEnum,
+	StatusTypeEnum,
+} from "./document.schema";
 
 /* ============================
    Shared Base Schemas
@@ -57,10 +63,10 @@ export const LinkedDocumentSchema = z.object({
 	id: z.string().uuid(),
 	codeNumber: z.string(),
 	title: z.string(),
-	type: z.string(),
-	status: z.string(),
-	purpose: z.string(),
-	classification: z.string().nullable().optional(),
+	type: DocumentTypeEnum,
+	status: StatusTypeEnum,
+	purpose: PurposeTypeEnum,
+	classification: ClassificationTypeEnum.nullable().optional(),
 	receivedAt: z.string().optional(),
 	authors: z.array(z.string()).optional(),
 	sponsors: z.array(z.string()).optional(),
@@ -156,11 +162,7 @@ export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
    Admin Schemas
    ============================ */
 
-export const AdminSessionStatusEnum = z.enum([
-	"draft",
-	"scheduled",
-	"completed",
-]);
+export const AdminSessionStatusEnum = SessionStatusEnum;
 
 export const GetSessionListAdminSchema = z.object({
 	type: z.union([SessionTypeEnum, z.array(SessionTypeEnum).min(1)]).optional(),
@@ -192,11 +194,11 @@ export const SessionManagementAgendaItemSchema = z.object({
 export const SessionManagementDocumentSchema = z.object({
 	id: z.string(),
 	title: z.string(),
-	type: z.string(),
+	type: DocumentTypeEnum,
 	number: z.string(),
-	classification: z.string(),
-	status: z.string(),
-	purpose: z.string(),
+	classification: ClassificationTypeEnum,
+	status: StatusTypeEnum,
+	purpose: PurposeTypeEnum,
 	receivedAt: z.string(),
 	authors: z.array(z.string()),
 	sponsors: z.array(z.string()),

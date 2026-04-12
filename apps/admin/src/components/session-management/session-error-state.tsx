@@ -63,7 +63,10 @@ export function SessionErrorState({
 	if (variant === "documents") {
 		return (
 			<div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-				<Icon className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+				<Icon
+					className="h-4 w-4 mt-0.5 shrink-0 text-amber-600"
+					aria-hidden="true"
+				/>
 				<div className="flex-1 min-w-0">
 					<p className="font-medium text-xs">{config.title}</p>
 					<p className="text-[11px] text-amber-700 mt-0.5 leading-snug">
@@ -76,7 +79,7 @@ export function SessionErrorState({
 					className="cursor-pointer shrink-0 h-7 text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-100"
 					onClick={handleRetry}
 				>
-					<RefreshCw className="h-3 w-3 mr-1" />
+					<RefreshCw className="h-3 w-3 mr-1" aria-hidden="true" />
 					Retry
 				</Button>
 			</div>
@@ -88,7 +91,7 @@ export function SessionErrorState({
 		<div className="flex-1 flex items-center justify-center">
 			<div className="flex flex-col items-center text-center max-w-sm">
 				<div className="rounded-full bg-red-50 p-3 mb-3">
-					<Icon className="h-6 w-6 text-red-500" />
+					<Icon className="h-6 w-6 text-red-500" aria-hidden="true" />
 				</div>
 				<h3 className="text-sm font-semibold text-gray-900 mb-1">
 					{config.title}
@@ -102,7 +105,7 @@ export function SessionErrorState({
 					className="cursor-pointer text-xs"
 					onClick={handleRetry}
 				>
-					<RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+					<RefreshCw className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
 					Try Again
 				</Button>
 			</div>

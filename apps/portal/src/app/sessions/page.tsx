@@ -2,12 +2,12 @@
 	buildSessionQueryString,
 	validateSessionSearchParams,
 } from "@repo/shared";
-import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
-import { OnlineStatusBanner } from "@repo/ui/components/online-status-banner";
+import { OfflineAwareSuspense } from "@repo/ui/components/connectivity/offline-aware-suspense";
+import { OnlineStatusBanner } from "@repo/ui/components/connectivity/online-status-banner";
 import { ScrollToTop as ScrollToTopButton } from "@repo/ui/components/scroll-to-top";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { LoadToTop } from "@/components/load-to-top";
 import { SessionContent } from "@/components/sessions";
 import {
 	BASE_OPEN_GRAPH,
@@ -76,7 +76,7 @@ export default async function Sessions({
 
 	return (
 		<>
-			<ScrollToTop />
+			<LoadToTop />
 			<OnlineStatusBanner />
 			<ScrollToTopButton />
 			<OfflineAwareSuspense fallback={<SessionLoading view={view} />}>
