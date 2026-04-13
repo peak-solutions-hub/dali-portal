@@ -69,6 +69,7 @@ export function toDocumentDetailResponse(
 	result: DocumentDetailQueryResult,
 ): DocumentDetail {
 	const { document, signedUrls } = result;
+	const invitation = document.invitation[0] ?? null;
 
 	return {
 		...toDocumentResponse(document),
@@ -86,5 +87,13 @@ export function toDocumentDetailResponse(
 			document.status as StatusType,
 			document.purpose as PurposeType,
 		),
+		invitation: invitation
+			? {
+					callerSlipId: invitation.callerSlipId,
+					vmDecision: invitation.vmDecision,
+					vmDecisionRemarks: invitation.vmDecisionRemarks,
+					representativeName: invitation.representativeName,
+				}
+			: null,
 	};
 }

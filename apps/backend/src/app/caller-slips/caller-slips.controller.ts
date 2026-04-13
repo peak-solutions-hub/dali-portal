@@ -42,6 +42,16 @@ export class CallerSlipsController {
 		);
 	}
 
+	@Throttle({ default: { limit: 10, ttl: 60000 } })
+	@Implement(contract.callerSlips.assignInvitation)
+	assignInvitation() {
+		return implement(contract.callerSlips.assignInvitation).handler(
+			async ({ input }) => {
+				return await this.callerSlipsService.assignInvitation(input);
+			},
+		);
+	}
+
 	@Roles("vice_mayor")
 	@Throttle({ default: { limit: 10, ttl: 60000 } })
 	@Implement(contract.callerSlips.recordDecision)

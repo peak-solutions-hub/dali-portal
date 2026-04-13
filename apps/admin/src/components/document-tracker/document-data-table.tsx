@@ -1,8 +1,8 @@
 "use client";
 
 import {
-	DOCUMENT_TYPE_VALUES,
 	type DocumentSortBy,
+	DocumentTypeEnumType,
 	STATUS_TYPE_VALUES,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
@@ -42,6 +42,7 @@ import {
 } from "@repo/ui/lib/lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { AssignInvitationToCallerSlipDialog } from "@/components/caller-slips/assign-invitation-to-caller-slip-dialog";
 import { GenerateCallerSlipDialog } from "@/components/caller-slips/generate-caller-slip-dialog";
 import { useDocuments } from "@/hooks/document-tracker/use-documents";
 import { useDocumentStore } from "@/stores/document-store";
@@ -49,6 +50,7 @@ import {
 	formatDocumentSource,
 	formatDocumentStatus,
 	formatDocumentType,
+	getDocumentTypesForTab,
 } from "@/utils/document-helpers";
 import { DocumentStatusBadge } from "./document-status-badge";
 import { DocumentTypeIndicator } from "./document-type-indicator";
@@ -103,6 +105,7 @@ export function DocumentDataTable() {
 
 	const [searchInput, setSearchInput] = useState(search);
 	const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
+	const [isAssignSlipOpen, setIsAssignSlipOpen] = useState(false);
 	const [isGenerateSlipOpen, setIsGenerateSlipOpen] = useState(false);
 	const debouncedSearch = useDebounce(searchInput, 300);
 
@@ -136,9 +139,13 @@ export function DocumentDataTable() {
 			statusFilter !== "all" ||
 			typeFilter !== "all" ||
 			dateFrom !== null ||
-			dateTo !== null ||
-			activeTab !== "all",
-		[search, statusFilter, typeFilter, dateFrom, dateTo, activeTab],
+			dateTo !== null,
+		[search, statusFilter, typeFilter, dateFrom, dateTo],
+	);
+
+	const availableTypeOptions = useMemo(
+		() => getDocumentTypesForTab(activeTab),
+		[activeTab],
 	);
 
 	const toggleSort = (column: DocumentSortBy) => {
@@ -171,9 +178,45 @@ export function DocumentDataTable() {
 		!allSelectableChecked;
 
 	const selectedDocuments = useMemo(
-		() => items.filter((item) => selectedInvitationIds.includes(item.id)),
+		() =>
+			items.filter(
+				(item) => selectedInvitationIds.includes(item.id) && !item.callerSlipId,
+			),
 		[items, selectedInvitationIds],
 	);
+
+	const selectedInvitationForAssign = useMemo(
+		() => (selectedDocuments.length === 1 ? selectedDocuments[0] : null),
+		[selectedDocuments],
+	);
+
+	const canAssignToExistingSlip = selectedInvitationForAssign !== null;
+
+	useEffect(() => {
+		if (isAssignSlipOpen && !canAssignToExistingSlip) {
+			setIsAssignSlipOpen(false);
+		}
+	}, [isAssignSlipOpen, canAssignToExistingSlip]);
+
+	useEffect(() => {
+		if (!isInvitationsTab || selectedInvitationIds.length === 0) {
+			return;
+		}
+
+		const selectableIds = new Set(selectableItems.map((item) => item.id));
+		const normalizedSelection = selectedInvitationIds.filter((id) =>
+			selectableIds.has(id),
+		);
+
+		if (normalizedSelection.length !== selectedInvitationIds.length) {
+			setSelectedInvitationIds(normalizedSelection);
+		}
+	}, [
+		isInvitationsTab,
+		selectedInvitationIds,
+		selectableItems,
+		setSelectedInvitationIds,
+	]);
 
 	const handleSelectAll = () => {
 		if (allSelectableChecked) {
@@ -206,6 +249,19 @@ export function DocumentDataTable() {
 							onClick={clearInvitationSelection}
 						>
 							Clear
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setIsAssignSlipOpen(true)}
+							disabled={!canAssignToExistingSlip}
+							title={
+								canAssignToExistingSlip
+									? undefined
+									: "Select exactly one invitation to assign to an existing caller's slip"
+							}
+						>
+							Assign to Existing Caller&apos;s Slip
 						</Button>
 						<Button size="sm" onClick={() => setIsGenerateSlipOpen(true)}>
 							<ClipboardList className="mr-2 h-4 w-4" />
@@ -269,9 +325,7 @@ export function DocumentDataTable() {
 						value={typeFilter}
 						onValueChange={(value) =>
 							setTypeFilter(
-								value === "all"
-									? "all"
-									: (value as (typeof DOCUMENT_TYPE_VALUES)[number]),
+								value === "all" ? "all" : (value as DocumentTypeEnumType),
 							)
 						}
 					>
@@ -280,7 +334,7 @@ export function DocumentDataTable() {
 						</SelectTrigger>
 						<SelectContent>
 							<SelectItem value="all">All Types</SelectItem>
-							{DOCUMENT_TYPE_VALUES.map((type) => (
+							{availableTypeOptions.map((type) => (
 								<SelectItem key={type} value={type}>
 									{formatDocumentType(type)}
 								</SelectItem>
@@ -521,6 +575,15 @@ export function DocumentDataTable() {
 				onCreated={async () => {
 					await refetch();
 				}}
+			/>
+
+			<AssignInvitationToCallerSlipDialog
+				open={isAssignSlipOpen}
+				onOpenChange={setIsAssignSlipOpen}
+				onAssigned={clearInvitationSelection}
+				invitationDocumentId={selectedInvitationForAssign?.id ?? ""}
+				invitationTitle={selectedInvitationForAssign?.title ?? ""}
+				invitationCodeNumber={selectedInvitationForAssign?.codeNumber ?? ""}
 			/>
 
 			<GenerateCallerSlipDialog

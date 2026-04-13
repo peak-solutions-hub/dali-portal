@@ -6,6 +6,8 @@ import {
 	CreateDocumentUploadUrlResponseSchema,
 	CreateDocumentUploadUrlSchema,
 	CreateDocumentVersionSchema,
+	DeleteDocumentResponseSchema,
+	DeleteDocumentSchema,
 	DeleteDocumentUploadResponseSchema,
 	DeleteDocumentUploadSchema,
 	DocumentDetailSchema,
@@ -143,6 +145,26 @@ export const deleteDocumentUpload = oc
 	.input(DeleteDocumentUploadSchema)
 	.output(DeleteDocumentUploadResponseSchema);
 
+export const deleteDocument = oc
+	.route({
+		method: "DELETE",
+		path: "/admin/documents/{id}",
+		summary: "Delete a document record",
+		description:
+			"Admin endpoint to permanently delete eligible document records and their related versions/audits.",
+		tags: ["Documents", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.DOCUMENT.NOT_FOUND,
+		DELETE_TERMINAL_STATUS: ERRORS.DOCUMENT.DELETE_TERMINAL_STATUS,
+		LINKED_TO_SESSION_AGENDA: ERRORS.DOCUMENT.LINKED_TO_SESSION_AGENDA,
+		INVITATION_ON_COMPLETED_SLIP: ERRORS.DOCUMENT.INVITATION_ON_COMPLETED_SLIP,
+		FORBIDDEN: ERRORS.GENERAL.FORBIDDEN,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+	})
+	.input(DeleteDocumentSchema)
+	.output(DeleteDocumentResponseSchema);
+
 export const updateDocument = oc
 	.route({
 		method: "PATCH",
@@ -167,9 +189,9 @@ export const publishDocument = oc
 	.route({
 		method: "POST",
 		path: "/admin/documents/{documentId}/publish",
-		summary: "Publish a calendared legislative document to archive",
+		summary: "Publish or update legislative archive details",
 		description:
-			"Admin endpoint to publish a calendared legislative document and create/update archive metadata.",
+			"Admin endpoint to publish a calendared legislative document or update archive metadata for an already published legislative document.",
 		tags: ["Documents", "Admin"],
 	})
 	.errors({
@@ -191,5 +213,6 @@ export const documentContract = {
 	publish: publishDocument,
 	createVersion: createDocumentVersion,
 	createUploadUrl: createDocumentUploadUrl,
+	delete: deleteDocument,
 	deleteUpload: deleteDocumentUpload,
 };

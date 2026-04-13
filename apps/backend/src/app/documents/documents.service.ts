@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
 	AppError,
 	type CreateDocumentInput,
@@ -7,9 +7,12 @@ import {
 	type CreateDocumentUploadUrlResponse,
 	type CreateDocumentVersionInput,
 	canRoleTransition,
+	type DeleteDocumentInput,
+	type DeleteDocumentResponse,
 	type DeleteDocumentUploadInput,
 	type DeleteDocumentUploadResponse,
 	DOCUMENT_TYPE_VALUES,
+	type DocumentIDType,
 	type DocumentType,
 	type GetDocumentListInput,
 	isPurposeAllowed,
@@ -34,6 +37,7 @@ import type {
 	SourceType as PrismaSourceType,
 	StatusType as PrismaStatusType,
 } from "@/generated/prisma/enums";
+import { ConfigService } from "@/lib/config.service";
 import type {
 	DocumentDetailQueryResult,
 	DocumentEntity,
@@ -62,12 +66,18 @@ const TAB_TYPE_MAP: Record<
 	invitations: ["invitation"],
 } as const;
 
+const HARD_DELETE_ALLOWED_STATUSES: StatusType[] = ["received", "returned"];
+const HEAD_ADMIN_DELETE_ALLOWED_STATUS: StatusType = "for_initial";
+
 @Injectable()
 export class DocumentsService {
+	private readonly logger = new Logger(DocumentsService.name);
+
 	constructor(
 		private readonly db: DbService,
 		private readonly storageService: SupabaseStorageService,
 		private readonly transactionService: TransactionService,
+		private readonly configService: ConfigService,
 	) {}
 
 	async getList(input: GetDocumentListInput): Promise<DocumentListQueryResult> {
@@ -112,6 +122,15 @@ export class DocumentsService {
 			include: {
 				documentVersion: {
 					orderBy: { versionNumber: "desc" },
+				},
+				invitation: {
+					select: {
+						callerSlipId: true,
+						vmDecision: true,
+						vmDecisionRemarks: true,
+						representativeName: true,
+					},
+					take: 1,
 				},
 				documentAudit: {
 					include: {
@@ -181,7 +200,7 @@ export class DocumentsService {
 							source: input.source as PrismaSourceType,
 							status: "received",
 							classification: isInvitation
-								? undefined
+								? null
 								: (input.classification as PrismaClassificationType),
 							remarks: input.remarks ?? null,
 						},
@@ -261,6 +280,18 @@ export class DocumentsService {
 					orderBy: { versionNumber: "desc" },
 					take: 1,
 				},
+				invitation: {
+					select: {
+						callerSlipId: true,
+					},
+					take: 1,
+				},
+				legislativeDocument: {
+					select: {
+						id: true,
+					},
+					take: 1,
+				},
 			},
 		});
 
@@ -305,6 +336,14 @@ export class DocumentsService {
 					data: { status: input.status as PrismaStatusType },
 				});
 
+				if (document.status === "published" && input.status === "received") {
+					await tx.legislativeDocument.deleteMany({
+						where: {
+							documentId: input.id,
+						},
+					});
+				}
+
 				await tx.documentAudit.create({
 					data: {
 						actorId,
@@ -345,11 +384,11 @@ export class DocumentsService {
 
 				if (
 					document.purpose !== "for_agenda" ||
-					document.status !== "calendared"
+					(document.status !== "calendared" && document.status !== "published")
 				) {
 					throw new AppError(
 						"GENERAL.BAD_REQUEST",
-						"Document must be calendared before publishing to archive.",
+						"Document must be calendared or already published to manage archive details.",
 					);
 				}
 
@@ -388,11 +427,13 @@ export class DocumentsService {
 					);
 				}
 
+				const statusBeforeArchiveOperation = document.status;
+
 				const updateResult = await tx.document.updateMany({
 					where: {
 						id: input.documentId,
 						purpose: "for_agenda",
-						status: "calendared",
+						status: statusBeforeArchiveOperation,
 					},
 					data: {
 						status: "published",
@@ -438,18 +479,27 @@ export class DocumentsService {
 							},
 						});
 
+				const legislativeDocumentId = Number(legislativeDocument.id);
+				const portalBaseUrl = this.configService
+					.getOrThrow("portalUrl")
+					.replace(/\/+$/, "");
+				const publishedDocumentUrl = `${portalBaseUrl}/legislative-documents/${legislativeDocumentId}`;
+
 				await tx.documentAudit.create({
 					data: {
 						actorId,
 						documentId: input.documentId,
 						versionNumber: latestVersion.versionNumber,
 						filePath: latestVersion.filePath,
-						remarks: `Published to archive as ${input.officialNumber}`,
+						remarks:
+							statusBeforeArchiveOperation === "published"
+								? `Updated archive details at ${publishedDocumentUrl}`
+								: `Published to archive as ${publishedDocumentUrl}`,
 					},
 				});
 
 				return {
-					legislativeDocumentId: Number(legislativeDocument.id),
+					legislativeDocumentId,
 					documentId: input.documentId,
 					status: "published",
 				};
@@ -511,6 +561,9 @@ export class DocumentsService {
 						documentId: input.id,
 						versionNumber: new Prisma.Decimal(nextVersion),
 						filePath: input.filePath,
+						remarks: input.resetStatus
+							? "SYSTEM:VERSION_UPLOAD_RESET_STATUS_RECEIVED"
+							: null,
 					},
 				});
 			},
@@ -536,6 +589,18 @@ export class DocumentsService {
 					orderBy: { versionNumber: "desc" },
 					take: 1,
 				},
+				invitation: {
+					select: {
+						callerSlipId: true,
+					},
+					take: 1,
+				},
+				legislativeDocument: {
+					select: {
+						id: true,
+					},
+					take: 1,
+				},
 			},
 		});
 
@@ -555,11 +620,46 @@ export class DocumentsService {
 			input.classification !== undefined
 				? input.classification
 				: document.classification;
+		const isConvertingToInvitation =
+			document.type !== "invitation" && nextType === "invitation";
+		const isConvertingFromInvitation =
+			document.type === "invitation" && nextType !== "invitation";
+		const hasAssignedCallerSlip = document.invitation.some(
+			(invitation) => invitation.callerSlipId !== null,
+		);
+		const hasPublishedLegislativeRecord =
+			document.legislativeDocument.length > 0;
+		const attemptedInvitationDetailChange =
+			input.eventVenue !== undefined ||
+			input.eventStartTime !== undefined ||
+			input.eventEndTime !== undefined;
 
 		const lockedFieldChanged =
 			nextType !== document.type ||
 			nextPurpose !== document.purpose ||
 			nextClassification !== document.classification;
+
+		const callerSlipProtectedFieldChanged =
+			nextTitle !== document.title ||
+			nextSource !== document.source ||
+			nextType !== document.type ||
+			nextPurpose !== document.purpose ||
+			nextClassification !== document.classification ||
+			attemptedInvitationDetailChange;
+
+		if (hasAssignedCallerSlip && callerSlipProtectedFieldChanged) {
+			throw new AppError(
+				"DOCUMENT.EDIT_LOCKED",
+				"This invitation is already assigned to a Caller's Slip. Only remarks can be updated.",
+			);
+		}
+
+		if (hasPublishedLegislativeRecord && nextType !== document.type) {
+			throw new AppError(
+				"DOCUMENT.EDIT_LOCKED",
+				"Published legislative documents cannot change type.",
+			);
+		}
 
 		if (document.status !== "received" && lockedFieldChanged) {
 			throw new AppError("DOCUMENT.EDIT_LOCKED");
@@ -576,6 +676,32 @@ export class DocumentsService {
 			!isPurposeAllowed(nextType as DocumentType, nextPurpose as PurposeType)
 		) {
 			throw new AppError("GENERAL.BAD_REQUEST");
+		}
+
+		if (isConvertingToInvitation) {
+			const eventVenue = input.eventVenue?.trim() ?? "";
+			const eventStartTime = input.eventStartTime;
+			const eventEndTime = input.eventEndTime;
+
+			if (!eventVenue || !eventStartTime || !eventEndTime) {
+				throw new AppError(
+					"GENERAL.BAD_REQUEST",
+					"Event venue, date, and time are required when converting to invitation.",
+				);
+			}
+
+			const parsedStart = new Date(eventStartTime);
+			const parsedEnd = new Date(eventEndTime);
+
+			if (
+				Number.isNaN(parsedStart.getTime()) ||
+				Number.isNaN(parsedEnd.getTime())
+			) {
+				throw new AppError(
+					"GENERAL.BAD_REQUEST",
+					"Invalid invitation event date/time.",
+				);
+			}
 		}
 
 		const data: Prisma.DocumentUpdateInput = {};
@@ -660,7 +786,11 @@ export class DocumentsService {
 					},
 				});
 
-				if (nextType === "invitation") {
+				if (isConvertingFromInvitation) {
+					await tx.invitation.deleteMany({
+						where: { documentId: input.id },
+					});
+				} else if (nextType === "invitation") {
 					const invitationData: Record<string, unknown> = {};
 
 					if (input.eventVenue !== undefined) {
@@ -763,6 +893,177 @@ export class DocumentsService {
 		};
 	}
 
+	async deleteDocument(
+		input: DeleteDocumentInput,
+		actorId: string,
+		actorRole: RoleType,
+	): Promise<DeleteDocumentResponse> {
+		const result = await this.transactionService.run(
+			"documents.delete",
+			async (tx) => {
+				const document = await tx.document.findUnique({
+					where: { id: input.id },
+					include: {
+						documentVersion: {
+							select: {
+								filePath: true,
+							},
+						},
+						documentAudit: {
+							select: {
+								filePath: true,
+							},
+						},
+						sessionAgendaItem: {
+							select: {
+								id: true,
+							},
+							take: 1,
+						},
+						invitation: {
+							select: {
+								callerSlipId: true,
+								callerSlip: {
+									select: {
+										status: true,
+									},
+								},
+							},
+						},
+					},
+				});
+
+				if (!document) {
+					throw new AppError("DOCUMENT.NOT_FOUND");
+				}
+
+				if (document.status === "published" || document.status === "released") {
+					throw new AppError("DOCUMENT.DELETE_TERMINAL_STATUS");
+				}
+
+				const isHeadAdmin = actorRole === "head_admin";
+				const isAllowedStatus =
+					HARD_DELETE_ALLOWED_STATUSES.includes(
+						document.status as StatusType,
+					) ||
+					(isHeadAdmin && document.status === HEAD_ADMIN_DELETE_ALLOWED_STATUS);
+
+				if (!isAllowedStatus) {
+					throw new AppError(
+						"GENERAL.FORBIDDEN",
+						"Only received or returned documents can be deleted. Head admins may also delete for-initial documents.",
+					);
+				}
+
+				if (document.sessionAgendaItem.length > 0) {
+					throw new AppError("DOCUMENT.LINKED_TO_SESSION_AGENDA");
+				}
+
+				const hasCompletedSlip = document.invitation.some(
+					(invitation) => invitation.callerSlip?.status === "completed",
+				);
+
+				if (hasCompletedSlip) {
+					throw new AppError("DOCUMENT.INVITATION_ON_COMPLETED_SLIP");
+				}
+
+				const storagePaths = new Set<string>();
+				for (const version of document.documentVersion) {
+					storagePaths.add(version.filePath);
+				}
+
+				for (const audit of document.documentAudit) {
+					storagePaths.add(audit.filePath);
+				}
+
+				const callerSlipIds = new Set<string>();
+				for (const invitation of document.invitation) {
+					if (invitation.callerSlipId) {
+						callerSlipIds.add(invitation.callerSlipId);
+					}
+				}
+
+				await tx.invitation.deleteMany({
+					where: {
+						documentId: input.id,
+					},
+				});
+
+				await tx.documentAudit.deleteMany({
+					where: {
+						documentId: input.id,
+					},
+				});
+
+				await tx.documentVersion.deleteMany({
+					where: {
+						documentId: input.id,
+					},
+				});
+
+				await tx.legislativeDocument.deleteMany({
+					where: {
+						documentId: input.id,
+					},
+				});
+
+				await tx.document.delete({
+					where: {
+						id: input.id,
+					},
+				});
+
+				for (const callerSlipId of callerSlipIds) {
+					const remainingInvitations = await tx.invitation.count({
+						where: {
+							callerSlipId,
+						},
+					});
+
+					if (remainingInvitations === 0) {
+						await tx.callerSlip.delete({
+							where: {
+								id: callerSlipId,
+							},
+						});
+					}
+				}
+
+				return {
+					codeNumber: document.codeNumber,
+					storagePaths: [...storagePaths],
+				};
+			},
+			{
+				isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+				retries: 3,
+				timeout: 12_000,
+				maxWait: 5_000,
+			},
+		);
+
+		await Promise.all(
+			result.storagePaths.map(async (path) => {
+				const cleanedUp = await this.storageService.deleteFile(
+					DOCUMENT_BUCKET,
+					path,
+				);
+
+				if (!cleanedUp) {
+					this.logger.warn(
+						`Document ${input.id} deleted but storage cleanup failed for path=${path}`,
+					);
+				}
+			}),
+		);
+
+		this.logger.log(
+			`Document ${result.codeNumber} deleted by actorId=${actorId}`,
+		);
+
+		return { success: true };
+	}
+
 	private buildDocumentWhereClause(
 		input: GetDocumentListInput,
 	): Prisma.DocumentWhereInput {
@@ -842,11 +1143,15 @@ export class DocumentsService {
 		return null;
 	}
 
-	private async generateCodeNumber(): Promise<string> {
+	// DN YR-MO-XXXX (xxxx as order number)
+	private async generateCodeNumber(): Promise<DocumentIDType> {
 		const now = new Date();
+		// first day of the month at 00:00:00
 		const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+		// first day of the next month at 00:00:00
 		const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+		// how many documents have been received this month?
 		const monthlyCount = await this.db.document.count({
 			where: {
 				receivedAt: {
@@ -856,10 +1161,10 @@ export class DocumentsService {
 			},
 		});
 
-		const year = now.getFullYear();
-		const month = String(now.getMonth() + 1).padStart(2, "0");
-		const sequence = String(monthlyCount + 1).padStart(4, "0");
+		const year = now.getFullYear().toString().slice(-2); // last two digits of the year
+		const month = String(now.getMonth() + 1).padStart(2, "0"); // month as two digits
+		const sequence = String(monthlyCount + 1).padStart(4, "0"); // sequence number padded to 4 digits
 
-		return `DOC-${year}-${month}-${sequence}`;
+		return `DN ${year}-${month}-${sequence}`;
 	}
 }

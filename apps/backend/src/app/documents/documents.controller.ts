@@ -9,7 +9,7 @@ import {
 	toDocumentDetailResponse,
 	toDocumentListResponse,
 	toDocumentResponse,
-} from "./dtos";
+} from "./dtos/document.dto";
 
 @Controller()
 @Roles(...ROLE_PERMISSIONS.DOCUMENT_TRACKER)
@@ -152,6 +152,27 @@ export class DocumentsController {
 		return implement(contract.documents.deleteUpload).handler(
 			async ({ input }) => {
 				return await this.documentsService.deleteUpload(input);
+			},
+		);
+	}
+
+	@Throttle({
+		default: {
+			limit: 5,
+			ttl: 60000,
+		},
+	})
+	@Roles("head_admin", "admin_staff", "legislative_staff")
+	@Implement(contract.documents.delete)
+	deleteDocument() {
+		return implement(contract.documents.delete).handler(
+			async ({ input, context }) => {
+				const user = this.getAuthenticatedUser(context as ORPCContext);
+				return await this.documentsService.deleteDocument(
+					input,
+					user.id,
+					user.role,
+				);
 			},
 		);
 	}

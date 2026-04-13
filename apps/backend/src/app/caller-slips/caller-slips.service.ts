@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import {
 	AppError,
+	AssignInvitationToCallerSlipInput,
+	AssignInvitationToCallerSlipResponse,
 	type CallerSlipDetail,
 	type CallerSlipListResponse,
 	type CompleteCallerSlipResponse,
@@ -242,6 +244,98 @@ export class CallerSlipsService {
 			name: slip.name,
 			status: slip.status,
 		};
+	}
+
+	async assignInvitation(
+		input: AssignInvitationToCallerSlipInput,
+	): Promise<AssignInvitationToCallerSlipResponse> {
+		const { slipId, invitationDocumentId } = input;
+
+		const result = await this.transactionService.run(
+			"callerSlips.assignInvitation",
+			async (tx) => {
+				const slip = await tx.callerSlip.findUnique({
+					where: { id: slipId },
+					select: { id: true, status: true },
+				});
+
+				if (!slip) {
+					throw new AppError("CALLER_SLIP.NOT_FOUND");
+				}
+
+				if (slip.status === "completed") {
+					throw new AppError("CALLER_SLIP.ALREADY_COMPLETED");
+				}
+
+				const document = await tx.document.findUnique({
+					where: { id: invitationDocumentId },
+					include: {
+						invitation: {
+							select: { id: true, callerSlipId: true },
+							take: 1,
+						},
+					},
+				});
+
+				if (!document) {
+					throw new AppError("GENERAL.NOT_FOUND");
+				}
+
+				if (document.type !== "invitation") {
+					throw new AppError("CALLER_SLIP.INVITATION_NOT_INVITATION_TYPE");
+				}
+
+				const invitation = document.invitation[0];
+
+				if (!invitation) {
+					throw new AppError("GENERAL.NOT_FOUND");
+				}
+
+				if (invitation.callerSlipId === slipId) {
+					return {
+						slipId,
+						invitationId: invitation.id,
+						documentId: document.id,
+					};
+				}
+
+				if (invitation.callerSlipId !== null) {
+					throw new AppError("CALLER_SLIP.INVITATION_ALREADY_ASSIGNED");
+				}
+
+				const linkResult = await tx.invitation.updateMany({
+					where: {
+						id: invitation.id,
+						callerSlipId: null,
+					},
+					data: {
+						callerSlipId: slipId,
+					},
+				});
+
+				if (linkResult.count !== 1) {
+					throw new AppError("CALLER_SLIP.INVITATION_ALREADY_ASSIGNED");
+				}
+
+				return {
+					slipId,
+					invitationId: invitation.id,
+					documentId: document.id,
+				};
+			},
+			{
+				isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+				retries: 3,
+				timeout: 10_000,
+				maxWait: 5_000,
+			},
+		);
+
+		this.logger.log(
+			`Invitation document ${invitationDocumentId} assigned to caller slip ${slipId}`,
+		);
+
+		return result;
 	}
 
 	async recordDecision(

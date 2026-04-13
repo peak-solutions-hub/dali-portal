@@ -34,14 +34,12 @@ export const navigationItems: NavigationItem[] = [
 		href: "/document-tracker",
 		icon: FileSearch,
 		allowedRoles: ROLE_PERMISSIONS.DOCUMENT_TRACKER,
-		children: [
-			{
-				name: "Caller's Slips",
-				href: "/caller-slips",
-				icon: ClipboardList,
-				allowedRoles: ROLE_PERMISSIONS.CALLER_SLIPS,
-			},
-		],
+	},
+	{
+		name: "Caller's Slips",
+		href: "/caller-slips",
+		icon: ClipboardList,
+		allowedRoles: ROLE_PERMISSIONS.CALLER_SLIPS,
 	},
 	{
 		name: "Session Management",

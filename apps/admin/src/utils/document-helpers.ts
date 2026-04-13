@@ -1,10 +1,32 @@
 import type {
 	ClassificationTypeEnumType,
+	DocumentListTab,
 	DocumentTypeEnumType,
 	PurposeTypeEnumType,
 	SourceTypeEnumType,
 	StatusTypeEnumType,
 } from "@repo/shared";
+import { DOCUMENT_TYPE_VALUES } from "@repo/shared";
+
+const TAB_TYPE_OPTIONS: Record<
+	Exclude<DocumentListTab, "all">,
+	DocumentTypeEnumType[]
+> = {
+	legislative: [
+		"proposed_ordinance",
+		"proposed_resolution",
+		"committee_report",
+	],
+	administrative: [
+		"payroll",
+		"contract_of_service",
+		"leave_application",
+		"letter",
+		"memo",
+		"endorsement",
+	],
+	invitations: ["invitation"],
+};
 
 const PHT_UTC_OFFSET = "+08:00";
 
@@ -13,6 +35,16 @@ function humanize(value: string): string {
 		.split("_")
 		.map((token) => token.charAt(0).toUpperCase() + token.slice(1))
 		.join(" ");
+}
+
+export function getDocumentTypesForTab(
+	tab: DocumentListTab,
+): DocumentTypeEnumType[] {
+	if (tab === "all") {
+		return [...DOCUMENT_TYPE_VALUES];
+	}
+
+	return TAB_TYPE_OPTIONS[tab];
 }
 
 export function formatDocumentType(type: DocumentTypeEnumType): string {

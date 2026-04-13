@@ -4,8 +4,12 @@ import { isDefinedError } from "@orpc/client";
 import {
 	type ClassificationType,
 	canRoleTransition,
+	type DecisionType,
+	type DocumentListItem,
+	formatDateTimeInPHT,
 	getNextStatuses,
 	type PurposeType,
+	ROLE_PERMISSIONS,
 	type RoleType,
 	type StatusType,
 	TEXT_LIMITS,
@@ -38,14 +42,16 @@ import {
 	Expand,
 	FileText,
 	Loader2,
-	Printer,
 	Send,
+	Trash2,
 	Upload,
 } from "@repo/ui/lib/lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { AssignInvitationToCallerSlipDialog } from "@/components/caller-slips/assign-invitation-to-caller-slip-dialog";
+import { GenerateCallerSlipDialog } from "@/components/caller-slips/generate-caller-slip-dialog";
 import { DocumentStatusBadge } from "@/components/document-tracker/document-status-badge";
 import { DocumentStatusStepper } from "@/components/document-tracker/document-status-stepper";
 import { DocumentTypeIndicator } from "@/components/document-tracker/document-type-indicator";
@@ -107,8 +113,49 @@ function getTransitionButtonClasses(nextStatus: StatusType): string {
 	}
 }
 
+const INVITATION_DECISION_LABELS: Record<DecisionType, string> = {
+	attend: "Attend",
+	decline: "Decline",
+	assign_representative: "Assign Representative",
+};
+
+const PUBLISHED_ARCHIVE_REMARK_PREFIX = "Published to archive as ";
+const HTTP_URL_REGEX = /^https?:\/\/\S+$/i;
+
+function formatInvitationDecision(
+	decision: DecisionType | null,
+	representativeName: string | null,
+): string {
+	if (!decision) {
+		return "Pending Vice Mayor decision";
+	}
+
+	const label = INVITATION_DECISION_LABELS[decision] ?? decision;
+
+	if (decision === "assign_representative" && representativeName) {
+		return `${label} (${representativeName})`;
+	}
+
+	return label;
+}
+
+function getPublishedArchiveUrlFromRemark(remarks: string): string | null {
+	if (!remarks.startsWith(PUBLISHED_ARCHIVE_REMARK_PREFIX)) {
+		return null;
+	}
+
+	const url = remarks.slice(PUBLISHED_ARCHIVE_REMARK_PREFIX.length).trim();
+
+	if (!HTTP_URL_REGEX.test(url)) {
+		return null;
+	}
+
+	return url;
+}
+
 export default function DocumentDetailPage() {
 	const params = useParams<{ id: string }>();
+	const router = useRouter();
 	const documentId = params.id ?? "";
 	const userRole = useAuthStore(
 		(state) => state.userProfile?.role.name ?? null,
@@ -120,6 +167,10 @@ export default function DocumentDetailPage() {
 	const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
 	const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
+	const [isAssignSlipDialogOpen, setIsAssignSlipDialogOpen] = useState(false);
+	const [isGenerateSlipOpen, setIsGenerateSlipOpen] = useState(false);
 	const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
 	const [pendingStatus, setPendingStatus] = useState<StatusType | null>(null);
 	const [transitionRemarks, setTransitionRemarks] = useState("");
@@ -159,6 +210,10 @@ export default function DocumentDetailPage() {
 			return [];
 		}
 
+		if (data.type === "invitation") {
+			return [];
+		}
+
 		if (!userRole) {
 			return [];
 		}
@@ -182,17 +237,112 @@ export default function DocumentDetailPage() {
 			return false;
 		}
 
+		const isPublishableType =
+			data.type === "proposed_ordinance" || data.type === "proposed_resolution";
+
+		const hasArchiveManagementRole =
+			userRole === "head_admin" || userRole === "legislative_staff";
+
 		const isCalendaredLegislative =
 			data.purpose === "for_agenda" && data.status === "calendared";
+
+		return (
+			isCalendaredLegislative && isPublishableType && hasArchiveManagementRole
+		);
+	}, [data, userRole]);
+
+	const canEditPublishedArchiveDetails = useMemo(() => {
+		if (!data || !userRole) {
+			return false;
+		}
 
 		const isPublishableType =
 			data.type === "proposed_ordinance" || data.type === "proposed_resolution";
 
-		const hasRole =
+		const hasArchiveManagementRole =
 			userRole === "head_admin" || userRole === "legislative_staff";
 
-		return isCalendaredLegislative && isPublishableType && hasRole;
+		const isPublishedLegislative =
+			data.purpose === "for_agenda" && data.status === "published";
+
+		return (
+			isPublishedLegislative && isPublishableType && hasArchiveManagementRole
+		);
 	}, [data, userRole]);
+
+	const canDeleteDocument = useMemo(() => {
+		if (!data || !userRole) {
+			return false;
+		}
+
+		const hasDeleteRole =
+			userRole === "head_admin" ||
+			userRole === "admin_staff" ||
+			userRole === "legislative_staff";
+
+		if (!hasDeleteRole) {
+			return false;
+		}
+
+		if (data.status === "received" || data.status === "returned") {
+			return true;
+		}
+
+		return userRole === "head_admin" && data.status === "for_initial";
+	}, [data, userRole]);
+
+	const canManageCallerSlips = useMemo(() => {
+		if (!userRole) {
+			return false;
+		}
+
+		return ROLE_PERMISSIONS.CALLER_SLIPS.includes(userRole as RoleType);
+	}, [userRole]);
+
+	const isInvitationDocument = data?.type === "invitation";
+	const invitationContext = data?.invitation ?? null;
+	const invitationCallerSlipId = invitationContext?.callerSlipId ?? null;
+	const invitationDecision = formatInvitationDecision(
+		(invitationContext?.vmDecision as DecisionType | null) ?? null,
+		invitationContext?.representativeName ?? null,
+	);
+	const invitationDecisionRemarks =
+		invitationContext?.vmDecisionRemarks?.trim() || null;
+	const hasPublishedLegislativeHistory = useMemo(() => {
+		if (!data) {
+			return false;
+		}
+
+		if (data.status === "published") {
+			return true;
+		}
+
+		return data.auditTrail.some((entry) =>
+			Boolean(entry.remarks?.startsWith(PUBLISHED_ARCHIVE_REMARK_PREFIX)),
+		);
+	}, [data]);
+
+	const selectedInvitationDocuments = useMemo<DocumentListItem[]>(() => {
+		if (!data || data.type !== "invitation" || invitationCallerSlipId) {
+			return [];
+		}
+
+		return [
+			{
+				id: data.id,
+				codeNumber: data.codeNumber,
+				title: data.title,
+				type: data.type,
+				purpose: data.purpose,
+				source: data.source,
+				status: data.status,
+				classification: data.classification,
+				remarks: data.remarks,
+				receivedAt: data.receivedAt,
+				callerSlipId: null,
+			},
+		];
+	}, [data, invitationCallerSlipId]);
 
 	const isDestructiveTransition = pendingStatus === "returned";
 
@@ -250,6 +400,35 @@ export default function DocumentDetailPage() {
 		}
 	};
 
+	const handleDeleteDocument = async () => {
+		if (!data || isDeleting) {
+			return;
+		}
+
+		setIsDeleting(true);
+
+		try {
+			const [deleteError] = await api.documents.delete({ id: data.id });
+
+			if (deleteError) {
+				const message = isDefinedError(deleteError)
+					? deleteError.message
+					: "Failed to delete document";
+
+				toast.error(message);
+				return;
+			}
+
+			toast.success("Document deleted successfully.");
+			setIsDeleteDialogOpen(false);
+			router.push("/document-tracker");
+		} catch {
+			toast.error("Failed to delete document");
+		} finally {
+			setIsDeleting(false);
+		}
+	};
+
 	if (isLoading) {
 		return (
 			<div className="flex min-h-[50vh] items-center justify-center gap-2 text-muted-foreground">
@@ -284,24 +463,26 @@ export default function DocumentDetailPage() {
 					<DocumentTypeIndicator type={data.type} />
 					<DocumentStatusBadge status={data.status} />
 					<div className="ml-auto flex items-center gap-1">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => window.print()}
-							title="Print"
-						>
-							<Printer className="mr-1 h-3.5 w-3.5" />
-							Print
-						</Button>
 						{canPublishToArchive && (
 							<Button
 								variant="outline"
 								size="sm"
 								onClick={() => setIsPublishDialogOpen(true)}
-								title="Archive"
+								title="Publish to Archive"
 							>
 								<Archive className="mr-1 h-3.5 w-3.5" />
-								Archive
+								Publish to Archive
+							</Button>
+						)}
+						{canEditPublishedArchiveDetails && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setIsPublishDialogOpen(true)}
+								title="Edit Legislative Archive Details"
+							>
+								<Archive className="mr-1 h-3.5 w-3.5" />
+								Edit Archive Details
 							</Button>
 						)}
 						{data.status === "approved" &&
@@ -327,14 +508,68 @@ export default function DocumentDetailPage() {
 						>
 							Edit Document
 						</Button>
+						{canDeleteDocument && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setIsDeleteDialogOpen(true)}
+								disabled={isDeleting}
+								className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+							>
+								<Trash2 className="mr-1 h-3.5 w-3.5" />
+								Delete
+							</Button>
+						)}
 					</div>
 				</div>
 			</div>
 
-			<DocumentStatusStepper
-				purpose={data.purpose as PurposeType}
-				status={data.status as StatusType}
-			/>
+			{isInvitationDocument ? (
+				<Card className="space-y-3 p-4">
+					<h2 className="text-sm font-semibold">Invitation Workflow</h2>
+					<dl className="space-y-2 text-sm">
+						<div className="grid grid-cols-2 gap-2">
+							<dt className="text-muted-foreground">Logged Status</dt>
+							<dd>Received</dd>
+						</div>
+						<div className="grid grid-cols-2 gap-2">
+							<dt className="text-muted-foreground">Caller&apos;s Slip</dt>
+							<dd>
+								{invitationCallerSlipId ? "Assigned" : "Not yet assigned"}
+							</dd>
+						</div>
+						<div className="grid grid-cols-2 gap-2">
+							<dt className="text-muted-foreground">Vice Mayor Decision</dt>
+							<dd>
+								{invitationCallerSlipId
+									? invitationDecision
+									: "Awaiting caller's slip assignment"}
+							</dd>
+						</div>
+						{invitationDecisionRemarks && (
+							<div className="space-y-1">
+								<dt className="text-muted-foreground">Decision Remarks</dt>
+								<dd>{invitationDecisionRemarks}</dd>
+							</div>
+						)}
+					</dl>
+
+					{invitationCallerSlipId && (
+						<div className="pt-1">
+							<Button asChild size="sm" variant="outline">
+								<Link href={`/caller-slips/${invitationCallerSlipId}`}>
+									Open Caller&apos;s Slip
+								</Link>
+							</Button>
+						</div>
+					)}
+				</Card>
+			) : (
+				<DocumentStatusStepper
+					purpose={data.purpose as PurposeType}
+					status={data.status as StatusType}
+				/>
+			)}
 
 			<div className="grid gap-4 xl:grid-cols-5">
 				<Card className="space-y-4 p-4 xl:col-span-3">
@@ -350,13 +585,24 @@ export default function DocumentDetailPage() {
 									onValueChange={setSelectedVersionId}
 								>
 									<SelectTrigger size="sm" className="h-7 w-32">
-										<SelectValue />
+										<SelectValue>{`v${selectedVersion.versionNumber}`}</SelectValue>
 									</SelectTrigger>
 									<SelectContent>
 										{data.versions.map((version, index) => (
-											<SelectItem key={version.id} value={version.id}>
-												v{version.versionNumber}
-												{index === 0 ? " (current)" : ""}
+											<SelectItem
+												key={version.id}
+												value={version.id}
+												className="min-h-12"
+											>
+												<div className="flex flex-col gap-0.5">
+													<span>
+														v{version.versionNumber}
+														{index === 0 ? " (current)" : ""}
+													</span>
+													<span className="text-xs text-muted-foreground">
+														Uploaded {formatDateTimeInPHT(version.createdAt)}
+													</span>
+												</div>
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -374,7 +620,7 @@ export default function DocumentDetailPage() {
 								onClick={() => setIsVersionDialogOpen(true)}
 							>
 								<Upload className="h-3.5 w-3.5" />
-								Upload
+								Upload New Version
 							</Button>
 
 							{selectedVersion && (
@@ -449,6 +695,36 @@ export default function DocumentDetailPage() {
 								</dd>
 							</div>
 
+							{isInvitationDocument && (
+								<>
+									<div className="grid grid-cols-2 gap-2">
+										<dt className="text-muted-foreground">
+											Caller&apos;s Slip
+										</dt>
+										<dd>
+											{invitationCallerSlipId ? (
+												<Link
+													href={`/caller-slips/${invitationCallerSlipId}`}
+													className="text-primary hover:underline"
+												>
+													Assigned (open)
+												</Link>
+											) : (
+												"Not yet assigned"
+											)}
+										</dd>
+									</div>
+									<div className="grid grid-cols-2 gap-2">
+										<dt className="text-muted-foreground">VM Decision</dt>
+										<dd>
+											{invitationCallerSlipId
+												? invitationDecision
+												: "Awaiting caller's slip assignment"}
+										</dd>
+									</div>
+								</>
+							)}
+
 							{showMoreDetails && (
 								<>
 									<div className="grid grid-cols-2 gap-2">
@@ -494,7 +770,51 @@ export default function DocumentDetailPage() {
 
 					<Card className="space-y-3 border-red-200 bg-red-50/30 p-4">
 						<h2 className="text-sm font-semibold">Required Action</h2>
-						{nextStatuses.length === 0 && !canPublishToArchive ? (
+						{isInvitationDocument ? (
+							<div className="space-y-2 text-sm text-muted-foreground">
+								<p>
+									Invitation workflow is managed through caller's slip
+									assignment and Vice Mayor decision.
+								</p>
+								{invitationCallerSlipId ? (
+									<div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3 text-xs">
+										<p className="font-medium text-emerald-900">
+											This invitation is already assigned to a Caller&apos;s
+											Slip.
+										</p>
+										<Link
+											href={`/caller-slips/${invitationCallerSlipId}`}
+											className="mt-1 inline-flex text-emerald-800 underline underline-offset-2 hover:text-emerald-700"
+										>
+											Open assigned Caller&apos;s Slip
+										</Link>
+									</div>
+								) : canManageCallerSlips ? (
+									<div className="flex flex-wrap items-center gap-2">
+										<Button
+											size="sm"
+											onClick={() => setIsAssignSlipDialogOpen(true)}
+										>
+											Assign to Existing Caller&apos;s Slip
+										</Button>
+										<Button
+											size="sm"
+											variant="outline"
+											onClick={() => setIsGenerateSlipOpen(true)}
+										>
+											Generate Caller&apos;s Slip
+										</Button>
+									</div>
+								) : (
+									<p className="text-xs">
+										Only Vice Mayor and OVM Staff can assign invitations to
+										caller&apos;s slips.
+									</p>
+								)}
+							</div>
+						) : nextStatuses.length === 0 &&
+							!canPublishToArchive &&
+							!canEditPublishedArchiveDetails ? (
 							<p className="text-sm text-muted-foreground">
 								No available actions for your current role.
 							</p>
@@ -506,6 +826,13 @@ export default function DocumentDetailPage() {
 										onClick={() => setIsPublishDialogOpen(true)}
 									>
 										Publish to Archive
+									</Button>
+								) : canEditPublishedArchiveDetails ? (
+									<Button
+										size="sm"
+										onClick={() => setIsPublishDialogOpen(true)}
+									>
+										Edit Archive Details
 									</Button>
 								) : null}
 
@@ -561,35 +888,73 @@ export default function DocumentDetailPage() {
 						) : (
 							<ScrollArea className="h-70 pr-3">
 								<ol className="relative ml-3 border-l border-border">
-									{data.auditTrail.map((entry, index) => (
-										<li key={entry.id} className="relative mb-4 ml-4 last:mb-0">
-											<span className="absolute -left-[1.3rem] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-muted-foreground" />
-											<p className="text-sm font-medium leading-tight">
-												{entry.action}
-											</p>
-											<p className="mt-0.5 text-xs text-muted-foreground">
-												{entry.actorName} ·{" "}
-												{new Date(entry.createdAt).toLocaleString("en-PH", {
-													year: "numeric",
-													month: "short",
-													day: "numeric",
-													hour: "2-digit",
-													minute: "2-digit",
-												})}
-											</p>
-											{entry.remarks && (
-												<p className="mt-1 text-xs italic text-muted-foreground">
-													&ldquo;{entry.remarks}&rdquo;
+									{data.auditTrail.map((entry, index) => {
+										const publishedArchiveUrl = entry.remarks
+											? getPublishedArchiveUrlFromRemark(entry.remarks)
+											: null;
+
+										return (
+											<li
+												key={entry.id}
+												className="relative mb-4 ml-4 last:mb-0"
+											>
+												<span className="absolute -left-[1.3rem] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-muted-foreground" />
+												<p className="text-sm font-medium leading-tight">
+													{entry.action}
 												</p>
-											)}
-										</li>
-									))}
+												<p className="mt-0.5 text-xs text-muted-foreground">
+													{entry.actorName} ·{" "}
+													{new Date(entry.createdAt).toLocaleString("en-PH", {
+														year: "numeric",
+														month: "short",
+														day: "numeric",
+														hour: "2-digit",
+														minute: "2-digit",
+													})}
+												</p>
+												{entry.remarks && (
+													<p className="mt-1 text-xs italic text-muted-foreground">
+														{publishedArchiveUrl ? (
+															<>
+																&ldquo;{PUBLISHED_ARCHIVE_REMARK_PREFIX}
+																<a
+																	href={publishedArchiveUrl}
+																	target="_blank"
+																	rel="noreferrer"
+																	className="break-all text-primary underline underline-offset-2 hover:text-primary/80"
+																>
+																	{publishedArchiveUrl}
+																</a>
+																&rdquo;
+															</>
+														) : (
+															<>&ldquo;{entry.remarks}&rdquo;</>
+														)}
+													</p>
+												)}
+											</li>
+										);
+									})}
 								</ol>
 							</ScrollArea>
 						)}
 					</Card>
 				</div>
 			</div>
+
+			<AssignInvitationToCallerSlipDialog
+				open={isAssignSlipDialogOpen}
+				onOpenChange={setIsAssignSlipDialogOpen}
+				invitationDocumentId={data.id}
+				invitationTitle={data.title}
+				invitationCodeNumber={data.codeNumber}
+			/>
+
+			<GenerateCallerSlipDialog
+				open={isGenerateSlipOpen}
+				onOpenChange={setIsGenerateSlipOpen}
+				selectedDocuments={selectedInvitationDocuments}
+			/>
 
 			<UploadNewVersionDialog
 				documentId={documentId}
@@ -605,6 +970,7 @@ export default function DocumentDetailPage() {
 				documentId={documentId}
 				open={isPublishDialogOpen}
 				onOpenChange={setIsPublishDialogOpen}
+				mode={canEditPublishedArchiveDetails ? "edit" : "publish"}
 				defaultCategory={data.classification as ClassificationType | null}
 				onPublished={async () => {
 					await refetch();
@@ -621,6 +987,8 @@ export default function DocumentDetailPage() {
 					purpose: data.purpose,
 					classification: data.classification,
 					status: data.status,
+					callerSlipId: invitationCallerSlipId,
+					hasPublishedLegislativeHistory,
 				}}
 				open={isEditDialogOpen}
 				onOpenChange={setIsEditDialogOpen}
@@ -628,6 +996,50 @@ export default function DocumentDetailPage() {
 					await refetch();
 				}}
 			/>
+
+			<Dialog
+				open={isDeleteDialogOpen}
+				onOpenChange={(open) => {
+					if (isDeleting) {
+						return;
+					}
+
+					setIsDeleteDialogOpen(open);
+				}}
+			>
+				<DialogContent className="sm:max-w-lg">
+					<DialogHeader>
+						<DialogTitle>Delete Document</DialogTitle>
+						<DialogDescription>
+							This permanently deletes the document record, versions, and audit
+							entries. This action cannot be undone.
+						</DialogDescription>
+						<p className="text-xs text-destructive">
+							Only RECEIVED and RETURNED documents are deletable. HEAD ADMIN may
+							also delete FOR INITIAL documents.
+						</p>
+					</DialogHeader>
+
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setIsDeleteDialogOpen(false)}
+							disabled={isDeleting}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={handleDeleteDocument}
+							disabled={isDeleting}
+						>
+							{isDeleting ? "Deleting..." : "Delete"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			<Dialog
 				open={isStatusDialogOpen}

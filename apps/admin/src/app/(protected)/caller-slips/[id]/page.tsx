@@ -255,7 +255,7 @@ export default function CallerSlipDetailPage() {
 													onClick={() => setEditingInvitation(inv)}
 												>
 													<Pencil className="mr-1 size-3" />
-													Record
+													Record Decision
 												</Button>
 											</TableCell>
 										)}

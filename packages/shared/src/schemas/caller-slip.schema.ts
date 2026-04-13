@@ -110,6 +110,20 @@ export const GenerateCallerSlipResponseSchema = z.object({
 });
 
 /**
+ * Input: Assign an invitation document to an existing caller slip
+ */
+export const AssignInvitationToCallerSlipSchema = z.object({
+	slipId: z.uuid(),
+	invitationDocumentId: z.uuid(),
+});
+
+export const AssignInvitationToCallerSlipResponseSchema = z.object({
+	slipId: z.uuid(),
+	invitationId: z.uuid(),
+	documentId: z.uuid(),
+});
+
+/**
  * Input: Record a decision on an invitation within a caller slip
  */
 export const RecordDecisionSchema = z
@@ -175,6 +189,12 @@ export type GetCallerSlipByIdInput = z.infer<typeof GetCallerSlipByIdSchema>;
 export type GenerateCallerSlipInput = z.infer<typeof GenerateCallerSlipSchema>;
 export type GenerateCallerSlipResponse = z.infer<
 	typeof GenerateCallerSlipResponseSchema
+>;
+export type AssignInvitationToCallerSlipInput = z.infer<
+	typeof AssignInvitationToCallerSlipSchema
+>;
+export type AssignInvitationToCallerSlipResponse = z.infer<
+	typeof AssignInvitationToCallerSlipResponseSchema
 >;
 export type RecordDecisionInput = z.infer<typeof RecordDecisionSchema>;
 export type RecordDecisionResponse = z.infer<

@@ -2,6 +2,7 @@
 
 import { generateOperationKey } from "@orpc/tanstack-query";
 import type {
+	AssignInvitationToCallerSlipInput,
 	CompleteCallerSlipInput,
 	GenerateCallerSlipInput,
 	RecordDecisionInput,
@@ -25,6 +26,36 @@ export function useGenerateCallerSlip() {
 			// Also invalidate document list since assigned invitations change
 			queryClient.invalidateQueries({
 				queryKey: generateOperationKey(["documents", "getList"]),
+			});
+		},
+	});
+}
+
+export function useAssignInvitationToCallerSlip() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (input: AssignInvitationToCallerSlipInput) => {
+			const [error, data] = await api.callerSlips.assignInvitation(input);
+			if (error) throw error;
+			return data;
+		},
+		onSuccess: (_data, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: generateOperationKey(["callerSlips", "getList"]),
+			});
+			queryClient.invalidateQueries({
+				queryKey: generateOperationKey(["documents", "getList"]),
+			});
+			queryClient.invalidateQueries({
+				queryKey: orpc.documents.getById.queryOptions({
+					input: { id: variables.invitationDocumentId },
+				}).queryKey,
+			});
+			queryClient.invalidateQueries({
+				queryKey: orpc.callerSlips.getById.queryOptions({
+					input: { id: variables.slipId },
+				}).queryKey,
 			});
 		},
 	});

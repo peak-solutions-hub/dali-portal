@@ -8,6 +8,7 @@ import type {
 	StatusTypeEnumType,
 } from "@repo/shared";
 import { create } from "zustand";
+import { getDocumentTypesForTab } from "@/utils/document-helpers";
 
 interface DocumentFilterState {
 	activeTab: DocumentListTab;
@@ -59,7 +60,19 @@ const DEFAULT_STATE: DocumentFilterState = {
 export const useDocumentStore = create<DocumentStore>((set) => ({
 	...DEFAULT_STATE,
 	setActiveTab: (activeTab) =>
-		set({ activeTab, page: 1, selectedInvitationIds: [] }),
+		set((state) => {
+			const availableTypes = getDocumentTypesForTab(activeTab);
+			const hasInvalidTypeSelection =
+				state.typeFilter !== "all" &&
+				!availableTypes.includes(state.typeFilter);
+
+			return {
+				activeTab,
+				typeFilter: hasInvalidTypeSelection ? "all" : state.typeFilter,
+				page: 1,
+				selectedInvitationIds: [],
+			};
+		}),
 	setSearch: (search) => set({ search, page: 1 }),
 	setStatusFilter: (statusFilter) => set({ statusFilter, page: 1 }),
 	setTypeFilter: (typeFilter) => set({ typeFilter, page: 1 }),

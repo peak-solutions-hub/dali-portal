@@ -15,6 +15,9 @@ type DocumentAuditEntity = Prisma.DocumentAuditGetPayload<{
 	};
 }>;
 
+const VERSION_RESET_STATUS_RECEIVED_MARKER =
+	"SYSTEM:VERSION_UPLOAD_RESET_STATUS_RECEIVED";
+
 export function toDocumentAuditResponses(
 	audits: DocumentAuditEntity[],
 	currentStatus: StatusType,
@@ -35,7 +38,7 @@ export function toDocumentAuditResponses(
 		} else if (versionIncreased) {
 			action = `Version ${Number(audit.versionNumber)} uploaded`;
 
-			if (isLatestAudit && currentStatus === "received") {
+			if (audit.remarks === VERSION_RESET_STATUS_RECEIVED_MARKER) {
 				action = `${action}. Status reset to Received`;
 			}
 		} else if (isLatestAudit) {
@@ -53,7 +56,10 @@ export function toDocumentAuditResponses(
 			documentId: audit.documentId,
 			versionNumber: Number(audit.versionNumber),
 			filePath: audit.filePath,
-			remarks: audit.remarks ?? null,
+			remarks:
+				audit.remarks === VERSION_RESET_STATUS_RECEIVED_MARKER
+					? null
+					: (audit.remarks ?? null),
 			action,
 			createdAt: audit.createdAt.toISOString(),
 		};

@@ -9,6 +9,7 @@ import {
 	SOURCE_TYPE_VALUES,
 	STATUS_TYPE_VALUES,
 } from "../enums/document";
+import { DecisionTypeEnum } from "./caller-slip.schema";
 import { DocumentAuditResponseSchema } from "./document-audit.schema";
 import { DocumentVersionWithSignedUrlSchema } from "./document-version.schema";
 
@@ -112,11 +113,19 @@ export const GetDocumentByIdSchema = z.object({
 	id: z.uuid(),
 });
 
+export const DocumentInvitationContextSchema = z.object({
+	callerSlipId: z.uuid().nullable(),
+	vmDecision: DecisionTypeEnum.nullable(),
+	vmDecisionRemarks: z.string().nullable(),
+	representativeName: z.string().nullable(),
+});
+
 export const DocumentDetailSchema = DocumentResponseSchema.extend({
 	versions: DocumentVersionWithSignedUrlSchema.extend({
 		createdAt: z.iso.datetime(),
 	}).array(),
 	auditTrail: DocumentAuditResponseSchema.array(),
+	invitation: DocumentInvitationContextSchema.nullable().optional(),
 });
 
 export const CreateDocumentSchema = z
@@ -214,6 +223,14 @@ export const DeleteDocumentUploadResponseSchema = z.object({
 	cleanedUp: z.boolean(),
 });
 
+export const DeleteDocumentSchema = z.object({
+	id: z.uuid(),
+});
+
+export const DeleteDocumentResponseSchema = z.object({
+	success: z.boolean(),
+});
+
 export const UpdateDocumentSchema = z
 	.object({
 		id: z.uuid(),
@@ -277,6 +294,9 @@ export type DocumentListPagination = z.infer<
 export type DocumentListResponse = z.infer<typeof DocumentListResponseSchema>;
 export type GetDocumentListInput = z.infer<typeof GetDocumentListSchema>;
 export type GetDocumentByIdInput = z.infer<typeof GetDocumentByIdSchema>;
+export type DocumentInvitationContext = z.infer<
+	typeof DocumentInvitationContextSchema
+>;
 export type DocumentDetail = z.infer<typeof DocumentDetailSchema>;
 export type CreateDocumentInput = z.infer<typeof CreateDocumentSchema>;
 export type CreateDocumentResponse = z.infer<
@@ -299,5 +319,9 @@ export type DeleteDocumentUploadInput = z.infer<
 >;
 export type DeleteDocumentUploadResponse = z.infer<
 	typeof DeleteDocumentUploadResponseSchema
+>;
+export type DeleteDocumentInput = z.infer<typeof DeleteDocumentSchema>;
+export type DeleteDocumentResponse = z.infer<
+	typeof DeleteDocumentResponseSchema
 >;
 export type UpdateDocumentInput = z.infer<typeof UpdateDocumentSchema>;

@@ -141,6 +141,7 @@ export const STATUS_FLOW_MAP: Record<
 		[StatusType.FOR_SIGNATURE]: [StatusType.APPROVED, ...COMMON_REJECTIONS],
 		[StatusType.APPROVED]: [StatusType.CALENDARED],
 		[StatusType.CALENDARED]: [StatusType.PUBLISHED],
+		[StatusType.PUBLISHED]: [StatusType.RECEIVED],
 		[StatusType.RETURNED]: [StatusType.RECEIVED],
 	},
 
@@ -190,6 +191,7 @@ export const DOCUMENT_TRANSITION_ROLE_MAP: Record<string, readonly RoleType[]> =
 		"for_signature->approved": [RoleType.VICE_MAYOR],
 		"approved->released": [RoleType.ADMIN_STAFF, RoleType.HEAD_ADMIN],
 		"approved->calendared": [RoleType.LEGISLATIVE_STAFF, RoleType.HEAD_ADMIN],
+		"published->received": [RoleType.LEGISLATIVE_STAFF, RoleType.HEAD_ADMIN],
 		"returned->received": [
 			RoleType.ADMIN_STAFF,
 			RoleType.HEAD_ADMIN,

@@ -16,6 +16,7 @@ import {
 	TEXT_LIMITS,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { DateTimePickerField } from "@repo/ui/components/date-time-picker-field";
 import {
 	Dialog,
 	DialogContent,
@@ -63,6 +64,8 @@ interface EditDocumentDialogProps {
 		purpose: string;
 		classification: string | null;
 		status: string;
+		callerSlipId?: string | null;
+		hasPublishedLegislativeHistory?: boolean;
 	};
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -99,6 +102,9 @@ const formSchema = z
 		classification: z.string().refine((value): value is ClassificationType => {
 			return CLASSIFICATION_TYPE_VALUES.includes(value as ClassificationType);
 		}, "Invalid classification type"),
+		eventVenue: z.string().trim().optional(),
+		eventStartTime: z.string().optional(),
+		eventEndTime: z.string().optional(),
 	})
 	.superRefine((input, ctx) => {
 		if (
@@ -123,7 +129,16 @@ export function EditDocumentDialog({
 	onOpenChange,
 	onUpdated,
 }: EditDocumentDialogProps) {
-	const isLocked = document.status !== "received";
+	const isWorkflowLocked = document.status !== "received";
+	const isAssignedInvitationLocked =
+		document.type === "invitation" && Boolean(document.callerSlipId);
+	const isTypePurposeClassificationLocked =
+		isWorkflowLocked || isAssignedInvitationLocked;
+	const isPublishedLegislativeTypeLocked = Boolean(
+		document.hasPublishedLegislativeHistory,
+	);
+	const isTypeLocked =
+		isTypePurposeClassificationLocked || isPublishedLegislativeTypeLocked;
 	const effectiveClassification =
 		document.classification ?? CLASSIFICATION_TYPE_VALUES[0];
 
@@ -132,6 +147,8 @@ export function EditDocumentDialog({
 		handleSubmit,
 		watch,
 		setValue,
+		setError,
+		clearErrors,
 		reset,
 		formState: { errors, isSubmitting },
 	} = useForm<EditDocumentFormInput, unknown, EditDocumentFormValues>({
@@ -143,6 +160,9 @@ export function EditDocumentDialog({
 			type: document.type,
 			purpose: document.purpose,
 			classification: effectiveClassification,
+			eventVenue: "",
+			eventStartTime: "",
+			eventEndTime: "",
 		},
 	});
 	const submitLockRef = useRef(false);
@@ -151,6 +171,13 @@ export function EditDocumentDialog({
 	const selectedPurpose = watch("purpose") as PurposeType;
 	const titleValue = watch("title") ?? "";
 	const remarksValue = watch("remarks") ?? "";
+	const isInvitationTypeSelected = selectedType === "invitation";
+	const isConvertingToInvitation =
+		!isWorkflowLocked &&
+		!isAssignedInvitationLocked &&
+		!isPublishedLegislativeTypeLocked &&
+		document.type !== "invitation" &&
+		isInvitationTypeSelected;
 
 	const allowedPurposes = useMemo(
 		() => getAllowedPurposes(selectedType),
@@ -166,6 +193,9 @@ export function EditDocumentDialog({
 				type: document.type,
 				purpose: document.purpose,
 				classification: effectiveClassification,
+				eventVenue: "",
+				eventStartTime: "",
+				eventEndTime: "",
 			});
 		}
 	}, [document, effectiveClassification, open, reset]);
@@ -186,15 +216,23 @@ export function EditDocumentDialog({
 			source?: SourceType;
 			type?: DocumentType;
 			purpose?: PurposeType;
-			classification?: ClassificationType;
+			classification?: ClassificationType | null;
+			eventVenue?: string;
+			eventStartTime?: string;
+			eventEndTime?: string;
 		} = {
 			id: document.id,
 		};
 
 		const nextTitle = values.title.trim();
 		const nextRemarks = values.remarks?.trim() ? values.remarks.trim() : null;
+		const nextEventVenue = values.eventVenue?.trim() ?? "";
+		const nextEventStartTime = values.eventStartTime?.trim() ?? "";
+		const nextEventEndTime = values.eventEndTime?.trim() ?? "";
+		let invitationEventStartTimeIso: string | null = null;
+		let invitationEventEndTimeIso: string | null = null;
 
-		if (nextTitle !== document.title) {
+		if (!isAssignedInvitationLocked && nextTitle !== document.title) {
 			payload.title = nextTitle;
 		}
 
@@ -202,20 +240,91 @@ export function EditDocumentDialog({
 			payload.remarks = nextRemarks;
 		}
 
-		if (values.source !== document.source) {
+		if (!isAssignedInvitationLocked && values.source !== document.source) {
 			payload.source = values.source as SourceType;
 		}
 
-		if (!isLocked) {
+		if (!isWorkflowLocked && !isAssignedInvitationLocked) {
+			const canEditType = !isPublishedLegislativeTypeLocked;
 			const typeChanged = values.type !== document.type;
 			const purposeChanged = values.purpose !== document.purpose;
 
-			if (typeChanged || purposeChanged) {
-				payload.type = values.type as DocumentType;
+			if ((canEditType && typeChanged) || purposeChanged) {
+				payload.type = (
+					canEditType ? values.type : document.type
+				) as DocumentType;
 				payload.purpose = values.purpose as PurposeType;
 			}
 
-			if (values.classification !== effectiveClassification) {
+			if (isConvertingToInvitation) {
+				let hasValidationError = false;
+
+				if (!nextEventVenue) {
+					setError("eventVenue", {
+						type: "manual",
+						message: "Event venue is required for invitations",
+					});
+					hasValidationError = true;
+				} else {
+					clearErrors("eventVenue");
+				}
+
+				if (!nextEventStartTime) {
+					setError("eventStartTime", {
+						type: "manual",
+						message: "Event start time is required for invitations",
+					});
+					hasValidationError = true;
+				} else {
+					clearErrors("eventStartTime");
+				}
+
+				if (!nextEventEndTime) {
+					setError("eventEndTime", {
+						type: "manual",
+						message: "Event end time is required for invitations",
+					});
+					hasValidationError = true;
+				} else {
+					clearErrors("eventEndTime");
+				}
+
+				if (hasValidationError) {
+					return;
+				}
+
+				const eventStartTime = new Date(nextEventStartTime);
+				const eventEndTime = new Date(nextEventEndTime);
+
+				if (Number.isNaN(eventStartTime.getTime())) {
+					setError("eventStartTime", {
+						type: "manual",
+						message: "Invalid event start time",
+					});
+					return;
+				}
+
+				if (Number.isNaN(eventEndTime.getTime())) {
+					setError("eventEndTime", {
+						type: "manual",
+						message: "Invalid event end time",
+					});
+					return;
+				}
+
+				invitationEventStartTimeIso = eventStartTime.toISOString();
+				invitationEventEndTimeIso = eventEndTime.toISOString();
+
+				payload.classification = null;
+				payload.eventVenue = nextEventVenue;
+				payload.eventStartTime = invitationEventStartTimeIso;
+				payload.eventEndTime = invitationEventEndTimeIso;
+			}
+
+			if (
+				!isInvitationTypeSelected &&
+				values.classification !== effectiveClassification
+			) {
 				payload.classification = values.classification as ClassificationType;
 			}
 		}
@@ -275,11 +384,14 @@ export function EditDocumentDialog({
 
 				<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 					<div className="space-y-2">
-						<Label htmlFor="editTitle">Title</Label>
+						<Label htmlFor="editTitle">
+							{isInvitationTypeSelected ? "Event Title" : "Title"}
+						</Label>
 						<Input
 							id="editTitle"
 							{...register("title")}
 							maxLength={TEXT_LIMITS.SM}
+							disabled={isAssignedInvitationLocked}
 						/>
 						<div className="flex justify-between">
 							{errors.title ? (
@@ -306,6 +418,7 @@ export function EditDocumentDialog({
 											shouldValidate: true,
 										})
 									}
+									disabled={isAssignedInvitationLocked}
 								>
 									<SelectTrigger id="editSource" className="w-full">
 										<SelectValue />
@@ -323,13 +436,19 @@ export function EditDocumentDialog({
 							<div className="space-y-2">
 								<div className="flex items-center gap-1.5">
 									<Label htmlFor="editType">Type</Label>
-									{isLocked && (
+									{isTypeLocked && (
 										<Tooltip>
 											<TooltipTrigger asChild>
 												<Lock className="h-3.5 w-3.5 text-muted-foreground" />
 											</TooltipTrigger>
 											<TooltipContent>
-												<p>Locked — document is in workflow</p>
+												<p>
+													{isAssignedInvitationLocked
+														? "Locked — invitation is already assigned to a Caller's Slip"
+														: isPublishedLegislativeTypeLocked
+															? "Locked — document type cannot be changed after archive publishing"
+															: "Locked — document is in workflow"}
+												</p>
 											</TooltipContent>
 										</Tooltip>
 									)}
@@ -341,7 +460,7 @@ export function EditDocumentDialog({
 											shouldValidate: true,
 										})
 									}
-									disabled={isLocked}
+									disabled={isTypeLocked}
 								>
 									<SelectTrigger id="editType" className="w-full">
 										<SelectValue />
@@ -361,13 +480,17 @@ export function EditDocumentDialog({
 							<div className="space-y-2">
 								<div className="flex items-center gap-1.5">
 									<Label htmlFor="editPurpose">Purpose</Label>
-									{isLocked && (
+									{isTypePurposeClassificationLocked && (
 										<Tooltip>
 											<TooltipTrigger asChild>
 												<Lock className="h-3.5 w-3.5 text-muted-foreground" />
 											</TooltipTrigger>
 											<TooltipContent>
-												<p>Locked — document is in workflow</p>
+												<p>
+													{isAssignedInvitationLocked
+														? "Locked — invitation is already assigned to a Caller's Slip"
+														: "Locked — document is in workflow"}
+												</p>
 											</TooltipContent>
 										</Tooltip>
 									)}
@@ -379,7 +502,7 @@ export function EditDocumentDialog({
 											shouldValidate: true,
 										})
 									}
-									disabled={isLocked}
+									disabled={isTypePurposeClassificationLocked}
 								>
 									<SelectTrigger id="editPurpose" className="w-full">
 										<SelectValue />
@@ -399,45 +522,124 @@ export function EditDocumentDialog({
 								) : null}
 							</div>
 
-							<div className="space-y-2">
-								<div className="flex items-center gap-1.5">
-									<Label htmlFor="editClassification">Classification</Label>
-									{isLocked && (
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Lock className="h-3.5 w-3.5 text-muted-foreground" />
-											</TooltipTrigger>
-											<TooltipContent>
-												<p>Locked — document is in workflow</p>
-											</TooltipContent>
-										</Tooltip>
-									)}
+							{!isInvitationTypeSelected ? (
+								<div className="space-y-2">
+									<div className="flex items-center gap-1.5">
+										<Label htmlFor="editClassification">Classification</Label>
+										{isTypePurposeClassificationLocked && (
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Lock className="h-3.5 w-3.5 text-muted-foreground" />
+												</TooltipTrigger>
+												<TooltipContent>
+													<p>
+														{isAssignedInvitationLocked
+															? "Locked — invitation is already assigned to a Caller's Slip"
+															: "Locked — document is in workflow"}
+													</p>
+												</TooltipContent>
+											</Tooltip>
+										)}
+									</div>
+									<Select
+										value={watch("classification")}
+										onValueChange={(value) =>
+											setValue("classification", value as ClassificationType, {
+												shouldValidate: true,
+											})
+										}
+										disabled={isTypePurposeClassificationLocked}
+									>
+										<SelectTrigger id="editClassification" className="w-full">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{CLASSIFICATION_TYPE_VALUES.map((classification) => (
+												<SelectItem key={classification} value={classification}>
+													{formatDocumentClassification(classification)}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 								</div>
-								<Select
-									value={watch("classification")}
-									onValueChange={(value) =>
-										setValue("classification", value as ClassificationType, {
-											shouldValidate: true,
-										})
-									}
-									disabled={isLocked}
-								>
-									<SelectTrigger id="editClassification" className="w-full">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{CLASSIFICATION_TYPE_VALUES.map((classification) => (
-											<SelectItem key={classification} value={classification}>
-												{formatDocumentClassification(classification)}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
+							) : null}
 						</div>
 					</TooltipProvider>
 
-					{isLocked ? (
+					{isConvertingToInvitation ? (
+						<div className="space-y-4 rounded-md border border-dashed p-3">
+							<p className="text-xs text-muted-foreground">
+								Complete invitation event details before saving.
+							</p>
+							<div className="space-y-2">
+								<Label htmlFor="editEventVenue">Event Venue</Label>
+								<Input
+									id="editEventVenue"
+									placeholder="Enter event venue"
+									{...register("eventVenue", {
+										onChange: () => clearErrors("eventVenue"),
+									})}
+								/>
+								{errors.eventVenue ? (
+									<p className="text-xs text-destructive">
+										{errors.eventVenue.message}
+									</p>
+								) : null}
+							</div>
+
+							<div className="grid gap-4 sm:grid-cols-2">
+								<div className="space-y-2">
+									<Label htmlFor="editEventStartTime">Event Start</Label>
+									<DateTimePickerField
+										value={watch("eventStartTime") || null}
+										onChange={(val) => {
+											setValue("eventStartTime", val ?? "", {
+												shouldValidate: true,
+											});
+											clearErrors("eventStartTime");
+										}}
+									/>
+									{errors.eventStartTime ? (
+										<p className="text-xs text-destructive">
+											{errors.eventStartTime.message}
+										</p>
+									) : null}
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="editEventEndTime">Event End</Label>
+									<DateTimePickerField
+										value={watch("eventEndTime") || null}
+										onChange={(val) => {
+											setValue("eventEndTime", val ?? "", {
+												shouldValidate: true,
+											});
+											clearErrors("eventEndTime");
+										}}
+									/>
+									{errors.eventEndTime ? (
+										<p className="text-xs text-destructive">
+											{errors.eventEndTime.message}
+										</p>
+									) : null}
+								</div>
+							</div>
+						</div>
+					) : null}
+
+					{isAssignedInvitationLocked ? (
+						<p className="text-xs text-muted-foreground">
+							This invitation is already assigned to a Caller&apos;s Slip.
+							Title, source, type, purpose, and classification are locked to
+							prevent conflicts. You may still update remarks.
+						</p>
+					) : isPublishedLegislativeTypeLocked ? (
+						<p className="text-xs text-muted-foreground">
+							This document has already been published to the legislative
+							archive. Type is permanently locked even if status is reset to
+							received.
+						</p>
+					) : isWorkflowLocked ? (
 						<p className="text-xs text-muted-foreground">
 							Type, purpose, and classification are locked because this document
 							is already in workflow.

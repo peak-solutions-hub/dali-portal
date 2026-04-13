@@ -33,11 +33,16 @@ import { z } from "zod";
 import { api } from "@/lib/api.client";
 import { formatDocumentClassification } from "@/utils/document-helpers";
 
+const MIN_SERIES_YEAR = 1950;
+const MAX_SERIES_YEAR = 2100;
+const SERIES_YEAR_INPUT_MAX_LENGTH = 4;
+
 interface PublishToArchiveDialogProps {
 	documentId: string;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	defaultCategory?: ClassificationType | null;
+	mode?: "publish" | "edit";
 	onPublished?: () => Promise<void> | void;
 }
 
@@ -50,7 +55,16 @@ const formSchema = z.object({
 			TEXT_LIMITS.SM,
 			`Official document number must be ${TEXT_LIMITS.SM} characters or less`,
 		),
-	seriesYear: z.coerce.number().int().min(1950).max(2100),
+	seriesYear: z
+		.string()
+		.trim()
+		.min(1, "Series year is required")
+		.regex(/^\d{4}$/, "Series year must be a 4-digit year")
+		.transform((value) => Number(value))
+		.refine(
+			(value) => value >= MIN_SERIES_YEAR && value <= MAX_SERIES_YEAR,
+			`Series year must be between ${MIN_SERIES_YEAR} and ${MAX_SERIES_YEAR}`,
+		),
 	dateEnacted: z.string().min(1, "Date enacted is required"),
 	category: z.string().optional(),
 });
@@ -60,19 +74,79 @@ type PublishFormValues = z.output<typeof formSchema>;
 
 const KEEP_CURRENT_CATEGORY = "__keep_current";
 
+function getErrorInfo(error: unknown): {
+	status: number | null;
+	code: string;
+	message: string;
+} {
+	const maybeError =
+		typeof error === "object" && error !== null
+			? (error as {
+					status?: unknown;
+					code?: unknown;
+					message?: unknown;
+				})
+			: null;
+
+	const status =
+		typeof maybeError?.status === "number" ? maybeError.status : null;
+	const code =
+		typeof maybeError?.code === "string" ? maybeError.code.toUpperCase() : "";
+	const message =
+		typeof maybeError?.message === "string"
+			? maybeError.message
+			: error instanceof Error
+				? error.message
+				: "";
+
+	return {
+		status,
+		code,
+		message,
+	};
+}
+
+function getOfficialNumberConflictMessage(error: unknown): string | null {
+	const { status, code, message } = getErrorInfo(error);
+	const normalizedMessage = message.toLowerCase();
+
+	const isConflict =
+		status === 409 ||
+		code === "CONFLICT" ||
+		code === "GENERAL.CONFLICT" ||
+		code.endsWith(".CONFLICT");
+	const isStateConflict =
+		normalizedMessage.includes("state changed") ||
+		normalizedMessage.includes("please refresh");
+
+	if (isConflict && !isStateConflict) {
+		if (message) {
+			return message;
+		}
+
+		return "This official document number is already in use. Please enter a different number.";
+	}
+
+	return null;
+}
+
 export function PublishToArchiveDialog({
 	documentId,
 	open,
 	onOpenChange,
 	defaultCategory,
+	mode = "publish",
 	onPublished,
 }: PublishToArchiveDialogProps) {
 	const currentYear = new Date().getFullYear();
+	const isEditMode = mode === "edit";
 
 	const {
 		register,
 		handleSubmit,
 		setValue,
+		setError,
+		clearErrors,
 		watch,
 		reset,
 		formState: { errors },
@@ -80,7 +154,7 @@ export function PublishToArchiveDialog({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
 			officialNumber: "",
-			seriesYear: currentYear,
+			seriesYear: String(currentYear),
 			dateEnacted: "",
 			category: defaultCategory ?? KEEP_CURRENT_CATEGORY,
 		},
@@ -92,7 +166,7 @@ export function PublishToArchiveDialog({
 		if (!open) {
 			reset({
 				officialNumber: "",
-				seriesYear: currentYear,
+				seriesYear: String(currentYear),
 				dateEnacted: "",
 				category: defaultCategory ?? KEEP_CURRENT_CATEGORY,
 			});
@@ -114,6 +188,8 @@ export function PublishToArchiveDialog({
 			return;
 		}
 
+		clearErrors("officialNumber");
+
 		publishLockRef.current = true;
 		setIsPublishing(true);
 
@@ -130,19 +206,48 @@ export function PublishToArchiveDialog({
 			});
 
 			if (publishError) {
-				const message = isDefinedError(publishError)
-					? publishError.message
-					: "Failed to publish document";
+				const conflictMessage = getOfficialNumberConflictMessage(publishError);
 
-				toast.error(message);
+				if (conflictMessage) {
+					setError("officialNumber", {
+						type: "server",
+						message: conflictMessage,
+					});
+					return;
+				}
+
+				if (isDefinedError(publishError)) {
+					toast.error(publishError.message);
+					return;
+				}
+
+				const { message } = getErrorInfo(publishError);
+				const fallbackMessage = message || "Failed to publish document";
+
+				toast.error(fallbackMessage);
 				return;
 			}
 
-			toast.success("Document published to archive");
+			toast.success(
+				isEditMode
+					? "Legislative archive details updated"
+					: "Document published to archive",
+			);
 			onOpenChange(false);
 			void onPublished?.();
-		} catch {
-			toast.error("Failed to publish document");
+		} catch (error) {
+			const conflictMessage = getOfficialNumberConflictMessage(error);
+
+			if (conflictMessage) {
+				setError("officialNumber", {
+					type: "server",
+					message: conflictMessage,
+				});
+				return;
+			}
+
+			const { message } = getErrorInfo(error);
+			toast.error(message || "Failed to publish document");
 		} finally {
 			publishLockRef.current = false;
 			setIsPublishing(false);
@@ -153,10 +258,15 @@ export function PublishToArchiveDialog({
 		<Dialog open={open} onOpenChange={handleDialogOpenChange}>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Publish to Archive</DialogTitle>
+					<DialogTitle>
+						{isEditMode
+							? "Edit Legislative Archive Details"
+							: "Publish to Archive"}
+					</DialogTitle>
 					<DialogDescription>
-						Finalize this calendared document and publish it to the public
-						legislative archive.
+						{isEditMode
+							? "Update official archive details for this published legislative document."
+							: "Finalize this calendared document and publish it to the public legislative archive."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -167,7 +277,11 @@ export function PublishToArchiveDialog({
 							id="officialNumber"
 							placeholder="e.g. 2026-001"
 							maxLength={TEXT_LIMITS.SM}
-							{...register("officialNumber")}
+							{...register("officialNumber", {
+								onChange: () => {
+									clearErrors("officialNumber");
+								},
+							})}
 						/>
 						{errors.officialNumber ? (
 							<p className="text-xs text-destructive">
@@ -181,10 +295,17 @@ export function PublishToArchiveDialog({
 							<Label htmlFor="seriesYear">Series Year</Label>
 							<Input
 								id="seriesYear"
-								type="number"
-								min={1950}
-								max={2100}
-								{...register("seriesYear", { valueAsNumber: true })}
+								placeholder={String(currentYear)}
+								inputMode="numeric"
+								autoComplete="off"
+								maxLength={SERIES_YEAR_INPUT_MAX_LENGTH}
+								{...register("seriesYear", {
+									onChange: (event) => {
+										event.target.value = String(event.target.value ?? "")
+											.replace(/\D/g, "")
+											.slice(0, SERIES_YEAR_INPUT_MAX_LENGTH);
+									},
+								})}
 							/>
 							{errors.seriesYear ? (
 								<p className="text-xs text-destructive">
@@ -245,7 +366,13 @@ export function PublishToArchiveDialog({
 							Cancel
 						</Button>
 						<Button type="submit" disabled={isPublishing}>
-							{isPublishing ? "Publishing..." : "Publish"}
+							{isPublishing
+								? isEditMode
+									? "Updating Archive Details..."
+									: "Publishing to Archive..."
+								: isEditMode
+									? "Save Archive Details"
+									: "Publish to Archive"}
 						</Button>
 					</DialogFooter>
 				</form>

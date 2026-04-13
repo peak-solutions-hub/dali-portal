@@ -31,6 +31,18 @@ export type FetchProfileResult =
 	| { status: "deactivated" }
 	| { status: "error"; message?: string };
 
+const AUTH_SIGN_OUT_ERROR_CODES = new Set([
+	"AUTH.INVALID_TOKEN",
+	"INVALID_TOKEN",
+	"AUTH.MISSING_TOKEN",
+	"MISSING_TOKEN",
+	"AUTH.AUTHENTICATION_REQUIRED",
+	"AUTHENTICATION_REQUIRED",
+	"USER.NOT_AUTHENTICATED",
+	"NOT_AUTHENTICATED",
+	"UNAUTHORIZED",
+]);
+
 type AuthContextType = {
 	user: User | null;
 	session: Session | null;
@@ -77,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 	/**
 	 * Pure profile fetcher — calls /users/me, detects deactivated accounts,
-	 * signs out on failure. Does NOT show toasts or redirect.
+	 * signs out only for auth failures. Does NOT show toasts or redirect.
 	 * Callers (onAuthStateChange handlers, set-password-form) own UI actions.
 	 */
 	const fetchProfile = async (
@@ -106,6 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 			if (error) {
 				const errCode = (error as { code?: string })?.code;
+				const errStatus = (error as { status?: number })?.status;
+				const errMessage = (error as { message?: string })?.message;
 				let isDeactivated =
 					errCode === "AUTH.DEACTIVATED_ACCOUNT" ||
 					errCode === "DEACTIVATED_ACCOUNT";
@@ -124,17 +138,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					}
 				}
 
-				// Sign out — caller will handle UI
-				await supabase.auth.signOut();
-				setAuthToken(null);
-				setUserProfile(null);
-				useAuthStore.setState({ userProfile: null });
+				const shouldSignOut =
+					isDeactivated ||
+					errStatus === 401 ||
+					(errCode ? AUTH_SIGN_OUT_ERROR_CODES.has(errCode) : false);
+
+				if (shouldSignOut) {
+					await supabase.auth.signOut();
+					setAuthToken(null);
+					setUserProfile(null);
+					useAuthStore.setState({ userProfile: null });
+				}
 				setIsLoading(false);
 
 				if (isDeactivated) {
 					return { status: "deactivated" };
 				}
-				return { status: "error" };
+				return { status: "error", message: errMessage };
 			}
 
 			// Cache the profile
@@ -150,11 +170,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			useAuthStore.setState({ userProfile: data });
 			setIsLoading(false);
 			return { status: "ok", profile: data };
-		} catch (_error) {
-			setUserProfile(null);
-			useAuthStore.setState({ userProfile: null });
+		} catch (error) {
 			setIsLoading(false);
-			return { status: "error" };
+			return {
+				status: "error",
+				message: error instanceof Error ? error.message : undefined,
+			};
 		}
 	};
 

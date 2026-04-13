@@ -1,6 +1,8 @@
 import { oc } from "@orpc/contract";
 import { ERRORS } from "../constants";
 import {
+	AssignInvitationToCallerSlipResponseSchema,
+	AssignInvitationToCallerSlipSchema,
 	CallerSlipDetailSchema,
 	CallerSlipListResponseSchema,
 	CompleteCallerSlipResponseSchema,
@@ -68,6 +70,27 @@ export const generateCallerSlip = oc
 	.input(GenerateCallerSlipSchema)
 	.output(GenerateCallerSlipResponseSchema);
 
+export const assignInvitationToCallerSlip = oc
+	.route({
+		method: "PATCH",
+		path: "/admin/caller-slips/{slipId}/invitations/assign",
+		summary: "Assign invitation to an existing caller slip",
+		description:
+			"Admin endpoint to assign one invitation document to an existing pending caller slip.",
+		tags: ["Caller Slips", "Admin"],
+	})
+	.errors({
+		NOT_FOUND: ERRORS.GENERAL.NOT_FOUND,
+		ALREADY_COMPLETED: ERRORS.CALLER_SLIP.ALREADY_COMPLETED,
+		INVITATION_NOT_INVITATION_TYPE:
+			ERRORS.CALLER_SLIP.INVITATION_NOT_INVITATION_TYPE,
+		INVITATION_ALREADY_ASSIGNED: ERRORS.CALLER_SLIP.INVITATION_ALREADY_ASSIGNED,
+		UNAUTHORIZED: ERRORS.AUTH.AUTHENTICATION_REQUIRED,
+		FORBIDDEN: ERRORS.AUTH.INSUFFICIENT_PERMISSIONS,
+	})
+	.input(AssignInvitationToCallerSlipSchema)
+	.output(AssignInvitationToCallerSlipResponseSchema);
+
 export const recordDecision = oc
 	.route({
 		method: "PATCH",
@@ -109,6 +132,7 @@ export const callerSlipContract = {
 	getList: getCallerSlipList,
 	getById: getCallerSlipById,
 	generate: generateCallerSlip,
+	assignInvitation: assignInvitationToCallerSlip,
 	recordDecision,
 	complete: completeCallerSlip,
 };

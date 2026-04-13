@@ -401,45 +401,83 @@ export class DriverAdapterExceptionFilter extends BaseExceptionFilter {
 	private readonly logger = new Logger(DriverAdapterExceptionFilter.name);
 
 	catch(exception: unknown, host: ArgumentsHost) {
-		// Only handle DriverAdapterError with pool exhaustion cause
-		if (this.isPoolExhaustedError(exception)) {
+		const adapterErrorType = this.getDriverAdapterErrorType(exception);
+
+		if (adapterErrorType) {
 			const ctx = host.switchToHttp();
 			const response = ctx.getResponse<Response>();
 
+			if (adapterErrorType === "pool_exhausted") {
+				this.logger.error(
+					"Database connection pool exhausted — Max client connections reached",
+					(exception as Error).stack,
+				);
+
+				response.status(HttpStatus.SERVICE_UNAVAILABLE).json({
+					defined: true,
+					status: HttpStatus.SERVICE_UNAVAILABLE,
+					code: "DATABASE_POOL_EXHAUSTED",
+					message:
+						"The service is temporarily overloaded. Please try again in a moment.",
+				});
+				return;
+			}
+
 			this.logger.error(
-				"Database connection pool exhausted — Max client connections reached",
+				"Database connection timeout while authenticating request",
 				(exception as Error).stack,
 			);
 
 			response.status(HttpStatus.SERVICE_UNAVAILABLE).json({
 				defined: true,
 				status: HttpStatus.SERVICE_UNAVAILABLE,
-				code: "DATABASE_POOL_EXHAUSTED",
+				code: "DATABASE_CONNECTION_TIMEOUT",
 				message:
-					"The service is temporarily overloaded. Please try again in a moment.",
+					"Database service is temporarily unavailable. Please try again later.",
 			});
 			return;
 		}
 
-		// Not a pool exhaustion error — fall back to the base Nest exception handling
+		// Not a handled adapter/database availability error — fall back to Nest handling
 		super.catch(exception, host);
 	}
 
-	private isPoolExhaustedError(exception: unknown): boolean {
-		if (!(exception instanceof Error)) return false;
-
-		const isDriverAdapterError = exception.name === "DriverAdapterError";
-		if (!isDriverAdapterError) return false;
+	private getDriverAdapterErrorType(
+		exception: unknown,
+	): "pool_exhausted" | "connection_timeout" | null {
+		if (!(exception instanceof Error)) return null;
 
 		const cause = (exception as Error & { cause?: { message?: string } }).cause;
 		const normalizedMessage = `${exception.message} ${cause?.message ?? ""}`
 			.toLowerCase()
 			.trim();
+		const normalizedStack = (exception.stack ?? "").toLowerCase();
 
-		return (
+		const isPoolExhausted =
 			normalizedMessage.includes("max client connections reached") ||
 			normalizedMessage.includes("remaining connection slots are reserved") ||
-			normalizedMessage.includes("too many clients")
-		);
+			normalizedMessage.includes("too many clients");
+
+		if (isPoolExhausted) {
+			return "pool_exhausted";
+		}
+
+		const isAdapterOrPgPoolStack =
+			exception.name === "DriverAdapterError" ||
+			normalizedStack.includes("pg-pool") ||
+			normalizedStack.includes("@prisma/adapter-pg");
+
+		const isConnectionTimeout =
+			normalizedMessage.includes(
+				"connection terminated due to connection timeout",
+			) ||
+			normalizedMessage.includes("connection timeout") ||
+			normalizedMessage.includes("timed out acquiring client");
+
+		if (isAdapterOrPgPoolStack && isConnectionTimeout) {
+			return "connection_timeout";
+		}
+
+		return null;
 	}
 }

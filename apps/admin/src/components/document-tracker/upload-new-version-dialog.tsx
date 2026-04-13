@@ -237,7 +237,7 @@ export function UploadNewVersionDialog({
 						Cancel
 					</Button>
 					<Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
-						{isSubmitting ? "Uploading..." : "Upload"}
+						{isSubmitting ? "Uploading Version..." : "Upload Version"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

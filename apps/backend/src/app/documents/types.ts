@@ -20,6 +20,15 @@ export type DocumentDetailEntity = Prisma.DocumentGetPayload<{
 				versionNumber: "desc";
 			};
 		};
+		invitation: {
+			select: {
+				callerSlipId: true;
+				vmDecision: true;
+				vmDecisionRemarks: true;
+				representativeName: true;
+			};
+			take: 1;
+		};
 		documentAudit: {
 			include: {
 				user: {
