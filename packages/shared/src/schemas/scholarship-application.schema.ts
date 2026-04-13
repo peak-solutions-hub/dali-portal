@@ -16,7 +16,10 @@ export const CreateScholarshipApplicationSchema = z.object({
 	province: z.string().min(1),
 	zipCode: z.string().min(1),
 	contactNumber: z.string().min(1),
-	emailAddress: z.string().optional(),
+	emailAddress: z
+		.email({ message: "Enter a valid email address." })
+		.optional()
+		.or(z.literal("")),
 	heiUii: z.string().min(1),
 	heiName: z.string().min(1),
 	fatherLastName: z.string().min(1),
@@ -27,7 +30,10 @@ export const CreateScholarshipApplicationSchema = z.object({
 	motherMaidenMiddleName: z.string().min(1),
 	guardianName: z.string().optional(),
 	guardianContactNo: z.string().min(1),
-	guardianEmailAddress: z.string().optional(),
+	guardianEmailAddress: z
+		.email({ message: "Enter a valid email address." })
+		.optional()
+		.or(z.literal("")),
 });
 
 export const CreateScholarshipApplicationResponseSchema = z.object({

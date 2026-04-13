@@ -17,7 +17,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
-import { Phone } from "@repo/ui/lib/lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -41,6 +40,12 @@ const ASSISTANCE_TYPES = [
 	"Laboratory Fees Assistance",
 	"Burial Assistance",
 ] as const;
+
+const BASE_INPUT_CLASSES =
+	"h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all";
+
+const getInputClassName = (hasError?: boolean) =>
+	`${BASE_INPUT_CLASSES}${hasError ? " border-red-500" : ""}`;
 
 export function AssistanceForm({
 	formState,
@@ -186,15 +191,14 @@ export function AssistanceForm({
 						date={formState.assistanceDate}
 						onSelect={(date) => updateField("assistanceDate", date)}
 						error={hasFieldError("assistanceDate")}
+						showIcon={false}
 					/>
 					<div>
 						<label className="text-sm font-medium text-gray-700">
 							Name of Patient <span className="text-red-500">*</span>
 						</label>
 						<Input
-							className={
-								hasFieldError("firstName") ? "border-red-500" : undefined
-							}
+							className={getInputClassName(hasFieldError("firstName"))}
 							value={formState.firstName}
 							onChange={(event) => updateField("firstName", event.target.value)}
 							placeholder="Enter patient name"
@@ -207,9 +211,7 @@ export function AssistanceForm({
 							Name of Claimant <span className="text-red-500">*</span>
 						</label>
 						<Input
-							className={
-								hasFieldError("familyName") ? "border-red-500" : undefined
-							}
+							className={getInputClassName(hasFieldError("familyName"))}
 							value={formState.familyName}
 							onChange={(event) =>
 								updateField("familyName", event.target.value)
@@ -224,9 +226,7 @@ export function AssistanceForm({
 							Address <span className="text-red-500">*</span>
 						</label>
 						<Input
-							className={
-								hasFieldError("streetBarangay") ? "border-red-500" : undefined
-							}
+							className={getInputClassName(hasFieldError("streetBarangay"))}
 							value={formState.streetBarangay}
 							onChange={(event) =>
 								updateField("streetBarangay", event.target.value)
@@ -246,17 +246,16 @@ export function AssistanceForm({
 									Contact No. <span className="text-red-500">*</span>
 								</FormLabel>
 								<FormControl>
-									<div className="relative group">
-										<Phone className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
+									<div>
 										<Input
 											{...field}
 											type="tel"
 											aria-invalid={
 												fieldState.invalid || hasFieldError("contactNumber")
 											}
-											className={`pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all ${
-												hasFieldError("contactNumber") ? "border-red-500" : ""
-											}`}
+											className={getInputClassName(
+												fieldState.invalid || hasFieldError("contactNumber"),
+											)}
 											value={field.value ?? ""}
 											onChange={(event) => {
 												field.onChange(event.target.value);
@@ -281,9 +280,7 @@ export function AssistanceForm({
 							Assistance Needed <span className="text-red-500">*</span>
 						</label>
 						<Input
-							className={
-								hasFieldError("laboratoryType") ? "border-red-500" : undefined
-							}
+							className={getInputClassName(hasFieldError("laboratoryType"))}
 							value={formState.laboratoryType}
 							onChange={(event) =>
 								updateField("laboratoryType", event.target.value)
@@ -298,9 +295,7 @@ export function AssistanceForm({
 							Amount Needed <span className="text-red-500">*</span>
 						</label>
 						<Input
-							className={
-								hasFieldError("hospitalName") ? "border-red-500" : undefined
-							}
+							className={getInputClassName(hasFieldError("hospitalName"))}
 							value={formState.hospitalName}
 							onChange={(event) =>
 								updateField("hospitalName", event.target.value)
@@ -315,9 +310,7 @@ export function AssistanceForm({
 							Approved Amount <span className="text-red-500">*</span>
 						</label>
 						<Input
-							className={
-								hasFieldError("medicineName") ? "border-red-500" : undefined
-							}
+							className={getInputClassName(hasFieldError("medicineName"))}
 							value={formState.medicineName}
 							onChange={(event) =>
 								updateField("medicineName", event.target.value)
@@ -332,9 +325,7 @@ export function AssistanceForm({
 							Referred By <span className="text-red-500">*</span>
 						</label>
 						<Input
-							className={
-								hasFieldError("givenName") ? "border-red-500" : undefined
-							}
+							className={getInputClassName(hasFieldError("givenName"))}
 							value={formState.givenName}
 							onChange={(event) => updateField("givenName", event.target.value)}
 							placeholder="Enter referrer name"
@@ -347,6 +338,7 @@ export function AssistanceForm({
 						date={formState.endorsementDate}
 						onSelect={(date) => updateField("endorsementDate", date)}
 						error={hasFieldError("endorsementDate")}
+						showIcon={false}
 					/>
 				</div>
 

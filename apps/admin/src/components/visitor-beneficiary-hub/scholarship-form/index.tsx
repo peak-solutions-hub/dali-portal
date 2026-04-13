@@ -17,7 +17,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
-import { Phone } from "@repo/ui/lib/lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -75,6 +74,12 @@ const STEP_FIVE_REQUIRED_FIELDS: Array<keyof MainFormState> = [
 
 const TOTAL_STEPS = 5;
 
+const BASE_INPUT_CLASSES =
+	"h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all";
+
+const getInputClassName = (hasError?: boolean) =>
+	`${BASE_INPUT_CLASSES}${hasError ? " border-red-500" : ""}`;
+
 export function ScholarshipForm({
 	formState,
 	handleInputChange,
@@ -95,6 +100,7 @@ export function ScholarshipForm({
 	});
 	const [step, setStep] = useState(1);
 	const [stepError, setStepError] = useState<string | null>(null);
+	const [emailError, setEmailError] = useState<string | null>(null);
 	const [missingFields, setMissingFields] = useState<
 		Array<keyof MainFormState>
 	>([]);
@@ -115,6 +121,9 @@ export function ScholarshipForm({
 		return !(value instanceof Date);
 	};
 
+	const isValidEmail = (value: string) =>
+		/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
 	const canMoveToNext = () => {
 		const fieldsWithMissingValue = currentStepFields.filter((field) =>
 			isEmptyValue(formState[field]),
@@ -128,8 +137,17 @@ export function ScholarshipForm({
 			return false;
 		}
 
+		if (step === 1) {
+			const emailValue = formState.emailAddress?.trim() ?? "";
+			if (emailValue && !isValidEmail(emailValue)) {
+				setEmailError("Enter a valid email address (e.g., name@example.com).");
+				return false;
+			}
+		}
+
 		setStepError(null);
 		setMissingFields([]);
+		setEmailError(null);
 		return true;
 	};
 
@@ -199,6 +217,13 @@ export function ScholarshipForm({
 		contactForm.setValue("guardianContactNo", formState.guardianContactNo);
 	}, [contactForm, formState.guardianContactNo]);
 
+	useEffect(() => {
+		const emailValue = formState.emailAddress?.trim() ?? "";
+		if (!emailValue || isValidEmail(emailValue)) {
+			setEmailError(null);
+		}
+	}, [formState.emailAddress]);
+
 	const validatePhMobileInput = (value: string) => {
 		if (!value.trim()) {
 			return "Contact number is required.";
@@ -254,66 +279,69 @@ export function ScholarshipForm({
 							<label className="text-sm font-medium text-gray-700">
 								Last Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("lastName") ? "border-red-500" : undefined
-								}
-								value={formState.lastName}
-								onChange={(event) =>
-									updateField("lastName", event.target.value)
-								}
-								placeholder="Enter last name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("lastName"))}
+									value={formState.lastName}
+									onChange={(event) =>
+										updateField("lastName", event.target.value)
+									}
+									placeholder="Enter last name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("lastName")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Given Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("givenName") ? "border-red-500" : undefined
-								}
-								value={formState.givenName}
-								onChange={(event) =>
-									updateField("givenName", event.target.value)
-								}
-								placeholder="Enter given name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("givenName"))}
+									value={formState.givenName}
+									onChange={(event) =>
+										updateField("givenName", event.target.value)
+									}
+									placeholder="Enter given name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("givenName")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Middle Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("scholarshipMiddleName")
-										? "border-red-500"
-										: undefined
-								}
-								value={formState.scholarshipMiddleName}
-								onChange={(event) =>
-									updateField("scholarshipMiddleName", event.target.value)
-								}
-								placeholder="Enter middle name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("scholarshipMiddleName"),
+									)}
+									value={formState.scholarshipMiddleName}
+									onChange={(event) =>
+										updateField("scholarshipMiddleName", event.target.value)
+									}
+									placeholder="Enter middle name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("scholarshipMiddleName")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Ext. Name
 							</label>
-							<Input
-								value={formState.extName}
-								onChange={(event) =>
-									handleInputChange("extName", event.target.value)
-								}
-								placeholder="e.g. Jr., III"
-							/>
+							<div>
+								<Input
+									className={BASE_INPUT_CLASSES}
+									value={formState.extName}
+									onChange={(event) =>
+										handleInputChange("extName", event.target.value)
+									}
+									placeholder="e.g. Jr., III"
+								/>
+							</div>
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
@@ -324,11 +352,7 @@ export function ScholarshipForm({
 								onValueChange={(value) => updateField("scholarshipSex", value)}
 							>
 								<SelectTrigger
-									className={
-										hasFieldError("scholarshipSex")
-											? "border-red-500"
-											: undefined
-									}
+									className={getInputClassName(hasFieldError("scholarshipSex"))}
 								>
 									<SelectValue placeholder="Select sex" />
 								</SelectTrigger>
@@ -348,6 +372,7 @@ export function ScholarshipForm({
 							onSelect={(date) => updateField("scholarshipBirthdate", date)}
 							disabled={(date) => date > new Date()}
 							error={hasFieldError("scholarshipBirthdate")}
+							showIcon={false}
 						/>
 						<FormField
 							control={contactForm.control}
@@ -359,17 +384,16 @@ export function ScholarshipForm({
 										Contact Number <span className="text-red-500">*</span>
 									</FormLabel>
 									<FormControl>
-										<div className="relative group">
-											<Phone className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
+										<div>
 											<Input
 												{...field}
 												type="tel"
 												aria-invalid={
 													fieldState.invalid || hasFieldError("contactNumber")
 												}
-												className={`pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all ${
-													hasFieldError("contactNumber") ? "border-red-500" : ""
-												}`}
+												className={getInputClassName(
+													fieldState.invalid || hasFieldError("contactNumber"),
+												)}
 												value={field.value ?? ""}
 												onChange={(event) => {
 													field.onChange(event.target.value);
@@ -394,16 +418,32 @@ export function ScholarshipForm({
 								Email Address{" "}
 								<span className="font-normal text-gray-500">(optional)</span>
 							</label>
-							<Input
-								type="email"
-								value={formState.emailAddress}
-								onChange={(event) =>
-									handleInputChange("emailAddress", event.target.value)
-								}
-								placeholder="name@example.com"
-								pattern="^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
-								title="Enter a valid email address (e.g., name@example.com)."
-							/>
+							<div>
+								<Input
+									type="email"
+									className={getInputClassName(Boolean(emailError))}
+									value={formState.emailAddress}
+									onChange={(event) => {
+										const nextValue = event.target.value;
+										handleInputChange("emailAddress", nextValue);
+										const trimmedValue = nextValue.trim();
+										if (!trimmedValue || isValidEmail(trimmedValue)) {
+											setEmailError(null);
+										} else {
+											setEmailError(
+												"Enter a valid email address (e.g., name@example.com).",
+											);
+										}
+									}}
+									placeholder="name@example.com"
+									aria-invalid={Boolean(emailError)}
+									pattern="^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+									title="Enter a valid email address (e.g., name@example.com)."
+								/>
+							</div>
+							{emailError && (
+								<p className="mt-1 text-xs text-red-600">{emailError}</p>
+							)}
 						</div>
 					</div>
 				)}
@@ -417,83 +457,87 @@ export function ScholarshipForm({
 							<label className="text-sm font-medium text-gray-700">
 								Student ID <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("studentId") ? "border-red-500" : undefined
-								}
-								value={formState.studentId}
-								onChange={(event) =>
-									updateField("studentId", event.target.value)
-								}
-								placeholder="Enter student ID"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("studentId"))}
+									value={formState.studentId}
+									onChange={(event) =>
+										updateField("studentId", event.target.value)
+									}
+									placeholder="Enter student ID"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("studentId")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Complete Program Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("completeProgramName")
-										? "border-red-500"
-										: undefined
-								}
-								value={formState.completeProgramName}
-								onChange={(event) =>
-									updateField("completeProgramName", event.target.value)
-								}
-								placeholder="Enter complete program name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("completeProgramName"),
+									)}
+									value={formState.completeProgramName}
+									onChange={(event) =>
+										updateField("completeProgramName", event.target.value)
+									}
+									placeholder="Enter complete program name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("completeProgramName")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Year Level <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("yearLevel") ? "border-red-500" : undefined
-								}
-								value={formState.yearLevel}
-								onChange={(event) =>
-									updateField("yearLevel", event.target.value)
-								}
-								placeholder="Enter year level"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("yearLevel"))}
+									value={formState.yearLevel}
+									onChange={(event) =>
+										updateField("yearLevel", event.target.value)
+									}
+									placeholder="Enter year level"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("yearLevel")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								HEI UII <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("heiUii") ? "border-red-500" : undefined
-								}
-								value={formState.heiUii}
-								onChange={(event) => updateField("heiUii", event.target.value)}
-								placeholder="Enter HEI UII"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("heiUii"))}
+									value={formState.heiUii}
+									onChange={(event) =>
+										updateField("heiUii", event.target.value)
+									}
+									placeholder="Enter HEI UII"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("heiUii")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								HEI Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("heiName") ? "border-red-500" : undefined
-								}
-								value={formState.heiName}
-								onChange={(event) => updateField("heiName", event.target.value)}
-								placeholder="Enter HEI name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("heiName"))}
+									value={formState.heiName}
+									onChange={(event) =>
+										updateField("heiName", event.target.value)
+									}
+									placeholder="Enter HEI name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("heiName")}
 						</div>
 					</div>
@@ -508,68 +552,70 @@ export function ScholarshipForm({
 							<label className="text-sm font-medium text-gray-700">
 								Street & Barangay <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("streetBarangay") ? "border-red-500" : undefined
-								}
-								value={formState.streetBarangay}
-								onChange={(event) =>
-									updateField("streetBarangay", event.target.value)
-								}
-								placeholder="Enter street and barangay"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("streetBarangay"))}
+									value={formState.streetBarangay}
+									onChange={(event) =>
+										updateField("streetBarangay", event.target.value)
+									}
+									placeholder="Enter street and barangay"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("streetBarangay")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Town/City/Municipality <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("townCityMunicipality")
-										? "border-red-500"
-										: undefined
-								}
-								value={formState.townCityMunicipality}
-								onChange={(event) =>
-									updateField("townCityMunicipality", event.target.value)
-								}
-								placeholder="Enter town/city/municipality"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("townCityMunicipality"),
+									)}
+									value={formState.townCityMunicipality}
+									onChange={(event) =>
+										updateField("townCityMunicipality", event.target.value)
+									}
+									placeholder="Enter town/city/municipality"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("townCityMunicipality")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Province <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("province") ? "border-red-500" : undefined
-								}
-								value={formState.province}
-								onChange={(event) =>
-									updateField("province", event.target.value)
-								}
-								placeholder="Enter province"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("province"))}
+									value={formState.province}
+									onChange={(event) =>
+										updateField("province", event.target.value)
+									}
+									placeholder="Enter province"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("province")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								ZIP Code <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("zipCode") ? "border-red-500" : undefined
-								}
-								value={formState.zipCode}
-								onChange={(event) => updateField("zipCode", event.target.value)}
-								placeholder="Enter ZIP code"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("zipCode"))}
+									value={formState.zipCode}
+									onChange={(event) =>
+										updateField("zipCode", event.target.value)
+									}
+									placeholder="Enter ZIP code"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("zipCode")}
 						</div>
 					</div>
@@ -584,55 +630,55 @@ export function ScholarshipForm({
 							<label className="text-sm font-medium text-gray-700">
 								Father's Last Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("fatherLastName") ? "border-red-500" : undefined
-								}
-								value={formState.fatherLastName}
-								onChange={(event) =>
-									updateField("fatherLastName", event.target.value)
-								}
-								placeholder="Enter father's last name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("fatherLastName"))}
+									value={formState.fatherLastName}
+									onChange={(event) =>
+										updateField("fatherLastName", event.target.value)
+									}
+									placeholder="Enter father's last name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("fatherLastName")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Father's Given Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("fatherGivenName")
-										? "border-red-500"
-										: undefined
-								}
-								value={formState.fatherGivenName}
-								onChange={(event) =>
-									updateField("fatherGivenName", event.target.value)
-								}
-								placeholder="Enter father's given name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("fatherGivenName"),
+									)}
+									value={formState.fatherGivenName}
+									onChange={(event) =>
+										updateField("fatherGivenName", event.target.value)
+									}
+									placeholder="Enter father's given name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("fatherGivenName")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Father's Middle Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("fatherMiddleName")
-										? "border-red-500"
-										: undefined
-								}
-								value={formState.fatherMiddleName}
-								onChange={(event) =>
-									updateField("fatherMiddleName", event.target.value)
-								}
-								placeholder="Enter father's middle name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("fatherMiddleName"),
+									)}
+									value={formState.fatherMiddleName}
+									onChange={(event) =>
+										updateField("fatherMiddleName", event.target.value)
+									}
+									placeholder="Enter father's middle name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("fatherMiddleName")}
 						</div>
 						<div>
@@ -640,38 +686,38 @@ export function ScholarshipForm({
 								Mother's Maiden Last Name{" "}
 								<span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("motherMaidenLastName")
-										? "border-red-500"
-										: undefined
-								}
-								value={formState.motherMaidenLastName}
-								onChange={(event) =>
-									updateField("motherMaidenLastName", event.target.value)
-								}
-								placeholder="Enter mother's maiden last name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("motherMaidenLastName"),
+									)}
+									value={formState.motherMaidenLastName}
+									onChange={(event) =>
+										updateField("motherMaidenLastName", event.target.value)
+									}
+									placeholder="Enter mother's maiden last name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("motherMaidenLastName")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
 								Mother's Given Name <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("motherGivenName")
-										? "border-red-500"
-										: undefined
-								}
-								value={formState.motherGivenName}
-								onChange={(event) =>
-									updateField("motherGivenName", event.target.value)
-								}
-								placeholder="Enter mother's given name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("motherGivenName"),
+									)}
+									value={formState.motherGivenName}
+									onChange={(event) =>
+										updateField("motherGivenName", event.target.value)
+									}
+									placeholder="Enter mother's given name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("motherGivenName")}
 						</div>
 						<div>
@@ -679,19 +725,19 @@ export function ScholarshipForm({
 								Mother's Maiden Middle Name{" "}
 								<span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("motherMaidenMiddleName")
-										? "border-red-500"
-										: undefined
-								}
-								value={formState.motherMaidenMiddleName}
-								onChange={(event) =>
-									updateField("motherMaidenMiddleName", event.target.value)
-								}
-								placeholder="Enter mother's maiden middle name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("motherMaidenMiddleName"),
+									)}
+									value={formState.motherMaidenMiddleName}
+									onChange={(event) =>
+										updateField("motherMaidenMiddleName", event.target.value)
+									}
+									placeholder="Enter mother's maiden middle name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("motherMaidenMiddleName")}
 						</div>
 					</div>
@@ -706,17 +752,17 @@ export function ScholarshipForm({
 							<label className="text-sm font-medium text-gray-700">
 								Name of Guardian <span className="text-red-500">*</span>
 							</label>
-							<Input
-								className={
-									hasFieldError("guardianName") ? "border-red-500" : undefined
-								}
-								value={formState.guardianName}
-								onChange={(event) =>
-									updateField("guardianName", event.target.value)
-								}
-								placeholder="Enter guardian name"
-								required
-							/>
+							<div>
+								<Input
+									className={getInputClassName(hasFieldError("guardianName"))}
+									value={formState.guardianName}
+									onChange={(event) =>
+										updateField("guardianName", event.target.value)
+									}
+									placeholder="Enter guardian name"
+									required
+								/>
+							</div>
 							{getRequiredFieldMessage("guardianName")}
 						</div>
 						<FormField
@@ -729,8 +775,7 @@ export function ScholarshipForm({
 										Guardian Contact No. <span className="text-red-500">*</span>
 									</FormLabel>
 									<FormControl>
-										<div className="relative group">
-											<Phone className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
+										<div>
 											<Input
 												{...field}
 												type="tel"
@@ -738,11 +783,10 @@ export function ScholarshipForm({
 													fieldState.invalid ||
 													hasFieldError("guardianContactNo")
 												}
-												className={`pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all ${
-													hasFieldError("guardianContactNo")
-														? "border-red-500"
-														: ""
-												}`}
+												className={getInputClassName(
+													fieldState.invalid ||
+														hasFieldError("guardianContactNo"),
+												)}
 												value={field.value ?? ""}
 												onChange={(event) => {
 													field.onChange(event.target.value);
@@ -767,16 +811,22 @@ export function ScholarshipForm({
 								Guardian Email Address{" "}
 								<span className="font-normal text-gray-500">(optional)</span>
 							</label>
-							<Input
-								type="email"
-								value={formState.guardianEmailAddress}
-								onChange={(event) =>
-									handleInputChange("guardianEmailAddress", event.target.value)
-								}
-								placeholder="guardian@example.com"
-								pattern="^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
-								title="Enter a valid email address (e.g., guardian@example.com)."
-							/>
+							<div>
+								<Input
+									type="email"
+									className={BASE_INPUT_CLASSES}
+									value={formState.guardianEmailAddress}
+									onChange={(event) =>
+										handleInputChange(
+											"guardianEmailAddress",
+											event.target.value,
+										)
+									}
+									placeholder="guardian@example.com"
+									pattern="^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+									title="Enter a valid email address (e.g., guardian@example.com)."
+								/>
+							</div>
 						</div>
 					</div>
 				)}

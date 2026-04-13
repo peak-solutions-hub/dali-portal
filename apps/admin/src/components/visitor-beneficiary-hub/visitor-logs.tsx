@@ -43,14 +43,7 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	ArrowUpDown,
-	Download,
-	FileText,
-	Filter,
-	Phone,
-	Plus,
-} from "lucide-react";
+import { ArrowUpDown, Download, FileText, Filter, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -123,6 +116,9 @@ const INITIAL_VISITOR_FORM_STATE = {
 	affiliation: "",
 	purpose: "",
 };
+
+const BASE_INPUT_CLASSES =
+	"h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all";
 
 export function VisitorLogs() {
 	const contactForm = useForm<{ contactNumber: string }>({
@@ -418,6 +414,7 @@ export function VisitorLogs() {
 													disabled={(date) =>
 														Boolean(rangeEnd && date > rangeEnd)
 													}
+													showIcon={false}
 												/>
 												<DatePickerField
 													label="To"
@@ -426,6 +423,7 @@ export function VisitorLogs() {
 													disabled={(date) =>
 														Boolean(rangeStart && date < rangeStart)
 													}
+													showIcon={false}
 												/>
 											</div>
 											<p className="text-xs text-gray-500">
@@ -505,6 +503,7 @@ export function VisitorLogs() {
 													Family Name <span className="text-red-500">*</span>
 												</label>
 												<Input
+													className={BASE_INPUT_CLASSES}
 													value={formState.familyName}
 													onChange={(e) =>
 														handleInputChange("familyName", e.target.value)
@@ -518,6 +517,7 @@ export function VisitorLogs() {
 													First Name <span className="text-red-500">*</span>
 												</label>
 												<Input
+													className={BASE_INPUT_CLASSES}
 													value={formState.firstName}
 													onChange={(e) =>
 														handleInputChange("firstName", e.target.value)
@@ -537,13 +537,12 @@ export function VisitorLogs() {
 															<span className="text-red-500">*</span>
 														</FormLabel>
 														<FormControl>
-															<div className="relative group">
-																<Phone className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#a60202] transition-colors" />
+															<div>
 																<Input
 																	{...field}
 																	type="tel"
 																	aria-invalid={fieldState.invalid}
-																	className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all"
+																	className={BASE_INPUT_CLASSES}
 																	value={field.value ?? ""}
 																	onChange={(event) => {
 																		field.onChange(event.target.value);
@@ -573,6 +572,7 @@ export function VisitorLogs() {
 													Affiliation / Barangay
 												</label>
 												<Input
+													className={BASE_INPUT_CLASSES}
 													value={formState.affiliation}
 													onChange={(e) =>
 														handleInputChange("affiliation", e.target.value)
@@ -586,6 +586,7 @@ export function VisitorLogs() {
 													<span className="text-red-500">*</span>
 												</label>
 												<Input
+													className={BASE_INPUT_CLASSES}
 													value={formState.purpose}
 													onChange={(e) =>
 														handleInputChange("purpose", e.target.value)

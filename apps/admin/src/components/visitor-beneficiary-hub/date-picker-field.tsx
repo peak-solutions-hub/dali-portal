@@ -16,6 +16,7 @@ type DatePickerFieldProps = {
 	onSelect: (date: Date | undefined) => void;
 	disabled?: (date: Date) => boolean;
 	error?: boolean;
+	showIcon?: boolean;
 };
 
 export function DatePickerField({
@@ -24,9 +25,12 @@ export function DatePickerField({
 	onSelect,
 	disabled,
 	error = false,
+	showIcon = true,
 }: DatePickerFieldProps) {
 	const currentYear = new Date().getFullYear();
 	const minYear = Math.max(currentYear - 100, 1950);
+	const baseButtonClasses =
+		"h-12 w-full justify-start border-[rgba(0,0,0,0.1)] text-left text-sm font-normal bg-gray-50/50 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all";
 
 	return (
 		<div className="space-y-1.5">
@@ -37,11 +41,13 @@ export function DatePickerField({
 				<PopoverTrigger asChild>
 					<Button
 						variant="outline"
-						className={`h-9 w-full justify-start gap-2 border-[rgba(0,0,0,0.1)] text-left text-sm font-normal hover:bg-white ${
+						className={`${baseButtonClasses} ${showIcon ? "relative pl-11" : ""} hover:bg-white ${
 							error ? "border-red-500" : ""
 						}`}
 					>
-						<CalendarIcon className="h-4 w-4 text-gray-500" />
+						{showIcon ? (
+							<CalendarIcon className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400" />
+						) : null}
 						{date ? format(date, "P") : "Pick a date"}
 					</Button>
 				</PopoverTrigger>
