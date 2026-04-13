@@ -41,6 +41,19 @@ const ASSISTANCE_TYPES = [
 	"Burial Assistance",
 ] as const;
 
+const REQUIRED_FIELD_LABELS: Partial<Record<keyof MainFormState, string>> = {
+	purpose: "Assistance Type",
+	assistanceDate: "Date",
+	firstName: "Name of Patient",
+	familyName: "Name of Claimant",
+	streetBarangay: "Address",
+	contactNumber: "Contact No.",
+	hospitalName: "Amount Needed",
+	medicineName: "Approved Amount",
+	givenName: "Referred By",
+	endorsementDate: "Endorsement Date",
+};
+
 const BASE_INPUT_CLASSES =
 	"h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all";
 
@@ -67,7 +80,6 @@ export function AssistanceForm({
 		"familyName",
 		"streetBarangay",
 		"contactNumber",
-		"laboratoryType",
 		"hospitalName",
 		"medicineName",
 		"givenName",
@@ -118,7 +130,8 @@ export function AssistanceForm({
 			return null;
 		}
 
-		return <p className="mt-1 text-xs text-red-600">This field is required.</p>;
+		const label = REQUIRED_FIELD_LABELS[field] ?? "This field";
+		return <p className="mt-1 text-xs text-red-600">{label} is required.</p>;
 	};
 
 	const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -126,6 +139,23 @@ export function AssistanceForm({
 			event.preventDefault();
 			return;
 		}
+
+		const normalizedContact = formState.contactNumber.replace(/[\s-]/g, "");
+		if (
+			!/^09\d{9}$/.test(normalizedContact) &&
+			!/^\+639\d{9}$/.test(normalizedContact)
+		) {
+			event.preventDefault();
+			contactForm.setError("contactNumber", {
+				type: "manual",
+				message:
+					"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+			});
+			contactForm.setFocus("contactNumber");
+			return;
+		}
+
+		contactForm.clearErrors("contactNumber");
 
 		onSubmit(event);
 	};
@@ -149,9 +179,18 @@ export function AssistanceForm({
 		);
 	};
 
+	const isStrictPhMobile = (value: string) => {
+		const normalized = value.replace(/[\s-]/g, "");
+		return /^09\d{9}$/.test(normalized) || /^\+639\d{9}$/.test(normalized);
+	};
+
+	const hasStrictContactError =
+		formState.contactNumber.trim() !== "" &&
+		!isStrictPhMobile(formState.contactNumber);
+
 	return (
 		<Form {...contactForm}>
-			<form onSubmit={handleFormSubmit} className="space-y-4">
+			<form onSubmit={handleFormSubmit} className="space-y-4" noValidate>
 				{errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
 
 				<div>
@@ -254,7 +293,9 @@ export function AssistanceForm({
 												fieldState.invalid || hasFieldError("contactNumber")
 											}
 											className={getInputClassName(
-												fieldState.invalid || hasFieldError("contactNumber"),
+												fieldState.invalid ||
+													hasFieldError("contactNumber") ||
+													hasStrictContactError,
 											)}
 											value={field.value ?? ""}
 											onChange={(event) => {
@@ -275,21 +316,6 @@ export function AssistanceForm({
 							</FormItem>
 						)}
 					/>
-					<div>
-						<label className="text-sm font-medium text-gray-700">
-							Assistance Needed <span className="text-red-500">*</span>
-						</label>
-						<Input
-							className={getInputClassName(hasFieldError("laboratoryType"))}
-							value={formState.laboratoryType}
-							onChange={(event) =>
-								updateField("laboratoryType", event.target.value)
-							}
-							placeholder="Enter assistance needed"
-							required
-						/>
-						{getRequiredFieldMessage("laboratoryType")}
-					</div>
 					<div>
 						<label className="text-sm font-medium text-gray-700">
 							Amount Needed <span className="text-red-500">*</span>

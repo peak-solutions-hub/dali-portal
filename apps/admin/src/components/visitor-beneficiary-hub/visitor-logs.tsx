@@ -54,9 +54,7 @@ type VisitorLogEntry = {
 	id: string;
 	dateVisited: string;
 	constituentName: string;
-	purpose: string;
-	affiliation: string | null;
-	remarks: string | null;
+	purposeAffiliation: string;
 	loggedBy: string;
 };
 
@@ -112,13 +110,43 @@ function endOfDayMs(date: Date): number {
 const INITIAL_VISITOR_FORM_STATE = {
 	familyName: "",
 	firstName: "",
+	middleInitial: "",
 	contactNumber: "",
-	affiliation: "",
-	purpose: "",
+	barangay: "",
+	cityMunicipality: "",
+	province: "",
+	reasonForVisitAffiliation: "",
 };
 
 const BASE_INPUT_CLASSES =
 	"h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all";
+
+const REQUIRED_FIELDS: Array<keyof typeof INITIAL_VISITOR_FORM_STATE> = [
+	"familyName",
+	"firstName",
+	"contactNumber",
+	"barangay",
+	"cityMunicipality",
+	"province",
+	"reasonForVisitAffiliation",
+];
+
+const REQUIRED_FIELD_LABELS: Record<
+	keyof typeof INITIAL_VISITOR_FORM_STATE,
+	string
+> = {
+	familyName: "Family Name",
+	firstName: "First Name",
+	middleInitial: "Middle Initial",
+	contactNumber: "Contact Number",
+	barangay: "Barangay",
+	cityMunicipality: "City/Municipality",
+	province: "Province",
+	reasonForVisitAffiliation: "Reason for Visit/Affiliation",
+};
+
+const getInputClassName = (hasError?: boolean) =>
+	`${BASE_INPUT_CLASSES}${hasError ? " border-red-500" : ""}`;
 
 export function VisitorLogs() {
 	const contactForm = useForm<{ contactNumber: string }>({
@@ -137,6 +165,9 @@ export function VisitorLogs() {
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [formState, setFormState] = useState(INITIAL_VISITOR_FORM_STATE);
 	const [formError, setFormError] = useState<string | null>(null);
+	const [missingFields, setMissingFields] = useState<
+		Array<keyof typeof INITIAL_VISITOR_FORM_STATE>
+	>([]);
 	const [filterType, setFilterType] = useState<
 		"none" | "today" | "last7" | "range"
 	>("none");
@@ -165,19 +196,85 @@ export function VisitorLogs() {
 		);
 	};
 
+	const isStrictPhMobile = (value: string) => {
+		const normalized = value.replace(/[\s-]/g, "");
+		return /^09\d{9}$/.test(normalized) || /^\+639\d{9}$/.test(normalized);
+	};
+
+	const hasStrictContactError =
+		formState.contactNumber.trim() !== "" &&
+		!isStrictPhMobile(formState.contactNumber);
+
+	const isEmptyValue = (value: string) => value.trim() === "";
+
+	const hasFieldError = (field: keyof typeof INITIAL_VISITOR_FORM_STATE) =>
+		missingFields.includes(field);
+
+	const getRequiredFieldMessage = (
+		field: keyof typeof INITIAL_VISITOR_FORM_STATE,
+	) => {
+		if (!hasFieldError(field)) {
+			return null;
+		}
+
+		return (
+			<p className="mt-1 text-xs text-red-600">
+				{REQUIRED_FIELD_LABELS[field]} is required.
+			</p>
+		);
+	};
+
 	const handleInputChange = (field: keyof typeof formState, value: string) => {
 		setFormState((prev) => ({ ...prev, [field]: value }));
+
+		if (!missingFields.includes(field) || isEmptyValue(value)) {
+			return;
+		}
+
+		setMissingFields((previous) =>
+			previous.filter((currentField) => currentField !== field),
+		);
 	};
 
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		setFormError(null);
+		contactForm.clearErrors("contactNumber");
+
+		const fieldsWithMissingValue = REQUIRED_FIELDS.filter((field) =>
+			isEmptyValue(formState[field]),
+		);
+
+		setMissingFields(fieldsWithMissingValue);
+		if (fieldsWithMissingValue.length > 0) {
+			return;
+		}
+
+		const normalizedContact = formState.contactNumber.replace(/[\s-]/g, "");
+		if (
+			!/^09\d{9}$/.test(normalizedContact) &&
+			!/^\+639\d{9}$/.test(normalizedContact)
+		) {
+			contactForm.setError("contactNumber", {
+				type: "manual",
+				message:
+					"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+			});
+			contactForm.setFocus("contactNumber");
+			return;
+		}
+
+		contactForm.clearErrors("contactNumber");
 
 		const [error] = await api.visitorLogs.create({
 			familyName: formState.familyName,
 			firstName: formState.firstName,
+			middleInitial: formState.middleInitial,
 			contactNumber: formState.contactNumber,
-			affiliation: formState.affiliation,
-			purpose: formState.purpose,
+			barangay: formState.barangay,
+			cityMunicipality: formState.cityMunicipality,
+			province: formState.province,
+			reasonForVisitAffiliation: formState.reasonForVisitAffiliation,
 		});
 
 		if (error) {
@@ -193,6 +290,8 @@ export function VisitorLogs() {
 			queryKey: visitorLogsQuery.queryKey,
 		});
 		setFormState(INITIAL_VISITOR_FORM_STATE);
+		setMissingFields([]);
+		contactForm.clearErrors("contactNumber");
 		setIsDialogOpen(false);
 	};
 
@@ -493,7 +592,11 @@ export function VisitorLogs() {
 											Fill in the visitor details to add them to the log.
 										</DialogDescription>
 									</DialogHeader>
-									<form onSubmit={handleSubmit} className="space-y-4">
+									<form
+										onSubmit={handleSubmit}
+										className="space-y-4"
+										noValidate
+									>
 										{formError && (
 											<p className="text-sm text-red-600">{formError}</p>
 										)}
@@ -503,7 +606,9 @@ export function VisitorLogs() {
 													Family Name <span className="text-red-500">*</span>
 												</label>
 												<Input
-													className={BASE_INPUT_CLASSES}
+													className={getInputClassName(
+														hasFieldError("familyName"),
+													)}
 													value={formState.familyName}
 													onChange={(e) =>
 														handleInputChange("familyName", e.target.value)
@@ -511,19 +616,36 @@ export function VisitorLogs() {
 													placeholder="Enter family name"
 													required
 												/>
+												{getRequiredFieldMessage("familyName")}
 											</div>
 											<div>
 												<label className="text-sm font-medium text-gray-700">
 													First Name <span className="text-red-500">*</span>
 												</label>
 												<Input
-													className={BASE_INPUT_CLASSES}
+													className={getInputClassName(
+														hasFieldError("firstName"),
+													)}
 													value={formState.firstName}
 													onChange={(e) =>
 														handleInputChange("firstName", e.target.value)
 													}
 													placeholder="Enter first name"
 													required
+												/>
+												{getRequiredFieldMessage("firstName")}
+											</div>
+											<div>
+												<label className="text-sm font-medium text-gray-700">
+													Middle Initial
+												</label>
+												<Input
+													className={BASE_INPUT_CLASSES}
+													value={formState.middleInitial}
+													onChange={(e) =>
+														handleInputChange("middleInitial", e.target.value)
+													}
+													placeholder="e.g. A"
 												/>
 											</div>
 											<FormField
@@ -542,7 +664,11 @@ export function VisitorLogs() {
 																	{...field}
 																	type="tel"
 																	aria-invalid={fieldState.invalid}
-																	className={BASE_INPUT_CLASSES}
+																	className={getInputClassName(
+																		fieldState.invalid ||
+																			hasFieldError("contactNumber") ||
+																			hasStrictContactError,
+																	)}
 																	value={field.value ?? ""}
 																	onChange={(event) => {
 																		field.onChange(event.target.value);
@@ -562,6 +688,7 @@ export function VisitorLogs() {
 															Philippine mobile number (e.g. 09XX or +639XX).
 														</FormDescription>
 														<FormMessage className="text-xs mt-1" />
+														{getRequiredFieldMessage("contactNumber")}
 													</FormItem>
 												)}
 											/>
@@ -569,31 +696,79 @@ export function VisitorLogs() {
 										<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 											<div>
 												<label className="text-sm font-medium text-gray-700">
-													Affiliation / Barangay
+													Barangay <span className="text-red-500">*</span>
 												</label>
 												<Input
-													className={BASE_INPUT_CLASSES}
-													value={formState.affiliation}
+													className={getInputClassName(
+														hasFieldError("barangay"),
+													)}
+													value={formState.barangay}
 													onChange={(e) =>
-														handleInputChange("affiliation", e.target.value)
+														handleInputChange("barangay", e.target.value)
 													}
-													placeholder="e.g. Barangay Molo"
+													placeholder="Enter barangay"
+													required
 												/>
+												{getRequiredFieldMessage("barangay")}
 											</div>
 											<div>
 												<label className="text-sm font-medium text-gray-700">
-													Purpose of Visit{" "}
+													City/Municipality{" "}
 													<span className="text-red-500">*</span>
 												</label>
 												<Input
-													className={BASE_INPUT_CLASSES}
-													value={formState.purpose}
+													className={getInputClassName(
+														hasFieldError("cityMunicipality"),
+													)}
+													value={formState.cityMunicipality}
 													onChange={(e) =>
-														handleInputChange("purpose", e.target.value)
+														handleInputChange(
+															"cityMunicipality",
+															e.target.value,
+														)
 													}
-													placeholder="e.g. Assistance request"
+													placeholder="Enter city or municipality"
 													required
 												/>
+												{getRequiredFieldMessage("cityMunicipality")}
+											</div>
+											<div>
+												<label className="text-sm font-medium text-gray-700">
+													Province <span className="text-red-500">*</span>
+												</label>
+												<Input
+													className={getInputClassName(
+														hasFieldError("province"),
+													)}
+													value={formState.province}
+													onChange={(e) =>
+														handleInputChange("province", e.target.value)
+													}
+													placeholder="Enter province"
+													required
+												/>
+												{getRequiredFieldMessage("province")}
+											</div>
+											<div className="sm:col-span-2">
+												<label className="text-sm font-medium text-gray-700">
+													Reason for Visit/Affiliation{" "}
+													<span className="text-red-500">*</span>
+												</label>
+												<Input
+													className={getInputClassName(
+														hasFieldError("reasonForVisitAffiliation"),
+													)}
+													value={formState.reasonForVisitAffiliation}
+													onChange={(e) =>
+														handleInputChange(
+															"reasonForVisitAffiliation",
+															e.target.value,
+														)
+													}
+													placeholder="e.g. Scholarship Request"
+													required
+												/>
+												{getRequiredFieldMessage("reasonForVisitAffiliation")}
 											</div>
 										</div>
 										<DialogFooter>
@@ -638,13 +813,7 @@ export function VisitorLogs() {
 									Constituent
 								</TableHead>
 								<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-40">
-									Purpose
-								</TableHead>
-								<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-40">
-									Affiliation
-								</TableHead>
-								<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 min-w-64">
-									Remarks
+									Purpose / Affiliation
 								</TableHead>
 								<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-48">
 									Date/Time
@@ -658,7 +827,7 @@ export function VisitorLogs() {
 							{isLoading ? (
 								<TableRow className="border-b border-gray-200 bg-white">
 									<TableCell
-										colSpan={6}
+										colSpan={4}
 										className="px-6 py-10 text-center text-sm text-gray-500"
 									>
 										Loading visitor logs...
@@ -667,7 +836,7 @@ export function VisitorLogs() {
 							) : filteredLogs.length === 0 ? (
 								<TableRow className="border-b border-gray-200 bg-white">
 									<TableCell
-										colSpan={6}
+										colSpan={4}
 										className="px-6 py-10 text-center text-sm text-gray-500"
 									>
 										{hasActiveFilters
@@ -687,13 +856,7 @@ export function VisitorLogs() {
 											{log.constituentName}
 										</TableCell>
 										<TableCell className="px-6 py-4 text-sm text-gray-900">
-											{log.purpose}
-										</TableCell>
-										<TableCell className="px-6 py-4 text-sm text-gray-500">
-											{log.affiliation ?? "-"}
-										</TableCell>
-										<TableCell className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-											{log.remarks}
+											{log.purposeAffiliation}
 										</TableCell>
 										<TableCell className="px-6 py-4 text-sm text-gray-900">
 											{formatDateTime(log.dateVisited)}

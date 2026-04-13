@@ -10,7 +10,6 @@ import type { Prisma } from "@/generated/prisma/client";
 type ConstituentWithRelations = Prisma.ConstituentGetPayload<{
 	include: {
 		household: true;
-		visitorLog: true;
 		assistanceRecord: true;
 		scholarshipApplication: true;
 	};
@@ -75,8 +74,10 @@ export class BeneficiaryService {
 				yearLevel: latestScholarship.yearLevel,
 				heiUii: latestScholarship.heiUii,
 				heiName: latestScholarship.heiName,
-				streetBarangay: constituent.household.streetAndBarangay,
-				townCityMunicipality: constituent.household.town,
+				street: constituent.household.streetAndBarangay,
+				subdivisionVillage: "",
+				scholarshipBarangay: constituent.household.streetAndBarangay,
+				cityMunicipality: constituent.household.town,
 				province: latestScholarship.province,
 				zipCode: latestScholarship.zipCode.toString(),
 				fatherLastName: latestScholarship.fatherLastName,
@@ -92,21 +93,38 @@ export class BeneficiaryService {
 		}
 
 		const latestDate =
-			constituent.visitorLog[0]?.dateVisited ??
 			constituent.assistanceRecord[0]?.createdAt ??
-			new Date();
+			constituent.household.lastAidDate;
 		const defaultAssistanceType =
 			constituent.assistanceRecord[0]?.type ??
 			(latestScholarship ? "Scholarship Grant" : "Assistance Request");
 
-		const visits = constituent.visitorLog.map((visit) => ({
-			id: visit.id,
-			date: visit.dateVisited.toISOString(),
-			title: "Walk-in Visit",
-			assistanceType: defaultAssistanceType,
-			notes: visit.remarks ?? "",
-			assistanceDetails: assistanceDetails[defaultAssistanceType] ?? {},
+		const assistanceVisits = constituent.assistanceRecord.map((record) => ({
+			id: record.id,
+			date: record.createdAt.toISOString(),
+			title: "Beneficiary Record",
+			assistanceType: record.type || "Assistance Request",
+			notes: "",
+			assistanceDetails:
+				assistanceDetails[record.type || "Assistance Request"] ?? {},
 		}));
+
+		const scholarshipVisits = latestScholarship
+			? [
+					{
+						id: `scholarship-${latestScholarship.id.toString()}`,
+						date: constituent.household.lastAidDate.toISOString(),
+						title: "Beneficiary Record",
+						assistanceType: "Scholarship Grant",
+						notes: "",
+						assistanceDetails: assistanceDetails["Scholarship Grant"] ?? {},
+					},
+				]
+			: [];
+
+		const visits = [...assistanceVisits, ...scholarshipVisits].sort(
+			(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+		);
 
 		return {
 			id: constituent.id,
@@ -135,9 +153,6 @@ export class BeneficiaryService {
 			},
 			include: {
 				household: true,
-				visitorLog: {
-					orderBy: { dateVisited: "desc" },
-				},
 				assistanceRecord: {
 					orderBy: { createdAt: "desc" },
 				},
@@ -161,9 +176,6 @@ export class BeneficiaryService {
 			},
 			include: {
 				household: true,
-				visitorLog: {
-					orderBy: { dateVisited: "desc" },
-				},
 				assistanceRecord: {
 					orderBy: { createdAt: "desc" },
 				},

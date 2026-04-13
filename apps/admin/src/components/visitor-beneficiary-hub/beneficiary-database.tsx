@@ -60,11 +60,7 @@ import { DatePickerField } from "./date-picker-field";
 import { ScholarshipForm } from "./scholarship-form";
 
 function formatNameDisplay(fullName: string): string {
-	const parts = fullName.trim().split(/\s+/);
-	if (parts.length <= 1) return fullName;
-	const lastName = parts[parts.length - 1];
-	const firstNames = parts.slice(0, -1).join(" ");
-	return `${lastName}, ${firstNames}`;
+	return fullName;
 }
 
 type VisitEntry = {
@@ -132,8 +128,10 @@ const ASSISTANCE_FIELD_LABELS: Partial<Record<keyof MainFormState, string>> = {
 	assistanceDate: "Date",
 	completeProgramName: "Complete Program Name",
 	yearLevel: "Year Level",
-	streetBarangay: "Street & Barangay",
-	townCityMunicipality: "Town/City/Municipality",
+	street: "Street",
+	subdivisionVillage: "Subdivision/Village",
+	scholarshipBarangay: "Barangay",
+	cityMunicipality: "City/Municipality",
 	province: "Province",
 	zipCode: "ZIP Code",
 	contactNumber: "Contact Number",
@@ -191,8 +189,10 @@ const PERSONAL_INFORMATION_FIELDS: Array<keyof MainFormState> = [
 ];
 
 const ADDRESS_INFORMATION_FIELDS: Array<keyof MainFormState> = [
-	"streetBarangay",
-	"townCityMunicipality",
+	"street",
+	"subdivisionVillage",
+	"scholarshipBarangay",
+	"cityMunicipality",
 	"province",
 	"zipCode",
 ];
@@ -577,8 +577,10 @@ export function BeneficiaryDatabase() {
 				scholarshipFormState.scholarshipBirthdate?.toISOString() ?? "",
 			completeProgramName: scholarshipFormState.completeProgramName,
 			yearLevel: scholarshipFormState.yearLevel,
-			streetBarangay: scholarshipFormState.streetBarangay,
-			townCityMunicipality: scholarshipFormState.townCityMunicipality,
+			street: scholarshipFormState.street,
+			subdivisionVillage: scholarshipFormState.subdivisionVillage,
+			barangay: scholarshipFormState.scholarshipBarangay,
+			cityMunicipality: scholarshipFormState.cityMunicipality,
 			province: scholarshipFormState.province,
 			zipCode: scholarshipFormState.zipCode,
 			contactNumber: scholarshipFormState.contactNumber,
@@ -626,7 +628,6 @@ export function BeneficiaryDatabase() {
 			"familyName",
 			"streetBarangay",
 			"contactNumber",
-			"laboratoryType",
 			"hospitalName",
 			"medicineName",
 			"givenName",
@@ -652,7 +653,6 @@ export function BeneficiaryDatabase() {
 			familyName: assistanceFormState.familyName,
 			streetBarangay: assistanceFormState.streetBarangay,
 			contactNumber: assistanceFormState.contactNumber,
-			laboratoryType: assistanceFormState.laboratoryType,
 			hospitalName: assistanceFormState.hospitalName,
 			medicineName: assistanceFormState.medicineName,
 			givenName: assistanceFormState.givenName,

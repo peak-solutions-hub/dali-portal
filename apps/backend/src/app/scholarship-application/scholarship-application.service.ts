@@ -47,8 +47,8 @@ export class ScholarshipApplicationService {
 
 		const household = await this.db.household.create({
 			data: {
-				streetAndBarangay: input.streetBarangay.trim(),
-				town: input.townCityMunicipality.trim(),
+				streetAndBarangay: `${input.street.trim()}, ${input.subdivisionVillage.trim()}, ${input.barangay.trim()}`,
+				town: input.cityMunicipality.trim(),
 				lastAidDate: new Date(),
 			},
 		});

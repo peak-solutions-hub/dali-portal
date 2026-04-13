@@ -15,13 +15,16 @@ export class VisitorLogService {
 	async create(
 		input: CreateVisitorLogInput,
 	): Promise<CreateVisitorLogResponse> {
-		const affiliation = input.affiliation?.trim() || null;
-		const remarks = input.remarks?.trim() || null;
+		const barangay = input.barangay.trim();
+		const cityMunicipality = input.cityMunicipality.trim();
+		const province = input.province.trim();
+		const reasonForVisitAffiliation = input.reasonForVisitAffiliation.trim();
+		const middleInitial = input.middleInitial?.trim() || null;
 
 		const household = await this.db.household.create({
 			data: {
-				streetAndBarangay: affiliation ?? "Not provided",
-				town: "Iloilo City",
+				streetAndBarangay: `${barangay}, ${province}`,
+				town: cityMunicipality,
 				lastAidDate: new Date(),
 			},
 		});
@@ -31,7 +34,7 @@ export class VisitorLogService {
 				householdId: household.id,
 				firstName: input.firstName.trim(),
 				lastName: input.familyName.trim(),
-				extName: null,
+				extName: middleInitial,
 				contactNumber: input.contactNumber.trim(),
 				sex: "male",
 			},
@@ -40,17 +43,20 @@ export class VisitorLogService {
 		const visitorLog = await this.db.visitorLog.create({
 			data: {
 				constituentId: constituent.id,
-				company: affiliation,
+				company: null,
 				dateVisited: new Date(),
-				purpose: input.purpose.trim(),
-				remarks,
+				purpose: reasonForVisitAffiliation,
+				remarks: null,
 			},
 		});
 
 		return { id: visitorLog.id };
 	}
 
-	async list(role: RoleType): Promise<VisitorLogListResponse> {
+	async list(
+		role: RoleType,
+		loggedByName: string,
+	): Promise<VisitorLogListResponse> {
 		const visitorLogs = await this.db.visitorLog.findMany({
 			orderBy: { dateVisited: "desc" },
 			include: {
@@ -62,15 +68,59 @@ export class VisitorLogService {
 			},
 		});
 
-		return visitorLogs.map((log) => ({
+		const beneficiaryConstituents = await this.db.constituent.findMany({
+			where: {
+				OR: [
+					{ assistanceRecord: { some: {} } },
+					{ scholarshipApplication: { some: {} } },
+				],
+			},
+			include: {
+				household: true,
+				assistanceRecord: {
+					orderBy: { createdAt: "desc" },
+				},
+				scholarshipApplication: true,
+			},
+		});
+
+		const manualRows: VisitorLogListResponse = visitorLogs.map((log) => ({
 			id: log.id,
 			dateVisited: log.dateVisited.toISOString(),
 			constituentName:
 				`${log.constituent.firstName} ${log.constituent.lastName}`.trim(),
-			purpose: log.purpose,
-			affiliation: log.company ?? log.constituent.household.streetAndBarangay,
-			remarks: log.remarks,
-			loggedBy: ROLE_DISPLAY_NAMES[role],
+			purposeAffiliation: log.purpose,
+			loggedBy: loggedByName || ROLE_DISPLAY_NAMES[role],
 		}));
+
+		const derivedRows: VisitorLogListResponse = [];
+		for (const constituent of beneficiaryConstituents) {
+			for (const assistance of constituent.assistanceRecord) {
+				derivedRows.push({
+					id: `assistance-${assistance.id}`,
+					dateVisited: assistance.createdAt.toISOString(),
+					constituentName:
+						`${constituent.firstName} ${constituent.lastName}`.trim(),
+					purposeAffiliation: assistance.type,
+					loggedBy: loggedByName || ROLE_DISPLAY_NAMES[role],
+				});
+			}
+
+			if (constituent.scholarshipApplication.length > 0) {
+				derivedRows.push({
+					id: `scholarship-${constituent.id}`,
+					dateVisited: constituent.household.lastAidDate.toISOString(),
+					constituentName:
+						`${constituent.firstName} ${constituent.lastName}`.trim(),
+					purposeAffiliation: "Request for Scholarship",
+					loggedBy: loggedByName || ROLE_DISPLAY_NAMES[role],
+				});
+			}
+		}
+
+		return [...manualRows, ...derivedRows].sort(
+			(a, b) =>
+				new Date(b.dateVisited).getTime() - new Date(a.dateVisited).getTime(),
+		);
 	}
 }

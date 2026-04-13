@@ -8,7 +8,6 @@ export const CreateAssistanceRecordSchema = z.object({
 	familyName: z.string().min(1),
 	streetBarangay: z.string().min(1),
 	contactNumber: z.string().min(1),
-	laboratoryType: z.string().min(1),
 	hospitalName: z.string().min(1),
 	medicineName: z.string().min(1),
 	givenName: z.string().min(1),

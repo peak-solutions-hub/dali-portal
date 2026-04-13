@@ -31,6 +31,10 @@ export type MainFormState = {
 	yearLevel: string;
 	streetBarangay: string;
 	townCityMunicipality: string;
+	street: string;
+	subdivisionVillage: string;
+	scholarshipBarangay: string;
+	cityMunicipality: string;
 	province: string;
 	zipCode: string;
 	contactNumber: string;
@@ -82,6 +86,10 @@ export const INITIAL_BENEFICIARY_FORM_STATE: MainFormState = {
 	yearLevel: "",
 	streetBarangay: "",
 	townCityMunicipality: "",
+	street: "",
+	subdivisionVillage: "",
+	scholarshipBarangay: "",
+	cityMunicipality: "",
 	province: "",
 	zipCode: "",
 	contactNumber: "",
@@ -165,12 +173,13 @@ export const SCHOLARSHIP_REQUIRED_FIELDS: Array<keyof MainFormState> = [
 	"completeProgramName",
 	"studentId",
 	"yearLevel",
-	"streetBarangay",
-	"townCityMunicipality",
+	"street",
+	"subdivisionVillage",
+	"scholarshipBarangay",
+	"cityMunicipality",
 	"province",
 	"zipCode",
 	"contactNumber",
-	"emailAddress",
 	"heiUii",
 	"heiName",
 	"fatherLastName",

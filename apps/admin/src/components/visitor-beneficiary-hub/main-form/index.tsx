@@ -47,6 +47,23 @@ const CIVIL_STATUS_OPTIONS = [
 	{ label: "Separated", value: "separated" },
 ];
 
+const REQUIRED_FIELD_LABELS: Partial<Record<keyof MainFormState, string>> = {
+	familyName: "Family Name",
+	firstName: "First Name",
+	middleName: "Middle Name",
+	sex: "Sex",
+	civilStatus: "Civil Status",
+	age: "Age",
+	municipality: "Municipality / City",
+	barangay: "Barangay",
+	phoneNumber: "Phone Number",
+	medicineName: "Medicine / Prescription",
+	hospitalName: "Hospital Name",
+	deceasedName: "Deceased Name",
+	relationToDeceased: "Relation to Deceased",
+	laboratoryType: "Laboratory Test Type",
+};
+
 export function MainForm({
 	formState,
 	selectedAssistanceType,
@@ -141,7 +158,8 @@ export function MainForm({
 			return null;
 		}
 
-		return <p className="mt-1 text-xs text-red-600">This field is required.</p>;
+		const label = REQUIRED_FIELD_LABELS[field] ?? "This field";
+		return <p className="mt-1 text-xs text-red-600">{label} is required.</p>;
 	};
 
 	useEffect(() => {
@@ -163,13 +181,55 @@ export function MainForm({
 		);
 	};
 
+	const isStrictPhMobile = (value: string) => {
+		const normalized = value.replace(/[\s-]/g, "");
+		return /^09\d{9}$/.test(normalized) || /^\+639\d{9}$/.test(normalized);
+	};
+
+	const hasStrictPhoneError =
+		formState.phoneNumber.trim() !== "" &&
+		!isStrictPhMobile(formState.phoneNumber);
+
 	const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
 		if (!validateCurrentStep()) {
 			event.preventDefault();
 			return;
 		}
 
+		const normalizedPhone = formState.phoneNumber.replace(/[\s-]/g, "");
+		if (
+			!/^09\d{9}$/.test(normalizedPhone) &&
+			!/^\+639\d{9}$/.test(normalizedPhone)
+		) {
+			event.preventDefault();
+			contactForm.setError("phoneNumber", {
+				type: "manual",
+				message:
+					"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+			});
+			contactForm.setFocus("phoneNumber");
+			return;
+		}
+
+		contactForm.clearErrors("phoneNumber");
+
 		onSubmit(event);
+	};
+
+	const validateStepTwoPhone = () => {
+		if (step !== 2 || isStrictPhMobile(formState.phoneNumber)) {
+			contactForm.clearErrors("phoneNumber");
+			return true;
+		}
+
+		setStepError("Please provide a valid Philippine mobile number.");
+		contactForm.setError("phoneNumber", {
+			type: "manual",
+			message:
+				"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+		});
+		contactForm.setFocus("phoneNumber");
+		return false;
 	};
 
 	const StepDot = ({ index }: { index: number }) => {
@@ -193,7 +253,7 @@ export function MainForm({
 
 	return (
 		<Form {...contactForm}>
-			<form onSubmit={handleFormSubmit} className="space-y-4">
+			<form onSubmit={handleFormSubmit} className="space-y-4" noValidate>
 				{errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
 				{stepError && <p className="text-sm text-red-600">{stepError}</p>}
 
@@ -403,7 +463,9 @@ export function MainForm({
 														fieldState.invalid || hasFieldError("phoneNumber")
 													}
 													className={`pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#a60202] focus:ring-[#a60202]/20 rounded-xl transition-all ${
-														hasFieldError("phoneNumber") ? "border-red-500" : ""
+														hasFieldError("phoneNumber") || hasStrictPhoneError
+															? "border-red-500"
+															: ""
 													}`}
 													value={field.value ?? ""}
 													onChange={(event) => {
@@ -566,6 +628,7 @@ export function MainForm({
 							type="button"
 							onClick={() => {
 								if (!validateCurrentStep()) return;
+								if (!validateStepTwoPhone()) return;
 								setStep((prev) => prev + 1);
 							}}
 						>

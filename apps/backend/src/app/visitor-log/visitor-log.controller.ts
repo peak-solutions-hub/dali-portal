@@ -31,7 +31,10 @@ export class VisitorLogController {
 				throw new AppError("USER.NOT_AUTHENTICATED");
 			}
 
-			return await this.visitorLogService.list(authUser.role);
+			return await this.visitorLogService.list(
+				authUser.role,
+				authUser.fullName,
+			);
 		});
 	}
 }

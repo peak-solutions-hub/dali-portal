@@ -1,12 +1,10 @@
 import { z } from "zod";
 
 export const VisitorLogSchema = z.object({
-	id: z.uuid(),
+	id: z.string().min(1),
 	dateVisited: z.iso.datetime(),
 	constituentName: z.string(),
-	purpose: z.string(),
-	affiliation: z.string().nullable(),
-	remarks: z.string().nullable(),
+	purposeAffiliation: z.string(),
 	loggedBy: z.string(),
 });
 
@@ -15,10 +13,12 @@ export const VisitorLogListSchema = VisitorLogSchema.array();
 export const CreateVisitorLogSchema = z.object({
 	familyName: z.string().min(1),
 	firstName: z.string().min(1),
+	middleInitial: z.string().max(10).optional(),
 	contactNumber: z.string().min(1),
-	affiliation: z.string().optional(),
-	purpose: z.string().min(1),
-	remarks: z.string().optional(),
+	barangay: z.string().min(1),
+	cityMunicipality: z.string().min(1),
+	province: z.string().min(1),
+	reasonForVisitAffiliation: z.string().min(1),
 });
 
 export const CreateVisitorLogResponseSchema = z.object({

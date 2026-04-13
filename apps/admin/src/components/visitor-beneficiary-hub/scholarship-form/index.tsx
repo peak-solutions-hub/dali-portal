@@ -52,8 +52,10 @@ const STEP_TWO_REQUIRED_FIELDS: Array<keyof MainFormState> = [
 ];
 
 const STEP_THREE_REQUIRED_FIELDS: Array<keyof MainFormState> = [
-	"streetBarangay",
-	"townCityMunicipality",
+	"street",
+	"subdivisionVillage",
+	"scholarshipBarangay",
+	"cityMunicipality",
 	"province",
 	"zipCode",
 ];
@@ -71,6 +73,34 @@ const STEP_FIVE_REQUIRED_FIELDS: Array<keyof MainFormState> = [
 	"guardianName",
 	"guardianContactNo",
 ];
+
+const REQUIRED_FIELD_LABELS: Partial<Record<keyof MainFormState, string>> = {
+	lastName: "Last Name",
+	givenName: "Given Name",
+	scholarshipMiddleName: "Middle Name",
+	scholarshipSex: "Sex",
+	scholarshipBirthdate: "Birthdate",
+	contactNumber: "Contact Number",
+	studentId: "Student ID",
+	completeProgramName: "Complete Program Name",
+	yearLevel: "Year Level",
+	heiUii: "HEI UII",
+	heiName: "HEI Name",
+	street: "Street",
+	subdivisionVillage: "Subdivision/Village",
+	scholarshipBarangay: "Barangay",
+	cityMunicipality: "City/Municipality",
+	province: "Province",
+	zipCode: "ZIP Code",
+	fatherLastName: "Father's Last Name",
+	fatherGivenName: "Father's Given Name",
+	fatherMiddleName: "Father's Middle Name",
+	motherMaidenLastName: "Mother's Maiden Last Name",
+	motherGivenName: "Mother's Given Name",
+	motherMaidenMiddleName: "Mother's Maiden Middle Name",
+	guardianName: "Name of Guardian",
+	guardianContactNo: "Guardian Contact No.",
+};
 
 const TOTAL_STEPS = 5;
 
@@ -124,6 +154,19 @@ export function ScholarshipForm({
 	const isValidEmail = (value: string) =>
 		/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
+	const isStrictPhMobile = (value: string) => {
+		const normalized = value.replace(/[\s-]/g, "");
+		return /^09\d{9}$/.test(normalized) || /^\+639\d{9}$/.test(normalized);
+	};
+
+	const hasStrictContactError =
+		formState.contactNumber.trim() !== "" &&
+		!isStrictPhMobile(formState.contactNumber);
+
+	const hasStrictGuardianContactError =
+		formState.guardianContactNo.trim() !== "" &&
+		!isStrictPhMobile(formState.guardianContactNo);
+
 	const canMoveToNext = () => {
 		const fieldsWithMissingValue = currentStepFields.filter((field) =>
 			isEmptyValue(formState[field]),
@@ -143,6 +186,30 @@ export function ScholarshipForm({
 				setEmailError("Enter a valid email address (e.g., name@example.com).");
 				return false;
 			}
+
+			if (!isStrictPhMobile(formState.contactNumber)) {
+				contactForm.setError("contactNumber", {
+					type: "manual",
+					message:
+						"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+				});
+				contactForm.setFocus("contactNumber");
+				return false;
+			}
+			contactForm.clearErrors("contactNumber");
+		}
+
+		if (step === 5) {
+			if (!isStrictPhMobile(formState.guardianContactNo)) {
+				contactForm.setError("guardianContactNo", {
+					type: "manual",
+					message:
+						"Enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).",
+				});
+				contactForm.setFocus("guardianContactNo");
+				return false;
+			}
+			contactForm.clearErrors("guardianContactNo");
 		}
 
 		setStepError(null);
@@ -178,7 +245,8 @@ export function ScholarshipForm({
 			return null;
 		}
 
-		return <p className="mt-1 text-xs text-red-600">This field is required.</p>;
+		const label = REQUIRED_FIELD_LABELS[field] ?? "This field";
+		return <p className="mt-1 text-xs text-red-600">{label} is required.</p>;
 	};
 
 	const StepDot = ({ index }: { index: number }) => {
@@ -225,9 +293,7 @@ export function ScholarshipForm({
 	}, [formState.emailAddress]);
 
 	const validatePhMobileInput = (value: string) => {
-		if (!value.trim()) {
-			return "Contact number is required.";
-		}
+		if (!value.trim()) return true;
 
 		const normalized = value.replace(/[\s-]/g, "");
 		const isValidPartial =
@@ -241,7 +307,7 @@ export function ScholarshipForm({
 
 	return (
 		<Form {...contactForm}>
-			<form onSubmit={handleFormSubmit} className="space-y-4">
+			<form onSubmit={handleFormSubmit} className="space-y-4" noValidate>
 				{errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
 				{stepError && <p className="text-sm text-red-600">{stepError}</p>}
 
@@ -392,7 +458,9 @@ export function ScholarshipForm({
 													fieldState.invalid || hasFieldError("contactNumber")
 												}
 												className={getInputClassName(
-													fieldState.invalid || hasFieldError("contactNumber"),
+													fieldState.invalid ||
+														hasFieldError("contactNumber") ||
+														hasStrictContactError,
 												)}
 												value={field.value ?? ""}
 												onChange={(event) => {
@@ -550,39 +618,77 @@ export function ScholarshipForm({
 						</p>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
-								Street & Barangay <span className="text-red-500">*</span>
+								Street <span className="text-red-500">*</span>
 							</label>
 							<div>
 								<Input
-									className={getInputClassName(hasFieldError("streetBarangay"))}
-									value={formState.streetBarangay}
+									className={getInputClassName(hasFieldError("street"))}
+									value={formState.street}
 									onChange={(event) =>
-										updateField("streetBarangay", event.target.value)
+										updateField("street", event.target.value)
 									}
-									placeholder="Enter street and barangay"
+									placeholder="Enter street"
 									required
 								/>
 							</div>
-							{getRequiredFieldMessage("streetBarangay")}
+							{getRequiredFieldMessage("street")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
-								Town/City/Municipality <span className="text-red-500">*</span>
+								Subdivision/Village <span className="text-red-500">*</span>
 							</label>
 							<div>
 								<Input
 									className={getInputClassName(
-										hasFieldError("townCityMunicipality"),
+										hasFieldError("subdivisionVillage"),
 									)}
-									value={formState.townCityMunicipality}
+									value={formState.subdivisionVillage}
 									onChange={(event) =>
-										updateField("townCityMunicipality", event.target.value)
+										updateField("subdivisionVillage", event.target.value)
 									}
-									placeholder="Enter town/city/municipality"
+									placeholder="Enter subdivision or village"
 									required
 								/>
 							</div>
-							{getRequiredFieldMessage("townCityMunicipality")}
+							{getRequiredFieldMessage("subdivisionVillage")}
+						</div>
+						<div>
+							<label className="text-sm font-medium text-gray-700">
+								Barangay <span className="text-red-500">*</span>
+							</label>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("scholarshipBarangay"),
+									)}
+									value={formState.scholarshipBarangay}
+									onChange={(event) =>
+										updateField("scholarshipBarangay", event.target.value)
+									}
+									placeholder="Enter barangay"
+									required
+								/>
+							</div>
+							{getRequiredFieldMessage("scholarshipBarangay")}
+						</div>
+						<div>
+							<label className="text-sm font-medium text-gray-700">
+								City/Municipality <span className="text-red-500">*</span>
+							</label>
+							<div>
+								<Input
+									className={getInputClassName(
+										hasFieldError("cityMunicipality"),
+									)}
+									value={formState.cityMunicipality}
+									onChange={(event) =>
+										updateField("cityMunicipality", event.target.value)
+									}
+									placeholder="Enter city or municipality"
+									required
+								/>
+							</div>
+							{getRequiredFieldMessage("cityMunicipality")}
 						</div>
 						<div>
 							<label className="text-sm font-medium text-gray-700">
@@ -785,7 +891,8 @@ export function ScholarshipForm({
 												}
 												className={getInputClassName(
 													fieldState.invalid ||
-														hasFieldError("guardianContactNo"),
+														hasFieldError("guardianContactNo") ||
+														hasStrictGuardianContactError,
 												)}
 												value={field.value ?? ""}
 												onChange={(event) => {
