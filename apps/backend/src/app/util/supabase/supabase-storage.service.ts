@@ -62,28 +62,35 @@ export class SupabaseStorageService {
 		options?: SignedUrlOptions,
 	): Promise<SignedUrlResult> {
 		const expiresIn = options?.expiresIn ?? DEFAULT_SIGNED_URL_EXPIRY_SECONDS;
+		const rawPath = path.trim().replace(/^\/+/, "");
 		const normalizedPath = this.normalizeObjectPath(bucket, path);
+		const candidatePaths =
+			normalizedPath === rawPath ? [normalizedPath] : [normalizedPath, rawPath];
 
 		try {
 			const supabase = this.supabaseAdmin.getClient();
-			const { data, error } = await supabase.storage
-				.from(bucket)
-				.createSignedUrl(normalizedPath, expiresIn);
 
-			if (error) {
+			for (const candidatePath of candidatePaths) {
+				const { data, error } = await supabase.storage
+					.from(bucket)
+					.createSignedUrl(candidatePath, expiresIn);
+
+				if (!error) {
+					return {
+						path,
+						signedUrl: data.signedUrl,
+						fileName: this.extractFileName(path),
+					};
+				}
+
 				this.logger.warn(
-					`Failed to generate signed URL for ${bucket}/${normalizedPath}: ${error.message}`,
+					`Failed to generate signed URL for ${bucket}/${candidatePath}: ${error.message}`,
 				);
-				return {
-					path,
-					signedUrl: null,
-					fileName: this.extractFileName(path),
-				};
 			}
 
 			return {
 				path,
-				signedUrl: data.signedUrl,
+				signedUrl: null,
 				fileName: this.extractFileName(path),
 			};
 		} catch (err) {
@@ -183,16 +190,17 @@ export class SupabaseStorageService {
 		_options?: SignedUploadUrlOptions,
 	): Promise<SignedUploadUrlResult> {
 		const supabase = this.supabaseAdmin.getClient();
+		const normalizedPath = this.normalizeObjectPath(bucket, path);
 
 		// Note: createSignedUploadUrl doesn't support custom expiry in current SDK
 		// We use the storage API directly for more control
 		const { data, error } = await supabase.storage
 			.from(bucket)
-			.createSignedUploadUrl(path);
+			.createSignedUploadUrl(normalizedPath);
 
 		if (error) {
 			this.logger.error(
-				`Failed to generate signed upload URL for ${bucket}/${path}: ${error.message}`,
+				`Failed to generate signed upload URL for ${bucket}/${normalizedPath}: ${error.message}`,
 			);
 			throw new AppError("STORAGE.SIGNED_URL_FAILED");
 		}
@@ -235,7 +243,7 @@ export class SupabaseStorageService {
 	 * @param bucket - Storage bucket name
 	 * @param path - Full path of the file to delete
 	 */
-	async deleteFile(bucket: string, path: string): Promise<void> {
+	async deleteFile(bucket: string, path: string): Promise<boolean> {
 		const normalizedPath = this.normalizeObjectPath(bucket, path);
 		try {
 			const supabase = this.supabaseAdmin.getClient();
@@ -246,9 +254,13 @@ export class SupabaseStorageService {
 				this.logger.warn(
 					`Failed to delete file ${bucket}/${normalizedPath}: ${error.message}`,
 				);
+				return false;
 			}
+
+			return true;
 		} catch (err) {
 			this.logger.error(`Error deleting file ${bucket}/${normalizedPath}`, err);
+			return false;
 		}
 	}
 

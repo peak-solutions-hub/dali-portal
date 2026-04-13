@@ -66,7 +66,7 @@ export function SessionDocumentsPanel({
 				if (
 					!doc.title.toLowerCase().includes(searchLower) &&
 					!doc.number.toLowerCase().includes(searchLower) &&
-					!doc.classification.toLowerCase().includes(searchLower)
+					!(doc.classification?.toLowerCase().includes(searchLower) ?? false)
 				) {
 					return false;
 				}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TEXT_LIMITS } from "../constants";
 import {
 	LEGISLATIVE_FEATURED_LIMIT,
 	LEGISLATIVE_ITEMS_PER_PAGE,
@@ -10,6 +11,7 @@ import {
 	ClassificationTypeEnum,
 	DocumentSchema,
 	LegislativeDocumentTypeEnum,
+	StatusTypeEnum,
 } from "./document.schema";
 import { DocumentVersionSchema } from "./document-version.schema";
 
@@ -104,6 +106,20 @@ export const GetLatestLegislativeDocumentSchema = z.object({
 		.default(LEGISLATIVE_FEATURED_LIMIT),
 });
 
+export const PublishLegislativeDocumentSchema = z.object({
+	documentId: z.uuid(),
+	officialNumber: z.string().trim().min(1).max(TEXT_LIMITS.SM),
+	seriesYear: z.coerce.number().int().min(1950).max(2100),
+	dateEnacted: z.coerce.date(),
+	category: ClassificationTypeEnum.optional(),
+});
+
+export const PublishLegislativeDocumentResponseSchema = z.object({
+	legislativeDocumentId: z.number().int().positive(),
+	documentId: z.uuid(),
+	status: StatusTypeEnum,
+});
+
 /**
  * Legislative documents list response
  */
@@ -133,9 +149,15 @@ export type GetLegislativeDocumentByIdInput = z.infer<
 export type GetLatestLegislativeDocumentInput = z.infer<
 	typeof GetLatestLegislativeDocumentSchema
 >;
+export type PublishLegislativeDocumentInput = z.infer<
+	typeof PublishLegislativeDocumentSchema
+>;
 export type LegislativeDocumentListResponse = z.infer<
 	typeof LegislativeDocumentListResponseSchema
 >;
 export type LegislativeDocumentStatistics = z.infer<
 	typeof LegislativeDocumentStatisticsSchema
+>;
+export type PublishLegislativeDocumentResponse = z.infer<
+	typeof PublishLegislativeDocumentResponseSchema
 >;

@@ -8,11 +8,12 @@ import type {
 import { DbService } from "@/app/db/db.service";
 import {
 	type LegislativeDocumentWithRelations,
-	transformLegislativeDocument,
-	transformPagination,
-} from "@/app/legislative-documents/pipes";
+	toLegislativeDocumentResponse,
+	toPaginationInfo,
+} from "@/app/legislative-documents/dtos";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
 import { Prisma } from "@/generated/prisma/client";
+import type { ClassificationType as PrismaClassificationType } from "@/generated/prisma/enums";
 
 const LEGISLATIVE_DOCUMENT_INCLUDE = {
 	document: {
@@ -37,7 +38,7 @@ export class LegislativeDocumentsService {
 	private toResponse(
 		doc: LegislativeDocumentWithRelations,
 	): LegislativeDocumentWithDetails {
-		return transformLegislativeDocument(doc);
+		return toLegislativeDocumentResponse(doc);
 	}
 
 	async findAll(
@@ -92,7 +93,7 @@ export class LegislativeDocumentsService {
 
 		return {
 			documents: enrichedDocs,
-			pagination: transformPagination({
+			pagination: toPaginationInfo({
 				page: validatedPage,
 				limit,
 				totalItems,
@@ -152,7 +153,7 @@ export class LegislativeDocumentsService {
 
 		return {
 			documents: enrichedDocs,
-			pagination: transformPagination({
+			pagination: toPaginationInfo({
 				page: 1,
 				limit,
 				totalItems: enrichedDocs.length,
@@ -224,7 +225,7 @@ export class LegislativeDocumentsService {
 
 		if (classification) {
 			where.document = {
-				classification: classification as Prisma.EnumClassificationTypeFilter,
+				classification: classification as PrismaClassificationType,
 			};
 		}
 

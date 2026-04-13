@@ -9,6 +9,7 @@ const config: Config = {
 		"^.+\\.(t|j)s$": "ts-jest",
 	},
 	moduleNameMapper: {
+		"^@/generated/(.*)$": "<rootDir>/../generated/$1",
 		"^@/(.*)$": "<rootDir>/$1",
 	},
 };

@@ -32,6 +32,7 @@ import {
 	type UnpublishSessionInput,
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
+import { TransactionService } from "@/app/db/transaction.service";
 import { SupabaseStorageService } from "@/app/util/supabase/supabase-storage.service";
 import {
 	Prisma,
@@ -42,10 +43,12 @@ import {
 @Injectable()
 export class SessionManagementService {
 	private readonly logger = new Logger(SessionManagementService.name);
+	private static readonly PHT_UTC_OFFSET_HOURS = 8;
 
 	constructor(
 		private readonly db: DbService,
 		private readonly storage: SupabaseStorageService,
+		private readonly transactionService: TransactionService,
 	) {}
 
 	/* ============================
@@ -120,27 +123,33 @@ export class SessionManagementService {
 		};
 	}
 
-	private getPhtDayRange(date: Date): { start: Date; end: Date } {
+	private getPhtDayWindow(dateInput: Date): { dateStart: Date; dateEnd: Date } {
 		const parts = new Intl.DateTimeFormat("en-US", {
-			timeZone: PH_TIME_ZONE,
+			timeZone: "Asia/Manila",
 			year: "numeric",
 			month: "2-digit",
 			day: "2-digit",
-		}).formatToParts(date);
+		}).formatToParts(dateInput);
 
 		const year = Number(parts.find((part) => part.type === "year")?.value);
 		const month = Number(parts.find((part) => part.type === "month")?.value);
 		const day = Number(parts.find((part) => part.type === "day")?.value);
 
-		if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
-			throw new AppError("SESSION.CREATION_FAILED");
-		}
+		const dateStart = new Date(
+			Date.UTC(
+				year,
+				month - 1,
+				day,
+				-SessionManagementService.PHT_UTC_OFFSET_HOURS,
+				0,
+				0,
+				0,
+			),
+		);
+		const dateEnd = new Date(dateStart);
+		dateEnd.setUTCDate(dateEnd.getUTCDate() + 1);
 
-		// Convert PHT day start (00:00 at UTC+8) to UTC, which is 16:00Z on the previous day.
-		const start = new Date(Date.UTC(year, month - 1, day, -8, 0, 0, 0));
-		const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-
-		return { start, end };
+		return { dateStart, dateEnd };
 	}
 
 	/* ============================
@@ -251,45 +260,64 @@ export class SessionManagementService {
 	 * Create a new draft session (ADMIN)
 	 */
 	async create(input: CreateSessionInput): Promise<AdminSessionResponse> {
-		// Check for duplicate session on the same Philippine calendar date.
-		const { start: dateStart, end: dateEnd } = this.getPhtDayRange(
-			new Date(input.scheduleDate),
-		);
-
-		const existing = await this.db.session.findFirst({
-			where: {
-				scheduleDate: { gte: dateStart, lt: dateEnd },
-			},
-		});
-
-		if (existing) {
-			this.logger.warn(
-				`Duplicate session creation attempt for date ${input.scheduleDate}`,
-			);
-			throw new AppError("SESSION.DUPLICATE_DATE");
-		}
-
-		// Auto-generate next session number
-		const maxResult = await this.db.session.aggregate({
-			_max: { sessionNumber: true },
-		});
-		const nextNumber = maxResult._max.sessionNumber
-			? Number(maxResult._max.sessionNumber) + 1
-			: 1;
+		const { dateStart, dateEnd } = this.getPhtDayWindow(input.scheduleDate);
 
 		try {
-			const session = await this.db.session.create({
-				data: {
-					sessionNumber: nextNumber,
-					scheduleDate: input.scheduleDate,
-					type: input.type as PrismaSessionType,
-					status: getInitialSessionStatus(),
-				},
-			});
+			const session = await this.transactionService.run(
+				"sessions.create",
+				async (tx) => {
+					const existing = await tx.session.findFirst({
+						where: {
+							scheduleDate: { gte: dateStart, lt: dateEnd },
+						},
+					});
 
-			this.logger.log(`Session #${nextNumber} created as draft`);
+					if (existing) {
+						this.logger.warn(
+							`Duplicate session creation attempt for date ${input.scheduleDate}`,
+						);
+						throw new AppError("SESSION.DUPLICATE_DATE");
+					}
+
+					const maxResult = await tx.session.aggregate({
+						_max: { sessionNumber: true },
+					});
+					const nextNumber = maxResult._max.sessionNumber
+						? Number(maxResult._max.sessionNumber) + 1
+						: 1;
+
+					return tx.session.create({
+						data: {
+							sessionNumber: nextNumber,
+							scheduleDate: input.scheduleDate,
+							type: input.type as PrismaSessionType,
+							status: getInitialSessionStatus(),
+						},
+					});
+				},
+				{
+					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+					retries: 3,
+					timeout: 10_000,
+					maxWait: 5_000,
+				},
+			);
+
+			this.logger.log(
+				`Session #${Number(session.sessionNumber)} created as draft`,
+			);
 			return this.transformSession(session) as AdminSessionResponse;
 		} catch (error) {
+			if (error instanceof AppError) throw error;
+			if (
+				error instanceof Prisma.PrismaClientKnownRequestError &&
+				error.code === "P2002"
+			) {
+				throw new AppError(
+					"GENERAL.CONFLICT",
+					"Session number conflict. Please retry creating the session.",
+				);
+			}
 			this.logger.error("Failed to create session", error);
 			throw new AppError("SESSION.CREATION_FAILED");
 		}

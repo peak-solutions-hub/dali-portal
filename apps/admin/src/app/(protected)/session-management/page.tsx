@@ -5,6 +5,7 @@ import {
 	formatDateInPHT,
 	formatIsoDateInPHT,
 	parseDateInput,
+	SessionManagementDocument,
 	type SessionManagementSession as SessionUI,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
@@ -112,20 +113,7 @@ function AgendaBuilderPage() {
 	}, [queryClient]);
 
 	const [selectedSession, setSelectedSession] = useState<string | null>(null);
-	const [documents, setDocuments] = useState<
-		{
-			id: string;
-			title: string;
-			type: string;
-			number: string;
-			classification: string;
-			status: string;
-			purpose: string;
-			receivedAt: string;
-			authors: string[];
-			sponsors: string[];
-		}[]
-	>([]);
+	const [documents, setDocuments] = useState<SessionManagementDocument[]>([]);
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);

@@ -15,6 +15,7 @@ export interface NavigationItem {
 	href: string;
 	icon: React.ElementType;
 	allowedRoles: RoleType[];
+	children?: NavigationItem[];
 }
 
 /**
@@ -73,9 +74,8 @@ export const navigationItems: NavigationItem[] = [
 ];
 
 /**
- * Filter navigation items based on user role
- * @param role - The user's role
- * @returns Filtered navigation items the user has access to
+ * Filter navigation items based on user role.
+ * Keeps parent items if the parent or any child is visible.
  */
 export function getFilteredNavItems(
 	role: RoleType | undefined,
@@ -83,5 +83,11 @@ export function getFilteredNavItems(
 	if (!role) {
 		return [];
 	}
-	return navigationItems.filter((item) => item.allowedRoles.includes(role));
+	return navigationItems.filter((item) => {
+		const parentVisible = item.allowedRoles.includes(role);
+		const childrenVisible = item.children?.some((child) =>
+			child.allowedRoles.includes(role),
+		);
+		return parentVisible || childrenVisible;
+	});
 }

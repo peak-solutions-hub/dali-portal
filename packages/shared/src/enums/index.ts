@@ -1,3 +1,4 @@
+export * from "./caller-slip";
 export * from "./constituent";
 export * from "./document";
 export * from "./inquiry";

@@ -1,3 +1,7 @@
+// YR-MO-XXXX (xxxx as order number)
+
+export type DocumentIDType = `${string}-${string}-${string}`;
+
 export const DocumentType = {
 	// Legislative Documents (go through Sessions)
 	PROPOSED_ORDINANCE: "proposed_ordinance",
