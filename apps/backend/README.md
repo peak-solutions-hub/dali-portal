@@ -130,7 +130,14 @@ pnpm start:prod
 ## 🧪 Testing
 
 ```bash
-pnpm test        # Unit tests
-pnpm test:e2e    # E2E tests
-pnpm test:cov    # Coverage
+cp .env.test.example .env.test
+
+pnpm test:unit          # Unit tests
+pnpm test:integration   # Integration tests (DB-backed)
+pnpm test:e2e           # Backend e2e tests (DB-backed)
 ```
+
+Required test env values:
+- `DATABASE_URL` must point to a dedicated test database.
+- `TEST_DB_ALLOWED_HOSTS` and `TEST_DB_ALLOWED_PROJECT_REFS` must explicitly allow the target test DB host/project for destructive reset safety.
+- Do not reuse dev/prod credentials in `.env.test`.

@@ -24,7 +24,7 @@ function readBackendTestEnv(key: string): string | undefined {
 
 const BACKEND_PORT = process.env.PORT ?? readBackendTestEnv("PORT") ?? "8080";
 const BACKEND_URL =
-	process.env.BACKEND_URL ?? `http://127.0.0.1:${BACKEND_PORT}`;
+	process.env.BACKEND_URL ?? `http://localhost:${BACKEND_PORT}`;
 
 test.describe("Backend API smoke tests", () => {
 	test("GET / returns 200", async ({ request }) => {

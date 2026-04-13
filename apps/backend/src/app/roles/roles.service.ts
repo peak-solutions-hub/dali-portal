@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { RoleListResponse } from "@repo/shared";
+import { ALL_ROLES, type RoleListResponse, RoleSchema } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 
 @Injectable()
@@ -8,13 +8,19 @@ export class RolesService {
 
 	async getRoles(): Promise<RoleListResponse> {
 		const roles = await this.db.role.findMany({
-			orderBy: {
-				name: "asc",
+			where: {
+				name: {
+					in: ALL_ROLES,
+				},
 			},
 		});
 
+		const validRoles = roles
+			.filter((role) => RoleSchema.safeParse(role).success)
+			.sort((a, b) => a.name.localeCompare(b.name));
+
 		return {
-			roles,
+			roles: validRoles,
 		};
 	}
 }
