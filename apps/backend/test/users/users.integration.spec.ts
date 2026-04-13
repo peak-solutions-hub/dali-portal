@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
 	afterAll,
 	beforeEach,
@@ -75,29 +76,34 @@ describe("UsersService integration", () => {
 		const roleIt = await createRole("it_admin");
 		const roleOvm = await createRole("ovm_staff");
 
+		const deactivatedId = randomUUID();
+		const activeOvmId = randomUUID();
+		const invitedId = randomUUID();
+		const activeItId = randomUUID();
+
 		await createUser({
-			id: "00000000-0000-0000-0000-000000000001",
+			id: deactivatedId,
 			email: "deactivated@example.com",
 			fullName: "Deactivated User",
 			status: "deactivated",
 			roleId: roleAdmin.id,
 		});
 		await createUser({
-			id: "00000000-0000-0000-0000-000000000002",
+			id: activeOvmId,
 			email: "active-ovm@example.com",
 			fullName: "Active OVM",
 			status: "active",
 			roleId: roleOvm.id,
 		});
 		await createUser({
-			id: "00000000-0000-0000-0000-000000000003",
+			id: invitedId,
 			email: "invited@example.com",
 			fullName: "Invited User",
 			status: "invited",
 			roleId: roleAdmin.id,
 		});
 		await createUser({
-			id: "00000000-0000-0000-0000-000000000004",
+			id: activeItId,
 			email: "active-it@example.com",
 			fullName: "Active IT",
 			status: "active",
@@ -106,18 +112,34 @@ describe("UsersService integration", () => {
 
 		const result: Awaited<ReturnType<UsersService["getUsers"]>> =
 			await service.getUsers({});
-		expect(result.users.map((user: { id: string }) => user.id)).toEqual([
-			"00000000-0000-0000-0000-000000000003",
-			"00000000-0000-0000-0000-000000000004",
-			"00000000-0000-0000-0000-000000000002",
-			"00000000-0000-0000-0000-000000000001",
+		const returnedIds = result.users.map((user: { id: string }) => user.id);
+		const fixtureIds: string[] = [
+			invitedId,
+			activeItId,
+			activeOvmId,
+			deactivatedId,
+		];
+
+		for (const id of fixtureIds) {
+			expect(returnedIds).toContain(id);
+		}
+
+		const fixtureUsers = result.users.filter((user: { id: string }) =>
+			fixtureIds.includes(user.id),
+		);
+		expect(fixtureUsers.map((user: { id: string }) => user.id)).toEqual([
+			invitedId,
+			activeItId,
+			activeOvmId,
+			deactivatedId,
 		]);
 	});
 
 	it("invites a user and creates an invited DB record", async () => {
 		const role = await createRole("admin_staff");
+		const invitedUserId = randomUUID();
 		supabaseMock.auth.admin.inviteUserByEmail.mockResolvedValue({
-			data: { user: { id: "10000000-0000-0000-0000-000000000001" } },
+			data: { user: { id: invitedUserId } },
 			error: null,
 		});
 
@@ -128,7 +150,7 @@ describe("UsersService integration", () => {
 		});
 
 		const created = await prisma.user.findUnique({
-			where: { id: "10000000-0000-0000-0000-000000000001" },
+			where: { id: invitedUserId },
 		});
 
 		expect(result.success).toBe(true);
@@ -138,9 +160,12 @@ describe("UsersService integration", () => {
 
 	it("reinvites invited user by rotating auth id and keeping invited status", async () => {
 		const role = await createRole("admin_staff");
+		const oldUserId = randomUUID();
+		const newUserId = randomUUID();
+		const reinviteEmail = `reinvite.integration.${Date.now()}@example.com`;
 		await createUser({
-			id: "20000000-0000-0000-0000-000000000001",
-			email: "reinvite.integration@example.com",
+			id: oldUserId,
+			email: reinviteEmail,
 			fullName: "Reinvite Integration",
 			status: "invited",
 			roleId: role.id,
@@ -151,35 +176,33 @@ describe("UsersService integration", () => {
 			error: null,
 		});
 		supabaseMock.auth.admin.inviteUserByEmail.mockResolvedValue({
-			data: { user: { id: "20000000-0000-0000-0000-000000000002" } },
+			data: { user: { id: newUserId } },
 			error: null,
 		});
 
 		await service.inviteUser({
-			email: "reinvite.integration@example.com",
+			email: reinviteEmail,
 			fullName: "Reinvite Integration Updated",
 			roleId: role.id,
 		});
 
 		const oldUser = await prisma.user.findUnique({
-			where: { id: "20000000-0000-0000-0000-000000000001" },
+			where: { id: oldUserId },
 		});
 		const newUser = await prisma.user.findUnique({
-			where: { id: "20000000-0000-0000-0000-000000000002" },
+			where: { id: newUserId },
 		});
 
 		expect(oldUser).toBeNull();
 		expect(newUser?.status).toBe("invited");
-		expect(supabaseMock.auth.admin.deleteUser).toHaveBeenCalledWith(
-			"20000000-0000-0000-0000-000000000001",
-		);
+		expect(supabaseMock.auth.admin.deleteUser).toHaveBeenCalledWith(oldUserId);
 	});
 
 	it("prevents IT admin self-demotion", async () => {
 		const roleIt = await createRole("it_admin");
 		const roleAdmin = await createRole("admin_staff");
 		const user = await createUser({
-			id: "30000000-0000-0000-0000-000000000001",
+			id: randomUUID(),
 			email: "self.demote@example.com",
 			fullName: "Self Demotion",
 			status: "active",
@@ -194,7 +217,7 @@ describe("UsersService integration", () => {
 	it("deactivates and reactivates a user", async () => {
 		const role = await createRole("admin_staff");
 		const user = await createUser({
-			id: "40000000-0000-0000-0000-000000000001",
+			id: randomUUID(),
 			email: "reactivate.integration@example.com",
 			fullName: "Reactivation Candidate",
 			status: "active",

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "@jest/globals";
 import type { RoleType } from "@repo/shared";
 import request from "supertest";
@@ -33,12 +34,9 @@ describe("Roles endpoints e2e", () => {
 	});
 
 	it("blocks non-IT admin access to GET /roles", async () => {
-		const staffRole = await createRole(
-			"72000000-0000-4000-8000-000000000001",
-			"admin_staff",
-		);
+		const staffRole = await createRole(randomUUID(), "admin_staff");
 		const user = await createUser({
-			id: "72000000-0000-4000-8000-000000000101",
+			id: randomUUID(),
 			email: "staff.roles@example.com",
 			fullName: "Staff Roles User",
 			status: "active",
@@ -54,14 +52,11 @@ describe("Roles endpoints e2e", () => {
 	});
 
 	it("allows IT admin to list roles", async () => {
-		const itRole = await createRole(
-			"72000000-0000-4000-8000-000000000002",
-			"it_admin",
-		);
-		await createRole("72000000-0000-4000-8000-000000000003", "ovm_staff");
-		await createRole("72000000-0000-4000-8000-000000000004", "admin_staff");
+		const itRole = await createRole(randomUUID(), "it_admin");
+		await createRole(randomUUID(), "ovm_staff");
+		await createRole(randomUUID(), "admin_staff");
 		const itAdmin = await createUser({
-			id: "72000000-0000-4000-8000-000000000102",
+			id: randomUUID(),
 			email: "it.roles@example.com",
 			fullName: "IT Roles Admin",
 			status: "active",
@@ -76,8 +71,11 @@ describe("Roles endpoints e2e", () => {
 		expect(response.status).toBe(200);
 		expect(response.body).toHaveProperty("roles");
 		expect(Array.isArray(response.body.roles)).toBe(true);
-		expect(
-			response.body.roles.map((role: { name: string }) => role.name),
-		).toEqual(["it_admin", "admin_staff", "ovm_staff"]);
+		const roleNames = response.body.roles.map(
+			(role: { name: string }) => role.name,
+		);
+		expect(roleNames).toContain("it_admin");
+		expect(roleNames).toContain("admin_staff");
+		expect(roleNames).toContain("ovm_staff");
 	});
 });

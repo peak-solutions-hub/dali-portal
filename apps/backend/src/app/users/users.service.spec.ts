@@ -21,9 +21,11 @@ describe("UsersService", () => {
 		fullName: string;
 		status: "invited" | "active" | "deactivated";
 		roleId: string;
+		createdAt: Date;
 		role: {
 			id?: string;
 			name: string;
+			createdAt?: Date;
 		};
 	};
 
@@ -83,9 +85,11 @@ describe("UsersService", () => {
 		fullName: "Test User",
 		status: "active" as const,
 		roleId: "0f0828ec-ff80-4f4c-b66a-1778cd42e8d0",
+		createdAt: new Date("2026-01-01T00:00:00.000Z"),
 		role: {
 			id: "0f0828ec-ff80-4f4c-b66a-1778cd42e8d0",
 			name: "it_admin",
+			createdAt: new Date("2026-01-01T00:00:00.000Z"),
 		},
 		...overrides,
 	});
@@ -130,23 +134,51 @@ describe("UsersService", () => {
 		it("sorts users by status priority then role priority", async () => {
 			mockDb.user.findMany.mockResolvedValue([
 				makeUser({
-					id: "1",
+					id: "00000000-0000-4000-8000-000000000001",
 					status: "deactivated",
-					role: { name: "admin_staff" },
+					role: {
+						id: "10000000-0000-4000-8000-000000000001",
+						name: "admin_staff",
+						createdAt: new Date("2026-01-01T00:00:00.000Z"),
+					},
 				}),
-				makeUser({ id: "2", status: "active", role: { name: "ovm_staff" } }),
-				makeUser({ id: "3", status: "invited", role: { name: "admin_staff" } }),
-				makeUser({ id: "4", status: "active", role: { name: "it_admin" } }),
+				makeUser({
+					id: "00000000-0000-4000-8000-000000000002",
+					status: "active",
+					role: {
+						id: "10000000-0000-4000-8000-000000000002",
+						name: "ovm_staff",
+						createdAt: new Date("2026-01-01T00:00:00.000Z"),
+					},
+				}),
+				makeUser({
+					id: "00000000-0000-4000-8000-000000000003",
+					status: "invited",
+					role: {
+						id: "10000000-0000-4000-8000-000000000003",
+						name: "admin_staff",
+						createdAt: new Date("2026-01-01T00:00:00.000Z"),
+					},
+				}),
+				makeUser({
+					id: "00000000-0000-4000-8000-000000000004",
+					status: "active",
+					role: {
+						id: "10000000-0000-4000-8000-000000000004",
+						name: "it_admin",
+						createdAt: new Date("2026-01-01T00:00:00.000Z"),
+					},
+				}),
 			]);
 
 			const result: Awaited<ReturnType<UsersService["getUsers"]>> =
 				await service.getUsers({});
 
 			expect(result.users.map((u: { id: string }) => u.id)).toEqual([
-				"3",
-				"4",
-				"2",
-				"1",
+				"00000000-0000-4000-8000-000000000003",
+				"00000000-0000-4000-8000-000000000004",
+				"00000000-0000-4000-8000-000000000002",
+				"00000000-0000-4000-8000-000000000001",
 			]);
 			expect(mockDb.user.findMany).toHaveBeenCalledWith(
 				expect.objectContaining({

@@ -2,11 +2,10 @@ import { expect, test } from "@playwright/test";
 import {
 	getAccessTokenForCredentials,
 	getRequiredEnv,
-	signInAsItAdmin,
-	signInAsNonAdmin,
 	skipIfMissingItAdminCredentials,
 	skipIfMissingNonAdminCredentials,
 } from "@repo/playwright-utils/session";
+import { loginWithCredentials } from "@repo/playwright-utils/ui/auth";
 
 function getApiBaseUrl(): string {
 	const explicitBaseUrl =
@@ -15,7 +14,7 @@ function getApiBaseUrl(): string {
 		return explicitBaseUrl.replace(/\/$/, "");
 	}
 
-	return `http://127.0.0.1:${process.env.PORT ?? "8080"}`;
+	return `http://localhost:${process.env.PORT ?? "8080"}`;
 }
 
 function pendingFlow(title: string, reason: string) {
@@ -83,16 +82,33 @@ test.describe("RM Flows", () => {
 		context,
 	}) => {
 		skipIfMissingItAdminCredentials();
-		skipIfMissingNonAdminCredentials();
+		const viceMayorEmail = getRequiredEnv("E2E_VICE_MAYOR_EMAIL");
+		const viceMayorPassword = getRequiredEnv("E2E_VICE_MAYOR_PASSWORD");
+		const nonAdminEmail = getRequiredEnv("E2E_NON_ADMIN_EMAIL");
+		const nonAdminPassword = getRequiredEnv("E2E_NON_ADMIN_PASSWORD");
 
-		await signInAsItAdmin(context);
-		await page.goto("/dashboard");
-		await expect(
-			page.getByRole("link", { name: "User Management" }),
-		).toBeVisible();
+		const fallbackEmail = viceMayorEmail ?? nonAdminEmail;
+		const fallbackPassword = viceMayorPassword ?? nonAdminPassword;
+
+		test.skip(
+			!fallbackEmail || !fallbackPassword,
+			"Missing role credentials (E2E_VICE_MAYOR_* or E2E_NON_ADMIN_*).",
+		);
+
+		await loginWithCredentials(
+			page,
+			getRequiredEnv("E2E_IT_ADMIN_EMAIL") as string,
+			getRequiredEnv("E2E_IT_ADMIN_PASSWORD") as string,
+		);
+		await expect(page).toHaveURL(/\/user-management$/);
 
 		await context.clearCookies();
-		await signInAsNonAdmin(context);
+		await page.goto("/login");
+		await loginWithCredentials(
+			page,
+			fallbackEmail as string,
+			fallbackPassword as string,
+		);
 		await page.goto("/dashboard");
 		await expect(
 			page.getByRole("link", { name: "User Management" }),

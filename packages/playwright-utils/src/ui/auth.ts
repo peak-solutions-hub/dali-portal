@@ -13,7 +13,11 @@ export async function loginWithCredentials(
 	await openLogin(page);
 	await page.locator("#email").fill(email);
 	await page.locator("#password").fill(password);
+
 	await page.getByRole("button", { name: "Sign In" }).click();
+
+	// Allow auth requests and potential navigation to settle.
+	await page.waitForLoadState("networkidle");
 }
 
 export async function openForgotPassword(page: Page) {

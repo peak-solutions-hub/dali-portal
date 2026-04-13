@@ -12,6 +12,160 @@ import {
 	submitForgotPassword,
 } from "@repo/playwright-utils/ui/auth";
 
+type RoleLoginCase = {
+	id: string;
+	roleLabel: string;
+	emailEnv: string;
+	passwordEnv: string;
+	expectedRedirectPath: RegExp;
+	visibleSidebarItems: string[];
+	hiddenSidebarItems: string[];
+};
+
+const roleLoginCases: RoleLoginCase[] = [
+	{
+		id: "AUTH-1A",
+		roleLabel: "it_admin",
+		emailEnv: "E2E_IT_ADMIN_EMAIL",
+		passwordEnv: "E2E_IT_ADMIN_PASSWORD",
+		expectedRedirectPath: /\/user-management$/,
+		visibleSidebarItems: ["User Management"],
+		hiddenSidebarItems: ["Dashboard"],
+	},
+	{
+		id: "AUTH-1B",
+		roleLabel: "it_admin_2",
+		emailEnv: "E2E_IT_ADMIN_2_EMAIL",
+		passwordEnv: "E2E_IT_ADMIN_2_PASSWORD",
+		expectedRedirectPath: /\/user-management$/,
+		visibleSidebarItems: ["User Management"],
+		hiddenSidebarItems: ["Dashboard"],
+	},
+	{
+		id: "AUTH-10A",
+		roleLabel: "vice_mayor",
+		emailEnv: "E2E_VICE_MAYOR_EMAIL",
+		passwordEnv: "E2E_VICE_MAYOR_PASSWORD",
+		expectedRedirectPath: /\/dashboard$/,
+		visibleSidebarItems: [
+			"Dashboard",
+			"Document Tracker",
+			"Caller's Slips",
+			"Session Management",
+			"Inquiry Tickets",
+			"Visitor & Beneficiary Hub",
+			"Conference Room",
+		],
+		hiddenSidebarItems: ["User Management"],
+	},
+	{
+		id: "AUTH-10B",
+		roleLabel: "head_admin",
+		emailEnv: "E2E_HEAD_ADMIN_EMAIL",
+		passwordEnv: "E2E_HEAD_ADMIN_PASSWORD",
+		expectedRedirectPath: /\/dashboard$/,
+		visibleSidebarItems: [
+			"Dashboard",
+			"Document Tracker",
+			"Session Management",
+			"Inquiry Tickets",
+			"Conference Room",
+		],
+		hiddenSidebarItems: [
+			"Caller's Slips",
+			"Visitor & Beneficiary Hub",
+			"User Management",
+		],
+	},
+	{
+		id: "AUTH-10C",
+		roleLabel: "admin_staff",
+		emailEnv: "E2E_ADMIN_STAFF_EMAIL",
+		passwordEnv: "E2E_ADMIN_STAFF_PASSWORD",
+		expectedRedirectPath: /\/dashboard$/,
+		visibleSidebarItems: [
+			"Dashboard",
+			"Document Tracker",
+			"Inquiry Tickets",
+			"Conference Room",
+		],
+		hiddenSidebarItems: [
+			"Caller's Slips",
+			"Session Management",
+			"Visitor & Beneficiary Hub",
+			"User Management",
+		],
+	},
+	{
+		id: "AUTH-10D",
+		roleLabel: "legislative_staff",
+		emailEnv: "E2E_LEGISLATIVE_STAFF_EMAIL",
+		passwordEnv: "E2E_LEGISLATIVE_STAFF_PASSWORD",
+		expectedRedirectPath: /\/dashboard$/,
+		visibleSidebarItems: [
+			"Dashboard",
+			"Document Tracker",
+			"Session Management",
+			"Inquiry Tickets",
+			"Conference Room",
+		],
+		hiddenSidebarItems: [
+			"Caller's Slips",
+			"Visitor & Beneficiary Hub",
+			"User Management",
+		],
+	},
+	{
+		id: "AUTH-10E",
+		roleLabel: "ovm_staff",
+		emailEnv: "E2E_OVM_STAFF_EMAIL",
+		passwordEnv: "E2E_OVM_STAFF_PASSWORD",
+		expectedRedirectPath: /\/dashboard$/,
+		visibleSidebarItems: [
+			"Dashboard",
+			"Caller's Slips",
+			"Inquiry Tickets",
+			"Visitor & Beneficiary Hub",
+			"Conference Room",
+		],
+		hiddenSidebarItems: [
+			"Document Tracker",
+			"Session Management",
+			"User Management",
+		],
+	},
+	{
+		id: "AUTH-10F",
+		roleLabel: "councilor_1",
+		emailEnv: "E2E_COUNCILOR_1_EMAIL",
+		passwordEnv: "E2E_COUNCILOR_1_PASSWORD",
+		expectedRedirectPath: /\/dashboard$/,
+		visibleSidebarItems: ["Dashboard", "Inquiry Tickets", "Conference Room"],
+		hiddenSidebarItems: [
+			"Document Tracker",
+			"Caller's Slips",
+			"Session Management",
+			"Visitor & Beneficiary Hub",
+			"User Management",
+		],
+	},
+	{
+		id: "AUTH-10G",
+		roleLabel: "councilor_2",
+		emailEnv: "E2E_COUNCILOR_2_EMAIL",
+		passwordEnv: "E2E_COUNCILOR_2_PASSWORD",
+		expectedRedirectPath: /\/dashboard$/,
+		visibleSidebarItems: ["Dashboard", "Inquiry Tickets", "Conference Room"],
+		hiddenSidebarItems: [
+			"Document Tracker",
+			"Caller's Slips",
+			"Session Management",
+			"Visitor & Beneficiary Hub",
+			"User Management",
+		],
+	},
+];
+
 function pendingFlow(title: string, reason: string) {
 	test(title, () => {
 		test.fixme(true, reason);
@@ -19,6 +173,30 @@ function pendingFlow(title: string, reason: string) {
 }
 
 test.describe("AUTH Flows", () => {
+	for (const roleCase of roleLoginCases) {
+		test(`${roleCase.id} ${roleCase.roleLabel} login redirects and shows role-appropriate sidebar`, async ({
+			page,
+		}) => {
+			const email = getRequiredEnv(roleCase.emailEnv);
+			const password = getRequiredEnv(roleCase.passwordEnv);
+			test.skip(
+				!email || !password,
+				`Missing credentials for ${roleCase.roleLabel} (${roleCase.emailEnv}, ${roleCase.passwordEnv}).`,
+			);
+
+			await loginWithCredentials(page, email as string, password as string);
+			await expect(page).toHaveURL(roleCase.expectedRedirectPath);
+
+			for (const item of roleCase.visibleSidebarItems) {
+				await expect(page.getByRole("link", { name: item })).toBeVisible();
+			}
+
+			for (const item of roleCase.hiddenSidebarItems) {
+				await expect(page.getByRole("link", { name: item })).toHaveCount(0);
+			}
+		});
+	}
+
 	test("AUTH-1 IT admin login redirects to /user-management", async ({
 		page,
 	}) => {

@@ -1,7 +1,7 @@
 import { type BrowserContext, expect, test } from "@playwright/test";
 import { authenticateViaSupabase } from "./auth.js";
 
-const DEFAULT_APP_ORIGIN = process.env.ADMIN_URL ?? "http://127.0.0.1:3001";
+const DEFAULT_APP_ORIGIN = process.env.ADMIN_URL ?? "http://localhost:3001";
 const SESSION_CACHE_TTL_MS = 60_000;
 
 type SessionCacheEntry = {

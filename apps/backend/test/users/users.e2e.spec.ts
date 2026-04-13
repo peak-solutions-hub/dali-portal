@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "@jest/globals";
 import type { RoleType } from "@repo/shared";
 import request from "supertest";
@@ -36,12 +37,9 @@ describe("Users endpoints e2e", () => {
 	});
 
 	it("blocks non-IT admin access to GET /users", async () => {
-		const adminRole = await createRole(
-			"71000000-0000-4000-8000-000000000001",
-			"admin_staff",
-		);
+		const adminRole = await createRole(randomUUID(), "admin_staff");
 		const user = await createUser({
-			id: "71000000-0000-4000-8000-000000000101",
+			id: randomUUID(),
 			email: "admin.staff@example.com",
 			fullName: "Admin Staff",
 			status: "active",
@@ -57,23 +55,18 @@ describe("Users endpoints e2e", () => {
 	});
 
 	it("allows IT admin to list users", async () => {
-		const itRole = await createRole(
-			"71000000-0000-4000-8000-000000000002",
-			"it_admin",
-		);
-		const staffRole = await createRole(
-			"71000000-0000-4000-8000-000000000003",
-			"admin_staff",
-		);
+		const itRole = await createRole(randomUUID(), "it_admin");
+		const staffRole = await createRole(randomUUID(), "admin_staff");
 		const itAdmin = await createUser({
-			id: "71000000-0000-4000-8000-000000000102",
+			id: randomUUID(),
 			email: "it.admin@example.com",
 			fullName: "IT Admin User",
 			status: "active",
 			roleId: itRole.id,
 		});
+		const createdStaffId = randomUUID();
 		await createUser({
-			id: "71000000-0000-4000-8000-000000000103",
+			id: createdStaffId,
 			email: "staff.member@example.com",
 			fullName: "Staff Member",
 			status: "active",
@@ -88,27 +81,31 @@ describe("Users endpoints e2e", () => {
 		expect(response.status).toBe(200);
 		expect(response.body).toHaveProperty("users");
 		expect(Array.isArray(response.body.users)).toBe(true);
-		expect(response.body.users).toHaveLength(2);
+		expect(response.body.users.length).toBeGreaterThan(0);
+		expect(
+			response.body.users.some(
+				(user: { id: string }) => user.id === itAdmin.id,
+			),
+		).toBe(true);
+		expect(
+			response.body.users.some(
+				(user: { id: string }) => user.id === createdStaffId,
+			),
+		).toBe(true);
 	});
 
 	it("returns a specific user for IT admin via GET /users/{id}", async () => {
-		const itRole = await createRole(
-			"71000000-0000-4000-8000-000000000010",
-			"it_admin",
-		);
-		const staffRole = await createRole(
-			"71000000-0000-4000-8000-000000000011",
-			"admin_staff",
-		);
+		const itRole = await createRole(randomUUID(), "it_admin");
+		const staffRole = await createRole(randomUUID(), "admin_staff");
 		const itAdmin = await createUser({
-			id: "71000000-0000-4000-8000-000000000108",
+			id: randomUUID(),
 			email: "get.by.id.admin@example.com",
 			fullName: "Get By Id Admin",
 			status: "active",
 			roleId: itRole.id,
 		});
 		const staff = await createUser({
-			id: "71000000-0000-4000-8000-000000000109",
+			id: randomUUID(),
 			email: "target.staff@example.com",
 			fullName: "Target Staff",
 			status: "active",
@@ -131,12 +128,9 @@ describe("Users endpoints e2e", () => {
 	});
 
 	it("returns 404 for IT admin when requested user does not exist", async () => {
-		const itRole = await createRole(
-			"71000000-0000-4000-8000-000000000012",
-			"it_admin",
-		);
+		const itRole = await createRole(randomUUID(), "it_admin");
 		const itAdmin = await createUser({
-			id: "71000000-0000-4000-8000-000000000110",
+			id: randomUUID(),
 			email: "not.found.admin@example.com",
 			fullName: "Not Found Admin",
 			status: "active",
@@ -152,16 +146,10 @@ describe("Users endpoints e2e", () => {
 	});
 
 	it("prevents IT admin self-demotion on PATCH /users/{id}", async () => {
-		const itRole = await createRole(
-			"71000000-0000-4000-8000-000000000004",
-			"it_admin",
-		);
-		const staffRole = await createRole(
-			"71000000-0000-4000-8000-000000000005",
-			"admin_staff",
-		);
+		const itRole = await createRole(randomUUID(), "it_admin");
+		const staffRole = await createRole(randomUUID(), "admin_staff");
 		const itAdmin = await createUser({
-			id: "71000000-0000-4000-8000-000000000104",
+			id: randomUUID(),
 			email: "self.demote@example.com",
 			fullName: "Self Demote Admin",
 			status: "active",
@@ -178,25 +166,20 @@ describe("Users endpoints e2e", () => {
 	});
 
 	it("invites user through POST /users/invite and persists invited user", async () => {
-		const itRole = await createRole(
-			"71000000-0000-4000-8000-000000000006",
-			"it_admin",
-		);
-		const inviteRole = await createRole(
-			"71000000-0000-4000-8000-000000000007",
-			"admin_staff",
-		);
+		const itRole = await createRole(randomUUID(), "it_admin");
+		const inviteRole = await createRole(randomUUID(), "admin_staff");
 		const itAdmin = await createUser({
-			id: "71000000-0000-4000-8000-000000000105",
+			id: randomUUID(),
 			email: "invite.admin@example.com",
 			fullName: "Invite Admin",
 			status: "active",
 			roleId: itRole.id,
 		});
 
+		const invitedUserId = randomUUID();
 		supabaseClientMock.auth.admin.inviteUserByEmail.mockResolvedValue({
 			data: {
-				user: { id: "71000000-0000-4000-8000-000000000901" },
+				user: { id: invitedUserId },
 			},
 			error: null,
 		} as never);
@@ -216,7 +199,7 @@ describe("Users endpoints e2e", () => {
 
 		const created = await prisma.user.findUnique({
 			where: {
-				id: "71000000-0000-4000-8000-000000000901",
+				id: invitedUserId,
 			},
 		});
 
@@ -225,12 +208,9 @@ describe("Users endpoints e2e", () => {
 	});
 
 	it("returns email status for deactivated users without authentication", async () => {
-		const role = await createRole(
-			"71000000-0000-4000-8000-000000000008",
-			"admin_staff",
-		);
+		const role = await createRole(randomUUID(), "admin_staff");
 		await createUser({
-			id: "71000000-0000-4000-8000-000000000106",
+			id: randomUUID(),
 			email: "deactivated.user@example.com",
 			fullName: "Deactivated User",
 			status: "deactivated",
@@ -251,12 +231,9 @@ describe("Users endpoints e2e", () => {
 	});
 
 	it("sends password reset request for existing active users", async () => {
-		const role = await createRole(
-			"71000000-0000-4000-8000-000000000009",
-			"admin_staff",
-		);
+		const role = await createRole(randomUUID(), "admin_staff");
 		await createUser({
-			id: "71000000-0000-4000-8000-000000000107",
+			id: randomUUID(),
 			email: "active.user@example.com",
 			fullName: "Active User",
 			status: "active",

@@ -35,12 +35,12 @@ describe("RolesService", () => {
 	it("returns roles from database sorted by name", async () => {
 		const roles: RoleItems = [
 			{
-				id: "role-admin",
+				id: "00000000-0000-4000-8000-000000000101",
 				name: "admin_staff",
 				createdAt: new Date("2026-01-01T00:00:00.000Z"),
 			},
 			{
-				id: "role-it",
+				id: "00000000-0000-4000-8000-000000000102",
 				name: "it_admin",
 				createdAt: new Date("2026-01-01T00:00:00.000Z"),
 			},
@@ -51,8 +51,10 @@ describe("RolesService", () => {
 		const result = await service.getRoles();
 
 		expect(mockDb.role.findMany).toHaveBeenCalledWith({
-			orderBy: {
-				name: "asc",
+			where: {
+				name: {
+					in: expect.arrayContaining(["it_admin", "admin_staff"]),
+				},
 			},
 		});
 		expect(result).toEqual({ roles });

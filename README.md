@@ -32,9 +32,11 @@ The DALI Portal is a secure web-based platform designed to modernize the public-
   - [Portal (Public)](#portal-public)
   - [Admin (Internal)](#admin-internal)
   - [Backend (API)](#backend-api)
+  - [Backend Tests (Required for DB Tests)](#backend-tests-required-for-db-tests)
 - [🚀 Running the App](#-running-the-app)
   - [Development](#development)
   - [Access the Apps](#access-the-apps)
+- [🧪 Testing](#-testing)
 - [🤖 AI Skills Workflow](#-ai-skills-workflow)
   
 ## ✅ Prerequisites
@@ -107,6 +109,18 @@ cp apps/admin/.env.example apps/admin/.env
 cp apps/backend/.env.example apps/backend/.env
 ```
 
+### Backend Tests (Required for DB Tests)
+
+```bash
+# apps/backend
+cp apps/backend/.env.test.example apps/backend/.env.test
+```
+
+Notes:
+- `apps/backend/.env.test` is required for backend integration/e2e tests.
+- Admin/Portal apps do not require separate `.env.test` files for e2e by default.
+- Never point `DATABASE_URL` in `.env.test` to dev/prod databases.
+
 ## 🚀 Running the App
 
 ### Development
@@ -137,6 +151,42 @@ pnpm --filter backend dev
 | Portal | http://localhost:3000 | Public portal
 | Admin | http://localhost:3001 | Internal management system |
 | Backend | http://localhost:8080 | API server |
+
+## 🧪 Testing
+
+```bash
+# unit + integration
+pnpm run test:unit
+pnpm run test:integration
+
+# backend e2e
+pnpm run test:backend:e2e
+
+# playwright e2e
+pnpm run test:e2e:admin
+pnpm run test:e2e:portal
+```
+
+Admin e2e role-credential setup for local runs:
+
+```bash
+# 1) backend test env (DB + backend test keys)
+cp apps/backend/.env.test.example apps/backend/.env.test
+
+# 2) admin e2e role credentials
+cp apps/admin-e2e/.env.example apps/admin-e2e/.env.local
+```
+
+Load both env files when running admin auth-heavy tests locally:
+
+```bash
+pnpm --filter admin-e2e exec dotenv -e ../backend/.env.test -e .env.local -o -- playwright test tests/authentication.spec.ts tests/user-management.spec.ts
+```
+
+CI test credentials model:
+- Use a dedicated GitHub environment (for example `ci-test`).
+- Use canonical names for secrets (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, etc.).
+- DB-backed jobs skip on pull requests when `DATABASE_URL` is unavailable, and fail on protected-branch pushes.
 
 ## 🤖 AI Skills Workflow
 
