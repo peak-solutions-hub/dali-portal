@@ -12,16 +12,23 @@ export interface SessionDraft {
 	documentsByAgendaItem: Record<string, AgendaDocument[]>;
 	agendaItemOrder: string[];
 	customTextsBySection: Record<string, CustomTextItem[]>;
+	/** Draft format guard to reject legacy snapshots from older buggy flows. */
+	guardVersion?: number;
 	/** Unix timestamp (ms) of when the draft was last written. */
 	savedAt: number;
 }
+
+const CURRENT_DRAFT_GUARD_VERSION = 1;
 
 interface DraftStore {
 	drafts: Record<string, SessionDraft>;
 	/** The ID of the session the admin was last editing. Restored on page load. */
 	lastSessionId: string | null;
 	/** Persist the current in-memory state for a given session. */
-	saveDraft: (sessionId: string, draft: Omit<SessionDraft, "savedAt">) => void;
+	saveDraft: (
+		sessionId: string,
+		draft: Omit<SessionDraft, "savedAt" | "guardVersion">,
+	) => void;
 	/** Remove a session's local draft (e.g. after a successful server save). */
 	clearDraft: (sessionId: string) => void;
 	/** Retrieve a session's local draft, or null if none exists. */
@@ -44,7 +51,11 @@ export const useDraftStore = create<DraftStore>()(
 				set((state) => ({
 					drafts: {
 						...state.drafts,
-						[sessionId]: { ...draft, savedAt: Date.now() },
+						[sessionId]: {
+							...draft,
+							guardVersion: CURRENT_DRAFT_GUARD_VERSION,
+							savedAt: Date.now(),
+						},
 					},
 				})),
 
@@ -54,14 +65,22 @@ export const useDraftStore = create<DraftStore>()(
 					return { drafts: rest };
 				}),
 
-			getDraft: (sessionId) => get().drafts[sessionId] ?? null,
+			getDraft: (sessionId) => {
+				const draft = get().drafts[sessionId] ?? null;
+				if (!draft) return null;
+				return draft.guardVersion === CURRENT_DRAFT_GUARD_VERSION
+					? draft
+					: null;
+			},
 
 			clearExpiredDrafts: () =>
 				set((state) => {
 					const now = Date.now();
 					const valid: Record<string, SessionDraft> = {};
 					for (const [id, draft] of Object.entries(state.drafts)) {
-						if (now - draft.savedAt < DRAFT_EXPIRY_MS) {
+						const isCurrentFormat =
+							draft.guardVersion === CURRENT_DRAFT_GUARD_VERSION;
+						if (isCurrentFormat && now - draft.savedAt < DRAFT_EXPIRY_MS) {
 							valid[id] = draft;
 						}
 					}

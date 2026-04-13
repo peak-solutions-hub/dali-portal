@@ -1,10 +1,7 @@
 import type { DropResult } from "@hello-pangea/dnd";
-import type {
-	SessionManagementDocument as Document,
-	SessionManagementAgendaItem,
-} from "@repo/shared";
+import type { SessionManagementAgendaItem } from "@repo/shared";
 import { AgendaDocument, CustomTextItem } from "@repo/shared";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseAgendaPanelDndOptions {
 	agendaItems: SessionManagementAgendaItem[];
@@ -62,16 +59,35 @@ export function useAgendaPanelDnd({
 	onMoveCustomText,
 }: UseAgendaPanelDndOptions) {
 	const [dndError, setDndError] = useState<string | null>(null);
-	const [dndErrorTimer, setDndErrorTimer] = useState<ReturnType<
-		typeof setTimeout
-	> | null>(null);
+	const dndErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const showDndError = (message: string) => {
-		if (dndErrorTimer) clearTimeout(dndErrorTimer);
+	const dismissDndError = useCallback(() => {
+		if (dndErrorTimerRef.current) {
+			clearTimeout(dndErrorTimerRef.current);
+			dndErrorTimerRef.current = null;
+		}
+		setDndError(null);
+	}, []);
+
+	const showDndError = useCallback((message: string) => {
+		if (dndErrorTimerRef.current) {
+			clearTimeout(dndErrorTimerRef.current);
+			dndErrorTimerRef.current = null;
+		}
 		setDndError(message);
-		const timer = setTimeout(() => setDndError(null), 4000);
-		setDndErrorTimer(timer);
-	};
+		dndErrorTimerRef.current = setTimeout(() => {
+			setDndError(null);
+			dndErrorTimerRef.current = null;
+		}, 4000);
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			if (dndErrorTimerRef.current) {
+				clearTimeout(dndErrorTimerRef.current);
+			}
+		};
+	}, []);
 
 	const handleDragOver = (e: React.DragEvent, _agendaItemId: string) => {
 		e.preventDefault();
@@ -79,16 +95,6 @@ export function useAgendaPanelDnd({
 	};
 	const handleDragLeave = (e: React.DragEvent) => {
 		e.currentTarget.classList.remove("bg-blue-50", "border-blue-300");
-	};
-	const handleDrop = (
-		e: React.DragEvent,
-		agendaItemId: string,
-		onDropDocument: (agendaItemId: string, doc: Document) => void,
-	) => {
-		e.preventDefault();
-		e.currentTarget.classList.remove("bg-blue-50", "border-blue-300");
-		const documentData = e.dataTransfer.getData("application/json");
-		if (documentData) onDropDocument(agendaItemId, JSON.parse(documentData));
 	};
 
 	// Resolve any droppable ID → { sectionId, classification? }
@@ -541,10 +547,10 @@ export function useAgendaPanelDnd({
 
 	return {
 		dndError,
-		setDndError,
+		showDndError,
+		dismissDndError,
 		handleDragOver,
 		handleDragLeave,
-		handleDrop,
 		handleDragEnd,
 	};
 }

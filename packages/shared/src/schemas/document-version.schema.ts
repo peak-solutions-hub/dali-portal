@@ -30,6 +30,7 @@ export type DocumentVersionWithSignedUrl = z.infer<
  */
 export const GetDocumentFileUrlSchema = z.object({
 	documentId: z.uuid(),
+	sessionId: z.uuid().optional(),
 });
 
 /**

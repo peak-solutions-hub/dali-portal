@@ -1,6 +1,5 @@
 "use client";
 
-import { isDefinedError } from "@orpc/client";
 import {
 	formatDateInPHT,
 	formatIsoDateInPHT,
@@ -8,9 +7,14 @@ import {
 	type SessionManagementSession as SessionUI,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
+import { useOnlineStatus } from "@repo/ui/hooks/use-online-status";
 import { Plus } from "@repo/ui/lib/lucide-react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+	useInfiniteQuery,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	CreateSessionDialog,
@@ -24,6 +28,10 @@ import {
 import { useAgendaBuilder, useSessionActions } from "@/hooks";
 import { api, orpc } from "@/lib/api.client";
 import { useDraftStore } from "@/stores";
+
+const SESSION_CACHE_STALE_TIME = Number.POSITIVE_INFINITY;
+const SESSION_CACHE_GC_TIME = 30 * 60 * 1000;
+const SESSION_AUTO_SYNC_INTERVAL_MS = 30 * 1000;
 
 /**
  * Transform API session to the shape the UI components expect
@@ -70,6 +78,12 @@ export default function SessionManagement() {
 
 function AgendaBuilderPage() {
 	const queryClient = useQueryClient();
+	const isOnline = useOnlineStatus();
+	const [selectedSession, setSelectedSession] = useState<string | null>(null);
+	type SessionDetailData = Awaited<
+		ReturnType<typeof api.sessions.adminGetById>
+	>[1];
+	const lastAutoSyncedDetailAtRef = useRef(0);
 
 	// Prune stale drafts once when the page mounts
 	const clearExpiredDrafts = useDraftStore((s) => s.clearExpiredDrafts);
@@ -81,8 +95,8 @@ function AgendaBuilderPage() {
 	}, [clearExpiredDrafts]);
 
 	// Fetch sessions with TanStack infinite query (page-based)
-	const sessionsQuery = useInfiniteQuery(
-		orpc.sessions.adminList.infiniteOptions({
+	const sessionsQuery = useInfiniteQuery({
+		...orpc.sessions.adminList.infiniteOptions({
 			input: (pageParam) => ({
 				page: pageParam,
 				limit: 20,
@@ -94,7 +108,39 @@ function AgendaBuilderPage() {
 					: undefined,
 			initialPageParam: 1,
 		}),
-	);
+		staleTime: SESSION_CACHE_STALE_TIME,
+		gcTime: SESSION_CACHE_GC_TIME,
+		refetchOnMount: false,
+		refetchOnWindowFocus: "always",
+		refetchOnReconnect: "always",
+		refetchInterval: isOnline ? SESSION_AUTO_SYNC_INTERVAL_MS : false,
+		refetchIntervalInBackground: false,
+	});
+
+	const agendaDocumentsQuery = useQuery({
+		...orpc.sessions.approvedDocuments.queryOptions(),
+		staleTime: SESSION_CACHE_STALE_TIME,
+		gcTime: SESSION_CACHE_GC_TIME,
+		refetchOnMount: false,
+		refetchOnWindowFocus: "always",
+		refetchOnReconnect: "always",
+		refetchInterval: isOnline ? SESSION_AUTO_SYNC_INTERVAL_MS : false,
+		refetchIntervalInBackground: false,
+	});
+
+	const selectedSessionDetailQuery = useQuery({
+		...orpc.sessions.adminGetById.queryOptions({
+			input: { id: selectedSession ?? "" },
+		}),
+		enabled: Boolean(selectedSession),
+		staleTime: SESSION_CACHE_STALE_TIME,
+		gcTime: SESSION_CACHE_GC_TIME,
+		refetchOnWindowFocus: "always",
+		refetchOnReconnect: "always",
+		refetchInterval:
+			selectedSession && isOnline ? SESSION_AUTO_SYNC_INTERVAL_MS : false,
+		refetchIntervalInBackground: false,
+	});
 
 	// Flatten all loaded pages into a single sessions array
 	const sessions = useMemo<SessionUI[]>(() => {
@@ -106,12 +152,34 @@ function AgendaBuilderPage() {
 
 	/** Invalidate sessions cache to refetch from server */
 	const invalidateSessions = useCallback(async () => {
-		await queryClient.invalidateQueries({
-			queryKey: orpc.sessions.adminList.key(),
-		});
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: orpc.sessions.adminList.key(),
+			}),
+			queryClient.invalidateQueries({
+				queryKey: orpc.sessions.adminGetById.key(),
+			}),
+			queryClient.invalidateQueries({
+				queryKey: orpc.sessions.approvedDocuments.key(),
+			}),
+		]);
+
+		await Promise.all([
+			queryClient.refetchQueries({
+				queryKey: orpc.sessions.adminList.key(),
+				type: "active",
+			}),
+			queryClient.refetchQueries({
+				queryKey: orpc.sessions.adminGetById.key(),
+				type: "active",
+			}),
+			queryClient.refetchQueries({
+				queryKey: orpc.sessions.approvedDocuments.key(),
+				type: "active",
+			}),
+		]);
 	}, [queryClient]);
 
-	const [selectedSession, setSelectedSession] = useState<string | null>(null);
 	const [documents, setDocuments] = useState<
 		{
 			id: string;
@@ -128,7 +196,6 @@ function AgendaBuilderPage() {
 	>([]);
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false);
-	const [isLoading, setIsLoading] = useState(true);
 	const [documentsError, setDocumentsError] = useState<string | null>(null);
 	const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
 
@@ -225,6 +292,7 @@ function AgendaBuilderPage() {
 		isRemovingPdf,
 		isLoadingSession,
 		sessionLoadError,
+		sessionLoadErrorIsNetwork,
 		removingItemIds,
 		handleSessionChange: loadSession,
 		handleDocumentsChange,
@@ -238,33 +306,150 @@ function AgendaBuilderPage() {
 		handleMarkComplete,
 	} = actions;
 
-	/** Find a document by ID from the approved documents list */
-	const viewerDocument =
-		documents.find((d) => d.id === viewerDocumentId) ?? null;
+	/** Resolve viewer metadata from source list first, then linked agenda items. */
+	const viewerDocument = useMemo(() => {
+		if (!viewerDocumentId) return null;
 
-	const fetchDocuments = useCallback(async () => {
-		const [err, data] = await api.sessions.approvedDocuments({});
-		if (!err && data) {
-			setDocuments(data.documents);
-			setDocumentsError(null);
-		} else {
-			setDocumentsError(
-				isDefinedError(err)
-					? err.message
-					: "Failed to load approved documents.",
-			);
+		const fromSourceList = documents.find((doc) => doc.id === viewerDocumentId);
+		if (fromSourceList) {
+			return fromSourceList;
 		}
-	}, []);
+
+		const fromSelectedSession =
+			selectedSessionDetailQuery.data?.agendaItems.find(
+				(item) => item.document?.id === viewerDocumentId,
+			)?.document;
+		if (fromSelectedSession) {
+			return {
+				id: fromSelectedSession.id,
+				title: fromSelectedSession.title,
+				type: fromSelectedSession.type,
+				number: fromSelectedSession.codeNumber,
+				classification: fromSelectedSession.classification,
+				receivedAt: fromSelectedSession.receivedAt,
+				authors: fromSelectedSession.authors,
+				sponsors: fromSelectedSession.sponsors,
+			};
+		}
+
+		const fromAgendaBuilder = Object.values(documentsByAgendaItem)
+			.flat()
+			.find((doc) => doc.id === viewerDocumentId);
+
+		if (!fromAgendaBuilder) return null;
+
+		return {
+			id: fromAgendaBuilder.id,
+			title: fromAgendaBuilder.title,
+			number: fromAgendaBuilder.codeNumber,
+			classification: fromAgendaBuilder.classification,
+		};
+	}, [
+		documents,
+		documentsByAgendaItem,
+		selectedSessionDetailQuery.data,
+		viewerDocumentId,
+	]);
 
 	useEffect(() => {
-		fetchDocuments().finally(() => setIsLoading(false));
-	}, [fetchDocuments]);
+		const queryError = agendaDocumentsQuery.error;
+		if (queryError) {
+			setDocumentsError(
+				queryError instanceof Error
+					? queryError.message
+					: "Failed to load calendared documents.",
+			);
+			return;
+		}
+
+		setDocumentsError(null);
+		setDocuments(agendaDocumentsQuery.data?.documents ?? []);
+	}, [agendaDocumentsQuery.data, agendaDocumentsQuery.error]);
 
 	const handleSessionChange = async (sessionId: string) => {
 		setSelectedSession(sessionId);
 		setLastSessionId(sessionId);
-		await loadSession(sessionId);
+		lastAutoSyncedDetailAtRef.current = 0;
+
+		const detailQueryOptions = orpc.sessions.adminGetById.queryOptions({
+			input: { id: sessionId },
+		});
+
+		const cachedDetail = queryClient.getQueryData(
+			detailQueryOptions.queryKey,
+		) as SessionDetailData;
+		if (cachedDetail) {
+			await loadSession(sessionId, cachedDetail);
+			lastAutoSyncedDetailAtRef.current =
+				queryClient.getQueryState(detailQueryOptions.queryKey)?.dataUpdatedAt ??
+				Date.now();
+			return;
+		}
+
+		try {
+			const detail = await queryClient.fetchQuery({
+				...detailQueryOptions,
+				staleTime: SESSION_CACHE_STALE_TIME,
+			});
+			await loadSession(sessionId, detail);
+			lastAutoSyncedDetailAtRef.current =
+				queryClient.getQueryState(detailQueryOptions.queryKey)?.dataUpdatedAt ??
+				Date.now();
+		} catch {
+			await loadSession(sessionId);
+			lastAutoSyncedDetailAtRef.current = Date.now();
+		}
 	};
+
+	const syncSessionManagementData = useCallback(async () => {
+		try {
+			const detailRefreshPromise = selectedSession
+				? queryClient.fetchQuery({
+						...orpc.sessions.adminGetById.queryOptions({
+							input: { id: selectedSession },
+						}),
+						staleTime: 0,
+					})
+				: Promise.resolve(undefined);
+
+			const [latestDetail] = await Promise.all([
+				detailRefreshPromise,
+				sessionsQuery.refetch(),
+				agendaDocumentsQuery.refetch(),
+			]);
+
+			if (selectedSession && latestDetail) {
+				await loadSession(selectedSession, latestDetail);
+			}
+		} catch {
+			toast.error("Failed to sync session data. Please try again.");
+		}
+	}, [
+		agendaDocumentsQuery,
+		loadSession,
+		queryClient,
+		sessionsQuery,
+		selectedSession,
+	]);
+
+	useEffect(() => {
+		if (!selectedSession || !selectedSessionDetailQuery.data) return;
+		if (hasChanges || isLoadingSession) return;
+
+		const detailUpdatedAt = selectedSessionDetailQuery.dataUpdatedAt;
+		if (!detailUpdatedAt) return;
+		if (detailUpdatedAt <= lastAutoSyncedDetailAtRef.current) return;
+
+		lastAutoSyncedDetailAtRef.current = detailUpdatedAt;
+		void loadSession(selectedSession, selectedSessionDetailQuery.data);
+	}, [
+		hasChanges,
+		isLoadingSession,
+		loadSession,
+		selectedSession,
+		selectedSessionDetailQuery.data,
+		selectedSessionDetailQuery.dataUpdatedAt,
+	]);
 
 	// After sessions have loaded, restore the last open session automatically.
 	// Guard: only run once (when selectedSession is still null).
@@ -281,23 +466,24 @@ function AgendaBuilderPage() {
 
 		const restore = async () => {
 			setAutoRestoreDone(true);
-			const [err, data] = await api.sessions.adminGetById({
-				id: lastSessionId,
-			});
-			if (err || !data) {
+			try {
+				await queryClient.fetchQuery({
+					...orpc.sessions.adminGetById.queryOptions({
+						input: { id: lastSessionId },
+					}),
+					staleTime: SESSION_CACHE_STALE_TIME,
+				});
+				await handleSessionChange(lastSessionId);
+			} catch {
 				// Session no longer exists on the server – clear the stale reference
 				setLastSessionId(null);
-				return;
 			}
-			await handleSessionChange(lastSessionId);
 		};
 		restore();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [sessionsQuery.isLoading, lastSessionId, autoRestoreDone]);
 
-	const handleAddDocument = (agendaItemId: string) => {
-		console.log("Add document to agenda item:", agendaItemId);
-	};
+	const handleAddDocument: (agendaItemId: string) => void = () => undefined;
 
 	const onDeleteDraft = async () => {
 		const deleted = await handleDeleteDraft();
@@ -338,14 +524,8 @@ function AgendaBuilderPage() {
 				</div>
 
 				{/* Two Column Layout */}
-				{isLoading || sessionsQuery.isLoading ? (
+				{sessionsQuery.isLoading || agendaDocumentsQuery.isLoading ? (
 					<SessionPageSkeleton />
-				) : sessionsQuery.isError ? (
-					<SessionErrorState
-						variant="sessions"
-						message={sessionsQuery.error?.message}
-						onRetry={() => sessionsQuery.refetch()}
-					/>
 				) : (
 					<div className="flex gap-4 flex-1 overflow-hidden">
 						{/* Left Panel - Documents (454px) */}
@@ -354,8 +534,9 @@ function AgendaBuilderPage() {
 								<div className="mb-3">
 									<SessionErrorState
 										variant="documents"
+										error={agendaDocumentsQuery.error}
 										message={documentsError}
-										onRetry={fetchDocuments}
+										onRetry={syncSessionManagementData}
 									/>
 								</div>
 							)}
@@ -367,54 +548,68 @@ function AgendaBuilderPage() {
 
 						{/* Right Panel - Agenda */}
 						<div className="flex-1 overflow-y-auto">
-							<SessionAgendaPanel
-								sessions={sessions}
-								selectedSession={selectedSessionData || null}
-								agendaItems={orderedAgendaItems}
-								onAddDocument={handleAddDocument}
-								onSaveDraft={handleSaveDraft}
-								onPublish={handlePublish}
-								onMarkComplete={handleMarkComplete}
-								onSessionChange={handleSessionChange}
-								onUnpublish={handleUnpublish}
-								onDeleteDraft={onDeleteDraft}
-								actionInFlight={actionInFlight}
-								contentTextMap={contentTextMap}
-								onContentTextChange={handleContentTextChange}
-								documentsByAgendaItem={documentsByAgendaItem}
-								onDocumentsByAgendaItemChange={handleDocumentsChange}
-								onViewDocument={setViewerDocumentId}
-								hasChanges={hasChanges}
-								changedSections={changedSections}
-								onRemoveAgendaPdf={handleRemoveAgendaPdf}
-								onAgendaPdfUploadSuccess={invalidateSessions}
-								isRemovingPdf={isRemovingPdf}
-								isLoadingSession={isLoadingSession}
-								sessionLoadError={sessionLoadError}
-								onRetryLoadSession={() => {
-									if (selectedSession) loadSession(selectedSession);
-								}}
-								onDndReorder={handleDndReorder}
-								onMixedDndReorder={builder.handleMixedDndReorder}
-								onWriteCommitteeState={builder.writeCommitteeState}
-								onCommitteeDocClassify={handleCommitteeDocClassify}
-								onDiscardChanges={() => {
-									revertToSaved();
-									if (selectedSession) clearDraft(selectedSession);
-								}}
-								customTextsBySection={customTextsBySection}
-								onAddCustomText={addCustomText}
-								onUpdateCustomText={updateCustomText}
-								onRemoveCustomText={handleRemoveCustomText}
-								onReorderCustomTexts={builder.reorderCustomTexts}
-								onMoveCustomText={moveCustomTextToSection}
-								onScheduledRemoveDocument={handleScheduledRemoveDocument}
-								removingItemIds={removingItemIds}
-								isSessionEmpty={isSessionEmpty}
-								hasNextPage={sessionsQuery.hasNextPage}
-								isFetchingNextPage={sessionsQuery.isFetchingNextPage}
-								onLoadMoreSessions={sessionsQuery.fetchNextPage}
-							/>
+							{sessionsQuery.isError ? (
+								<div className="flex h-full w-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+									<SessionErrorState
+										variant="sessions"
+										error={sessionsQuery.error}
+										message={sessionsQuery.error?.message}
+										onRetry={syncSessionManagementData}
+									/>
+								</div>
+							) : (
+								<SessionAgendaPanel
+									sessions={sessions}
+									selectedSession={selectedSessionData || null}
+									agendaItems={orderedAgendaItems}
+									onAddDocument={handleAddDocument}
+									onSaveDraft={handleSaveDraft}
+									onPublish={handlePublish}
+									onMarkComplete={handleMarkComplete}
+									onSessionChange={handleSessionChange}
+									onUnpublish={handleUnpublish}
+									onDeleteDraft={onDeleteDraft}
+									actionInFlight={actionInFlight}
+									contentTextMap={contentTextMap}
+									onContentTextChange={handleContentTextChange}
+									documentsByAgendaItem={documentsByAgendaItem}
+									onDocumentsByAgendaItemChange={handleDocumentsChange}
+									onViewDocument={setViewerDocumentId}
+									hasChanges={hasChanges}
+									changedSections={changedSections}
+									onRemoveAgendaPdf={handleRemoveAgendaPdf}
+									onAgendaPdfUploadSuccess={invalidateSessions}
+									isRemovingPdf={isRemovingPdf}
+									isLoadingSession={isLoadingSession}
+									sessionLoadError={sessionLoadError}
+									sessionLoadErrorIsNetwork={sessionLoadErrorIsNetwork}
+									onRetryLoadSession={() => {
+										if (selectedSession) {
+											syncSessionManagementData();
+										}
+									}}
+									onDndReorder={handleDndReorder}
+									onMixedDndReorder={builder.handleMixedDndReorder}
+									onWriteCommitteeState={builder.writeCommitteeState}
+									onCommitteeDocClassify={handleCommitteeDocClassify}
+									onDiscardChanges={() => {
+										revertToSaved();
+										if (selectedSession) clearDraft(selectedSession);
+									}}
+									customTextsBySection={customTextsBySection}
+									onAddCustomText={addCustomText}
+									onUpdateCustomText={updateCustomText}
+									onRemoveCustomText={handleRemoveCustomText}
+									onReorderCustomTexts={builder.reorderCustomTexts}
+									onMoveCustomText={moveCustomTextToSection}
+									onScheduledRemoveDocument={handleScheduledRemoveDocument}
+									removingItemIds={removingItemIds}
+									isSessionEmpty={isSessionEmpty}
+									hasNextPage={sessionsQuery.hasNextPage}
+									isFetchingNextPage={sessionsQuery.isFetchingNextPage}
+									onLoadMoreSessions={sessionsQuery.fetchNextPage}
+								/>
+							)}
 						</div>
 					</div>
 				)}
@@ -430,7 +625,8 @@ function AgendaBuilderPage() {
 						setSelectedSession(id);
 						setLastSessionId(id);
 						await invalidateSessions();
-						await loadSession(id);
+						await sessionsQuery.refetch();
+						await handleSessionChange(id);
 						toast.success("New session created.");
 					}}
 				/>
@@ -445,6 +641,8 @@ function AgendaBuilderPage() {
 					}}
 				/>
 				<DocumentViewerDialog
+					documentId={viewerDocumentId}
+					sessionId={selectedSession}
 					document={viewerDocument}
 					open={!!viewerDocumentId}
 					onOpenChange={(open) => {

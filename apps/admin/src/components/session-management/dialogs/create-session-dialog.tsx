@@ -70,6 +70,7 @@ export function CreateSessionDialog({
 	const [error, setError] = useState<string | null>(null);
 	const todayInPht = formatIsoDateInPHT(new Date());
 	const sessionTypeSelectId = useId();
+	const sessionTypeLabelId = useId();
 	const sessionDatePickerId = useId();
 	const sessionDateLabelId = useId();
 	const sessionTimePickerId = useId();
@@ -244,6 +245,7 @@ export function CreateSessionDialog({
 						{/* Session Type */}
 						<div className="space-y-2">
 							<label
+								id={sessionTypeLabelId}
 								htmlFor={sessionTypeSelectId}
 								className="text-sm font-medium text-gray-700"
 							>
@@ -255,6 +257,7 @@ export function CreateSessionDialog({
 							>
 								<SelectTrigger
 									id={sessionTypeSelectId}
+									aria-labelledby={sessionTypeLabelId}
 									className="cursor-pointer border-gray-400 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 								>
 									<SelectValue />

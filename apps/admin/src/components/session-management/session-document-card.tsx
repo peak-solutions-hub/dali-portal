@@ -132,7 +132,7 @@ export function SessionDocumentCard({
 						{/* View link */}
 						<button
 							type="button"
-							className="inline-flex items-center gap-1 mt-1.5 text-xs text-blue-900 hover:underline font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
+							className="inline-flex items-center gap-1 mt-1.5 rounded px-1 py-0.5 text-xs text-blue-900 hover:bg-blue-50 hover:text-blue-950 font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 							onClick={(e) => {
 								e.stopPropagation();
 								if (onViewDocument) {

@@ -1,7 +1,12 @@
 "use client";
 
 import { isDefinedError } from "@orpc/client";
-import type { AgendaDocument, CustomTextItem } from "@repo/shared";
+import {
+	type AgendaDocument,
+	type CustomTextItem,
+	SessionStatus,
+} from "@repo/shared";
+import { isNetworkError } from "@repo/ui/lib/is-network-error";
 import { useCallback, useRef, useState } from "react";
 import { api } from "@/lib/api.client";
 import { useDraftStore } from "@/stores";
@@ -31,28 +36,81 @@ export function useSessionLoad({ builder }: UseSessionLoadOptions) {
 	} = builder;
 
 	const getDraft = useDraftStore((s) => s.getDraft);
+	const clearDraft = useDraftStore((s) => s.clearDraft);
 
 	const [isLoadingSession, setIsLoadingSession] = useState(false);
 	const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
+	const [sessionLoadErrorIsNetwork, setSessionLoadErrorIsNetwork] =
+		useState(false);
 
 	// Exposed so the draft-persist effect can guard against running mid-load
 	const isLoadingRef = useRef(false);
+	const loadRequestIdRef = useRef(0);
+	const hydratedSessionIdRef = useRef<string | null>(null);
+
+	type SessionDetailData = Awaited<
+		ReturnType<typeof api.sessions.adminGetById>
+	>[1];
+
+	const resolveLoadErrorMessage = (error: unknown): string => {
+		if (error instanceof Error) {
+			if (isNetworkError(error)) {
+				return "Unable to reach the server. Please check your connection and try again.";
+			}
+
+			return error.message || "Failed to load session data. Please try again.";
+		}
+
+		return "Failed to load session data. Please try again.";
+	};
 
 	const handleSessionChange = useCallback(
-		async (sessionId: string): Promise<void> => {
-			setIsLoadingSession(true);
+		async (
+			sessionId: string,
+			preloadedData?: SessionDetailData,
+		): Promise<void> => {
+			const requestId = ++loadRequestIdRef.current;
+			const isLatestRequest = () => loadRequestIdRef.current === requestId;
+			const shouldShowLoadingState = !preloadedData;
+			hydratedSessionIdRef.current = null;
+
+			setIsLoadingSession(shouldShowLoadingState);
 			setSessionLoadError(null);
+			setSessionLoadErrorIsNetwork(false);
 			isLoadingRef.current = true;
 			resetEditorState();
 
 			try {
-				const [err, data] = await api.sessions.adminGetById({ id: sessionId });
+				let data = preloadedData;
 
-				if (err) {
-					const message = isDefinedError(err)
-						? err.message
-						: "Failed to load session data. Please try again.";
-					setSessionLoadError(message);
+				if (!data) {
+					const [err, fetchedData] = await api.sessions.adminGetById({
+						id: sessionId,
+					});
+
+					if (!isLatestRequest()) {
+						return;
+					}
+
+					if (err) {
+						const message = isDefinedError(err)
+							? err.message
+							: "Failed to load session data. Please try again.";
+						setSessionLoadError(message);
+						setSessionLoadErrorIsNetwork(false);
+						return;
+					}
+
+					data = fetchedData;
+				}
+
+				if (!isLatestRequest()) {
+					return;
+				}
+
+				if (!data) {
+					setSessionLoadError("Failed to load session data. Please try again.");
+					setSessionLoadErrorIsNetwork(false);
 					return;
 				}
 
@@ -146,19 +204,41 @@ export function useSessionLoad({ builder }: UseSessionLoadOptions) {
 					savedAgendaOrderRef.current = JSON.stringify(defaultOrder);
 				}
 
-				// Silently restore any local unsaved draft on top of server state
 				const localDraft = getDraft(sessionId);
-				if (localDraft) {
-					loadEditorState(
-						localDraft.contentTextMap,
-						localDraft.documentsByAgendaItem,
-						localDraft.agendaItemOrder,
-						localDraft.customTextsBySection,
-					);
+
+				// Only draft sessions should restore local unsaved drafts.
+				// Scheduled/completed sessions can carry stale local drafts from older edits,
+				// which incorrectly marks the loaded session as "unsaved changes".
+				if (data.status === SessionStatus.DRAFT) {
+					if (localDraft) {
+						loadEditorState(
+							localDraft.contentTextMap,
+							localDraft.documentsByAgendaItem,
+							localDraft.agendaItemOrder,
+							localDraft.customTextsBySection,
+						);
+					}
+				} else if (localDraft) {
+					clearDraft(sessionId);
 				}
+
+				hydratedSessionIdRef.current = sessionId;
+			} catch (error) {
+				if (!isLatestRequest()) {
+					return;
+				}
+
+				hydratedSessionIdRef.current = null;
+
+				setSessionLoadErrorIsNetwork(
+					error instanceof Error && isNetworkError(error),
+				);
+				setSessionLoadError(resolveLoadErrorMessage(error));
 			} finally {
-				setIsLoadingSession(false);
-				isLoadingRef.current = false;
+				if (isLatestRequest()) {
+					setIsLoadingSession(false);
+					isLoadingRef.current = false;
+				}
 			}
 		},
 		[
@@ -173,6 +253,7 @@ export function useSessionLoad({ builder }: UseSessionLoadOptions) {
 			savedAgendaOrderRef,
 			defaultOrder,
 			getDraft,
+			clearDraft,
 			loadEditorState,
 		],
 	);
@@ -180,7 +261,9 @@ export function useSessionLoad({ builder }: UseSessionLoadOptions) {
 	return {
 		isLoadingSession,
 		sessionLoadError,
+		sessionLoadErrorIsNetwork,
 		isLoadingRef,
+		hydratedSessionIdRef,
 		handleSessionChange,
 	};
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@repo/ui/globals.css";
+import { OnlineStatusBanner } from "@repo/ui/components/connectivity/online-status-banner";
 import { AuthProvider } from "@/contexts/auth-context";
 import { QueryProvider } from "@/contexts/query-provider";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
 			>
 				<QueryProvider>
 					<AuthProvider>{children}</AuthProvider>
+					<OnlineStatusBanner />
 				</QueryProvider>
 			</body>
 		</html>

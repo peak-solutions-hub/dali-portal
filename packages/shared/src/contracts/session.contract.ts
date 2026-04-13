@@ -94,19 +94,17 @@ export const getAgendaPdfUrl = oc
 
 /**
  * Get a document file URL (Public)
- * Only serves documents with status='approved' AND purpose='for_agenda' that
- * are linked to an agenda item on a scheduled or completed session.
- * Prevents leaking internal draft or unlinked documents.
+ * Serves document files only when they are linked to an agenda item on a
+ * scheduled or completed session.
  */
 export const getPublicDocumentFileUrl = oc
 	.route({
 		method: "GET",
-		path: "/sessions/documents/{documentId}/file-url",
+		path: "/sessions/{sessionId}/documents/{documentId}/file-url",
 		summary: "Get public document file URL",
 		description:
 			"Public endpoint to get a signed URL for a legislative document file. " +
-			"Only returns files for documents with status='approved' AND purpose='for_agenda' " +
-			"that are linked to at least one agenda item on a scheduled or completed session.",
+			"Returns files only when the document is linked to the requested scheduled or completed session.",
 		tags: ["Sessions", "Public"],
 	})
 	.errors({
@@ -274,15 +272,15 @@ export const deleteSession = oc
 	.output(AdminSessionResponseSchema);
 
 /**
- * List approved documents for linking to agenda items
+ * List calendared documents for linking to agenda items
  */
 export const listApprovedDocuments = oc
 	.route({
 		method: "GET",
 		path: "/admin/sessions/documents",
-		summary: "List approved documents",
+		summary: "List calendared documents",
 		description:
-			"Admin endpoint to list approved documents that can be linked to session agenda items.",
+			"Admin endpoint to list calendared documents that can be linked to session agenda items.",
 		tags: ["Sessions", "Admin"],
 	})
 	.errors({
@@ -299,7 +297,7 @@ export const getDocumentFileUrl = oc
 		path: "/admin/sessions/documents/{documentId}/file-url",
 		summary: "Get document file URL",
 		description:
-			"Admin endpoint to get a signed URL for viewing/downloading a document file from storage.",
+			"Admin endpoint to get a signed URL for viewing/downloading a document file from storage. Access is limited to calendared source documents or documents linked to the provided sessionId.",
 		tags: ["Sessions", "Admin"],
 	})
 	.errors({

@@ -3,7 +3,6 @@ import {
 	type AdminSessionListResponse,
 	type AdminSessionResponse,
 	type AdminSessionWithAgenda,
-	AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
 	AGENDA_DOCUMENT_ELIGIBLE_STATUS,
 	type AgendaUploadUrlResponse,
 	AppError,
@@ -62,32 +61,6 @@ export class SessionManagementService {
 		return {
 			...session,
 			sessionNumber: Number(session.sessionNumber),
-		};
-	}
-
-	private transformSessionWithAgenda<
-		TItem extends { orderIndex: Prisma.Decimal | number },
-		T extends {
-			sessionNumber: Prisma.Decimal | number;
-			sessionAgendaItem: TItem[];
-		},
-	>(
-		session: T,
-	): Omit<T, "sessionNumber" | "sessionAgendaItem"> & {
-		sessionNumber: number;
-		agendaItems: (Omit<TItem, "orderIndex"> & { orderIndex: number })[];
-	} {
-		const { sessionAgendaItem, ...rest } = session;
-		return {
-			...rest,
-			sessionNumber: Number(session.sessionNumber),
-			agendaItems: sessionAgendaItem.map((item) => ({
-				...item,
-				orderIndex: Number(item.orderIndex),
-			})),
-		} as Omit<T, "sessionNumber" | "sessionAgendaItem"> & {
-			sessionNumber: number;
-			agendaItems: (Omit<TItem, "orderIndex"> & { orderIndex: number })[];
 		};
 	}
 
@@ -311,6 +284,14 @@ export class SessionManagementService {
 									status: true,
 									purpose: true,
 									classification: true,
+									receivedAt: true,
+									legislativeDocument: {
+										select: {
+											authorNames: true,
+											sponsorNames: true,
+										},
+										take: 1,
+									},
 								},
 							},
 						},
@@ -322,7 +303,42 @@ export class SessionManagementService {
 				throw new AppError("SESSION.NOT_FOUND");
 			}
 
-			return this.transformSessionWithAgenda(session) as AdminSessionWithAgenda;
+			return {
+				id: session.id,
+				sessionNumber: Number(session.sessionNumber),
+				scheduleDate: session.scheduleDate,
+				agendaFilePath: session.agendaFilePath,
+				type: session.type as SessionType,
+				status: session.status as SessionStatus,
+				agendaItems: session.sessionAgendaItem.map((item) => {
+					const legDoc = item.document?.legislativeDocument?.[0];
+
+					return {
+						id: item.id,
+						sessionId: item.sessionId,
+						orderIndex: Number(item.orderIndex),
+						contentText: item.contentText,
+						linkedDocument: item.linkedDocument,
+						attachmentPath: item.attachmentPath,
+						attachmentName: item.attachmentName,
+						section: item.section,
+						document: item.document
+							? {
+									id: item.document.id,
+									codeNumber: item.document.codeNumber,
+									title: item.document.title,
+									type: item.document.type,
+									status: item.document.status,
+									purpose: item.document.purpose,
+									classification: item.document.classification,
+									receivedAt: item.document.receivedAt.toISOString(),
+									authors: legDoc?.authorNames ?? [],
+									sponsors: legDoc?.sponsorNames ?? [],
+								}
+							: null,
+					};
+				}),
+			};
 		} catch (error) {
 			if (error instanceof AppError) throw error;
 			this.logger.error("Failed to load session by ID", error);
@@ -641,14 +657,13 @@ export class SessionManagementService {
 	}
 
 	/**
-	 * List approved documents for agenda linking (ADMIN)
+	 * List calendared documents for agenda linking (ADMIN)
 	 */
-	async getApprovedDocuments(): Promise<ApprovedDocumentListResponse> {
+	async getAgendaDocuments(): Promise<ApprovedDocumentListResponse> {
 		try {
 			const documents = await this.db.document.findMany({
 				where: {
 					status: AGENDA_DOCUMENT_ELIGIBLE_STATUS,
-					purpose: AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
 				},
 				select: {
 					id: true,
@@ -689,7 +704,7 @@ export class SessionManagementService {
 			};
 		} catch (error) {
 			if (error instanceof AppError) throw error;
-			this.logger.error("Failed to load approved documents", error);
+			this.logger.error("Failed to load calendared documents", error);
 			throw new AppError("SESSION.LIST_FAILED");
 		}
 	}
@@ -701,19 +716,43 @@ export class SessionManagementService {
 	async getDocumentFileUrl(
 		input: GetDocumentFileUrlInput,
 	): Promise<DocumentFileUrlResponse> {
-		// Look up the latest version of the document
-		const version = await this.db.documentVersion.findFirst({
-			where: { documentId: input.documentId },
-			orderBy: { versionNumber: "desc" },
+		const document = await this.db.document.findUnique({
+			where: {
+				id: input.documentId,
+			},
+			select: {
+				status: true,
+				sessionAgendaItem: input.sessionId
+					? {
+							where: { sessionId: input.sessionId },
+							take: 1,
+							select: { id: true },
+						}
+					: {
+							take: 1,
+							select: { id: true },
+						},
+				documentVersion: {
+					orderBy: { versionNumber: "desc" },
+					take: 1,
+					select: { filePath: true },
+				},
+			},
 		});
 
-		if (!version || !version.filePath) {
-			throw new AppError("GENERAL.NOT_FOUND", "Document file not found");
+		const isCalendaredSource =
+			document?.status === AGENDA_DOCUMENT_ELIGIBLE_STATUS;
+		const isLinkedToRequestedSession =
+			Boolean(input.sessionId) && (document?.sessionAgendaItem.length ?? 0) > 0;
+		const filePath = document?.documentVersion[0]?.filePath;
+
+		if (!filePath || (!isCalendaredSource && !isLinkedToRequestedSession)) {
+			throw new AppError("GENERAL.NOT_FOUND");
 		}
 
 		const result = await this.storage.getSignedUrl(
 			SESSION_DOCUMENTS_BUCKET,
-			version.filePath,
+			filePath,
 		);
 
 		if (!result.signedUrl) {
@@ -724,7 +763,7 @@ export class SessionManagementService {
 		}
 
 		// Infer content type from file extension
-		const ext = version.filePath.split(".").pop()?.toLowerCase();
+		const ext = filePath.split(".").pop()?.toLowerCase();
 		const contentTypeMap: Record<string, string> = {
 			pdf: "application/pdf",
 			doc: "application/msword",

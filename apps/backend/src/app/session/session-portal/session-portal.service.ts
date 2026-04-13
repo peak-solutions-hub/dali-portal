@@ -1,14 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import {
-	AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
-	AGENDA_DOCUMENT_ELIGIBLE_STATUS,
 	type AgendaPdfUrlResponse,
 	AppError,
 	type GetAgendaPdfUrlInput,
 	type GetPublicDocumentFileUrlInput,
 	type GetSessionByIdInput,
 	type GetSessionListInput,
-	isDocumentFilePubliclyAccessible,
 	isSessionAgendaPdfPubliclyAccessible,
 	type PublicDocumentFileUrlResponse,
 	SESSION_AGENDA_BUCKET,
@@ -290,32 +287,25 @@ export class SessionPortalService {
 	 * Get a signed URL for a legislative document file (PUBLIC).
 	 *
 	 * Security guarantees:
-	 * - Document must have status='approved' AND purpose='for_agenda' (both required).
-	 *   A document that is approved but not for_agenda (e.g. for_filing) is not served.
-	 *   A document with purpose for_agenda but not yet approved is also not served.
 	 * - Document must be linked to at least one agenda item on a session
 	 *   that is scheduled or completed (not draft) — prevents serving
-	 *   documents that were approved internally but never made public.
+	 *   documents from non-public sessions.
 	 * - Signs only the latest document version file path.
 	 */
 	async getPublicDocumentFileUrl(
 		input: GetPublicDocumentFileUrlInput,
 	): Promise<PublicDocumentFileUrlResponse> {
-		// Single query: verify document visibility + session status in one shot
+		// Single query: verify session linkage and retrieve the latest file path.
 		const document = await this.db.document.findUnique({
 			where: {
 				id: input.documentId,
-				// Must meet both conditions: approved status AND for_agenda purpose
-				status: AGENDA_DOCUMENT_ELIGIBLE_STATUS,
-				purpose: AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
 			},
 			select: {
 				id: true,
-				status: true,
-				purpose: true,
 				// Verify it's linked to at least one public session agenda item
 				sessionAgendaItem: {
 					where: {
+						sessionId: input.sessionId,
 						session: {
 							status: { in: ["scheduled", "completed"] },
 						},
@@ -337,16 +327,10 @@ export class SessionPortalService {
 
 		const linkedSession = document?.sessionAgendaItem[0]?.session;
 
-		// Document doesn't exist, isn't eligible, isn't on any public session,
-		// or has no file
+		// Document doesn't exist, isn't on any public session, or has no file.
 		if (
 			!document ||
 			!linkedSession ||
-			!isDocumentFilePubliclyAccessible(
-				linkedSession.status,
-				document.status,
-				document.purpose,
-			) ||
 			document.documentVersion.length === 0 ||
 			!document.documentVersion[0].filePath
 		) {

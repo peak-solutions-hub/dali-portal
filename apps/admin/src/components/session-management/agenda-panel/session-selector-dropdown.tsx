@@ -31,6 +31,20 @@ const toPhtDateTime = (date: string, time: string): string => {
 	return `${date}T${time}:00+08:00`;
 };
 
+const normalizeSessionSearchQuery = (query: string): string => {
+	return query.trim().toLowerCase().replace(/\s+/g, " ");
+};
+
+const buildSessionNumberSearchAliases = (sessionNumber: number): string[] => {
+	const sessionNumberText = sessionNumber.toString();
+	return [
+		sessionNumberText,
+		`#${sessionNumberText}`,
+		`session #${sessionNumberText}`,
+		`session ${sessionNumberText}`,
+	];
+};
+
 interface SessionSelectorDropdownProps {
 	sessions: Session[];
 	selectedSession: Session | null;
@@ -49,14 +63,19 @@ export function SessionSelectorDropdown({
 	onLoadMoreSessions,
 }: SessionSelectorDropdownProps) {
 	const currentSessionLabelId = useId();
+	const currentSessionPickerId = useId();
 	const searchLabelId = useId();
+	const searchInputId = useId();
 	const typeFilterLabelId = useId();
+	const typeFilterSelectId = useId();
 	const statusFilterLabelId = useId();
+	const statusFilterSelectId = useId();
 
 	const [typeFilter, setTypeFilter] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
 	const [showSessionDropdown, setShowSessionDropdown] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+	const normalizedSearchQuery = normalizeSessionSearchQuery(searchQuery);
 	const [groupLimits, setGroupLimits] = useState({
 		draft: SESSIONS_PER_GROUP,
 		scheduled: SESSIONS_PER_GROUP,
@@ -74,12 +93,23 @@ export function SessionSelectorDropdown({
 	const filteredSessions = sessions.filter((session) => {
 		if (typeFilter !== "all" && session.type !== typeFilter) return false;
 		if (statusFilter !== "all" && session.status !== statusFilter) return false;
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
+		if (normalizedSearchQuery) {
+			const numericQuery = normalizedSearchQuery.replace(/[^\d]/g, "");
+			const matchesSessionNumber =
+				buildSessionNumberSearchAliases(session.sessionNumber).some((alias) =>
+					alias.includes(normalizedSearchQuery),
+				) ||
+				(numericQuery.length > 0 &&
+					session.sessionNumber.toString().includes(numericQuery));
+
 			return (
-				session.sessionNumber.toString().includes(query) ||
-				formatSessionDate(session.date).toLowerCase().includes(query) ||
-				getSessionTypeLabel(session.type).toLowerCase().includes(query)
+				matchesSessionNumber ||
+				formatSessionDate(session.date)
+					.toLowerCase()
+					.includes(normalizedSearchQuery) ||
+				getSessionTypeLabel(session.type)
+					.toLowerCase()
+					.includes(normalizedSearchQuery)
 			);
 		}
 		return true;
@@ -92,12 +122,15 @@ export function SessionSelectorDropdown({
 	};
 
 	const hasActiveFilters =
-		typeFilter !== "all" || statusFilter !== "all" || searchQuery;
+		typeFilter !== "all" ||
+		statusFilter !== "all" ||
+		normalizedSearchQuery.length > 0;
 
 	return (
 		<div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
 			<label
 				id={currentSessionLabelId}
+				htmlFor={currentSessionPickerId}
 				className="block text-sm font-semibold text-gray-800 mb-1.5"
 			>
 				Current Session
@@ -109,6 +142,7 @@ export function SessionSelectorDropdown({
 					 * py-6 → py-3 saves ~24px without losing readability.
 					 */}
 					<Button
+						id={currentSessionPickerId}
 						variant="outline"
 						aria-labelledby={currentSessionLabelId}
 						className="h-auto w-full justify-between border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[#a60202] hover:bg-gray-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
@@ -158,6 +192,7 @@ export function SessionSelectorDropdown({
 							<div className="space-y-1">
 								<label
 									id={searchLabelId}
+									htmlFor={searchInputId}
 									className="text-xs font-semibold tracking-wide text-gray-700"
 								>
 									Search Session
@@ -168,6 +203,7 @@ export function SessionSelectorDropdown({
 										aria-hidden="true"
 									/>
 									<Input
+										id={searchInputId}
 										type="text"
 										aria-labelledby={searchLabelId}
 										placeholder="Search by number, type, or date"
@@ -183,12 +219,14 @@ export function SessionSelectorDropdown({
 								<div className="space-y-1">
 									<label
 										id={typeFilterLabelId}
+										htmlFor={typeFilterSelectId}
 										className="text-xs font-semibold tracking-wide text-gray-700"
 									>
 										All Types
 									</label>
 									<Select value={typeFilter} onValueChange={setTypeFilter}>
 										<SelectTrigger
+											id={typeFilterSelectId}
 											aria-labelledby={typeFilterLabelId}
 											className="h-9 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 										>
@@ -210,12 +248,14 @@ export function SessionSelectorDropdown({
 								<div className="space-y-1">
 									<label
 										id={statusFilterLabelId}
+										htmlFor={statusFilterSelectId}
 										className="text-xs font-semibold tracking-wide text-gray-700"
 									>
 										All Statuses
 									</label>
 									<Select value={statusFilter} onValueChange={setStatusFilter}>
 										<SelectTrigger
+											id={statusFilterSelectId}
 											aria-labelledby={statusFilterLabelId}
 											className="h-9 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 										>

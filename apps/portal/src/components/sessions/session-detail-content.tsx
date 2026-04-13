@@ -44,7 +44,10 @@ export function SessionDetailContent({
 		const errorDetail = error.message;
 		return (
 			<>
-				<div className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm">
+				<div
+					data-session-back-sticky="true"
+					className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm"
+				>
 					<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-4">
 						<Link href="/sessions" className="inline-block">
 							<Button
@@ -119,7 +122,10 @@ export function SessionDetailContent({
 	return (
 		<>
 			{/* ── Back button ── */}
-			<div className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm">
+			<div
+				data-session-back-sticky="true"
+				className="sticky top-18 sm:top-22 z-30 bg-white border-b border-gray-200 shadow-sm"
+			>
 				<div className="container mx-auto px-4 sm:px-6 lg:px-19.5 py-4">
 					<Link href={backUrl} className="inline-block">
 						<Button
@@ -257,11 +263,6 @@ export function SessionDetailContent({
 																	for (const item of sortedSectionItems) {
 																		if (item.document) {
 																			const doc = item.document;
-																			if (
-																				doc.status !== "published" &&
-																				doc.purpose !== "for_agenda"
-																			)
-																				continue;
 																			const key =
 																				doc.classification || "uncategorized";
 																			groups[key] ??= [];
@@ -371,6 +372,7 @@ export function SessionDetailContent({
 																											)}
 																										</div>
 																										<DocumentViewButton
+																											sessionId={session.id}
 																											documentId={doc.id}
 																											codeNumber={
 																												doc.codeNumber
@@ -400,11 +402,7 @@ export function SessionDetailContent({
 																	const mixedItems = sortedSectionItems.filter(
 																		(si) => {
 																			if (si.document) {
-																				const doc = si.document;
-																				return (
-																					doc.status === "published" ||
-																					doc.purpose === "for_agenda"
-																				);
+																				return true;
 																			}
 																			const isCustom = (
 																				si as { isCustomText?: boolean }
@@ -470,6 +468,7 @@ export function SessionDetailContent({
 																					)}
 																				</div>
 																				<DocumentViewButton
+																					sessionId={session.id}
 																					documentId={doc.id}
 																					codeNumber={doc.codeNumber}
 																					documentTitle={doc.title}

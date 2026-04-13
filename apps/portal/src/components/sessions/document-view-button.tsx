@@ -2,6 +2,7 @@
 
 import { formatDateInPHT } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
+import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -29,10 +30,11 @@ import { useSessionFile } from "@/hooks/sessions/use-session-file";
 
 /**
  * Opens a dialog to preview and download a legislative document file.
- * Calls GET /sessions/documents/{documentId}/file-url which verifies
- * the document is approved/for_agenda AND linked to a scheduled/completed session.
+ * Calls GET /sessions/{sessionId}/documents/{documentId}/file-url which verifies
+ * the document is linked to the requested scheduled/completed session.
  */
 type DocumentViewButtonProps = {
+	sessionId: string;
 	codeNumber?: string;
 	label?: string;
 	documentTitle?: string;
@@ -53,6 +55,7 @@ function formatDate(iso: string): string {
 }
 
 export function DocumentViewButton({
+	sessionId,
 	documentId,
 	codeNumber,
 	label,
@@ -87,11 +90,11 @@ export function DocumentViewButton({
 
 	const handleOpen = () => {
 		setOpen(true);
-		fetchPublicDocumentFileUrl(documentId);
+		fetchPublicDocumentFileUrl(sessionId, documentId);
 	};
 
 	const handleRetry = () => {
-		fetchPublicDocumentFileUrl(documentId);
+		fetchPublicDocumentFileUrl(sessionId, documentId);
 	};
 
 	const hasDetails = documentType || documentTitle || classification;
@@ -100,13 +103,28 @@ export function DocumentViewButton({
 	const previewDescription = isPdf
 		? "View the full PDF document in your browser."
 		: "Preview is not available for this file type. You can still open or download the PDF document.";
+	const showRetry = error !== "No file available for this document.";
+	const compactActionClass =
+		"inline-flex w-[12rem] justify-center items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-800 hover:bg-gray-200 hover:text-gray-950 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2";
+	const primaryActionClass =
+		"inline-flex w-[12rem] justify-center items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-800 hover:bg-gray-200 hover:text-gray-950 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2";
+	const secondaryActionClass =
+		"inline-flex w-[12rem] justify-center items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-800 hover:bg-gray-200 hover:text-gray-950 font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2";
+	const mobileViewActionClass =
+		"w-full max-w-[17rem] inline-flex h-11 items-center justify-center gap-2 rounded-md px-5 text-sm cursor-pointer border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white";
+	const mobileDownloadActionClass =
+		"w-full max-w-[17rem] inline-flex h-11 items-center justify-center gap-2 rounded-md px-5 text-sm cursor-pointer border bg-[#a60202] hover:bg-[#8a0101] text-white";
+	const mobileSecondaryActionClass =
+		"inline-flex w-full max-w-xs justify-center items-center gap-2 px-6 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2";
+	const retryButtonClass =
+		"inline-flex min-w-[10rem] justify-center items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-white text-amber-700 hover:bg-amber-100 font-medium transition-colors text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2";
 
 	return (
 		<>
 			<button
 				type="button"
 				onClick={handleOpen}
-				className="shrink-0 text-gray-400 hover:text-blue-900 transition-colors cursor-pointer"
+				className="shrink-0 rounded-md p-1 text-gray-500 hover:text-blue-900 hover:bg-blue-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 				aria-label={`View PDF document ${codeNumber || label || ""}`}
 				title="View PDF document"
 			>
@@ -257,7 +275,7 @@ export function DocumentViewButton({
 														href={fileUrl}
 														target="_blank"
 														rel="noopener noreferrer"
-														className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors"
+														className={compactActionClass}
 													>
 														<FileText className="h-3.5 w-3.5" />
 														{viewDocumentLabel}
@@ -265,7 +283,7 @@ export function DocumentViewButton({
 													<button
 														type="button"
 														onClick={() => downloadFile()}
-														className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer"
+														className={compactActionClass}
 													>
 														<Download className="h-3.5 w-3.5" />
 														{downloadDocumentLabel}
@@ -295,14 +313,16 @@ export function DocumentViewButton({
 											<p className="text-sm text-amber-600 font-medium">
 												{error || "Unable to load document. Please try again."}
 											</p>
-											<button
-												type="button"
-												onClick={handleRetry}
-												className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-white text-amber-700 hover:bg-amber-100 font-medium transition-colors text-sm cursor-pointer"
-											>
-												<RefreshCw className="h-4 w-4" aria-hidden="true" />
-												Retry
-											</button>
+											{showRetry && (
+												<button
+													type="button"
+													onClick={handleRetry}
+													className={`mt-3 ${retryButtonClass}`}
+												>
+													<RefreshCw className="h-4 w-4" aria-hidden="true" />
+													Retry
+												</button>
+											)}
 										</div>
 									</div>
 								) : isPdf && fileUrl ? (
@@ -314,7 +334,7 @@ export function DocumentViewButton({
 													href={fileUrl}
 													target="_blank"
 													rel="noopener noreferrer"
-													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-100 text-gray-700 font-medium transition-colors"
+													className={compactActionClass}
 												>
 													<FileText className="h-3.5 w-3.5" />
 													{viewDocumentLabel}
@@ -322,7 +342,7 @@ export function DocumentViewButton({
 												<button
 													type="button"
 													onClick={() => downloadFile()}
-													className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-100 text-gray-700 font-medium transition-colors cursor-pointer"
+													className={compactActionClass}
 												>
 													<Download className="h-3.5 w-3.5" />
 													{downloadDocumentLabel}
@@ -348,7 +368,7 @@ export function DocumentViewButton({
 												href={fileUrl}
 												target="_blank"
 												rel="noopener noreferrer"
-												className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md bg-[#a60202] text-white hover:bg-[#8a0202] font-medium transition-colors"
+												className={primaryActionClass}
 											>
 												<FileText className="h-4 w-4" />
 												{viewDocumentLabel}
@@ -356,7 +376,7 @@ export function DocumentViewButton({
 											<button
 												type="button"
 												onClick={() => downloadFile()}
-												className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors cursor-pointer"
+												className={secondaryActionClass}
 											>
 												<Download className="h-4 w-4" />
 												{downloadDocumentLabel}
@@ -383,14 +403,16 @@ export function DocumentViewButton({
 										<p className="text-sm text-amber-700 font-medium">
 											{error || "Unable to load document. Please try again."}
 										</p>
-										<button
-											type="button"
-											onClick={handleRetry}
-											className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-white text-amber-700 hover:bg-amber-100 font-medium transition-colors text-sm cursor-pointer"
-										>
-											<RefreshCw className="h-4 w-4" aria-hidden="true" />
-											Retry
-										</button>
+										{showRetry && (
+											<button
+												type="button"
+												onClick={handleRetry}
+												className={mobileSecondaryActionClass}
+											>
+												<RefreshCw className="h-4 w-4" aria-hidden="true" />
+												Retry
+											</button>
+										)}
 									</div>
 								) : fileUrl ? (
 									<>
@@ -403,23 +425,28 @@ export function DocumentViewButton({
 										<p className="text-sm text-gray-600 text-center">
 											{previewDescription}
 										</p>
-										<a
-											href={fileUrl}
-											target="_blank"
-											rel="noopener noreferrer"
-											className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-[#a60202] text-[#a60202] hover:bg-[#a60202] hover:text-white font-medium transition-colors text-sm"
+										<Button
+											variant="outline"
+											asChild
+											className={mobileViewActionClass}
 										>
-											<FileText className="h-5 w-5" aria-hidden="true" />
-											{viewDocumentLabel}
-										</a>
-										<button
+											<a
+												href={fileUrl}
+												target="_blank"
+												rel="noopener noreferrer"
+											>
+												<FileText className="h-4 w-4" aria-hidden="true" />
+												{viewDocumentLabel}
+											</a>
+										</Button>
+										<Button
 											type="button"
 											onClick={() => downloadFile()}
-											className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium transition-colors text-sm cursor-pointer"
+											className={mobileDownloadActionClass}
 										>
 											<Download className="h-4 w-4" aria-hidden="true" />
 											{downloadDocumentLabel}
-										</button>
+										</Button>
 									</>
 								) : (
 									<p className="text-sm text-gray-500 text-center">

@@ -288,7 +288,7 @@ export const AdminSessionListResponseSchema = z.object({
 	pagination: SessionPaginationInfoSchema,
 });
 
-/** Approved document for session agenda linking — same shape as SessionManagementDocumentSchema. */
+/** Agenda-source document for session agenda linking — same shape as SessionManagementDocumentSchema. */
 export const ApprovedDocumentSchema = SessionManagementDocumentSchema;
 
 export const ApprovedDocumentListResponseSchema = z.object({
@@ -326,6 +326,7 @@ export const GetAgendaPdfUrlSchema = z.object({
 });
 
 export const GetPublicDocumentFileUrlSchema = z.object({
+	sessionId: z.string().uuid(),
 	documentId: z.string().uuid(),
 });
 

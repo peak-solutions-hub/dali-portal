@@ -18,9 +18,34 @@ interface UseSessionFileReturn {
 	isPdf: boolean;
 	fetchAgendaFileUrl: (sessionId: string) => Promise<string | null>;
 	fetchPublicDocumentFileUrl: (
+		sessionId: string,
 		documentId: string,
 	) => Promise<SessionFileResult | null>;
 	downloadFile: (url?: string, name?: string) => Promise<void>;
+}
+
+const NO_FILE_AVAILABLE_MESSAGE = "No file available for this document.";
+
+function isNoFileError(err: unknown): boolean {
+	if (typeof err !== "object" || err === null) {
+		return false;
+	}
+
+	const code =
+		"code" in err && typeof err.code === "string" ? err.code : undefined;
+	const status =
+		"status" in err && typeof err.status === "number" ? err.status : undefined;
+	const message =
+		"message" in err && typeof err.message === "string"
+			? err.message.toLowerCase()
+			: "";
+
+	return (
+		status === 404 ||
+		code === "NOT_FOUND" ||
+		code === "GENERAL.NOT_FOUND" ||
+		message.includes("not found")
+	);
 }
 
 /**
@@ -33,9 +58,8 @@ interface UseSessionFileReturn {
  *    The session must be scheduled or completed.
  *
  * 2. Legislative document file (by documentId)
- *    Calls GET /sessions/documents/{documentId}/file-url
- *    The document must have status='approved' AND purpose='for_agenda' (both required),
- *    and must be linked to a scheduled or completed session's agenda item.
+ *    Calls GET /sessions/{sessionId}/documents/{documentId}/file-url
+ *    The document must be linked to the requested scheduled or completed session's agenda item.
  *
  * All URL generation is delegated to the server — the server enforces all
  * visibility rules before returning a signed URL.
@@ -76,27 +100,40 @@ export function useSessionFile(): UseSessionFileReturn {
 		[],
 	);
 
-	//  * Fetch a signed URL for a legislative document file by documentId.
-	//  * Endpoint: GET /sessions/documents/{documentId}/file-url
-	//  *
-	//  * Server enforces:
-	//  * - Document must be approved and for_agenda
-	//  * - Document must be linked to a scheduled or completed session's agenda item
-	//  */
+	/**
+	 * Fetch a signed URL for a legislative document file by documentId.
+	 * Endpoint: GET /sessions/{sessionId}/documents/{documentId}/file-url
+	 *
+	 * Server enforces:
+	 * - Document must be linked to the requested scheduled/completed session's agenda item
+	 */
 	const fetchPublicDocumentFileUrl = useCallback(
-		async (documentId: string): Promise<SessionFileResult | null> => {
+		async (
+			sessionId: string,
+			documentId: string,
+		): Promise<SessionFileResult | null> => {
 			setIsLoading(true);
 			setError(null);
 			setSignedUrl(null);
 
 			const [err, data] = await api.sessions.getPublicDocumentFileUrl({
+				sessionId,
 				documentId,
 			});
 
 			setIsLoading(false);
 
-			if (err || !data?.signedUrl) {
-				setError("Unable to load document file.");
+			if (err) {
+				if (isNoFileError(err)) {
+					setError(NO_FILE_AVAILABLE_MESSAGE);
+				} else {
+					setError("Unable to load document file.");
+				}
+				return null;
+			}
+
+			if (!data?.signedUrl) {
+				setError(NO_FILE_AVAILABLE_MESSAGE);
 				return null;
 			}
 

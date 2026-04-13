@@ -17,6 +17,8 @@ interface UseSessionDraftPersistOptions {
 	sessions: SessionUI[];
 	builder: UseAgendaBuilderReturn;
 	isLoadingRef: MutableRefObject<boolean>;
+	hydratedSessionIdRef: MutableRefObject<string | null>;
+	invalidateSessions: () => Promise<void>;
 }
 
 /**
@@ -31,6 +33,8 @@ export function useSessionDraftPersist({
 	sessions,
 	builder,
 	isLoadingRef,
+	hydratedSessionIdRef,
+	invalidateSessions,
 }: UseSessionDraftPersistOptions) {
 	const {
 		contentTextMap,
@@ -51,6 +55,7 @@ export function useSessionDraftPersist({
 	// ── 1. Debounced localStorage persistence ────────────────────────────────
 	useEffect(() => {
 		if (!selectedSession || isLoadingRef.current) return;
+		if (hydratedSessionIdRef.current !== selectedSession) return;
 
 		if (!hasChanges) {
 			clearDraft(selectedSession);
@@ -93,6 +98,7 @@ export function useSessionDraftPersist({
 		saveDraft,
 		clearDraft,
 		isLoadingRef,
+		hydratedSessionIdRef,
 	]);
 
 	// ── 2. Auto-save to server on scheduled session doc changes ──────────────
@@ -110,6 +116,7 @@ export function useSessionDraftPersist({
 			} else {
 				snapshotSavedState();
 				clearDraft(selectedSession);
+				await invalidateSessions();
 				toast.success("Changes saved.");
 			}
 		};
@@ -120,6 +127,7 @@ export function useSessionDraftPersist({
 		buildAgendaItems,
 		snapshotSavedState,
 		clearDraft,
+		invalidateSessions,
 	]);
 
 	/**

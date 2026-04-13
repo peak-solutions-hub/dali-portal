@@ -29,7 +29,9 @@ export function SessionDocumentsPanel({
 	onViewDocument,
 }: SessionDocumentsPanelPropsExtended) {
 	const documentSearchId = useId();
+	const documentSearchLabelId = useId();
 	const documentTypeFilterId = useId();
+	const documentTypeFilterLabelId = useId();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [typeFilter, setTypeFilter] = useState<string>("all");
 
@@ -169,13 +171,14 @@ export function SessionDocumentsPanel({
 			</div>
 
 			<p className="text-sm text-gray-500 -mt-2">
-				Approved &amp; for-agenda documents. Drag to agenda sections.
+				Calendared documents. Drag to agenda sections.
 			</p>
 
 			{/* Filters */}
 			<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
 				<div className="space-y-1">
 					<label
+						id={documentSearchLabelId}
 						htmlFor={documentSearchId}
 						className="text-xs font-semibold tracking-wide text-gray-700"
 					>
@@ -188,7 +191,7 @@ export function SessionDocumentsPanel({
 						/>
 						<Input
 							id={documentSearchId}
-							aria-label="Search documents"
+							aria-labelledby={documentSearchLabelId}
 							placeholder="Search documents..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -198,6 +201,7 @@ export function SessionDocumentsPanel({
 				</div>
 				<div className="space-y-1">
 					<label
+						id={documentTypeFilterLabelId}
 						htmlFor={documentTypeFilterId}
 						className="text-xs font-semibold tracking-wide text-gray-700"
 					>
@@ -206,7 +210,7 @@ export function SessionDocumentsPanel({
 					<Select value={typeFilter} onValueChange={setTypeFilter}>
 						<SelectTrigger
 							id={documentTypeFilterId}
-							aria-label="Filter documents by type"
+							aria-labelledby={documentTypeFilterLabelId}
 							className="h-10 w-full cursor-pointer border-gray-300 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 						>
 							<SelectValue placeholder="All Types" />

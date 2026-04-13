@@ -3,6 +3,12 @@
 import { List } from "@repo/ui/lib/lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+const MOBILE_BREAKPOINT_PX = 1024;
+const MOBILE_SCROLL_OFFSET = 160;
+const DESKTOP_SCROLL_OFFSET = 180;
+const STICKY_BACK_SCROLL_GAP = 16;
+const STICKY_BACK_SELECTOR = "[data-session-back-sticky='true']";
+
 interface SectionLink {
 	key: string;
 	letter: string;
@@ -19,6 +25,25 @@ export function SessionQuickNav({ sections }: SessionQuickNavProps) {
 	);
 	const observerRef = useRef<IntersectionObserver | null>(null);
 	const isScrollingRef = useRef(false);
+
+	const getStickyBackOffset = useCallback(() => {
+		const stickyBackElement =
+			document.querySelector<HTMLElement>(STICKY_BACK_SELECTOR);
+		if (!stickyBackElement) {
+			return null;
+		}
+
+		const computedTop = Number.parseFloat(
+			window.getComputedStyle(stickyBackElement).top,
+		);
+		const topOffset = Number.isFinite(computedTop) ? computedTop : 0;
+
+		return (
+			topOffset +
+			stickyBackElement.getBoundingClientRect().height +
+			STICKY_BACK_SCROLL_GAP
+		);
+	}, []);
 
 	// IntersectionObserver to highlight the currently visible section
 	useEffect(() => {
@@ -52,20 +77,26 @@ export function SessionQuickNav({ sections }: SessionQuickNavProps) {
 		};
 	}, [sections]);
 
-	const scrollToSection = useCallback((key: string) => {
-		setActiveSection(key);
-		isScrollingRef.current = true;
-		const el = document.getElementById(`section-${key}`);
-		if (el) {
-			const isMobile = window.innerWidth < 1024;
-			const offset = isMobile ? 160 : 100;
-			const top = el.getBoundingClientRect().top + window.scrollY - offset;
-			window.scrollTo({ top, behavior: "smooth" });
-		}
-		setTimeout(() => {
-			isScrollingRef.current = false;
-		}, 800);
-	}, []);
+	const scrollToSection = useCallback(
+		(key: string) => {
+			setActiveSection(key);
+			isScrollingRef.current = true;
+			const el = document.getElementById(`section-${key}`);
+			if (el) {
+				const isMobile = window.innerWidth < MOBILE_BREAKPOINT_PX;
+				const measuredOffset = getStickyBackOffset();
+				const offset =
+					measuredOffset ??
+					(isMobile ? MOBILE_SCROLL_OFFSET : DESKTOP_SCROLL_OFFSET);
+				const top = el.getBoundingClientRect().top + window.scrollY - offset;
+				window.scrollTo({ top, behavior: "smooth" });
+			}
+			setTimeout(() => {
+				isScrollingRef.current = false;
+			}, 800);
+		},
+		[getStickyBackOffset],
+	);
 
 	const navContent = (
 		<ul className="space-y-0.5">

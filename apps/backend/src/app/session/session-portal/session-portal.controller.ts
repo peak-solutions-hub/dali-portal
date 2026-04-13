@@ -1,5 +1,5 @@
 import { Controller } from "@nestjs/common";
-import { SkipThrottle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract } from "@repo/shared";
 import { SessionPortalService } from "./session-portal.service";
@@ -34,7 +34,10 @@ export class SessionPortalController {
 		);
 	}
 
-	@SkipThrottle({ short: true, default: true })
+	@Throttle({
+		short: { limit: 3, ttl: 1000 },
+		default: { limit: 20, ttl: 60000 },
+	})
 	@Implement(contract.sessions.getPublicDocumentFileUrl)
 	getPublicDocumentFileUrl() {
 		return implement(contract.sessions.getPublicDocumentFileUrl).handler(
