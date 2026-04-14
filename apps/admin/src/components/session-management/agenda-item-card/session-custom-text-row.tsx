@@ -8,7 +8,7 @@ import {
 	Pencil,
 } from "@repo/ui/lib/lucide-react";
 import parse from "html-react-parser";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { sanitizeQuillHtml } from "@/utils/session-helpers";
 import { SessionRichTextEditor } from "../session-rich-text-editor";
 
@@ -58,6 +58,7 @@ export function SessionCustomTextRow({
 	onEditorFocus,
 	flushRef,
 }: SessionCustomTextRowProps) {
+	const customTextEditorLabelId = useId();
 	const isEditing =
 		activeEditorId === item.id ||
 		(!item.content && !isReadOnly && activeEditorId === undefined);
@@ -147,7 +148,7 @@ export function SessionCustomTextRow({
 						{...dragHandleProps}
 						className="flex items-center justify-center mr-1.5 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
 					>
-						<GripVertical className="h-4 w-4" />
+						<GripVertical className="h-4 w-4" aria-hidden="true" />
 					</div>
 				)}
 				<div className="flex-1 min-w-0">
@@ -164,11 +165,12 @@ export function SessionCustomTextRow({
 						<Button
 							variant="ghost"
 							size="sm"
+							aria-label="Edit custom text"
 							onClick={handleOpenEditor}
 							className="text-gray-500 hover:text-blue-600 cursor-pointer"
 							title="Edit custom text"
 						>
-							<Pencil className="h-3.5 w-3.5" />
+							<Pencil className="h-3.5 w-3.5" aria-hidden="true" />
 						</Button>
 					)}
 					<Button
@@ -181,7 +183,10 @@ export function SessionCustomTextRow({
 						className="text-gray-600 hover:text-red-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
 					>
 						{isRemoving ? (
-							<Loader2 className="h-3.5 w-3.5 animate-spin" />
+							<Loader2
+								className="h-3.5 w-3.5 animate-spin"
+								aria-hidden="true"
+							/>
 						) : (
 							"Remove"
 						)}
@@ -193,7 +198,10 @@ export function SessionCustomTextRow({
 			{!isEditing && item.content && (
 				<div className="px-3 pb-2.5">
 					<p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide font-medium flex items-center gap-1">
-						<FileText className="h-3 w-3 text-blue-500 shrink-0" />
+						<FileText
+							className="h-3 w-3 text-blue-500 shrink-0"
+							aria-hidden="true"
+						/>
 						Custom text
 					</p>
 					<div className="summary-display text-gray-700 ql-editor py-0! px-2.20! border-x border-transparent">
@@ -205,14 +213,19 @@ export function SessionCustomTextRow({
 			{/* Editor — same blue bg style as public summary editor */}
 			{isEditing && (
 				<div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-2 bg-blue-50/50">
-					<label className="text-xs font-medium text-gray-700">
+					<label
+						id={customTextEditorLabelId}
+						className="text-xs font-medium text-gray-700"
+					>
 						Custom Text
 					</label>
-					<SessionRichTextEditor
-						value={draft}
-						onChange={setDraft}
-						placeholder="Enter custom text…"
-					/>
+					<div role="group" aria-labelledby={customTextEditorLabelId}>
+						<SessionRichTextEditor
+							value={draft}
+							onChange={setDraft}
+							placeholder="Enter custom text…"
+						/>
+					</div>
 					<div className="flex items-center justify-end gap-1.5">
 						{!isEmpty && (
 							<Button

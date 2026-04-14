@@ -64,7 +64,10 @@ export function UnpublishSessionDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-							<AlertTriangle className="h-5 w-5 text-amber-600" />
+							<AlertTriangle
+								className="h-5 w-5 text-amber-600"
+								aria-hidden="true"
+							/>
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -81,7 +84,10 @@ export function UnpublishSessionDialog({
 				<div className="space-y-4">
 					<div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
 						<div className="flex items-start gap-2">
-							<AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+							<AlertTriangle
+								className="h-4 w-4 text-amber-600 mt-0.5 shrink-0"
+								aria-hidden="true"
+							/>
 							<div>
 								<p className="text-sm font-medium text-amber-800 mb-1">
 									This action will revert Session #{sessionNumber} to a draft
@@ -123,7 +129,11 @@ export function UnpublishSessionDialog({
 
 					{/* Error Message */}
 					{error && (
-						<div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+						<div
+							className="p-3 bg-red-50 border border-red-200 rounded-lg"
+							role="alert"
+							aria-live="assertive"
+						>
 							<p className="text-sm text-red-800">{error}</p>
 						</div>
 					)}
@@ -145,9 +155,12 @@ export function UnpublishSessionDialog({
 						className="bg-amber-600 hover:bg-amber-700 text-white cursor-pointer"
 					>
 						{isSubmitting ? (
-							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							<Loader2
+								className="h-4 w-4 mr-2 animate-spin"
+								aria-hidden="true"
+							/>
 						) : (
-							<Undo2 className="h-4 w-4 mr-2" />
+							<Undo2 className="h-4 w-4 mr-2" aria-hidden="true" />
 						)}
 						{isSubmitting ? "Unpublishing..." : "Unpublish Session"}
 					</Button>

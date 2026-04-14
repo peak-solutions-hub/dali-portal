@@ -9,7 +9,7 @@ import {
 	Pencil,
 } from "@repo/ui/lib/lucide-react";
 import parse from "html-react-parser";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { sanitizeQuillHtml } from "@/utils/session-helpers";
 import { SessionRichTextEditor } from "../session-rich-text-editor";
 
@@ -57,6 +57,7 @@ export function SessionDocumentRow({
 }: SessionDocumentRowProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [draft, setDraft] = useState("");
+	const summaryEditorLabelId = useId();
 
 	// Keep a ref in sync synchronously so flush always reads the latest value
 	// even if called in the same tick as a setState (e.g. Clear All → Publish).
@@ -144,7 +145,7 @@ export function SessionDocumentRow({
 						{...dragHandleProps}
 						className="flex items-center justify-center mr-1.5 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
 					>
-						<GripVertical className="h-4 w-4" />
+						<GripVertical className="h-4 w-4" aria-hidden="true" />
 					</div>
 				)}
 				<div className="flex-1 min-w-0">
@@ -164,22 +165,26 @@ export function SessionDocumentRow({
 					{onViewDocument && (
 						<button
 							type="button"
+							aria-label="View document"
 							onClick={() => onViewDocument(doc.id)}
-							className="inline-flex items-center justify-center rounded-md text-gray-500 hover:text-blue-900 hover:bg-blue-50 h-8 w-8 transition-colors cursor-pointer"
+							className="inline-flex items-center justify-center rounded-md text-gray-500 hover:text-blue-900 hover:bg-blue-50 h-8 w-8 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 							title="View document"
 						>
-							<ExternalLink className="h-3.5 w-3.5" />
+							<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
 						</button>
 					)}
 					{onUpdateDocumentSummary && !isEditing && (
 						<Button
 							variant="ghost"
 							size="sm"
+							aria-label={
+								doc.summary ? "Edit public summary" : "Add public summary"
+							}
 							onClick={handleOpenEditor}
 							className="text-gray-500 hover:text-blue-600 cursor-pointer"
 							title={doc.summary ? "Edit public summary" : "Add public summary"}
 						>
-							<Pencil className="h-3.5 w-3.5" />
+							<Pencil className="h-3.5 w-3.5" aria-hidden="true" />
 						</Button>
 					)}
 					{onRemoveDocument && (
@@ -195,7 +200,10 @@ export function SessionDocumentRow({
 							className="text-gray-600 hover:text-red-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
 						>
 							{removingItemIds?.has(doc.id) ? (
-								<Loader2 className="h-3.5 w-3.5 animate-spin" />
+								<Loader2
+									className="h-3.5 w-3.5 animate-spin"
+									aria-hidden="true"
+								/>
 							) : (
 								"Remove"
 							)}
@@ -208,7 +216,10 @@ export function SessionDocumentRow({
 			{doc.summary && !isEditing && (
 				<div className="px-3 pb-2.5">
 					<p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide font-medium flex items-center gap-1">
-						<FileText className="h-3 w-3 text-blue-500 shrink-0" />
+						<FileText
+							className="h-3 w-3 text-blue-500 shrink-0"
+							aria-hidden="true"
+						/>
 						Public summary
 					</p>
 					<div className="summary-display text-gray-700 ql-editor py-0! px-2.20! border-x border-transparent">
@@ -220,19 +231,24 @@ export function SessionDocumentRow({
 			{/* Summary editor */}
 			{isEditing && (
 				<div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-2 bg-blue-50/50">
-					<label className="text-xs font-medium text-gray-700">
+					<label
+						id={summaryEditorLabelId}
+						className="text-xs font-medium text-gray-700"
+					>
 						Public Summary
 					</label>
 					<p className="text-[10px] text-gray-400 leading-snug">
 						Write a short summary for the public portal. If left empty, the
 						document title will be shown instead.
 					</p>
-					<SessionRichTextEditor
-						value={draft}
-						onChange={setDraftSync}
-						placeholder="e.g. CRN: DOC-RES-2024-019: Digital Transformation Resolution"
-						maxLength={1000}
-					/>
+					<div role="group" aria-labelledby={summaryEditorLabelId}>
+						<SessionRichTextEditor
+							value={draft}
+							onChange={setDraftSync}
+							placeholder="e.g. CRN: DOC-RES-2024-019: Digital Transformation Resolution"
+							maxLength={1000}
+						/>
+					</div>
 					<div className="flex items-center justify-end gap-1.5">
 						{draft.length > 0 && (
 							<Button

@@ -36,6 +36,15 @@ export const SESSION_MAX_ITEMS_PER_PAGE = 100;
  */
 export const SESSION_MIN_ITEMS_PER_PAGE = 1;
 
+/**
+ * Session number format uses `YYxxx`.
+ * - `YY`: last 2 digits of the schedule year (PHT)
+ * - `xxx`: 3-digit sequence within that year
+ */
+export const SESSION_NUMBER_YEAR_MODULO = 100;
+export const SESSION_NUMBER_SEQUENCE_BASE = 1000;
+export const SESSION_NUMBER_MIN_SEQUENCE = 1;
+
 // =============================================================================
 // STORAGE CONFIGURATION
 // =============================================================================
@@ -167,24 +176,22 @@ export function isSessionPubliclyVisible(status: SessionStatus): boolean {
 
 /**
  * Documents eligible to be added to a session agenda must have:
- * - status: 'approved'
- * - purpose: 'for_agenda'
+ * - status: 'calendared'
+ *
+ * Purpose is intentionally not part of session agenda source eligibility.
  */
-export const AGENDA_DOCUMENT_ELIGIBLE_STATUS = "approved" as const;
+export const AGENDA_DOCUMENT_ELIGIBLE_STATUS = "calendared" as const;
 export const AGENDA_DOCUMENT_ELIGIBLE_PURPOSE = "for_agenda" as const;
 
 /**
  * Check whether a document is eligible to be included in a session agenda.
- * Used both when admins build the agenda and when validating public access.
+ * Used when admins build agenda source pools.
  */
 export function isDocumentEligibleForAgenda(
 	status: string,
-	purpose: string,
+	_purpose?: string,
 ): boolean {
-	return (
-		status === AGENDA_DOCUMENT_ELIGIBLE_STATUS &&
-		purpose === AGENDA_DOCUMENT_ELIGIBLE_PURPOSE
-	);
+	return status === AGENDA_DOCUMENT_ELIGIBLE_STATUS;
 }
 
 // =============================================================================
@@ -212,10 +219,10 @@ export function isDocumentEligibleForAgenda(
  *      - agendaItem.attachmentPath is set
  *
  * 3. Legislative document file (by documentId)
- *    Endpoint: GET /sessions/documents/{documentId}/file-url
+ *    Endpoint: GET /sessions/{sessionId}/documents/{documentId}/file-url
  *    Conditions:
- *      - document.status is 'approved' AND document.purpose is 'for_agenda' (both required)
- *      - document is linked to an agenda item on a 'scheduled' or 'completed' session
+ *      - document is linked to an agenda item on the requested
+ *        'scheduled' or 'completed' session
  *
  * Signed URLs expire after DEFAULT_SIGNED_URL_EXPIRY seconds.
  */
@@ -247,11 +254,8 @@ export function isAgendaItemAttachmentPubliclyAccessible(
  */
 export function isDocumentFilePubliclyAccessible(
 	sessionStatus: SessionStatus,
-	docStatus: string,
-	docPurpose: string,
+	_docStatus?: string,
+	_docPurpose?: string,
 ): boolean {
-	return (
-		isSessionPubliclyVisible(sessionStatus) &&
-		isDocumentEligibleForAgenda(docStatus, docPurpose)
-	);
+	return isSessionPubliclyVisible(sessionStatus);
 }

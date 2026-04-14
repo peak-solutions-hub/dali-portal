@@ -1,5 +1,5 @@
 import { Controller, UseGuards } from "@nestjs/common";
-import { SkipThrottle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Implement, implement } from "@orpc/nest";
 import { contract, ROLE_PERMISSIONS } from "@repo/shared";
 import { Roles } from "@/app/auth/decorators/roles.decorator";
@@ -33,7 +33,7 @@ export class SessionManagementController {
 	@Implement(contract.sessions.approvedDocuments)
 	approvedDocuments() {
 		return implement(contract.sessions.approvedDocuments).handler(async () => {
-			return await this.sessionManagementService.getApprovedDocuments();
+			return await this.sessionManagementService.getAgendaDocuments();
 		});
 	}
 
@@ -57,7 +57,10 @@ export class SessionManagementController {
 		);
 	}
 
-	@SkipThrottle()
+	@Throttle({
+		short: { limit: 5, ttl: 1000 },
+		default: { limit: 60, ttl: 60000 },
+	})
 	@Roles(...SESSION_ROLES)
 	@Implement(contract.sessions.getDocumentFileUrl)
 	getDocumentFileUrl() {

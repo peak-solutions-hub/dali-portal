@@ -38,9 +38,9 @@ export function SessionDraftActionBar({
 					title={!hasChanges ? "No unsaved changes" : undefined}
 				>
 					{actionInFlight === "saving" ? (
-						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						<Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
 					) : (
-						<Save className="h-4 w-4 mr-2" />
+						<Save className="h-4 w-4 mr-2" aria-hidden="true" />
 					)}
 					{actionInFlight === "saving" ? "Saving..." : "Save Changes"}
 				</Button>
@@ -55,9 +55,9 @@ export function SessionDraftActionBar({
 					}
 				>
 					{actionInFlight === "publishing" ? (
-						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						<Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
 					) : (
-						<Send className="h-4 w-4 mr-2" />
+						<Send className="h-4 w-4 mr-2" aria-hidden="true" />
 					)}
 					{actionInFlight === "publishing"
 						? "Publishing..."
@@ -73,7 +73,7 @@ export function SessionDraftActionBar({
 						disabled={!!actionInFlight || !hasChanges}
 						title={!hasChanges ? "No changes to discard" : undefined}
 					>
-						<RotateCcw className="h-4 w-4 mr-2" />
+						<RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
 						Discard Changes
 					</Button>
 				)}
@@ -84,9 +84,9 @@ export function SessionDraftActionBar({
 					disabled={!!actionInFlight}
 				>
 					{actionInFlight === "deleting" ? (
-						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						<Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
 					) : (
-						<Trash2 className="h-4 w-4 mr-2" />
+						<Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
 					)}
 					{actionInFlight === "deleting" ? "Deleting..." : "Delete Draft"}
 				</Button>

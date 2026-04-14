@@ -88,6 +88,7 @@ export function useAgendaBuilder() {
 		setCustomTextsBySection({});
 		setAgendaItemOrder(defaultOrder);
 		setHighlightedItemId(null);
+		dirtyTracking.setSaveTick((t) => t + 1);
 	}, [defaultOrder, dirtyTracking]);
 
 	const revertToSaved = useCallback(() => {

@@ -36,7 +36,9 @@ export function useSessionActions({
 	const {
 		isLoadingSession,
 		sessionLoadError,
+		sessionLoadErrorIsNetwork,
 		isLoadingRef,
+		hydratedSessionIdRef,
 		handleSessionChange,
 	} = useSessionLoad({ builder });
 
@@ -45,6 +47,8 @@ export function useSessionActions({
 		sessions,
 		builder,
 		isLoadingRef,
+		hydratedSessionIdRef,
+		invalidateSessions,
 	});
 
 	const {
@@ -69,7 +73,12 @@ export function useSessionActions({
 		removingItemIds,
 		handleScheduledRemoveDocument,
 		handleRemoveCustomText,
-	} = useScheduledRemove({ selectedSession, sessions, builder });
+	} = useScheduledRemove({
+		selectedSession,
+		sessions,
+		builder,
+		invalidateSessions,
+	});
 
 	return {
 		// State
@@ -77,6 +86,7 @@ export function useSessionActions({
 		isRemovingPdf,
 		isLoadingSession,
 		sessionLoadError,
+		sessionLoadErrorIsNetwork,
 		removingItemIds,
 
 		// Handlers

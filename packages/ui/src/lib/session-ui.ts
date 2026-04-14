@@ -210,6 +210,38 @@ export function formatAgendaItemDisplay(
    Document Types
    ============================ */
 
+/**
+ * Human-readable labels for document type enum values.
+ * Converts snake_case database values to Title Case display labels.
+ */
+export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+	// Legislative Documents (go through Sessions)
+	proposed_ordinance: "Proposed Ordinance",
+	proposed_resolution: "Proposed Resolution",
+	committee_report: "Committee Report",
+
+	// Administrative Documents (internal processing)
+	payroll: "Payroll",
+	contract_of_service: "Contract of Service",
+	leave_application: "Leave Application",
+	letter: "Letter",
+	memo: "Memo",
+	endorsement: "Endorsement",
+	invitation: "Invitation",
+
+	// Legislative Document Types (enacted/approved)
+	ordinance: "Ordinance",
+	resolution: "Resolution",
+};
+
+/** Returns a human-readable label for a document type, falling back to a title-cased version of the key. */
+export function getDocumentTypeLabel(type: string): string {
+	return (
+		DOCUMENT_TYPE_LABELS[type] ??
+		type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+	);
+}
+
 export const DOCUMENT_TYPE_BADGE_COLORS: Record<string, string> = {
 	ordinance: "bg-blue-100 text-blue-800",
 	resolution: "bg-green-100 text-green-800",

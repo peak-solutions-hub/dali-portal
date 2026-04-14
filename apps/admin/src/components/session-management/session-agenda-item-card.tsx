@@ -512,9 +512,9 @@ export function AgendaItemCard({
 								<button
 									type="button"
 									onClick={() => setShowClassificationPicker(true)}
-									className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-gray-100 px-3 py-1 text-sm text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors cursor-pointer"
+									className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-gray-100 px-3 py-1 text-sm text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 								>
-									<Plus className="h-3.5 w-3.5" />
+									<Plus className="h-3.5 w-3.5" aria-hidden="true" />
 									<span>Add Committee</span>
 								</button>
 							)}
@@ -619,9 +619,9 @@ export function AgendaItemCard({
 							<button
 								type="button"
 								onClick={() => onAddDocument(item.id)}
-								className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-dashed border-gray-300 bg-[#f3f3f5] px-3 py-1 text-sm text-gray-400 hover:bg-gray-200 hover:border-gray-400 hover:text-gray-500 transition-colors cursor-pointer"
+								className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-dashed border-gray-300 bg-[#f3f3f5] px-3 py-1 text-sm text-gray-400 hover:bg-gray-200 hover:border-gray-400 hover:text-gray-500 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 							>
-								<GripVertical className="h-3.5 w-3.5" />
+								<GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
 								<span>Drag a document here</span>
 							</button>
 						))}

@@ -64,7 +64,10 @@ export function UnsavedChangesBeforePublishDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-1">
 						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
-							<AlertTriangle className="h-5 w-5 text-amber-600" />
+							<AlertTriangle
+								className="h-5 w-5 text-amber-600"
+								aria-hidden="true"
+							/>
 						</div>
 						<div>
 							<DialogTitle className="text-lg">Unsaved Changes</DialogTitle>
@@ -96,9 +99,12 @@ export function UnsavedChangesBeforePublishDialog({
 						disabled={isSaving}
 					>
 						{isSaving ? (
-							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							<Loader2
+								className="h-4 w-4 mr-2 animate-spin"
+								aria-hidden="true"
+							/>
 						) : (
-							<Save className="h-4 w-4 mr-2" />
+							<Save className="h-4 w-4 mr-2" aria-hidden="true" />
 						)}
 						{isSaving ? "Saving..." : "Save & Continue"}
 					</Button>

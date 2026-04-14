@@ -8,8 +8,8 @@ import {
 	validateSearchParams,
 } from "@repo/shared";
 import { Card } from "@repo/ui/components/card";
-import { OfflineAwareSuspense } from "@repo/ui/components/offline-aware-suspense";
-import { OnlineStatusBanner } from "@repo/ui/components/online-status-banner";
+import { OfflineAwareSuspense } from "@repo/ui/components/connectivity/offline-aware-suspense";
+import { OnlineStatusBanner } from "@repo/ui/components/connectivity/online-status-banner";
 import { ScrollToTop as ScrollToTopButton } from "@repo/ui/components/scroll-to-top";
 import { BRAND_TEXT_CLASS } from "@repo/ui/lib/legislative-document-ui";
 import type { Metadata } from "next";
@@ -19,7 +19,7 @@ import {
 	PaginationControls,
 	SearchFilterBar,
 } from "@/components/legislative-documents/";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { LoadToTop } from "@/components/load-to-top";
 import { api } from "@/lib/api.client";
 import { createPageMetadata } from "@/lib/seo-metadata";
 import LegislativeDocumentsLoading from "./loading";
@@ -49,7 +49,7 @@ export default async function LegislativeDocumentsPage({
 
 	return (
 		<>
-			<ScrollToTop />
+			<LoadToTop />
 			<OnlineStatusBanner />
 			<ScrollToTopButton />
 			<OfflineAwareSuspense fallback={<LegislativeDocumentsLoading />}>

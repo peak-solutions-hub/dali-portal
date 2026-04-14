@@ -7,6 +7,7 @@ import type {
 } from "@repo/shared";
 import { AgendaDocument, CustomTextItem } from "@repo/shared";
 import { Loader2 } from "@repo/ui/lib/lucide-react";
+import { useEffect } from "react";
 import { useAgendaPanelDialogs } from "../../hooks/session-management/use-agenda-panel-dialogs";
 import { useAgendaPanelDnd } from "../../hooks/session-management/use-agenda-panel-dnd";
 import {
@@ -45,7 +46,8 @@ export interface SessionAgendaPanelProps {
 	isRemovingPdf?: boolean;
 	isLoadingSession?: boolean;
 	sessionLoadError?: string | null;
-	onRetryLoadSession?: () => void;
+	sessionLoadErrorIsNetwork?: boolean;
+	onRetryLoadSession: () => void;
 	onDndReorder?: (
 		sourceSectionId: string,
 		destSectionId: string,
@@ -132,6 +134,7 @@ export function SessionAgendaPanel({
 	isRemovingPdf = false,
 	isLoadingSession = false,
 	sessionLoadError,
+	sessionLoadErrorIsNetwork,
 	onRetryLoadSession,
 	onDndReorder,
 	onDiscardChanges,
@@ -176,16 +179,21 @@ export function SessionAgendaPanel({
 		onMoveCustomText,
 	});
 
+	useEffect(() => {
+		dnd.dismissDndError();
+	}, [selectedSession?.id, dnd.dismissDndError]);
+
 	// ── Document handlers ─────────────────────────────────────────────────────
 	const handleDropDocument = (agendaItemId: string, document: Document) => {
 		const existing = documentsByAgendaItem[agendaItemId] || [];
 		if (existing.some((doc) => doc.id === document.id)) {
 			const destItem = agendaItems.find((i) => i.id === agendaItemId);
-			dnd.setDndError(
+			dnd.showDndError(
 				`This document already exists in "${destItem?.title ?? "that section"}" and cannot be added again.`,
 			);
 			return;
 		}
+		dnd.dismissDndError();
 		const attachedDoc: AgendaDocument = {
 			id: document.id,
 			codeNumber: document.number,
@@ -233,7 +241,7 @@ export function SessionAgendaPanel({
 	};
 
 	return (
-		<div className="flex h-full w-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5">
+		<div className="flex h-full w-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
 			<SessionSelectorDropdown
 				sessions={sessions}
 				selectedSession={selectedSession}
@@ -246,7 +254,11 @@ export function SessionAgendaPanel({
 			{selectedSession ? (
 				<>
 					{isLoadingSession ? (
-						<div className="flex-1 flex items-center justify-center">
+						<div
+							className="flex-1 flex items-center justify-center"
+							role="status"
+							aria-live="polite"
+						>
 							<div className="flex flex-col items-center gap-3">
 								<Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
 								<p className="text-sm text-gray-500">Loading session data...</p>
@@ -255,6 +267,7 @@ export function SessionAgendaPanel({
 					) : sessionLoadError ? (
 						<SessionErrorState
 							variant="session"
+							isNetwork={sessionLoadErrorIsNetwork}
 							message={sessionLoadError}
 							onRetry={onRetryLoadSession}
 						/>
@@ -279,7 +292,7 @@ export function SessionAgendaPanel({
 							<SessionStatusBanner
 								isCompleted={isCompleted}
 								dndError={dnd.dndError}
-								onDismissDndError={() => dnd.setDndError(null)}
+								onDismissDndError={dnd.dismissDndError}
 							/>
 
 							<SessionAgendaItemList

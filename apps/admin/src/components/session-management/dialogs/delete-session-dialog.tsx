@@ -64,7 +64,7 @@ export function DeleteSessionDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-							<Trash2 className="h-5 w-5 text-red-600" />
+							<Trash2 className="h-5 w-5 text-red-600" aria-hidden="true" />
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -81,7 +81,10 @@ export function DeleteSessionDialog({
 				<div className="space-y-4">
 					<div className="p-3 bg-red-50 border border-red-200 rounded-lg">
 						<div className="flex items-start gap-2">
-							<AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+							<AlertTriangle
+								className="h-4 w-4 text-red-600 mt-0.5 shrink-0"
+								aria-hidden="true"
+							/>
 							<div>
 								<p className="text-sm font-medium text-red-800 mb-1">
 									You are about to permanently delete Session #{sessionNumber}
@@ -101,7 +104,11 @@ export function DeleteSessionDialog({
 
 					{/* Error Message */}
 					{error && (
-						<div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+						<div
+							className="p-3 bg-red-50 border border-red-200 rounded-lg"
+							role="alert"
+							aria-live="assertive"
+						>
 							<p className="text-sm text-red-800">{error}</p>
 						</div>
 					)}
@@ -123,9 +130,12 @@ export function DeleteSessionDialog({
 						className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
 					>
 						{isSubmitting ? (
-							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							<Loader2
+								className="h-4 w-4 mr-2 animate-spin"
+								aria-hidden="true"
+							/>
 						) : (
-							<Trash2 className="h-4 w-4 mr-2" />
+							<Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
 						)}
 						{isSubmitting ? "Deleting..." : "Delete Draft"}
 					</Button>

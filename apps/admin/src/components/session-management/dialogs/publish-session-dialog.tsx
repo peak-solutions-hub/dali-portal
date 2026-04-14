@@ -62,7 +62,7 @@ export function PublishSessionDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-							<Send className="h-5 w-5 text-blue-600" />
+							<Send className="h-5 w-5 text-blue-600" aria-hidden="true" />
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -79,7 +79,10 @@ export function PublishSessionDialog({
 				<div className="space-y-4">
 					<div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
 						<div className="flex items-start gap-2">
-							<Send className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+							<Send
+								className="h-4 w-4 text-blue-600 mt-0.5 shrink-0"
+								aria-hidden="true"
+							/>
 							<div>
 								<p className="text-sm font-medium text-blue-800 mb-1">
 									Publish Session #{sessionNumber}
@@ -98,15 +101,24 @@ export function PublishSessionDialog({
 						</p>
 						<ul className="space-y-1.5 text-sm text-gray-600">
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+								<CheckCircle2
+									className="h-4 w-4 text-blue-600 mt-0.5 shrink-0"
+									aria-hidden="true"
+								/>
 								<span>Make the session visible on the public portal</span>
 							</li>
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+								<CheckCircle2
+									className="h-4 w-4 text-blue-600 mt-0.5 shrink-0"
+									aria-hidden="true"
+								/>
 								<span>Change the session status to Scheduled</span>
 							</li>
 							<li className="flex items-start gap-2">
-								<CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+								<CheckCircle2
+									className="h-4 w-4 text-blue-600 mt-0.5 shrink-0"
+									aria-hidden="true"
+								/>
 								<span>Allow uploading of the Agenda Document</span>
 							</li>
 						</ul>
@@ -114,7 +126,11 @@ export function PublishSessionDialog({
 
 					{/* Error Message */}
 					{error && (
-						<div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+						<div
+							className="p-3 bg-red-50 border border-red-200 rounded-lg"
+							role="alert"
+							aria-live="assertive"
+						>
 							<p className="text-sm text-red-800">{error}</p>
 						</div>
 					)}
@@ -136,9 +152,12 @@ export function PublishSessionDialog({
 						className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
 					>
 						{isSubmitting ? (
-							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							<Loader2
+								className="h-4 w-4 mr-2 animate-spin"
+								aria-hidden="true"
+							/>
 						) : (
-							<Send className="h-4 w-4 mr-2" />
+							<Send className="h-4 w-4 mr-2" aria-hidden="true" />
 						)}
 						{isSubmitting ? "Publishing..." : "Publish Session"}
 					</Button>

@@ -27,7 +27,7 @@ import {
 import { TimePicker } from "@repo/ui/components/time-picker";
 import { Calendar, Loader2, Plus } from "@repo/ui/lib/lucide-react";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { api } from "@/lib/api.client";
 
 const PHT_OFFSET_HOURS = 8;
@@ -69,6 +69,69 @@ export function CreateSessionDialog({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const todayInPht = formatIsoDateInPHT(new Date());
+	const sessionTypeSelectId = useId();
+	const sessionTypeLabelId = useId();
+	const sessionDatePickerId = useId();
+	const sessionDateLabelId = useId();
+	const sessionTimePickerId = useId();
+	const sessionTimeLabelId = useId();
+
+	const getSessionValidationError = (
+		selectedDate: Date | undefined,
+		time: string,
+	): string | null => {
+		if (!selectedDate) {
+			return "Please select a session date";
+		}
+
+		const selectedDateInCalendar = formatIsoDateInPHT(selectedDate);
+
+		if (!selectedDateInCalendar) {
+			return "Invalid session date";
+		}
+
+		if (selectedDateInCalendar < todayInPht) {
+			return "Session date cannot be in the past";
+		}
+
+		const scheduleDate = buildPhtDateTimeAsUtc(selectedDateInCalendar, time);
+
+		if (
+			selectedDateInCalendar === todayInPht &&
+			scheduleDate.getTime() < Date.now()
+		) {
+			return "Session time cannot be in the past for today's date";
+		}
+
+		return null;
+	};
+
+	const handleSessionTypeChange = (value: string) => {
+		setSessionType(value);
+		if (error) {
+			setError(null);
+		}
+	};
+
+	const handleSessionDateChange = (date: Date | undefined) => {
+		setSessionDate(date);
+		if (!error) return;
+
+		const nextError = getSessionValidationError(date, sessionTime);
+		if (!nextError) {
+			setError(null);
+		}
+	};
+
+	const handleSessionTimeChange = (time: string) => {
+		setSessionTime(time);
+		if (!error) return;
+
+		const nextError = getSessionValidationError(sessionDate, time);
+		if (!nextError) {
+			setError(null);
+		}
+	};
 
 	const resetForm = () => {
 		setSessionDate(undefined);
@@ -91,7 +154,16 @@ export function CreateSessionDialog({
 		setIsSubmitting(true);
 
 		try {
-			// Validate date
+			const validationError = getSessionValidationError(
+				sessionDate,
+				sessionTime,
+			);
+			if (validationError) {
+				setError(validationError);
+				setIsSubmitting(false);
+				return;
+			}
+
 			if (!sessionDate) {
 				setError("Please select a session date");
 				setIsSubmitting(false);
@@ -99,16 +171,8 @@ export function CreateSessionDialog({
 			}
 
 			const selectedDateInCalendar = formatIsoDateInPHT(sessionDate);
-
 			if (!selectedDateInCalendar) {
 				setError("Invalid session date");
-				setIsSubmitting(false);
-				return;
-			}
-
-			// Validate date is not in the past (PHT)
-			if (selectedDateInCalendar < todayInPht) {
-				setError("Session date cannot be in the past");
 				setIsSubmitting(false);
 				return;
 			}
@@ -118,16 +182,6 @@ export function CreateSessionDialog({
 				selectedDateInCalendar,
 				sessionTime,
 			);
-
-			// Validate time if selected date is today in PHT
-			if (
-				selectedDateInCalendar === todayInPht &&
-				scheduleDate.getTime() < Date.now()
-			) {
-				setError("Session time cannot be in the past for today's date");
-				setIsSubmitting(false);
-				return;
-			}
 
 			const [err, data] = await api.sessions.create({
 				scheduleDate: scheduleDate.toISOString(),
@@ -160,7 +214,7 @@ export function CreateSessionDialog({
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent
-				className="max-w-lg"
+				className="max-w-lg border border-gray-200 shadow-sm"
 				showCloseButton={!isSubmitting}
 				onInteractOutside={(e) => {
 					if (isSubmitting) e.preventDefault();
@@ -172,7 +226,7 @@ export function CreateSessionDialog({
 				<DialogHeader>
 					<div className="flex items-center gap-3 mb-2">
 						<div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-							<Plus className="h-5 w-5 text-blue-600" />
+							<Plus className="h-5 w-5 text-blue-600" aria-hidden="true" />
 						</div>
 						<div>
 							<DialogTitle className="text-xl font-semibold text-gray-900">
@@ -187,17 +241,25 @@ export function CreateSessionDialog({
 
 				{/* Form */}
 				<form onSubmit={handleSubmit}>
-					<div className="space-y-4">
+					<div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
 						{/* Session Type */}
 						<div className="space-y-2">
 							<label
-								htmlFor="session-type"
+								id={sessionTypeLabelId}
+								htmlFor={sessionTypeSelectId}
 								className="text-sm font-medium text-gray-700"
 							>
 								Session Type
 							</label>
-							<Select value={sessionType} onValueChange={setSessionType}>
-								<SelectTrigger id="session-type" className="cursor-pointer">
+							<Select
+								value={sessionType}
+								onValueChange={handleSessionTypeChange}
+							>
+								<SelectTrigger
+									id={sessionTypeSelectId}
+									aria-labelledby={sessionTypeLabelId}
+									className="cursor-pointer border-gray-400 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
+								>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -217,7 +279,8 @@ export function CreateSessionDialog({
 						{/* Session Date */}
 						<div className="space-y-2">
 							<label
-								htmlFor="session-date"
+								htmlFor={sessionDatePickerId}
+								id={sessionDateLabelId}
 								className="text-sm font-medium text-gray-700"
 							>
 								Session Date <span className="text-red-500">*</span>
@@ -225,10 +288,12 @@ export function CreateSessionDialog({
 							<Popover>
 								<PopoverTrigger asChild>
 									<Button
+										id={sessionDatePickerId}
+										aria-labelledby={sessionDateLabelId}
 										variant="outline"
-										className="w-full justify-start text-left font-normal cursor-pointer"
+										className="w-full justify-start border-gray-400 bg-white text-left text-sm font-medium text-gray-900 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 									>
-										<Calendar className="mr-2 h-4 w-4" />
+										<Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
 										{sessionDate ? format(sessionDate, "PPP") : "Pick a date"}
 									</Button>
 								</PopoverTrigger>
@@ -236,7 +301,7 @@ export function CreateSessionDialog({
 									<CalendarComponent
 										mode="single"
 										selected={sessionDate}
-										onSelect={setSessionDate}
+										onSelect={handleSessionDateChange}
 										disabled={(date) => {
 											const dateInPht = formatIsoDateInPHT(date);
 											return !dateInPht || dateInPht < todayInPht;
@@ -257,15 +322,19 @@ export function CreateSessionDialog({
 						{/* Session Time */}
 						<div className="space-y-2">
 							<label
-								htmlFor="session-time"
+								htmlFor={sessionTimePickerId}
+								id={sessionTimeLabelId}
 								className="text-sm font-medium text-gray-700"
 							>
 								Session Time
 							</label>
 							<TimePicker
+								id={sessionTimePickerId}
+								aria-labelledby={sessionTimeLabelId}
 								value={sessionTime}
-								onChange={setSessionTime}
+								onChange={handleSessionTimeChange}
 								placeholder="Select session time"
+								className="border-gray-400 bg-white text-sm font-medium text-gray-900 focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 							/>
 							<p className="text-xs text-gray-500">
 								Default: 10:00 AM (regular sessions)
@@ -274,7 +343,11 @@ export function CreateSessionDialog({
 
 						{/* Error Message */}
 						{error && (
-							<div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+							<div
+								className="rounded-lg border border-red-200 bg-red-50 p-3"
+								role="alert"
+								aria-live="polite"
+							>
 								<p className="text-sm text-red-800">{error}</p>
 							</div>
 						)}
@@ -296,9 +369,12 @@ export function CreateSessionDialog({
 							className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
 						>
 							{isSubmitting ? (
-								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								<Loader2
+									className="h-4 w-4 mr-2 animate-spin"
+									aria-hidden="true"
+								/>
 							) : (
-								<Plus className="h-4 w-4 mr-2" />
+								<Plus className="h-4 w-4 mr-2" aria-hidden="true" />
 							)}
 							{isSubmitting ? "Creating..." : "Create Session"}
 						</Button>

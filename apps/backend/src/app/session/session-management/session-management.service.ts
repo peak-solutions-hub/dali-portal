@@ -3,7 +3,6 @@ import {
 	type AdminSessionListResponse,
 	type AdminSessionResponse,
 	type AdminSessionWithAgenda,
-	AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
 	AGENDA_DOCUMENT_ELIGIBLE_STATUS,
 	type AgendaUploadUrlResponse,
 	AppError,
@@ -27,6 +26,9 @@ import {
 	type SaveSessionDraftInput,
 	SESSION_AGENDA_BUCKET,
 	SESSION_DOCUMENTS_BUCKET,
+	SESSION_NUMBER_MIN_SEQUENCE,
+	SESSION_NUMBER_SEQUENCE_BASE,
+	SESSION_NUMBER_YEAR_MODULO,
 	SessionStatus,
 	type SessionType,
 	type UnpublishSessionInput,
@@ -42,6 +44,7 @@ import {
 @Injectable()
 export class SessionManagementService {
 	private readonly logger = new Logger(SessionManagementService.name);
+	private static readonly SESSION_NUMBER_LOCK_NAMESPACE = 42_601;
 
 	constructor(
 		private readonly db: DbService,
@@ -58,32 +61,6 @@ export class SessionManagementService {
 		return {
 			...session,
 			sessionNumber: Number(session.sessionNumber),
-		};
-	}
-
-	private transformSessionWithAgenda<
-		TItem extends { orderIndex: Prisma.Decimal | number },
-		T extends {
-			sessionNumber: Prisma.Decimal | number;
-			sessionAgendaItem: TItem[];
-		},
-	>(
-		session: T,
-	): Omit<T, "sessionNumber" | "sessionAgendaItem"> & {
-		sessionNumber: number;
-		agendaItems: (Omit<TItem, "orderIndex"> & { orderIndex: number })[];
-	} {
-		const { sessionAgendaItem, ...rest } = session;
-		return {
-			...rest,
-			sessionNumber: Number(session.sessionNumber),
-			agendaItems: sessionAgendaItem.map((item) => ({
-				...item,
-				orderIndex: Number(item.orderIndex),
-			})),
-		} as Omit<T, "sessionNumber" | "sessionAgendaItem"> & {
-			sessionNumber: number;
-			agendaItems: (Omit<TItem, "orderIndex"> & { orderIndex: number })[];
 		};
 	}
 
@@ -141,6 +118,85 @@ export class SessionManagementService {
 		const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
 		return { start, end };
+	}
+
+	private getPhtYear(date: Date): number {
+		const parts = new Intl.DateTimeFormat("en-US", {
+			timeZone: PH_TIME_ZONE,
+			year: "numeric",
+		}).formatToParts(date);
+
+		const year = Number(parts.find((part) => part.type === "year")?.value);
+
+		if (Number.isNaN(year)) {
+			throw new AppError("SESSION.CREATION_FAILED");
+		}
+
+		return year;
+	}
+
+	private getPhtYearRange(year: number): { start: Date; end: Date } {
+		const start = new Date(Date.UTC(year, 0, 1, -8, 0, 0, 0));
+		const end = new Date(Date.UTC(year + 1, 0, 1, -8, 0, 0, 0));
+		return { start, end };
+	}
+
+	private buildSessionNumber(year: number, sequence: number): number {
+		return (
+			(year % SESSION_NUMBER_YEAR_MODULO) * SESSION_NUMBER_SEQUENCE_BASE +
+			sequence
+		);
+	}
+
+	private async acquireSessionNumberLocks(
+		tx: Prisma.TransactionClient,
+		years: number[],
+	): Promise<void> {
+		const uniqueSortedYears = [...new Set(years)].sort((a, b) => a - b);
+
+		for (const year of uniqueSortedYears) {
+			await tx.$executeRaw`
+				SELECT pg_advisory_xact_lock(
+					${SessionManagementService.SESSION_NUMBER_LOCK_NAMESPACE},
+					${year}
+				)
+			`;
+		}
+	}
+
+	private async resequenceSessionsForYear(
+		tx: Prisma.TransactionClient,
+		year: number,
+	): Promise<void> {
+		const { start, end } = this.getPhtYearRange(year);
+
+		const sessionsInYear = await tx.session.findMany({
+			where: {
+				scheduleDate: {
+					gte: start,
+					lt: end,
+				},
+			},
+			orderBy: [{ scheduleDate: "asc" }, { id: "asc" }],
+			select: {
+				id: true,
+				sessionNumber: true,
+			},
+		});
+
+		for (const [index, session] of sessionsInYear.entries()) {
+			const nextSessionNumber = this.buildSessionNumber(
+				year,
+				index + SESSION_NUMBER_MIN_SEQUENCE,
+			);
+
+			if (Number(session.sessionNumber) !== nextSessionNumber) {
+				await tx.session.update({
+					where: { id: session.id },
+					data: { sessionNumber: nextSessionNumber },
+				});
+			}
+		}
 	}
 
 	/* ============================
@@ -228,6 +284,14 @@ export class SessionManagementService {
 									status: true,
 									purpose: true,
 									classification: true,
+									receivedAt: true,
+									legislativeDocument: {
+										select: {
+											authorNames: true,
+											sponsorNames: true,
+										},
+										take: 1,
+									},
 								},
 							},
 						},
@@ -239,7 +303,42 @@ export class SessionManagementService {
 				throw new AppError("SESSION.NOT_FOUND");
 			}
 
-			return this.transformSessionWithAgenda(session) as AdminSessionWithAgenda;
+			return {
+				id: session.id,
+				sessionNumber: Number(session.sessionNumber),
+				scheduleDate: session.scheduleDate,
+				agendaFilePath: session.agendaFilePath,
+				type: session.type as SessionType,
+				status: session.status as SessionStatus,
+				agendaItems: session.sessionAgendaItem.map((item) => {
+					const legDoc = item.document?.legislativeDocument?.[0];
+
+					return {
+						id: item.id,
+						sessionId: item.sessionId,
+						orderIndex: Number(item.orderIndex),
+						contentText: item.contentText,
+						linkedDocument: item.linkedDocument,
+						attachmentPath: item.attachmentPath,
+						attachmentName: item.attachmentName,
+						section: item.section,
+						document: item.document
+							? {
+									id: item.document.id,
+									codeNumber: item.document.codeNumber,
+									title: item.document.title,
+									type: item.document.type,
+									status: item.document.status,
+									purpose: item.document.purpose,
+									classification: item.document.classification,
+									receivedAt: item.document.receivedAt.toISOString(),
+									authors: legDoc?.authorNames ?? [],
+									sponsors: legDoc?.sponsorNames ?? [],
+								}
+							: null,
+					};
+				}),
+			};
 		} catch (error) {
 			if (error instanceof AppError) throw error;
 			this.logger.error("Failed to load session by ID", error);
@@ -251,45 +350,64 @@ export class SessionManagementService {
 	 * Create a new draft session (ADMIN)
 	 */
 	async create(input: CreateSessionInput): Promise<AdminSessionResponse> {
-		// Check for duplicate session on the same Philippine calendar date.
-		const { start: dateStart, end: dateEnd } = this.getPhtDayRange(
-			new Date(input.scheduleDate),
-		);
-
-		const existing = await this.db.session.findFirst({
-			where: {
-				scheduleDate: { gte: dateStart, lt: dateEnd },
-			},
-		});
-
-		if (existing) {
-			this.logger.warn(
-				`Duplicate session creation attempt for date ${input.scheduleDate}`,
-			);
-			throw new AppError("SESSION.DUPLICATE_DATE");
-		}
-
-		// Auto-generate next session number
-		const maxResult = await this.db.session.aggregate({
-			_max: { sessionNumber: true },
-		});
-		const nextNumber = maxResult._max.sessionNumber
-			? Number(maxResult._max.sessionNumber) + 1
-			: 1;
+		const scheduleDate = new Date(input.scheduleDate);
+		const targetYear = this.getPhtYear(scheduleDate);
 
 		try {
-			const session = await this.db.session.create({
-				data: {
-					sessionNumber: nextNumber,
-					scheduleDate: input.scheduleDate,
-					type: input.type as PrismaSessionType,
-					status: getInitialSessionStatus(),
-				},
+			const createdSession = await this.db.$transaction(async (tx) => {
+				await this.acquireSessionNumberLocks(tx, [targetYear]);
+
+				// Check for duplicate session on the same Philippine calendar date.
+				const { start: dateStart, end: dateEnd } =
+					this.getPhtDayRange(scheduleDate);
+
+				const existing = await tx.session.findFirst({
+					where: {
+						scheduleDate: { gte: dateStart, lt: dateEnd },
+					},
+				});
+
+				if (existing) {
+					this.logger.warn(
+						`Duplicate session creation attempt for date ${input.scheduleDate}`,
+					);
+					throw new AppError("SESSION.DUPLICATE_DATE");
+				}
+
+				// Create with a provisional number first, then resequence for the year.
+				const provisionalNumber = this.buildSessionNumber(
+					targetYear,
+					SESSION_NUMBER_MIN_SEQUENCE,
+				);
+
+				const created = await tx.session.create({
+					data: {
+						sessionNumber: provisionalNumber,
+						scheduleDate: input.scheduleDate,
+						type: input.type as PrismaSessionType,
+						status: getInitialSessionStatus(),
+					},
+				});
+
+				await this.resequenceSessionsForYear(tx, targetYear);
+
+				const refreshed = await tx.session.findUnique({
+					where: { id: created.id },
+				});
+
+				if (!refreshed) {
+					throw new AppError("SESSION.CREATION_FAILED");
+				}
+
+				return refreshed;
 			});
 
-			this.logger.log(`Session #${nextNumber} created as draft`);
-			return this.transformSession(session) as AdminSessionResponse;
+			this.logger.log(
+				`Session #${Number(createdSession.sessionNumber)} created as draft`,
+			);
+			return this.transformSession(createdSession) as AdminSessionResponse;
 		} catch (error) {
+			if (error instanceof AppError) throw error;
 			this.logger.error("Failed to create session", error);
 			throw new AppError("SESSION.CREATION_FAILED");
 		}
@@ -376,6 +494,7 @@ export class SessionManagementService {
 				}
 			})
 			.catch((error) => {
+				if (error instanceof AppError) throw error;
 				this.logger.error("Failed to save session draft", error);
 				throw new AppError("SESSION.SAVE_FAILED");
 			});
@@ -512,15 +631,21 @@ export class SessionManagementService {
 			throw new AppError("SESSION.DELETE_NOT_DRAFT");
 		}
 
+		const sessionYear = this.getPhtYear(new Date(session.scheduleDate));
+
 		try {
 			// Delete agenda items first, then session
 			await this.db.$transaction(async (tx) => {
+				await this.acquireSessionNumberLocks(tx, [sessionYear]);
+
 				await tx.sessionAgendaItem.deleteMany({
 					where: { sessionId: input.id },
 				});
 				await tx.session.delete({
 					where: { id: input.id },
 				});
+
+				await this.resequenceSessionsForYear(tx, sessionYear);
 			});
 
 			this.logger.log(`Session #${Number(session.sessionNumber)} deleted`);
@@ -532,14 +657,13 @@ export class SessionManagementService {
 	}
 
 	/**
-	 * List approved documents for agenda linking (ADMIN)
+	 * List calendared documents for agenda linking (ADMIN)
 	 */
-	async getApprovedDocuments(): Promise<ApprovedDocumentListResponse> {
+	async getAgendaDocuments(): Promise<ApprovedDocumentListResponse> {
 		try {
 			const documents = await this.db.document.findMany({
 				where: {
 					status: AGENDA_DOCUMENT_ELIGIBLE_STATUS,
-					purpose: AGENDA_DOCUMENT_ELIGIBLE_PURPOSE,
 				},
 				select: {
 					id: true,
@@ -580,7 +704,7 @@ export class SessionManagementService {
 			};
 		} catch (error) {
 			if (error instanceof AppError) throw error;
-			this.logger.error("Failed to load approved documents", error);
+			this.logger.error("Failed to load calendared documents", error);
 			throw new AppError("SESSION.LIST_FAILED");
 		}
 	}
@@ -592,19 +716,43 @@ export class SessionManagementService {
 	async getDocumentFileUrl(
 		input: GetDocumentFileUrlInput,
 	): Promise<DocumentFileUrlResponse> {
-		// Look up the latest version of the document
-		const version = await this.db.documentVersion.findFirst({
-			where: { documentId: input.documentId },
-			orderBy: { versionNumber: "desc" },
+		const document = await this.db.document.findUnique({
+			where: {
+				id: input.documentId,
+			},
+			select: {
+				status: true,
+				sessionAgendaItem: input.sessionId
+					? {
+							where: { sessionId: input.sessionId },
+							take: 1,
+							select: { id: true },
+						}
+					: {
+							take: 1,
+							select: { id: true },
+						},
+				documentVersion: {
+					orderBy: { versionNumber: "desc" },
+					take: 1,
+					select: { filePath: true },
+				},
+			},
 		});
 
-		if (!version || !version.filePath) {
-			throw new AppError("GENERAL.NOT_FOUND", "Document file not found");
+		const isCalendaredSource =
+			document?.status === AGENDA_DOCUMENT_ELIGIBLE_STATUS;
+		const isLinkedToRequestedSession =
+			Boolean(input.sessionId) && (document?.sessionAgendaItem.length ?? 0) > 0;
+		const filePath = document?.documentVersion[0]?.filePath;
+
+		if (!filePath || (!isCalendaredSource && !isLinkedToRequestedSession)) {
+			throw new AppError("GENERAL.NOT_FOUND");
 		}
 
 		const result = await this.storage.getSignedUrl(
 			SESSION_DOCUMENTS_BUCKET,
-			version.filePath,
+			filePath,
 		);
 
 		if (!result.signedUrl) {
@@ -615,7 +763,7 @@ export class SessionManagementService {
 		}
 
 		// Infer content type from file extension
-		const ext = version.filePath.split(".").pop()?.toLowerCase();
+		const ext = filePath.split(".").pop()?.toLowerCase();
 		const contentTypeMap: Record<string, string> = {
 			pdf: "application/pdf",
 			doc: "application/msword",

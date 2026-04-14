@@ -13,6 +13,7 @@ interface UseScheduledRemoveOptions {
 	selectedSession: string | null;
 	sessions: SessionUI[];
 	builder: UseAgendaBuilderReturn;
+	invalidateSessions: () => Promise<void>;
 }
 
 /**
@@ -28,6 +29,7 @@ export function useScheduledRemove({
 	selectedSession,
 	sessions,
 	builder,
+	invalidateSessions,
 }: UseScheduledRemoveOptions) {
 	const {
 		documentsByAgendaItem,
@@ -108,6 +110,7 @@ export function useScheduledRemove({
 					setDocumentsByAgendaItem(newDocs);
 					snapshotWithOverrides({ docs: newDocs });
 					clearDraft(selectedSession);
+					await invalidateSessions();
 					toast.success("Removed successfully.");
 				}
 			} catch {
@@ -123,6 +126,7 @@ export function useScheduledRemove({
 			setDocumentsByAgendaItem,
 			snapshotWithOverrides,
 			clearDraft,
+			invalidateSessions,
 		],
 	);
 
@@ -169,6 +173,7 @@ export function useScheduledRemove({
 					setCustomTextsBySection(newCustomTexts);
 					snapshotWithOverrides({ customTexts: newCustomTexts });
 					clearDraft(selectedSession);
+					await invalidateSessions();
 					toast.success("Removed successfully.");
 				}
 			} catch {
@@ -185,6 +190,7 @@ export function useScheduledRemove({
 			setCustomTextsBySection,
 			snapshotWithOverrides,
 			clearDraft,
+			invalidateSessions,
 			removeCustomText,
 		],
 	);

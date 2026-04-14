@@ -2,6 +2,7 @@ import type { SessionManagementDocument as Document } from "@repo/shared";
 import {
 	getClassificationLabel,
 	getDocumentTypeBadgeClass,
+	getDocumentTypeLabel,
 } from "@repo/ui/lib/session-ui";
 import {
 	Calendar,
@@ -12,6 +13,7 @@ import {
 	User,
 	Users,
 } from "lucide-react";
+import type { KeyboardEvent } from "react";
 
 interface SessionDocumentCardProps {
 	document: Document;
@@ -32,20 +34,34 @@ export function SessionDocumentCard({
 	document,
 	onViewDocument,
 }: SessionDocumentCardProps) {
+	const documentCardDescriptionId = `doc-card-description-${document.id}`;
+
 	const handleDragStart = (e: React.DragEvent) => {
 		e.dataTransfer.effectAllowed = "copy";
 		e.dataTransfer.setData("application/json", JSON.stringify(document));
+	};
+
+	const handleCardKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+		if (e.currentTarget !== e.target) return;
+		if ((e.key === "Enter" || e.key === " ") && onViewDocument) {
+			e.preventDefault();
+			onViewDocument(document.id);
+		}
 	};
 
 	return (
 		<div
 			draggable
 			onDragStart={handleDragStart}
+			aria-roledescription="draggable document"
 			className="group overflow-hidden hover:shadow-lg active:shadow-xl transition-all duration-200 border border-gray-200 rounded-lg border-l-4 border-l-[#a60202] bg-white cursor-grab active:cursor-grabbing hover:border-gray-300"
 		>
 			<article
-				className="px-4 py-3"
+				className="px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 				aria-labelledby={`doc-title-${document.id}`}
+				aria-describedby={documentCardDescriptionId}
+				tabIndex={onViewDocument ? 0 : undefined}
+				onKeyDown={handleCardKeyDown}
 			>
 				<div className="flex items-start gap-2">
 					{/* Drag Handle */}
@@ -61,7 +77,7 @@ export function SessionDocumentCard({
 								className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${getDocumentTypeBadgeClass(document.type)}`}
 							>
 								<FileText className="w-3 h-3" aria-hidden="true" />
-								<span>{document.type}</span>
+								<span>{getDocumentTypeLabel(document.type)}</span>
 							</span>
 							<span className="text-sm text-[#a60202] font-semibold">
 								{document.number}
@@ -107,10 +123,16 @@ export function SessionDocumentCard({
 							)}
 						</div>
 
+						<p id={documentCardDescriptionId} className="sr-only">
+							{onViewDocument
+								? "Press Enter to open document details. Drag with a mouse to add this document to the agenda."
+								: "Drag with a mouse to add this document to the agenda."}
+						</p>
+
 						{/* View link */}
 						<button
 							type="button"
-							className="inline-flex items-center gap-1 mt-1.5 text-xs text-blue-900 hover:underline font-medium cursor-pointer"
+							className="inline-flex items-center gap-1 mt-1.5 rounded px-1 py-0.5 text-xs text-blue-900 hover:bg-blue-50 hover:text-blue-950 font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a60202] focus-visible:ring-offset-2"
 							onClick={(e) => {
 								e.stopPropagation();
 								if (onViewDocument) {
@@ -119,7 +141,7 @@ export function SessionDocumentCard({
 							}}
 							onMouseDown={(e) => e.stopPropagation()}
 						>
-							<ExternalLink className="w-3 h-3" />
+							<ExternalLink className="w-3 h-3" aria-hidden="true" />
 							View Document
 						</button>
 					</div>
