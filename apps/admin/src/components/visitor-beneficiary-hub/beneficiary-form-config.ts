@@ -10,9 +10,18 @@ export type MainFormState = {
 	phoneNumber: string;
 	email: string;
 	purpose: string;
+	claimantLastName: string;
+	claimantGivenName: string;
+	claimantMiddleName: string;
+	patientLastName: string;
+	patientGivenName: string;
+	patientMiddleName: string;
+	deceasedLastName: string;
+	deceasedGivenName: string;
+	deceasedMiddleName: string;
+	burialDate: Date | undefined;
 	medicineName: string;
 	hospitalName: string;
-	deceasedName: string;
 	relationToDeceased: string;
 	laboratoryType: string;
 	schoolName: string;
@@ -65,9 +74,18 @@ export const INITIAL_BENEFICIARY_FORM_STATE: MainFormState = {
 	phoneNumber: "",
 	email: "",
 	purpose: "",
+	claimantLastName: "",
+	claimantGivenName: "",
+	claimantMiddleName: "",
+	patientLastName: "",
+	patientGivenName: "",
+	patientMiddleName: "",
+	deceasedLastName: "",
+	deceasedGivenName: "",
+	deceasedMiddleName: "",
+	burialDate: undefined,
 	medicineName: "",
 	hospitalName: "",
-	deceasedName: "",
 	relationToDeceased: "",
 	laboratoryType: "",
 	schoolName: "",

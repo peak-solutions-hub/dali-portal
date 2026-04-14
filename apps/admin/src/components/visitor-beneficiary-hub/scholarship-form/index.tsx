@@ -134,6 +134,8 @@ export function ScholarshipForm({
 	const [missingFields, setMissingFields] = useState<
 		Array<keyof MainFormState>
 	>([]);
+	const [hasAttemptedStepFiveSubmit, setHasAttemptedStepFiveSubmit] =
+		useState(false);
 
 	const currentStepFields = useMemo(() => {
 		if (step === 1) return STEP_ONE_REQUIRED_FIELDS;
@@ -164,10 +166,16 @@ export function ScholarshipForm({
 		!isStrictPhMobile(formState.contactNumber);
 
 	const hasStrictGuardianContactError =
+		hasAttemptedStepFiveSubmit &&
+		step === 5 &&
 		formState.guardianContactNo.trim() !== "" &&
 		!isStrictPhMobile(formState.guardianContactNo);
 
 	const canMoveToNext = () => {
+		if (step === 5) {
+			setHasAttemptedStepFiveSubmit(true);
+		}
+
 		const fieldsWithMissingValue = currentStepFields.filter((field) =>
 			isEmptyValue(formState[field]),
 		);
@@ -210,6 +218,7 @@ export function ScholarshipForm({
 				return false;
 			}
 			contactForm.clearErrors("guardianContactNo");
+			setHasAttemptedStepFiveSubmit(false);
 		}
 
 		setStepError(null);
@@ -284,6 +293,12 @@ export function ScholarshipForm({
 	useEffect(() => {
 		contactForm.setValue("guardianContactNo", formState.guardianContactNo);
 	}, [contactForm, formState.guardianContactNo]);
+
+	useEffect(() => {
+		if (step !== 5) {
+			setHasAttemptedStepFiveSubmit(false);
+		}
+	}, [step]);
 
 	useEffect(() => {
 		const emailValue = formState.emailAddress?.trim() ?? "";
@@ -875,7 +890,7 @@ export function ScholarshipForm({
 							control={contactForm.control}
 							name="guardianContactNo"
 							rules={{ validate: validatePhMobileInput }}
-							render={({ field, fieldState }) => (
+							render={({ field }) => (
 								<FormItem>
 									<FormLabel className="text-gray-700 font-medium">
 										Guardian Contact No. <span className="text-red-500">*</span>
@@ -886,13 +901,14 @@ export function ScholarshipForm({
 												{...field}
 												type="tel"
 												aria-invalid={
-													fieldState.invalid ||
-													hasFieldError("guardianContactNo")
+													hasAttemptedStepFiveSubmit &&
+													(hasFieldError("guardianContactNo") ||
+														hasStrictGuardianContactError)
 												}
 												className={getInputClassName(
-													fieldState.invalid ||
-														hasFieldError("guardianContactNo") ||
-														hasStrictGuardianContactError,
+													hasAttemptedStepFiveSubmit &&
+														(hasFieldError("guardianContactNo") ||
+															hasStrictGuardianContactError),
 												)}
 												value={field.value ?? ""}
 												onChange={(event) => {
@@ -939,7 +955,10 @@ export function ScholarshipForm({
 				)}
 
 				<DialogFooter className="flex w-full items-center justify-between sm:justify-between">
-					<div>
+					<Button type="button" variant="ghost" onClick={onCancel}>
+						Cancel
+					</Button>
+					<div className="flex items-center gap-2">
 						{step > 1 && (
 							<Button
 								type="button"
@@ -949,11 +968,6 @@ export function ScholarshipForm({
 								Previous
 							</Button>
 						)}
-					</div>
-					<div className="flex items-center gap-2">
-						<Button type="button" variant="ghost" onClick={onCancel}>
-							Cancel
-						</Button>
 						{step < TOTAL_STEPS ? (
 							<Button
 								type="button"

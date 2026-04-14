@@ -105,16 +105,30 @@ const ASSISTANCE_REQUIRED_FIELDS: Record<
 	Array<keyof MainFormState>
 > = {
 	"Medicine Assistance": ["medicineName"],
-	"Burial Assistance": ["deceasedName", "relationToDeceased"],
+	"Burial Assistance": [
+		"deceasedLastName",
+		"deceasedGivenName",
+		"deceasedMiddleName",
+		"relationToDeceased",
+	],
 	"Hospital Bill Assistance": ["hospitalName"],
 	"Laboratory Fees Assistance": ["laboratoryType"],
 	"Scholarship Grant": SCHOLARSHIP_REQUIRED_FIELDS,
 };
 
 const ASSISTANCE_FIELD_LABELS: Partial<Record<keyof MainFormState, string>> = {
+	claimantLastName: "Claimant Last Name",
+	claimantGivenName: "Claimant Given Name",
+	claimantMiddleName: "Claimant Middle Name",
+	patientLastName: "Patient Last Name",
+	patientGivenName: "Patient Given Name",
+	patientMiddleName: "Patient Middle Name",
+	deceasedLastName: "Deceased Last Name",
+	deceasedGivenName: "Deceased Given Name",
+	deceasedMiddleName: "Deceased Middle Name",
+	burialDate: "Date of Burial",
 	medicineName: "Medicine / Prescription",
 	hospitalName: "Hospital Name",
-	deceasedName: "Deceased Name",
 	relationToDeceased: "Relation to Deceased",
 	laboratoryType: "Laboratory Test Type",
 	seq: "SEQ",
@@ -155,7 +169,9 @@ const ASSISTANCE_FIELD_PLACEHOLDERS: Partial<
 > = {
 	medicineName: "Enter medicine details",
 	hospitalName: "Enter hospital name",
-	deceasedName: "Enter deceased name",
+	deceasedLastName: "Enter deceased last name",
+	deceasedGivenName: "Enter deceased given name",
+	deceasedMiddleName: "Enter deceased middle name",
 	relationToDeceased: "e.g. Son, Spouse",
 	laboratoryType: "Enter requested laboratory test",
 	birthdate: "dd/mm/yyyy",
@@ -209,8 +225,61 @@ const FAMILY_INFORMATION_FIELDS: Array<keyof MainFormState> = [
 	"guardianEmailAddress",
 ];
 
+const PARENT_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"fatherLastName",
+	"fatherGivenName",
+	"fatherMiddleName",
+	"motherMaidenLastName",
+	"motherGivenName",
+	"motherMaidenMiddleName",
+];
+
+const GUARDIAN_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"guardianName",
+	"guardianContactNo",
+	"guardianEmailAddress",
+];
+
+const CLAIMANT_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"claimantLastName",
+	"claimantGivenName",
+	"claimantMiddleName",
+];
+
+const ASSISTANCE_ADDRESS_FIELDS: Array<keyof MainFormState> = [
+	"street",
+	"scholarshipBarangay",
+	"cityMunicipality",
+	"province",
+	"zipCode",
+];
+
+const DECEASED_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"deceasedGivenName",
+	"deceasedMiddleName",
+	"burialDate",
+];
+
+const PATIENT_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"patientGivenName",
+	"patientMiddleName",
+];
+
+const SCHOLARSHIP_STUDENT_FIELDS: Array<keyof MainFormState> = [
+	"seq",
+	"lastName",
+	"givenName",
+	"scholarshipMiddleName",
+	"extName",
+	"scholarshipSex",
+	"scholarshipBirthdate",
+	"contactNumber",
+	"emailAddress",
+];
+
 const VISIT_DETAILS_MULTI_STEP_THRESHOLD = 8;
 const VISIT_DETAILS_FIELDS_PER_STEP = 8;
+const PROFILE_DETAILS_FIELDS_PER_PAGE = 8;
 
 function isAssistanceType(value: string): value is AssistanceType {
 	return ASSISTANCE_TYPES.includes(value as AssistanceType);
@@ -262,6 +331,34 @@ function chunkFields<T>(fields: T[], chunkSize: number): T[][] {
 		chunks.push(fields.slice(index, index + chunkSize));
 	}
 	return chunks;
+}
+
+function getPaginationTokens(
+	currentPage: number,
+	totalPages: number,
+): Array<number | "ellipsis"> {
+	if (totalPages <= 7) {
+		return Array.from({ length: totalPages }, (_, index) => index + 1);
+	}
+
+	const tokens: Array<number | "ellipsis"> = [1];
+	const start = Math.max(2, currentPage - 1);
+	const end = Math.min(totalPages - 1, currentPage + 1);
+
+	if (start > 2) {
+		tokens.push("ellipsis");
+	}
+
+	for (let page = start; page <= end; page += 1) {
+		tokens.push(page);
+	}
+
+	if (end < totalPages - 1) {
+		tokens.push("ellipsis");
+	}
+
+	tokens.push(totalPages);
+	return tokens;
 }
 
 function formatAssistanceDetailValue(
@@ -370,6 +467,7 @@ export function BeneficiaryDatabase() {
 	);
 	const [visitEditorError, setVisitEditorError] = useState<string | null>(null);
 	const [visitDetailsStep, setVisitDetailsStep] = useState(1);
+	const [profileDetailsPage, setProfileDetailsPage] = useState(1);
 	const assistanceFilterOptions = useMemo(
 		() =>
 			Array.from(
@@ -469,6 +567,228 @@ export function BeneficiaryDatabase() {
 
 		return categorizedSections;
 	}, [selectedBeneficiary]);
+	const scholarshipDetailsLookup = useMemo(() => {
+		const details = new Map<
+			keyof MainFormState,
+			{ field: keyof MainFormState; label: string; value: string }
+		>();
+
+		for (const section of selectedBeneficiaryProfileSections) {
+			for (const detail of section.fields) {
+				details.set(detail.field, detail);
+			}
+		}
+
+		return details;
+	}, [selectedBeneficiaryProfileSections]);
+	const hasScholarshipOverview = hasSavedScholarshipProfile(
+		selectedBeneficiary ?? undefined,
+	);
+	const scholarshipProfilePages = useMemo(
+		() => [
+			{
+				title: "Student Information",
+				fields: SCHOLARSHIP_STUDENT_FIELDS.flatMap((field) => {
+					const detail = scholarshipDetailsLookup.get(field);
+					return detail ? [detail] : [];
+				}),
+			},
+			{
+				title: "Academic Information",
+				fields: SCHOLARSHIP_ACADEMIC_FIELDS.flatMap((field) => {
+					const detail = scholarshipDetailsLookup.get(field);
+					return detail ? [detail] : [];
+				}),
+			},
+			{
+				title: "Address Information",
+				fields: ADDRESS_INFORMATION_FIELDS.flatMap((field) => {
+					const detail = scholarshipDetailsLookup.get(field);
+					return detail ? [detail] : [];
+				}),
+			},
+			{
+				title: "Parent Information",
+				fields: PARENT_INFORMATION_FIELDS.flatMap((field) => {
+					const detail = scholarshipDetailsLookup.get(field);
+					return detail ? [detail] : [];
+				}),
+			},
+			{
+				title: "Guardian Information",
+				fields: GUARDIAN_INFORMATION_FIELDS.flatMap((field) => {
+					const detail = scholarshipDetailsLookup.get(field);
+					return detail ? [detail] : [];
+				}),
+			},
+		],
+		[scholarshipDetailsLookup],
+	);
+	const hasAssistanceOverview = !hasScholarshipOverview;
+	const assistanceProfilePages = useMemo(() => {
+		const claimantFields = CLAIMANT_INFORMATION_FIELDS.flatMap((field) => {
+			const detail = scholarshipDetailsLookup.get(field);
+			return detail ? [detail] : [];
+		});
+
+		const addressFields = ASSISTANCE_ADDRESS_FIELDS.flatMap((field) => {
+			const detail = scholarshipDetailsLookup.get(field);
+			return detail ? [detail] : [];
+		});
+
+		const deceasedFields = DECEASED_INFORMATION_FIELDS.flatMap((field) => {
+			const detail = scholarshipDetailsLookup.get(field);
+			return detail ? [detail] : [];
+		});
+
+		const patientFields = PATIENT_INFORMATION_FIELDS.flatMap((field) => {
+			const detail = scholarshipDetailsLookup.get(field);
+			return detail ? [detail] : [];
+		});
+
+		const caseFields =
+			deceasedFields.length > 0 ? deceasedFields : patientFields;
+
+		return [
+			{ title: "Claimant Information", fields: claimantFields },
+			{ title: "Address Information", fields: addressFields },
+			{ title: "Patient/Deceased Information", fields: caseFields },
+		].filter((section) => section.fields.length > 0);
+	}, [scholarshipDetailsLookup]);
+	const hasAssistanceProfilePages =
+		hasAssistanceOverview && assistanceProfilePages.length > 0;
+	const totalProfileDetails = useMemo(
+		() =>
+			selectedBeneficiaryProfileSections.reduce(
+				(total, section) => total + section.fields.length,
+				0,
+			),
+		[selectedBeneficiaryProfileSections],
+	);
+	const nonScholarshipProfileDetailsPages = Math.max(
+		1,
+		Math.ceil(totalProfileDetails / PROFILE_DETAILS_FIELDS_PER_PAGE),
+	);
+	const totalProfileDetailsPages = hasScholarshipOverview
+		? scholarshipProfilePages.length
+		: hasAssistanceProfilePages
+			? assistanceProfilePages.length
+			: nonScholarshipProfileDetailsPages;
+	const pagedBeneficiaryProfileSections = useMemo(() => {
+		if (selectedBeneficiaryProfileSections.length === 0) {
+			return selectedBeneficiaryProfileSections;
+		}
+
+		const allDetails = selectedBeneficiaryProfileSections.flatMap((section) =>
+			section.fields.map((detail) => ({
+				sectionTitle: section.title,
+				detail,
+			})),
+		);
+
+		const startIndex =
+			(profileDetailsPage - 1) * PROFILE_DETAILS_FIELDS_PER_PAGE;
+		const pagedDetails = allDetails.slice(
+			startIndex,
+			startIndex + PROFILE_DETAILS_FIELDS_PER_PAGE,
+		);
+
+		const grouped = new Map<
+			string,
+			typeof selectedBeneficiaryProfileSections
+		>();
+		for (const item of pagedDetails) {
+			if (!grouped.has(item.sectionTitle)) {
+				grouped.set(item.sectionTitle, []);
+			}
+
+			const current = grouped.get(item.sectionTitle) ?? [];
+			grouped.set(item.sectionTitle, [
+				...current,
+				{
+					title: item.sectionTitle,
+					fields: [item.detail],
+				},
+			]);
+		}
+
+		return Array.from(grouped.entries()).map(([title, entries]) => ({
+			title,
+			fields: entries.flatMap((entry) => entry.fields),
+		}));
+	}, [profileDetailsPage, selectedBeneficiaryProfileSections]);
+	const activeScholarshipProfilePage = useMemo(() => {
+		if (!hasScholarshipOverview) {
+			return [] as Array<{
+				title: string;
+				fields: Array<{
+					field: keyof MainFormState;
+					label: string;
+					value: string;
+				}>;
+			}>;
+		}
+
+		const targetPage = Math.min(
+			Math.max(profileDetailsPage, 1),
+			scholarshipProfilePages.length,
+		);
+		const section = scholarshipProfilePages[targetPage - 1];
+		return section ? [section] : [];
+	}, [hasScholarshipOverview, profileDetailsPage, scholarshipProfilePages]);
+	const visibleProfileSections = hasScholarshipOverview
+		? activeScholarshipProfilePage
+		: hasAssistanceProfilePages
+			? (() => {
+					const targetPage = Math.min(
+						Math.max(profileDetailsPage, 1),
+						assistanceProfilePages.length,
+					);
+					const section = assistanceProfilePages[targetPage - 1];
+					return section ? [section] : [];
+				})()
+			: pagedBeneficiaryProfileSections;
+	const scholarshipContactDisplay =
+		scholarshipDetailsLookup.get("guardianContactNo")?.value ??
+		scholarshipDetailsLookup.get("contactNumber")?.value ??
+		selectedBeneficiary?.phoneNumber ??
+		"—";
+	const assistanceAddressDisplay = useMemo(() => {
+		const addressParts = [
+			scholarshipDetailsLookup.get("street")?.value,
+			scholarshipDetailsLookup.get("scholarshipBarangay")?.value,
+			scholarshipDetailsLookup.get("cityMunicipality")?.value,
+			scholarshipDetailsLookup.get("province")?.value,
+			scholarshipDetailsLookup.get("zipCode")?.value,
+		]
+			.map((value) => value?.trim())
+			.filter((value): value is string => Boolean(value));
+
+		if (addressParts.length > 0) {
+			return addressParts.join(", ");
+		}
+
+		const fallback = [
+			selectedBeneficiary?.barangay,
+			selectedBeneficiary?.municipality,
+		]
+			.map((value) => value?.trim())
+			.filter((value): value is string => Boolean(value));
+
+		return fallback.length > 0 ? fallback.join(", ") : "—";
+	}, [
+		scholarshipDetailsLookup,
+		selectedBeneficiary?.barangay,
+		selectedBeneficiary?.municipality,
+	]);
+	const assistanceContactDisplay =
+		scholarshipDetailsLookup.get("contactNumber")?.value ??
+		selectedBeneficiary?.phoneNumber ??
+		"—";
+	const profileDetailsPageTokens = useMemo(
+		() => getPaginationTokens(profileDetailsPage, totalProfileDetailsPages),
+		[profileDetailsPage, totalProfileDetailsPages],
+	);
 	const editingVisitBeneficiary = editingVisit
 		? beneficiaries.find(
 				(beneficiary) => beneficiary.id === editingVisit.beneficiaryId,
@@ -521,6 +841,14 @@ export function BeneficiaryDatabase() {
 	useEffect(() => {
 		setProfileTab("overview");
 	}, [selectedBeneficiaryId]);
+
+	useEffect(() => {
+		setProfileDetailsPage(1);
+	}, [profileTab, selectedBeneficiaryId]);
+
+	useEffect(() => {
+		setProfileDetailsPage((prev) => Math.min(prev, totalProfileDetailsPages));
+	}, [totalProfileDetailsPages]);
 
 	const formatAutoNumber = (value: number) => value.toString().padStart(4, "0");
 
@@ -623,15 +951,28 @@ export function BeneficiaryDatabase() {
 		const assistanceRequiredFields: Array<keyof MainFormState> = [
 			"seq",
 			"purpose",
-			"assistanceDate",
-			"firstName",
-			"familyName",
-			"streetBarangay",
+			"claimantLastName",
+			"claimantGivenName",
+			"claimantMiddleName",
+			"street",
+			"subdivisionVillage",
+			"scholarshipBarangay",
+			"cityMunicipality",
+			"province",
+			"zipCode",
 			"contactNumber",
-			"hospitalName",
-			"medicineName",
-			"givenName",
-			"endorsementDate",
+			assistanceFormState.purpose === "Burial Assistance"
+				? "deceasedLastName"
+				: "patientLastName",
+			assistanceFormState.purpose === "Burial Assistance"
+				? "deceasedGivenName"
+				: "patientGivenName",
+			assistanceFormState.purpose === "Burial Assistance"
+				? "deceasedMiddleName"
+				: "patientMiddleName",
+			...(assistanceFormState.purpose === "Burial Assistance"
+				? (["burialDate"] as Array<keyof MainFormState>)
+				: []),
 		];
 
 		const hasMissingFields = assistanceRequiredFields.some(
@@ -648,15 +989,44 @@ export function BeneficiaryDatabase() {
 		const [error] = await api.assistanceRecords.create({
 			seq: assistanceFormState.seq,
 			purpose: assistanceFormState.purpose,
-			assistanceDate: assistanceFormState.assistanceDate?.toISOString(),
-			firstName: assistanceFormState.firstName,
-			familyName: assistanceFormState.familyName,
-			streetBarangay: assistanceFormState.streetBarangay,
+			claimantLastName: assistanceFormState.claimantLastName,
+			claimantGivenName: assistanceFormState.claimantGivenName,
+			claimantMiddleName: assistanceFormState.claimantMiddleName,
+			patientLastName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? undefined
+					: assistanceFormState.patientLastName,
+			patientGivenName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? undefined
+					: assistanceFormState.patientGivenName,
+			patientMiddleName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? undefined
+					: assistanceFormState.patientMiddleName,
+			deceasedLastName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? assistanceFormState.deceasedLastName
+					: undefined,
+			deceasedGivenName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? assistanceFormState.deceasedGivenName
+					: undefined,
+			deceasedMiddleName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? assistanceFormState.deceasedMiddleName
+					: undefined,
+			burialDate:
+				assistanceFormState.purpose === "Burial Assistance"
+					? assistanceFormState.burialDate?.toISOString()
+					: undefined,
+			street: assistanceFormState.street,
+			subdivisionVillage: assistanceFormState.subdivisionVillage,
+			barangay: assistanceFormState.scholarshipBarangay,
+			cityMunicipality: assistanceFormState.cityMunicipality,
+			province: assistanceFormState.province,
+			zipCode: assistanceFormState.zipCode,
 			contactNumber: assistanceFormState.contactNumber,
-			hospitalName: assistanceFormState.hospitalName,
-			medicineName: assistanceFormState.medicineName,
-			givenName: assistanceFormState.givenName,
-			endorsementDate: assistanceFormState.endorsementDate?.toISOString() ?? "",
 		});
 
 		if (error) {
@@ -1464,7 +1834,7 @@ export function BeneficiaryDatabase() {
 									Municipality / City
 								</TableHead>
 								<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-1/4">
-									Barangay
+									Address
 								</TableHead>
 								<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-1/4">
 									Assistance Requested
@@ -1539,9 +1909,9 @@ export function BeneficiaryDatabase() {
 					}
 				}}
 			>
-				<DialogContent className="sm:max-w-2xl">
+				<DialogContent className="sm:max-w-2xl h-[80vh] max-h-[80vh] flex flex-col overflow-hidden">
 					{selectedBeneficiary && (
-						<div className="space-y-6">
+						<div className="flex h-full min-h-0 flex-col gap-6">
 							<div className="space-y-4">
 								<div className="flex items-start justify-between gap-3">
 									<div>
@@ -1556,9 +1926,6 @@ export function BeneficiaryDatabase() {
 											</span>
 										</div>
 									</div>
-									<Badge className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-										{selectedBeneficiary.civilStatus}
-									</Badge>
 								</div>
 								<div className="flex flex-wrap gap-3">
 									<Button
@@ -1573,7 +1940,7 @@ export function BeneficiaryDatabase() {
 									</Button>
 								</div>
 							</div>
-							<div>
+							<div className="flex min-h-0 flex-1 flex-col">
 								<div className="flex gap-6 border-b border-gray-200 text-sm font-medium">
 									{PROFILE_TABS.map((tab) => (
 										<button
@@ -1591,28 +1958,20 @@ export function BeneficiaryDatabase() {
 									))}
 								</div>
 								{profileTab === "overview" ? (
-									<div className="space-y-4 pt-4">
+									<div className="flex min-h-0 flex-1 flex-col space-y-4 pt-4">
 										<div className="grid gap-4 text-sm text-gray-900 sm:grid-cols-2">
 											<div className="space-y-1">
-												<p className="text-xs uppercase text-gray-500">Sex</p>
-												<p className="font-medium">{selectedBeneficiary.sex}</p>
-											</div>
-											<div className="space-y-1">
-												<p className="text-xs uppercase text-gray-500">Age</p>
-												<p className="font-medium">{selectedBeneficiary.age}</p>
-											</div>
-											<div className="space-y-1">
 												<p className="text-xs uppercase text-gray-500">
-													Contact
+													{hasScholarshipOverview || hasAssistanceOverview
+														? "Contact Number"
+														: "Email"}
 												</p>
 												<p className="font-medium">
-													{selectedBeneficiary.phoneNumber}
-												</p>
-											</div>
-											<div className="space-y-1">
-												<p className="text-xs uppercase text-gray-500">Email</p>
-												<p className="font-medium">
-													{selectedBeneficiary.email || "—"}
+													{hasScholarshipOverview
+														? scholarshipContactDisplay
+														: hasAssistanceOverview
+															? assistanceContactDisplay
+															: selectedBeneficiary.email || "—"}
 												</p>
 											</div>
 											<div className="space-y-1">
@@ -1644,15 +2003,15 @@ export function BeneficiaryDatabase() {
 											</div>
 											<div className="space-y-1">
 												<p className="text-xs uppercase text-gray-500">
-													Barangay
+													Address
 												</p>
 												<p className="font-medium">
-													{selectedBeneficiary.barangay}
+													{assistanceAddressDisplay}
 												</p>
 											</div>
 										</div>
 
-										<div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+										<div className="flex min-h-0 flex-1 flex-col space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
 											<p className="text-sm font-semibold text-gray-900">
 												Complete Assistance Details
 											</p>
@@ -1661,29 +2020,93 @@ export function BeneficiaryDatabase() {
 													No saved assistance details yet.
 												</p>
 											) : (
-												<div className="space-y-4">
-													{selectedBeneficiaryProfileSections.map((section) => (
-														<div key={section.title} className="space-y-2">
-															<p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-																{section.title}
-															</p>
-															<div className="grid gap-3 sm:grid-cols-2">
-																{section.fields.map((detail) => (
-																	<div
-																		key={`${section.title}-${detail.field}`}
-																		className="space-y-0.5"
-																	>
-																		<p className="text-xs uppercase text-gray-500">
-																			{detail.label}
-																		</p>
-																		<p className="text-sm font-medium text-gray-900">
-																			{detail.value}
-																		</p>
-																	</div>
-																))}
+												<div className="flex min-h-0 flex-1 flex-col">
+													<div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+														{visibleProfileSections.map((section) => (
+															<div key={section.title} className="space-y-2">
+																<p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+																	{section.title}
+																</p>
+																<div className="grid gap-3 sm:grid-cols-2">
+																	{section.fields.map((detail) => (
+																		<div
+																			key={`${section.title}-${detail.field}`}
+																			className="space-y-0.5"
+																		>
+																			<p className="text-xs uppercase text-gray-500">
+																				{detail.label}
+																			</p>
+																			<p className="text-sm font-medium text-gray-900">
+																				{detail.value}
+																			</p>
+																		</div>
+																	))}
+																</div>
+															</div>
+														))}
+													</div>
+													{totalProfileDetailsPages > 1 && (
+														<div className="mt-2 border-t border-gray-200 pt-2">
+															<div className="flex flex-wrap items-center justify-center gap-2">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	disabled={profileDetailsPage === 1}
+																	onClick={() =>
+																		setProfileDetailsPage((prev) =>
+																			Math.max(1, prev - 1),
+																		)
+																	}
+																>
+																	Prev
+																</Button>
+																{profileDetailsPageTokens.map((token, index) =>
+																	token === "ellipsis" ? (
+																		<span
+																			key={`ellipsis-${index}`}
+																			className="px-2 text-sm text-gray-500"
+																		>
+																			...
+																		</span>
+																	) : (
+																		<Button
+																			key={`page-${token}`}
+																			type="button"
+																			variant={
+																				profileDetailsPage === token
+																					? "default"
+																					: "ghost"
+																			}
+																			onClick={() =>
+																				setProfileDetailsPage(token)
+																			}
+																			className="h-9 w-9 rounded-full p-0"
+																		>
+																			{token}
+																		</Button>
+																	),
+																)}
+																<Button
+																	type="button"
+																	variant="ghost"
+																	disabled={
+																		profileDetailsPage ===
+																		totalProfileDetailsPages
+																	}
+																	onClick={() =>
+																		setProfileDetailsPage((prev) =>
+																			Math.min(
+																				totalProfileDetailsPages,
+																				prev + 1,
+																			),
+																		)
+																	}
+																>
+																	Next
+																</Button>
 															</div>
 														</div>
-													))}
+													)}
 												</div>
 											)}
 										</div>

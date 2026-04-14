@@ -19,6 +19,122 @@ type ConstituentWithRelations = Prisma.ConstituentGetPayload<{
 export class BeneficiaryService {
 	constructor(private readonly db: DbService) {}
 
+	private parseAssistanceMeta(raw: string): {
+		claimantLastName: string;
+		claimantGivenName: string;
+		claimantMiddleName: string;
+		patientLastName: string;
+		patientGivenName: string;
+		patientMiddleName: string;
+		deceasedLastName: string;
+		deceasedGivenName: string;
+		deceasedMiddleName: string;
+		street: string;
+		subdivisionVillage: string;
+		barangay: string;
+		cityMunicipality: string;
+		province: string;
+		zipCode: string;
+		burialDate: string;
+	} {
+		if (!raw.trim()) {
+			return {
+				claimantLastName: "",
+				claimantGivenName: "",
+				claimantMiddleName: "",
+				patientLastName: "",
+				patientGivenName: "",
+				patientMiddleName: "",
+				deceasedLastName: "",
+				deceasedGivenName: "",
+				deceasedMiddleName: "",
+				street: "",
+				subdivisionVillage: "",
+				barangay: "",
+				cityMunicipality: "",
+				province: "",
+				zipCode: "",
+				burialDate: "",
+			};
+		}
+
+		try {
+			const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+			return {
+				claimantLastName:
+					typeof parsed.claimantLastName === "string"
+						? parsed.claimantLastName
+						: "",
+				claimantGivenName:
+					typeof parsed.claimantGivenName === "string"
+						? parsed.claimantGivenName
+						: "",
+				claimantMiddleName:
+					typeof parsed.claimantMiddleName === "string"
+						? parsed.claimantMiddleName
+						: "",
+				patientLastName:
+					typeof parsed.patientLastName === "string"
+						? parsed.patientLastName
+						: "",
+				patientGivenName:
+					typeof parsed.patientGivenName === "string"
+						? parsed.patientGivenName
+						: "",
+				patientMiddleName:
+					typeof parsed.patientMiddleName === "string"
+						? parsed.patientMiddleName
+						: "",
+				deceasedLastName:
+					typeof parsed.deceasedLastName === "string"
+						? parsed.deceasedLastName
+						: "",
+				deceasedGivenName:
+					typeof parsed.deceasedGivenName === "string"
+						? parsed.deceasedGivenName
+						: "",
+				deceasedMiddleName:
+					typeof parsed.deceasedMiddleName === "string"
+						? parsed.deceasedMiddleName
+						: "",
+				street: typeof parsed.street === "string" ? parsed.street : "",
+				subdivisionVillage:
+					typeof parsed.subdivisionVillage === "string"
+						? parsed.subdivisionVillage
+						: "",
+				barangay: typeof parsed.barangay === "string" ? parsed.barangay : "",
+				cityMunicipality:
+					typeof parsed.cityMunicipality === "string"
+						? parsed.cityMunicipality
+						: "",
+				province: typeof parsed.province === "string" ? parsed.province : "",
+				zipCode: typeof parsed.zipCode === "string" ? parsed.zipCode : "",
+				burialDate:
+					typeof parsed.burialDate === "string" ? parsed.burialDate : "",
+			};
+		} catch {
+			return {
+				claimantLastName: "",
+				claimantGivenName: "",
+				claimantMiddleName: "",
+				patientLastName: "",
+				patientGivenName: "",
+				patientMiddleName: "",
+				deceasedLastName: "",
+				deceasedGivenName: "",
+				deceasedMiddleName: "",
+				street: "",
+				subdivisionVillage: "",
+				barangay: "",
+				cityMunicipality: "",
+				province: "",
+				zipCode: "",
+				burialDate: "",
+			};
+		}
+	}
+
 	private mapSex(value: string): string {
 		if (value === "male") return "Male";
 		if (value === "female") return "Female";
@@ -29,29 +145,77 @@ export class BeneficiaryService {
 		constituent: ConstituentWithRelations,
 	): BeneficiaryResponse {
 		const assistanceDetails: Record<string, Record<string, string>> = {};
+		const householdSegments = constituent.household.streetAndBarangay
+			.split(",")
+			.map((segment) => segment.trim())
+			.filter((segment) => segment !== "");
+		const legacyStreet =
+			householdSegments[0] ?? constituent.household.streetAndBarangay;
+		const legacyBarangay = householdSegments[2] ?? householdSegments[1] ?? "";
+		const legacyProvinceZip = householdSegments[3] ?? "";
+		const legacyZipMatch = legacyProvinceZip.match(/(\d{4,})$/);
+		const legacyZipCode = legacyZipMatch?.[1] ?? "";
+		const legacyProvince = legacyProvinceZip.replace(/\s*\d{4,}$/, "").trim();
 
 		for (const record of constituent.assistanceRecord) {
 			const type = record.type || "Assistance Request";
 			if (!assistanceDetails[type]) {
 				assistanceDetails[type] = {};
 			}
+
+			const isBurial = type.toLowerCase().includes("burial");
+			const metadata = this.parseAssistanceMeta(record.referredBy);
 			assistanceDetails[type] = {
 				...assistanceDetails[type],
-				laboratoryType: type.toLowerCase().includes("laboratory")
-					? record.patientName
-					: assistanceDetails[type].laboratoryType || "",
-				hospitalName: type.toLowerCase().includes("hospital")
-					? record.patientName
-					: assistanceDetails[type].hospitalName || "",
-				medicineName: type.toLowerCase().includes("medicine")
-					? record.patientName
-					: assistanceDetails[type].medicineName || "",
-				deceasedName: type.toLowerCase().includes("burial")
-					? record.patientName
-					: assistanceDetails[type].deceasedName || "",
-				relationToDeceased: type.toLowerCase().includes("burial")
-					? record.referredBy
-					: assistanceDetails[type].relationToDeceased || "",
+				claimantLastName:
+					metadata.claimantLastName || constituent.lastName || "",
+				claimantGivenName:
+					metadata.claimantGivenName || constituent.firstName || "",
+				claimantMiddleName:
+					metadata.claimantMiddleName || constituent.extName || "",
+				patientLastName: metadata.patientLastName || "",
+				patientGivenName: metadata.patientGivenName || "",
+				patientMiddleName: metadata.patientMiddleName || "",
+				deceasedLastName:
+					metadata.deceasedLastName || (isBurial ? record.patientName : ""),
+				deceasedGivenName: metadata.deceasedGivenName || "",
+				deceasedMiddleName: metadata.deceasedMiddleName || "",
+				burialDate:
+					metadata.burialDate ||
+					(isBurial ? record.endorsementDate.toISOString() : ""),
+				street:
+					assistanceDetails[type].street ||
+					metadata.street ||
+					legacyStreet ||
+					"",
+				subdivisionVillage:
+					assistanceDetails[type].subdivisionVillage ||
+					metadata.subdivisionVillage ||
+					"",
+				scholarshipBarangay:
+					assistanceDetails[type].scholarshipBarangay ||
+					metadata.barangay ||
+					legacyBarangay ||
+					"",
+				cityMunicipality:
+					assistanceDetails[type].cityMunicipality ||
+					metadata.cityMunicipality ||
+					constituent.household.town ||
+					"",
+				province:
+					assistanceDetails[type].province ||
+					metadata.province ||
+					legacyProvince ||
+					"",
+				zipCode:
+					assistanceDetails[type].zipCode ||
+					metadata.zipCode ||
+					legacyZipCode ||
+					"",
+				contactNumber:
+					assistanceDetails[type].contactNumber ||
+					constituent.contactNumber ||
+					"",
 			};
 		}
 
@@ -74,9 +238,9 @@ export class BeneficiaryService {
 				yearLevel: latestScholarship.yearLevel,
 				heiUii: latestScholarship.heiUii,
 				heiName: latestScholarship.heiName,
-				street: constituent.household.streetAndBarangay,
+				street: legacyStreet,
 				subdivisionVillage: "",
-				scholarshipBarangay: constituent.household.streetAndBarangay,
+				scholarshipBarangay: legacyBarangay,
 				cityMunicipality: constituent.household.town,
 				province: latestScholarship.province,
 				zipCode: latestScholarship.zipCode.toString(),

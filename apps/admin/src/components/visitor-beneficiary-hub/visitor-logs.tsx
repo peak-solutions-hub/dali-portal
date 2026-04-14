@@ -771,15 +771,19 @@ export function VisitorLogs() {
 												{getRequiredFieldMessage("reasonForVisitAffiliation")}
 											</div>
 										</div>
-										<DialogFooter>
-											<Button
-												type="button"
-												variant="ghost"
-												onClick={() => setIsDialogOpen(false)}
-											>
-												Cancel
-											</Button>
-											<Button type="submit">Save Visitor</Button>
+										<DialogFooter className="flex w-full items-center justify-between sm:justify-between">
+											<div className="flex items-center gap-2">
+												<Button
+													type="button"
+													variant="ghost"
+													onClick={() => setIsDialogOpen(false)}
+												>
+													Cancel
+												</Button>
+											</div>
+											<div>
+												<Button type="submit">Save Visitor</Button>
+											</div>
 										</DialogFooter>
 									</form>
 								</DialogContent>
@@ -816,7 +820,7 @@ export function VisitorLogs() {
 									Purpose / Affiliation
 								</TableHead>
 								<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-48">
-									Date/Time
+									Date / Time
 								</TableHead>
 								<TableHead className="px-6 py-3 text-sm font-medium text-gray-700 w-36">
 									Logged By

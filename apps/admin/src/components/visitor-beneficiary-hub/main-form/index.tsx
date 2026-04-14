@@ -59,7 +59,9 @@ const REQUIRED_FIELD_LABELS: Partial<Record<keyof MainFormState, string>> = {
 	phoneNumber: "Phone Number",
 	medicineName: "Medicine / Prescription",
 	hospitalName: "Hospital Name",
-	deceasedName: "Deceased Name",
+	deceasedLastName: "Deceased Last Name",
+	deceasedGivenName: "Deceased Given Name",
+	deceasedMiddleName: "Deceased Middle Name",
 	relationToDeceased: "Relation to Deceased",
 	laboratoryType: "Laboratory Test Type",
 };
@@ -106,7 +108,12 @@ export function MainForm({
 		if (selectedAssistanceType === "Hospital Bill Assistance")
 			return ["hospitalName"];
 		if (selectedAssistanceType === "Burial Assistance")
-			return ["deceasedName", "relationToDeceased"];
+			return [
+				"deceasedLastName",
+				"deceasedGivenName",
+				"deceasedMiddleName",
+				"relationToDeceased",
+			];
 		if (selectedAssistanceType === "Laboratory Fees Assistance")
 			return ["laboratoryType"];
 
@@ -547,22 +554,60 @@ export function MainForm({
 							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div>
 									<label className="text-sm font-medium text-gray-700">
-										Deceased Name <span className="text-red-500">*</span>
+										Deceased Last Name <span className="text-red-500">*</span>
 									</label>
 									<Input
 										className={
-											hasFieldError("deceasedName")
+											hasFieldError("deceasedLastName")
 												? "border-red-500"
 												: undefined
 										}
-										value={formState.deceasedName}
+										value={formState.deceasedLastName}
 										onChange={(e) =>
-											updateField("deceasedName", e.target.value)
+											updateField("deceasedLastName", e.target.value)
 										}
-										placeholder="Enter deceased name"
+										placeholder="Enter deceased last name"
 										required
 									/>
-									{getRequiredFieldMessage("deceasedName")}
+									{getRequiredFieldMessage("deceasedLastName")}
+								</div>
+								<div>
+									<label className="text-sm font-medium text-gray-700">
+										Deceased Given Name <span className="text-red-500">*</span>
+									</label>
+									<Input
+										className={
+											hasFieldError("deceasedGivenName")
+												? "border-red-500"
+												: undefined
+										}
+										value={formState.deceasedGivenName}
+										onChange={(e) =>
+											updateField("deceasedGivenName", e.target.value)
+										}
+										placeholder="Enter deceased given name"
+										required
+									/>
+									{getRequiredFieldMessage("deceasedGivenName")}
+								</div>
+								<div>
+									<label className="text-sm font-medium text-gray-700">
+										Deceased Middle Name <span className="text-red-500">*</span>
+									</label>
+									<Input
+										className={
+											hasFieldError("deceasedMiddleName")
+												? "border-red-500"
+												: undefined
+										}
+										value={formState.deceasedMiddleName}
+										onChange={(e) =>
+											updateField("deceasedMiddleName", e.target.value)
+										}
+										placeholder="Enter deceased middle name"
+										required
+									/>
+									{getRequiredFieldMessage("deceasedMiddleName")}
 								</div>
 								<div>
 									<label className="text-sm font-medium text-gray-700">
@@ -610,33 +655,37 @@ export function MainForm({
 					</>
 				)}
 
-				<DialogFooter>
-					<Button type="button" variant="ghost" onClick={onCancel}>
-						Cancel
-					</Button>
-					{step > 1 && (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setStep((prev) => prev - 1)}
-						>
-							Back
+				<DialogFooter className="flex w-full items-center justify-between sm:justify-between">
+					<div className="flex items-center gap-2">
+						<Button type="button" variant="ghost" onClick={onCancel}>
+							Cancel
 						</Button>
-					)}
-					{step < 3 ? (
-						<Button
-							type="button"
-							onClick={() => {
-								if (!validateCurrentStep()) return;
-								if (!validateStepTwoPhone()) return;
-								setStep((prev) => prev + 1);
-							}}
-						>
-							Next
-						</Button>
-					) : (
-						<Button type="submit">Save Beneficiary</Button>
-					)}
+						{step > 1 && (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => setStep((prev) => prev - 1)}
+							>
+								Previous
+							</Button>
+						)}
+					</div>
+					<div>
+						{step < 3 ? (
+							<Button
+								type="button"
+								onClick={() => {
+									if (!validateCurrentStep()) return;
+									if (!validateStepTwoPhone()) return;
+									setStep((prev) => prev + 1);
+								}}
+							>
+								Next
+							</Button>
+						) : (
+							<Button type="submit">Save Beneficiary</Button>
+						)}
+					</div>
 				</DialogFooter>
 			</form>
 		</Form>
