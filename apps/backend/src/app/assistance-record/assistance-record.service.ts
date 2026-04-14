@@ -6,9 +6,118 @@ import {
 } from "@repo/shared";
 import { DbService } from "@/app/db/db.service";
 
+type DuplicatePersonCheckInput = {
+	purpose: string;
+	patientLastName?: string;
+	patientGivenName?: string;
+	patientMiddleName?: string;
+	deceasedLastName?: string;
+	deceasedGivenName?: string;
+	deceasedMiddleName?: string;
+};
+
+type DuplicatePersonCheckResponse = {
+	matches: Array<{
+		id: string;
+		assistanceType: string;
+		claimantName: string;
+		personName: string;
+		matchedAs: "patient" | "deceased";
+		createdAt: string;
+	}>;
+};
+
 @Injectable()
 export class AssistanceRecordService {
 	constructor(private readonly db: DbService) {}
+
+	private normalizeName(value: string): string {
+		return value
+			.toLowerCase()
+			.replace(/[^\p{L}\p{N}\s]/gu, " ")
+			.replace(/\s+/g, " ")
+			.trim();
+	}
+
+	private parseAssistanceMeta(raw: string): {
+		claimantLastName: string;
+		claimantGivenName: string;
+		claimantMiddleName: string;
+		patientLastName: string;
+		patientGivenName: string;
+		patientMiddleName: string;
+		deceasedLastName: string;
+		deceasedGivenName: string;
+		deceasedMiddleName: string;
+	} {
+		if (!raw.trim()) {
+			return {
+				claimantLastName: "",
+				claimantGivenName: "",
+				claimantMiddleName: "",
+				patientLastName: "",
+				patientGivenName: "",
+				patientMiddleName: "",
+				deceasedLastName: "",
+				deceasedGivenName: "",
+				deceasedMiddleName: "",
+			};
+		}
+
+		try {
+			const parsed = JSON.parse(raw) as Record<string, unknown>;
+			return {
+				claimantLastName:
+					typeof parsed.claimantLastName === "string"
+						? parsed.claimantLastName
+						: "",
+				claimantGivenName:
+					typeof parsed.claimantGivenName === "string"
+						? parsed.claimantGivenName
+						: "",
+				claimantMiddleName:
+					typeof parsed.claimantMiddleName === "string"
+						? parsed.claimantMiddleName
+						: "",
+				patientLastName:
+					typeof parsed.patientLastName === "string"
+						? parsed.patientLastName
+						: "",
+				patientGivenName:
+					typeof parsed.patientGivenName === "string"
+						? parsed.patientGivenName
+						: "",
+				patientMiddleName:
+					typeof parsed.patientMiddleName === "string"
+						? parsed.patientMiddleName
+						: "",
+				deceasedLastName:
+					typeof parsed.deceasedLastName === "string"
+						? parsed.deceasedLastName
+						: "",
+				deceasedGivenName:
+					typeof parsed.deceasedGivenName === "string"
+						? parsed.deceasedGivenName
+						: "",
+				deceasedMiddleName:
+					typeof parsed.deceasedMiddleName === "string"
+						? parsed.deceasedMiddleName
+						: "",
+			};
+		} catch {
+			return {
+				claimantLastName: "",
+				claimantGivenName: "",
+				claimantMiddleName: "",
+				patientLastName: "",
+				patientGivenName: "",
+				patientMiddleName: "",
+				deceasedLastName: "",
+				deceasedGivenName: "",
+				deceasedMiddleName: "",
+			};
+		}
+	}
 
 	private toFullName(
 		lastName?: string,
@@ -119,5 +228,79 @@ export class AssistanceRecordService {
 		});
 
 		return { id: assistanceRecord.id };
+	}
+
+	async checkDuplicatePerson(
+		input: unknown,
+	): Promise<DuplicatePersonCheckResponse> {
+		const payload = input as DuplicatePersonCheckInput;
+		const isBurial = payload.purpose.trim() === "Burial Assistance";
+
+		const targetPersonName = isBurial
+			? this.toFullName(
+					payload.deceasedLastName,
+					payload.deceasedGivenName,
+					payload.deceasedMiddleName,
+				)
+			: this.toFullName(
+					payload.patientLastName,
+					payload.patientGivenName,
+					payload.patientMiddleName,
+				);
+
+		const normalizedTarget = this.normalizeName(targetPersonName);
+		if (!normalizedTarget) {
+			throw new AppError(
+				"GENERAL.BAD_REQUEST",
+				isBurial
+					? "Deceased name is required for duplicate checking."
+					: "Patient name is required for duplicate checking.",
+			);
+		}
+
+		const records = await this.db.assistanceRecord.findMany({
+			orderBy: {
+				createdAt: "desc",
+			},
+		});
+
+		const matches = records
+			.flatMap((record) => {
+				const metadata = this.parseAssistanceMeta(record.referredBy);
+				const personName = isBurial
+					? this.toFullName(
+							metadata.deceasedLastName,
+							metadata.deceasedGivenName,
+							metadata.deceasedMiddleName,
+						) || record.patientName
+					: this.toFullName(
+							metadata.patientLastName,
+							metadata.patientGivenName,
+							metadata.patientMiddleName,
+						) || record.patientName;
+
+				if (this.normalizeName(personName) !== normalizedTarget) {
+					return [];
+				}
+
+				return [
+					{
+						id: record.id,
+						assistanceType: record.type,
+						claimantName:
+							this.toFullName(
+								metadata.claimantLastName,
+								metadata.claimantGivenName,
+								metadata.claimantMiddleName,
+							) || "Unknown claimant",
+						personName,
+						matchedAs: isBurial ? ("deceased" as const) : ("patient" as const),
+						createdAt: record.createdAt.toISOString(),
+					},
+				];
+			})
+			.filter((match) => match.personName.trim() !== "");
+
+		return { matches };
 	}
 }

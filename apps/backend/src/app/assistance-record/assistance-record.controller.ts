@@ -21,4 +21,15 @@ export class AssistanceRecordController {
 			},
 		);
 	}
+
+	@SkipThrottle({ short: true, default: true })
+	@Roles(...ROLE_PERMISSIONS.VISITOR_BENEFICIARY_HUB)
+	@Implement(contract.assistanceRecords.checkDuplicatePerson)
+	checkDuplicatePerson() {
+		return implement(contract.assistanceRecords.checkDuplicatePerson).handler(
+			async ({ input }) => {
+				return await this.assistanceRecordService.checkDuplicatePerson(input);
+			},
+		);
+	}
 }

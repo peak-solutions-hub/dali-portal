@@ -35,6 +35,7 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import { Textarea } from "@repo/ui/components/textarea";
+import { createBrowserClient } from "@repo/ui/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfDay, format, startOfDay } from "date-fns";
 import {
@@ -48,7 +49,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { api, orpc } from "@/lib/api.client";
+import { api, orpc, setAuthToken } from "@/lib/api.client";
 import { AssistanceForm } from "./assistance-form";
 import {
 	ASSISTANCE_TYPES,
@@ -96,6 +97,15 @@ type BeneficiaryRecord = {
 type VisitEditorState = {
 	beneficiaryId: string;
 	visit: VisitEntry;
+};
+
+type DuplicatePersonMatch = {
+	id: string;
+	assistanceType: string;
+	claimantName: string;
+	personName: string;
+	matchedAs: "patient" | "deceased";
+	createdAt: string;
 };
 
 const INITIAL_BENEFICIARIES: BeneficiaryRecord[] = [];
@@ -255,12 +265,14 @@ const ASSISTANCE_ADDRESS_FIELDS: Array<keyof MainFormState> = [
 ];
 
 const DECEASED_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"deceasedLastName",
 	"deceasedGivenName",
 	"deceasedMiddleName",
 	"burialDate",
 ];
 
 const PATIENT_INFORMATION_FIELDS: Array<keyof MainFormState> = [
+	"patientLastName",
 	"patientGivenName",
 	"patientMiddleName",
 ];
@@ -375,7 +387,7 @@ function formatAssistanceDetailValue(
 		if (value === "prefer_not_to_say") return "Prefer not to say";
 	}
 
-	if (field.includes("date")) {
+	if (field.toLowerCase().includes("date")) {
 		const parsedDate = new Date(value);
 		if (!Number.isNaN(parsedDate.getTime())) {
 			return format(parsedDate, "MMM d, yyyy");
@@ -383,6 +395,81 @@ function formatAssistanceDetailValue(
 	}
 
 	return value;
+}
+
+function buildPersonNameSearchIndex(
+	details: Partial<Record<keyof MainFormState, string>>,
+): string {
+	const normalize = (value?: string): string =>
+		(value ?? "")
+			.toLowerCase()
+			.replace(/[^\p{L}\p{N}\s]/gu, " ")
+			.replace(/\s+/g, " ")
+			.trim();
+
+	const buildNameVariants = (
+		givenName?: string,
+		middleName?: string,
+		lastName?: string,
+	): string[] => {
+		const given = normalize(givenName);
+		const middle = normalize(middleName);
+		const last = normalize(lastName);
+
+		const variants = new Set<string>();
+		const join = (...parts: string[]) =>
+			parts
+				.filter((part) => part !== "")
+				.join(" ")
+				.trim();
+
+		if (given) variants.add(given);
+		if (middle) variants.add(middle);
+		if (last) variants.add(last);
+		if (given && last) variants.add(join(given, last));
+		if (given && middle && last) variants.add(join(given, middle, last));
+		if (middle && last) variants.add(join(middle, last));
+
+		// Include alternate order to match records encoded by surname-first patterns.
+		if (last && given) variants.add(join(last, given));
+		if (last && given && middle) variants.add(join(last, given, middle));
+
+		return Array.from(variants);
+	};
+
+	const variants = [
+		...buildNameVariants(
+			details.patientGivenName,
+			details.patientMiddleName,
+			details.patientLastName,
+		),
+		...buildNameVariants(
+			details.deceasedGivenName,
+			details.deceasedMiddleName,
+			details.deceasedLastName,
+		),
+	];
+
+	return variants.join(" ");
+}
+
+function normalizePersonName(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[^\p{L}\p{N}\s]/gu, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function composePersonName(
+	lastName?: string,
+	givenName?: string,
+	middleName?: string,
+): string {
+	return [givenName, middleName, lastName]
+		.map((part) => part?.trim() ?? "")
+		.filter((part) => part !== "")
+		.join(" ");
 }
 
 const PROFILE_TABS: Array<{ id: "overview" | "timeline"; label: string }> = [
@@ -424,6 +511,7 @@ const normalizeBeneficiaries = (
 	}));
 
 export function BeneficiaryDatabase() {
+	const [supabase] = useState(() => createBrowserClient());
 	const queryClient = useQueryClient();
 	const beneficiariesQuery = orpc.beneficiaries.list.queryOptions();
 	const { data: beneficiariesData, isLoading: isBeneficiariesLoading } =
@@ -468,6 +556,12 @@ export function BeneficiaryDatabase() {
 	const [visitEditorError, setVisitEditorError] = useState<string | null>(null);
 	const [visitDetailsStep, setVisitDetailsStep] = useState(1);
 	const [profileDetailsPage, setProfileDetailsPage] = useState(1);
+	const [isDuplicateCheckDialogOpen, setIsDuplicateCheckDialogOpen] =
+		useState(false);
+	const [duplicatePersonMatches, setDuplicatePersonMatches] = useState<
+		DuplicatePersonMatch[]
+	>([]);
+	const [isAssistanceSubmitting, setIsAssistanceSubmitting] = useState(false);
 	const assistanceFilterOptions = useMemo(
 		() =>
 			Array.from(
@@ -986,7 +1080,152 @@ export function BeneficiaryDatabase() {
 			return;
 		}
 
-		const [error] = await api.assistanceRecords.create({
+		const duplicatePayload = {
+			purpose: assistanceFormState.purpose,
+			patientLastName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? undefined
+					: assistanceFormState.patientLastName,
+			patientGivenName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? undefined
+					: assistanceFormState.patientGivenName,
+			patientMiddleName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? undefined
+					: assistanceFormState.patientMiddleName,
+			deceasedLastName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? assistanceFormState.deceasedLastName
+					: undefined,
+			deceasedGivenName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? assistanceFormState.deceasedGivenName
+					: undefined,
+			deceasedMiddleName:
+				assistanceFormState.purpose === "Burial Assistance"
+					? assistanceFormState.deceasedMiddleName
+					: undefined,
+		};
+
+		let [duplicateError, duplicateData] =
+			await api.assistanceRecords.checkDuplicatePerson(duplicatePayload);
+
+		if (duplicateError && isDefinedError(duplicateError)) {
+			const isUnauthorized = duplicateError.status === 401;
+			if (isUnauthorized) {
+				const synced = await syncAuthTokenFromSession();
+				if (synced) {
+					[duplicateError, duplicateData] =
+						await api.assistanceRecords.checkDuplicatePerson(duplicatePayload);
+				}
+			}
+		}
+
+		if (duplicateError) {
+			const targetName =
+				assistanceFormState.purpose === "Burial Assistance"
+					? composePersonName(
+							assistanceFormState.deceasedLastName,
+							assistanceFormState.deceasedGivenName,
+							assistanceFormState.deceasedMiddleName,
+						)
+					: composePersonName(
+							assistanceFormState.patientLastName,
+							assistanceFormState.patientGivenName,
+							assistanceFormState.patientMiddleName,
+						);
+			const normalizedTargetName = normalizePersonName(targetName);
+
+			const localMatches = beneficiaries
+				.flatMap((beneficiary) => {
+					return Object.entries(beneficiary.assistanceDetails).flatMap(
+						([assistanceType, details]) => {
+							const personName =
+								assistanceFormState.purpose === "Burial Assistance"
+									? composePersonName(
+											details.deceasedLastName,
+											details.deceasedGivenName,
+											details.deceasedMiddleName,
+										)
+									: composePersonName(
+											details.patientLastName,
+											details.patientGivenName,
+											details.patientMiddleName,
+										);
+
+							if (
+								normalizePersonName(personName) !== normalizedTargetName ||
+								personName.trim() === ""
+							) {
+								return [];
+							}
+
+							return [
+								{
+									id: `${beneficiary.id}-${assistanceType}`,
+									assistanceType,
+									claimantName: beneficiary.name,
+									personName,
+									matchedAs:
+										assistanceFormState.purpose === "Burial Assistance"
+											? ("deceased" as const)
+											: ("patient" as const),
+									createdAt: beneficiary.createdAt,
+								},
+							];
+						},
+					);
+				})
+				.slice(0, 10);
+
+			if (localMatches.length > 0) {
+				setDuplicatePersonMatches(localMatches);
+				setIsDuplicateCheckDialogOpen(true);
+				setAssistanceErrorMessage(null);
+				toast.warning(
+					"Online duplicate verification is unavailable. Using local records.",
+				);
+				return;
+			}
+
+			if (!isBeneficiariesLoading) {
+				setDuplicatePersonMatches([]);
+				setIsDuplicateCheckDialogOpen(false);
+				setAssistanceErrorMessage(null);
+				toast.warning(
+					"Online duplicate verification is unavailable. No duplicates found in local records.",
+				);
+				await submitAssistanceRecord();
+				return;
+			}
+
+			const systemErrorMessage =
+				"Unable to verify duplicate records right now. Please try again.";
+			setDuplicatePersonMatches([]);
+			setIsDuplicateCheckDialogOpen(false);
+			setAssistanceErrorMessage(systemErrorMessage);
+			toast.error(systemErrorMessage);
+			return;
+		}
+
+		const matches =
+			(duplicateData as { matches: DuplicatePersonMatch[] } | undefined)
+				?.matches ?? [];
+		if (matches.length > 0) {
+			setDuplicatePersonMatches(matches);
+			setIsDuplicateCheckDialogOpen(true);
+			setAssistanceErrorMessage(null);
+			return;
+		}
+
+		await submitAssistanceRecord();
+	};
+
+	const submitAssistanceRecord = async () => {
+		setIsAssistanceSubmitting(true);
+
+		const createPayload = {
 			seq: assistanceFormState.seq,
 			purpose: assistanceFormState.purpose,
 			claimantLastName: assistanceFormState.claimantLastName,
@@ -1027,16 +1266,29 @@ export function BeneficiaryDatabase() {
 			province: assistanceFormState.province,
 			zipCode: assistanceFormState.zipCode,
 			contactNumber: assistanceFormState.contactNumber,
-		});
+		};
+
+		let [error] = await api.assistanceRecords.create(createPayload);
+
+		if (error && isDefinedError(error) && error.status === 401) {
+			const synced = await syncAuthTokenFromSession();
+			if (synced) {
+				[error] = await api.assistanceRecords.create(createPayload);
+			}
+		}
 
 		if (error) {
+			setIsAssistanceSubmitting(false);
 			setAssistanceErrorMessage(
 				isDefinedError(error) ? error.message : "Failed to save assistance.",
 			);
-			return;
+			return false;
 		}
 
+		setIsAssistanceSubmitting(false);
 		setAssistanceErrorMessage(null);
+		setDuplicatePersonMatches([]);
+		setIsDuplicateCheckDialogOpen(false);
 		setNextAssistanceNo((prev) => prev + 1);
 		setAssistanceFormState(INITIAL_BENEFICIARY_FORM_STATE);
 		setIsAssistanceDialogOpen(false);
@@ -1044,6 +1296,8 @@ export function BeneficiaryDatabase() {
 		await queryClient.invalidateQueries({
 			queryKey: beneficiariesQuery.queryKey,
 		});
+
+		return true;
 	};
 
 	const handleScholarshipDialogChange = (open: boolean) => {
@@ -1058,6 +1312,8 @@ export function BeneficiaryDatabase() {
 		setIsAssistanceDialogOpen(open);
 		if (!open) {
 			setAssistanceErrorMessage(null);
+			setDuplicatePersonMatches([]);
+			setIsDuplicateCheckDialogOpen(false);
 			setAssistanceFormState(INITIAL_BENEFICIARY_FORM_STATE);
 		}
 	};
@@ -1081,6 +1337,33 @@ export function BeneficiaryDatabase() {
 		setIsAssistanceDialogOpen(true);
 	};
 
+	const handleContinueWithDuplicate = async () => {
+		await submitAssistanceRecord();
+	};
+
+	const syncAuthTokenFromSession = async (): Promise<boolean> => {
+		const { data: sessionData } = await supabase.auth.getSession();
+
+		if (sessionData.session?.access_token) {
+			setAuthToken(sessionData.session.access_token);
+			return true;
+		}
+
+		const { data: refreshedSession } = await supabase.auth.refreshSession();
+		if (refreshedSession.session?.access_token) {
+			setAuthToken(refreshedSession.session.access_token);
+			return true;
+		}
+
+		setAuthToken(null);
+		return false;
+	};
+
+	const handleCloseDuplicateDialog = () => {
+		setDuplicatePersonMatches([]);
+		setIsDuplicateCheckDialogOpen(false);
+	};
+
 	const totalBeneficiaries = beneficiaries.length;
 	const activeFilterCount =
 		selectedAssistance.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
@@ -1091,9 +1374,17 @@ export function BeneficiaryDatabase() {
 		const normalizedQuery = searchQuery.trim().toLowerCase();
 
 		if (normalizedQuery) {
-			data = data.filter((beneficiary) =>
-				beneficiary.name.toLowerCase().includes(normalizedQuery),
-			);
+			data = data.filter((beneficiary) => {
+				const personNameIndex = Object.values(beneficiary.assistanceDetails)
+					.map((details) => buildPersonNameSearchIndex(details ?? {}))
+					.filter((value) => value !== "")
+					.join(" ");
+
+				return (
+					beneficiary.name.toLowerCase().includes(normalizedQuery) ||
+					personNameIndex.includes(normalizedQuery)
+				);
+			});
 		}
 
 		if (selectedAssistance.length) {
@@ -1523,9 +1814,9 @@ export function BeneficiaryDatabase() {
 									type="search"
 									value={searchQuery}
 									onChange={(event) => setSearchQuery(event.target.value)}
-									placeholder="Search beneficiary"
+									placeholder="Search beneficiary, patient, or deceased"
 									className="pl-9"
-									aria-label="Search beneficiary"
+									aria-label="Search beneficiary, patient, or deceased"
 								/>
 							</div>
 						</div>
@@ -1582,6 +1873,69 @@ export function BeneficiaryDatabase() {
 										onSubmit={handleAssistanceSubmit}
 										onCancel={() => setIsAssistanceDialogOpen(false)}
 									/>
+								</DialogContent>
+							</Dialog>
+
+							<Dialog
+								open={isDuplicateCheckDialogOpen}
+								onOpenChange={(open) => {
+									if (!open) {
+										handleCloseDuplicateDialog();
+									}
+								}}
+							>
+								<DialogContent className="sm:max-w-xl">
+									<DialogHeader>
+										<DialogTitle>Potential Duplicate Found</DialogTitle>
+										<DialogDescription>
+											There is already an existing patient/deceased in the
+											records. Proceed with adding this assistance?
+										</DialogDescription>
+									</DialogHeader>
+									<div className="max-h-72 space-y-2 overflow-y-auto rounded-md border border-amber-200 bg-amber-50 p-3">
+										{duplicatePersonMatches.map((match) => (
+											<div
+												key={match.id}
+												className="rounded-md border border-amber-200 bg-white p-3"
+											>
+												<p className="text-sm font-semibold text-gray-900">
+													{match.personName}
+												</p>
+												<p className="text-xs text-gray-600">
+													Claimant: {match.claimantName}
+												</p>
+												<p className="text-xs text-gray-600">
+													Assistance: {match.assistanceType}
+												</p>
+												<p className="text-xs text-gray-600">
+													Matched as: {match.matchedAs}
+												</p>
+												<p className="text-xs text-gray-600">
+													Date:{" "}
+													{format(new Date(match.createdAt), "MMM d, yyyy")}
+												</p>
+											</div>
+										))}
+									</div>
+									<DialogFooter className="flex w-full items-center justify-between sm:justify-between">
+										<Button
+											type="button"
+											variant="ghost"
+											onClick={handleCloseDuplicateDialog}
+										>
+											Cancel
+										</Button>
+										<Button
+											type="button"
+											onClick={handleContinueWithDuplicate}
+											disabled={isAssistanceSubmitting}
+											className="bg-[#a60202] text-white hover:bg-[#8a0101]"
+										>
+											{isAssistanceSubmitting
+												? "Submitting..."
+												: "Yes, Proceed"}
+										</Button>
+									</DialogFooter>
 								</DialogContent>
 							</Dialog>
 
