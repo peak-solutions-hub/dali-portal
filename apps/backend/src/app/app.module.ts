@@ -6,8 +6,10 @@ import { ORPCError, ORPCModule, onError } from "@orpc/nest";
 import { experimental_RethrowHandlerPlugin as RethrowHandlerPlugin } from "@orpc/server/plugins";
 import { Request } from "express";
 import { AppController } from "@/app/app.controller";
+import { AssistanceRecordModule } from "@/app/assistance-record/assistance-record.module";
 import { RolesGuard } from "@/app/auth/guards/roles.guard";
 import { JwtStrategy } from "@/app/auth/strategies/jwt.strategy";
+import { BeneficiaryModule } from "@/app/beneficiary/beneficiary.module";
 import { DbModule } from "@/app/db/db.module";
 import {
 	DriverAdapterExceptionFilter,
@@ -22,9 +24,11 @@ import { InquiryTicketModule } from "@/app/inquiry-ticket/inquiry-ticket.module"
 import { LegislativeDocumentsModule } from "@/app/legislative-documents/legislative-documents.module";
 import { RolesModule } from "@/app/roles/roles.module";
 import { RoomBookingModule } from "@/app/room-booking/room-booking.module";
+import { ScholarshipApplicationModule } from "@/app/scholarship-application/scholarship-application.module";
 import { SessionModule } from "@/app/session/session.module";
 import { UsersModule } from "@/app/users/users.module";
 import { SupabaseModule } from "@/app/util/supabase/supabase.module";
+import { VisitorLogModule } from "@/app/visitor-log/visitor-log.module";
 import { LibModule } from "@/lib/lib.module";
 import { AppService } from "./app.service";
 
@@ -50,6 +54,10 @@ declare module "@orpc/nest" {
 		RoomBookingModule,
 		UsersModule,
 		SessionModule,
+		VisitorLogModule,
+		BeneficiaryModule,
+		AssistanceRecordModule,
+		ScholarshipApplicationModule,
 		// orpc
 		ORPCModule.forRootAsync({
 			inject: [REQUEST],
